@@ -18,7 +18,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('../src/renderer', import.meta.url))
-        }
+        },
+        extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'] // 显式包含 .vue
     }
 
 }
