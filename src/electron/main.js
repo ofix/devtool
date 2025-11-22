@@ -5,26 +5,27 @@ const { title } = require('process')
 
 const createWindow = () => {
     const window = new BrowserWindow({
-        width: 800,
-        height: 600,
+        width: 1280,
+        height: 960,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: true,
+            contextIsolation: true,
+            sandbox: false,
             webSecurity: false
         },
         icon: path.join(__dirname, 'title.ico')
     })
 
-    let devUrl = process.argv[2]
-    if (devUrl) {
-        window.loadURL(devUrl)
+    let listenUrl = process.argv[2]
+    if (listenUrl) {
+        window.loadURL(listenUrl)
     } else {
         // __dirname 是当前 main.js 所在目录：src/electron
         // ../../dist/renderer/index.html = app.asar/dist/renderer/index.html
         const entryPath = path.join(__dirname, '../../dist/renderer/index.html');
-        // 转为 file 协议 URL（Electron 会自动识别 asar 内路径）
+        // 使用 file 协议 URL（Electron 会自动识别 asar 内路径）
         window.loadURL(`file://${entryPath}`);
-        // 调试用：如果路径不对，打印出来看（打包后也能在控制台看到）
-        console.log('实际加载路径：', `file://${entryPath}`);
     }
 
 
@@ -66,7 +67,6 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length > 0) createWindow()
 
     })
-    console.log('--- app ready ---')
 })
 
 // 对于 macOS，当所有窗口都关闭时，应用通常不会退出，而是保持在 Dock 中。

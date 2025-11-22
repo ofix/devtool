@@ -6,7 +6,7 @@
   "description": "development tool for electron",
   "main": "dist/electron/main.js",
   "scripts": {
-    "dev": "vite && electron .",
+    "dev": "vite --port=8080",
     "build": "vite build",
     "preview": "vite preview",
     "start": "electron-forge start",
