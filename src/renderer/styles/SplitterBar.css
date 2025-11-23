@@ -1,0 +1,10 @@
+/* 2. 全局覆盖 水平方向拖拽手柄（你的核心目标） */
+/* 基础状态：默认颜色 */
+.el-splitter-bar__dragger-horizontal:after,
+.el-splitter-bar__dragger-horizontal:before {
+  width: 1px !important;
+}
+
+:root {
+  --el-border-color-light: #3a3a3a;
+}

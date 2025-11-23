@@ -2,12 +2,12 @@
   <router-view />
 </template>
 
-<script setup></script>
-
-<style>
-*,
-body {
-  margin: 0;
-  padding: 0;
-}
-</style>
+<script setup>
+import { onMounted, onUnmounted } from "vue";
+onMounted(() => {
+  // 获取设备的 DPR 值
+  const dpr = window.devicePixelRatio || 1;
+  document.documentElement.style.setProperty("--dpr", dpr);
+  console.log("Device Pixel Ratio:", dpr);
+});
+</script>

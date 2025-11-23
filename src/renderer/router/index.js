@@ -6,6 +6,7 @@ export const routes = MenuRoutes.map(route => ({
   name: route.name,
   component: route.component,
   meta: route.meta,
+  redirect: route.redirect,
   children: route.children?.map(child => ({
     path: child.path,
     name: child.name,

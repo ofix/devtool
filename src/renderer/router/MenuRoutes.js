@@ -6,11 +6,12 @@ import VSCodeLayout from '@/layout/VSCodeLayout.vue'
 const MenuRoutes = [
   {
     path: '/',
-    name: 'RemoteDebug',
+    name: 'Root',
     component: VSCodeLayout,
+    redirect: '/debug',
     meta: {
       icon: SSHIcon,
-      title: '远程调试',
+      title: '界面调试',
       desc: ''
     },
     children: [
@@ -20,7 +21,7 @@ const MenuRoutes = [
         component: () => import('@/views/Debug/Debug.vue'),
         meta: {
           icon: SSHIcon,
-          title: '远程调试',
+          title: '界面调试',
           desc: ''
         }
       },

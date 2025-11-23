@@ -1,27 +1,22 @@
 <template>
   <div class="page-debug">
-    <div class="big-tip">{{ tip }}</div>
+    <el-splitter>
+      <el-splitter-panel :min="100" :size="300">
+        <div class="panel-left"></div>
+      </el-splitter-panel>
+      <el-splitter-panel>
+        <div class="panel-right"></div>
+      </el-splitter-panel>
+    </el-splitter>
   </div>
 </template>
 
-<script>
-export default {
-  name: "Debug",
-  data() {
-    return {
-      tip: "调试页面",
-    };
-  },
-  computed: {},
-  methods: {},
-};
+<script setup>
+import { ref } from "vue";
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .page-debug {
-  .big-tip {
-    font-size: 28px;
-    color: #00ff00;
-  }
+  height: 100%;
 }
 </style>

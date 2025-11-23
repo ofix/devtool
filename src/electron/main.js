@@ -1,12 +1,25 @@
 const { app, BrowserWindow, Menu, globalShortcut, ipcMain } = require('electron')
 const path = require('path')
-const fs = require('fs')
-const { title } = require('process')
+
+const isWin = process.platform === 'win32'
+const isMac = process.platform === 'darwin'
+const isLinux = process.platform === 'linux'
 
 const createWindow = () => {
     const window = new BrowserWindow({
         width: 1280,
         height: 960,
+        icon: path.join(__dirname, '../renderer/assets/devtool.ico'),
+        frame: isLinux, // Linux 使用系统标题栏；Windows/macOS 使用隐藏式标题栏
+        titleBarStyle: (isWin || isMac) ? 'hidden' : 'default',
+        // 仅在 Windows/Linux 且使用 hidden 样式时，才启用 titleBarOverlay
+        ...((isWin || isMac) && {
+            titleBarOverlay: {
+                color: '#1f1f1f',       // Windows 可自定义背景色
+                symbolColor: '#C7C7C7', // Windows 可自定义按钮颜色
+                height: 34                 // 标题栏高度（整数，单位 px）
+            },
+        }),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: true,
@@ -14,7 +27,6 @@ const createWindow = () => {
             sandbox: false,
             webSecurity: false
         },
-        icon: path.join(__dirname, 'title.ico')
     })
 
     let listenUrl = process.argv[2]
@@ -57,6 +69,17 @@ const createWindow = () => {
             window.fullScreen = false;  // 还原
         }
     })
+
+    ipcMain.on('window-minimize', () => window.minimize())
+    ipcMain.on('window-close', () => window.close())
+
+    ipcMain.on('window-maximize-toggle', () => {
+        if (window.isMaximized()) window.unmaximize()
+        else window.maximize()
+    })
+    // 可选：同步状态
+    window.on('maximize', () => window.webContents.send('maximized'))
+    window.on('unmaximize', () => window.webContents.send('unmaximized'))
 }
 
 

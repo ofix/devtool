@@ -1,18 +1,25 @@
 <template>
   <div class="vscode-menu">
-    <div
+    <el-tooltip
       v-for="item in menuItems"
       :key="item.path"
-      :class="['menu-item', { active: activeMenuPath === item.path }]"
-      @click="onMenuItemClick(item)"
-      v-tooltip="{
-        content: item.name,
-        placement: 'right',
-      }"
+      :content="item.desc"
+      placement="right"
+      :append-to-body="true"
+      :popper-class="`vscode-menu-tooltip ${activeMenuPath === item.path ? 'is-active' : ''}`"
     >
-      <!-- 使用动态组件渲染 SVG 图标 -->
-      <component :is="item.icon" />
-    </div>
+      <template #content>
+        <span>{{ item.desc }}</span>
+      </template>
+      <div
+        :class="['menu-item', { active: activeMenuPath === item.path }]"
+        @click="onMenuItemClick(item)"
+      >
+        <div>
+          <component :is="item.icon" />
+        </div>
+      </div>
+    </el-tooltip>
   </div>
 </template>
 
@@ -27,7 +34,7 @@ const route = useRoute();
 
 const menuItems = MenuRoutes.flatMap((route) => [
   ...(route.children?.map((child) => ({
-    path: child.name,
+    path: child.path,
     name: child.name,
     icon: child.meta.icon,
     desc: child.meta.title,
@@ -64,7 +71,6 @@ const setActiveFromRoute = () => {
 
 // 点击菜单项
 const onMenuItemClick = (item) => {
-  console.log("点击菜单项:", item);
   if (item.route) {
     router.push(item.route).catch((err) => {});
   }
@@ -84,10 +90,9 @@ onMounted(() => {
 .vscode-menu {
   display: flex;
   flex-direction: column;
-  width: 48px;
-  background-color: #1e1e1e;
+  justify-content: center;
   align-items: center;
-  padding: 8px 0;
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -95,13 +100,33 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 40px;
-  color: #cccccc;
+  color: #888888;
   cursor: pointer;
-  border: none;
   background: none;
+  width: 100%;
+  padding: 10px 0;
+  box-sizing: border-box;
+  border-left: 2px solid transparent;
   font-size: 16px;
+}
+
+@media screen and (resolution: 1dppx) {
+  .menu-item div {
+    width: 28px;
+    height: 28px;
+  }
+}
+@media screen and (resolution: 1.5dppx) {
+  .menu-item div {
+    width: 24px;
+    height: 24px;
+  }
+}
+@media screen and (resolution: 2dppx) {
+  .el-aside div {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 .menu-item:hover {
@@ -110,5 +135,6 @@ onMounted(() => {
 
 .menu-item.active {
   color: #ffffff;
+  border-left: 2px solid #0078d4;
 }
 </style>
