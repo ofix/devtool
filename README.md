@@ -1,8 +1,8 @@
-# ziLiaoChaXun
+# Electron + Vue3 + Vite + Element-plus Template (Optimized Version)
 
-This template should help get you started developing with Vue 3 in Vite.
+Use this template to bootstrap​ your Electron​ application with Vue 3​ and Element Plus​ in minutes.
 
-## Recommended IDE Setup
+## Recommended IDE
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
 
@@ -26,4 +26,10 @@ npm run dev
 
 ```sh
 npm run build
+```
+
+### Package and Deploy your application
+
+```sh
+npm run make
 ```
