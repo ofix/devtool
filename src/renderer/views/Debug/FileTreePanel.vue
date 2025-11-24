@@ -1,7 +1,7 @@
 <template>
-  <div class="file-tree-container">
-    <!-- 树组件不变，保持原逻辑 -->
-    <el-tree
+  <div class="dt-file-tree-container">
+    <!-- 高性能虚拟渲染树组件 -->
+    <el-tree-v2
       ref="fileTreeRef"
       :data="fileTreeData"
       :props="treeProps"
@@ -12,7 +12,7 @@
       :default-openeds="firstOpeneds"
       @node-click="handleNodeClick"
       @node-contextmenu="handleRightClick"
-      class="custom-file-tree"
+      class="dt-file-tree"
     >
       <!-- 自定义节点内容（仅文件显示图标 + 名称） -->
       <template #default="{ node, data }">
@@ -22,6 +22,20 @@
             <IconFileJson v-else-if="data.ext === 'json'" />
             <IconFileJs v-else-if="data.ext === 'js' || data.ext === 'ts'" />
             <IconFileVue v-else-if="data.ext === 'vue'" />
+            <IconFileCpp v-else-if="data.ext === 'cpp' || data.ext === 'hpp'" />
+            <IconFileC v-else-if="data.ext === 'c' || data.ext === 'h'" />
+            <IconFileSql v-else-if="data.ext === 'sql'" />
+            <IconFileJava v-else-if="data.ext === 'java'" />
+            <IconFileDart v-else-if="data.ext === 'dart'" />
+            <IconFileShell v-else-if="data.ext === 'sh'" />
+            <IconFileGo v-else-if="data.ext === 'go'" />
+            <IconFilePhp v-else-if="data.ext === 'php'" />
+            <IconFilePython v-else-if="data.ext === 'py'" />
+            <IconFileYaml v-else-if="data.ext === 'yaml'" />
+            <IconFileScala
+              v-else-if="data.ext === 'scala' || data.ext === 'kt'"
+            />
+
             <IconImage
               v-else-if="
                 data.ext === 'png' || data.ext === 'jpg' || data.ext === 'svg'
@@ -48,72 +62,60 @@
           />
         </div>
       </template>
-    </el-tree>
+    </el-tree-v2>
 
-    <!-- VS Code 风格原生右键菜单 -->
-    <div
-      v-if="showContextMenu"
-      class="vscode-context-menu"
-      :style="{ left: `${menuX}px`, top: `${menuY}px` }"
-      @click.stop
-      @mouseleave="closeMenu"
-      tabindex="0"
-      @keydown.esc="closeMenu"
-    >
-      <!-- 第一组：新建相关（仅文件夹显示） -->
-      <template v-if="selectedNode?.type === 'folder'">
-        <div class="menu-item" @click="handleNewFolder">
-          <span class="menu-label">新建文件夹</span>
-          <span class="menu-shortcut">Ctrl+Shift+N</span>
-        </div>
-        <div class="menu-item" @click="handleNewFile">
-          <span class="menu-label">新建文件</span>
-          <span class="menu-shortcut">Ctrl+N</span>
-        </div>
-        <div class="menu-separator"></div>
-      </template>
-
-      <!-- 第二组：编辑相关（所有节点显示） -->
-      <div class="menu-item" @click="handleRename">
-        <span class="menu-label">重命名</span>
-        <span class="menu-shortcut">F2</span>
-      </div>
-      <div class="menu-item" @click="handleCopyPath">
-        <span class="menu-label">复制路径</span>
-        <span class="menu-shortcut">Ctrl+Shift+C</span>
-      </div>
-      <div class="menu-separator"></div>
-
-      <!-- 第三组：删除相关（所有节点显示） -->
-      <div class="menu-item menu-danger" @click="handleDelete">
-        <span class="menu-label">删除</span>
-        <span class="menu-shortcut">Delete</span>
-      </div>
-    </div>
+    <!-- 引入独立右键菜单组件 -->
+    <DebugContextMenu
+      :show="showContextMenu"
+      :x="menuX"
+      :y="menuY"
+      :selected-node="selectedNode"
+      @close="closeMenu"
+      @new-folder="handleNewFolder"
+      @new-file="handleNewFile"
+      @rename="handleRename"
+      @copy-path="handleCopyPath"
+      @delete="handleDelete"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, nextTick } from "vue";
+// 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
-import IconFileCss from "@/components/icons/IconFileCss.vue";
 import IconFileJson from "@/components/icons/IconFileJson.vue";
 import IconFileJs from "@/components/icons/IconFileJs.vue";
 import IconFileVue from "@/components/icons/IconFileVue.vue";
+import IconFileSql from "@/components/icons/IconFileSql.vue";
+import IconFileJava from "@/components/icons/IconFileJava.vue";
+import IconFileDart from "@/components/icons/IconFileDart.vue";
+import IconFileShell from "@/components/icons/IconFileShell.vue";
+import IconFileGo from "@/components/icons/IconFileGo.vue";
+import IconFilePhp from "@/components/icons/IconFilePhp.vue";
+import IconFilePython from "@/components/icons/IconFilePython.vue";
+import IconFileYaml from "@/components/icons/IconFileYaml.vue";
+import IconFileScala from "@/components/icons/IconFileScala.vue";
+import IconFileCpp from "@/components/icons/IconFileCpp.vue";
+import IconFileC from "@/components/icons/IconFileC.vue";
+
 import IconImage from "@/components/icons/IconImage.vue";
 import IconFile from "@/components/icons/IconFile.vue";
+// 右键菜单
+import DebugContextMenu from "./DebugContextMenu.vue";
+// 消息通知组件
+import { ElMessage, ElNotification } from "element-plus";
 
 // 树组件核心状态
 const fileTreeRef = ref(null);
 const fileTreeData = ref([
-  // 你的文件树数据（保持不变）
   {
     id: "1",
     name: "components",
     type: "folder",
     children: [
       { id: "2", name: "Debug.vue", type: "file", ext: "vue" },
-      { id: "3", name: "FileCompare.vue", type: "file", ext: "vue" },
+      { id: "3", name: "FileCompare.Html", type: "file", ext: "Html" },
     ],
   },
   {
@@ -121,11 +123,24 @@ const fileTreeData = ref([
     name: "renderer",
     type: "folder",
     children: [
-      { id: "5", name: "Debug.html", type: "file", ext: "html" },
-      { id: "6", name: "FileCompare.css", type: "file", ext: "css" },
+      { id: "4", name: "Debug.java", type: "file", ext: "java" },
+      { id: "5", name: "FileCompare.c", type: "file", ext: "c" },
+      { id: "6", name: "Debug.cpp", type: "file", ext: "cpp" },
+      { id: "7", name: "Test.yaml", type: "file", ext: "yaml" },
+      { id: "8", name: "main.go", type: "file", ext: "go" },
+      { id: "9", name: "ProductService.php", type: "file", ext: "php" },
+      { id: "10", name: "search.sql", type: "file", ext: "sql" },
+      { id: "11", name: "BigData.scala", type: "file", ext: "scala" },
+      { id: "12", name: "ResponseData.json", type: "file", ext: "json" },
+      { id: "13", name: "FileCompare.css", type: "file", ext: "css" },
+      { id: "14", name: "Debug.h", type: "file", ext: "h" },
+      { id: "15", name: "FileCompare.py", type: "file", ext: "py" },
+      { id: "16", name: "Debug.sh", type: "file", ext: "sh" },
+      // 其他节点...
     ],
   },
-  { id: "7", name: "package.json", type: "file", ext: "json" },
+  { id: "17", name: "FileCompare.dart", type: "file", ext: "dart" },
+  { id: "18", name: "FileCompare.js", type: "file", ext: "js" },
 ]);
 const treeProps = reactive({
   label: "name",
@@ -133,68 +148,67 @@ const treeProps = reactive({
   isLeaf: (data) => data.type === "file",
 });
 
-// 右键菜单核心状态
+// 右键菜单核心状态（仅保留数据，逻辑移到组件）
 const showContextMenu = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 const selectedNode = ref(null); // 右键选中的节点
 const editingNodeId = ref("");
 const editName = ref("");
-// 默认展开第一个有子项的目录
+
+// 默认展开/选中逻辑（保持不变）
 const firstOpeneds = computed(() => {
   const first = fileTreeData.value.find((i) => i.children?.length);
   return first ? [first.index] : [];
 });
-
-// 默认选中第一个菜单项
 const firstActive = computed(() => {
   return fileTreeData.value[0]?.index ?? "";
 });
 
-// 🔥 打开右键菜单（核心逻辑）
-const handleRightClick = (event, data, node) => {
+// 打开右键菜单（核心逻辑：仅设置状态，不渲染菜单）
+function handleRightClick(event, data, node) {
   event.preventDefault(); // 阻止浏览器默认右键菜单
   event.stopPropagation(); // 阻止事件冒泡
 
-  // 记录选中节点和菜单位置
+  // 记录选中节点和菜单位置（传递给子组件）
   selectedNode.value = data;
   menuX.value = event.clientX;
   menuY.value = event.clientY;
-
-  // 显示菜单
   showContextMenu.value = true;
 
-  // 点击页面任意位置关闭菜单（关键：模仿 VS Code 体验）
-  const closeOnClickOutside = (e) => {
-    const menu = document.querySelector(".vscode-context-menu");
-    if (menu && !menu.contains(e.target)) {
-      closeMenu();
-      document.removeEventListener("click", closeOnClickOutside);
-    }
-  };
-  document.addEventListener("click", closeOnClickOutside);
-
   // 监听 ESC 键关闭菜单
-  const closeOnEsc = (e) => {
-    if (e.key === "Escape") {
-      closeMenu();
-      document.removeEventListener("keydown", closeOnEsc);
-    }
-  };
-  document.addEventListener("keydown", closeOnEsc);
-};
 
-// 🔥 关闭右键菜单
-const closeMenu = () => {
+  document.addEventListener("click", closeOnClickOutside);
+  document.addEventListener("keydown", closeOnEsc);
+}
+
+function closeOnEsc(e) {
+  if (e.key === "Escape") {
+    closeMenu();
+    document.removeEventListener("keydown", closeOnEsc);
+  }
+}
+
+// 点击页面任意位置关闭菜单（优化：修复事件监听移除问题）
+function closeOnClickOutside(e) {
+  const menu = document.querySelector(".vscode-context-menu");
+  if (menu && !menu.contains(e.target)) {
+    closeMenu();
+    document.removeEventListener("click", closeOnClickOutside);
+  }
+}
+
+// 关闭右键菜单（仅修改状态）
+function closeMenu() {
   showContextMenu.value = false;
-  // 移除所有事件监听（避免内存泄漏）
+  // 移除事件监听（优化后逻辑）
   document.removeEventListener("click", closeOnClickOutside);
   document.removeEventListener("keydown", closeOnEsc);
-};
+}
 
-// 🔥 菜单功能实现（贴合 VS Code 逻辑）
+// 菜单功能实现（原逻辑保留，接收子组件事件回调）
 // 新建文件夹
-const handleNewFolder = () => {
+function handleNewFolder() {
   if (!selectedNode.value || selectedNode.value.type !== "folder") {
     ElMessage.warning("只能在文件夹下新建文件夹");
     closeMenu();
@@ -213,10 +227,10 @@ const handleNewFolder = () => {
   fileTreeRef.value.setExpanded(selectedNode.value, true);
   enterEditMode(newId, "新建文件夹");
   closeMenu();
-};
+}
 
 // 新建文件
-const handleNewFile = () => {
+function handleNewFile() {
   if (!selectedNode.value || selectedNode.value.type !== "folder") {
     ElMessage.warning("只能在文件夹下新建文件");
     closeMenu();
@@ -230,21 +244,19 @@ const handleNewFile = () => {
   fileTreeRef.value.setExpanded(selectedNode.value, true);
   enterEditMode(newId, "新建文件.txt");
   closeMenu();
-};
+}
 
-// 重命名（支持 F2 快捷键）
-const handleRename = () => {
+// 重命名
+function handleRename() {
   if (!selectedNode.value) return;
   enterEditMode(selectedNode.value.id, selectedNode.value.name);
   closeMenu();
-};
+}
 
-// 复制路径（VS Code 核心功能）
-const handleCopyPath = () => {
+// 复制路径
+function handleCopyPath() {
   if (!selectedNode.value) return;
-  // 获取节点完整路径（模仿 VS Code 绝对路径风格）
   const fullPath = getNodeFullPath(selectedNode.value);
-  // 复制到剪贴板
   navigator.clipboard.writeText(fullPath).then(() => {
     ElNotification.success({
       title: "成功",
@@ -254,12 +266,11 @@ const handleCopyPath = () => {
     });
   });
   closeMenu();
-};
+}
 
 // 删除
-const handleDelete = () => {
+function handleDelete() {
   if (!selectedNode.value) return;
-  // 递归删除节点
   const deleteNode = (tree, nodeId) => {
     for (let i = 0; i < tree.length; i++) {
       if (tree[i].id === nodeId) {
@@ -280,26 +291,22 @@ const handleDelete = () => {
     selectedNode.value = null;
   }
   closeMenu();
-};
+}
 
-// 辅助函数：进入编辑模式
-const enterEditMode = (nodeId, defaultName) => {
+// 辅助函数（保持不变）
+function enterEditMode(nodeId, defaultName) {
   editingNodeId.value = nodeId;
   editName.value = defaultName;
   nextTick(() => {
     const input = document.querySelector(".edit-input");
     if (input) input.focus();
   });
-};
-
-// 辅助函数：取消编辑
-const cancelEdit = () => {
+}
+function cancelEdit() {
   editingNodeId.value = "";
   editName.value = "";
-};
-
-// 辅助函数：编辑完成
-const handleEditBlur = (data) => {
+}
+function handleEditBlur(data) {
   if (!editName.value.trim()) {
     ElMessage.warning("名称不能为空");
     enterEditMode(data.id, data.name);
@@ -312,21 +319,17 @@ const handleEditBlur = (data) => {
   }
   fileTreeData.value = [...fileTreeData.value];
   cancelEdit();
-};
-
-// 辅助函数：获取节点完整路径（模仿 VS Code）
-const getNodeFullPath = (data) => {
+}
+function getNodeFullPath(data) {
   let path = data.name;
   let parent = findParentNode(fileTreeData.value, data.id);
   while (parent) {
     path = parent.name + "/" + path;
     parent = findParentNode(fileTreeData.value, parent.id);
   }
-  return `/${path}`; // 格式：/src/views/Debug.vue
-};
-
-// 辅助函数：查找父节点
-const findParentNode = (tree, nodeId) => {
+  return `/${path}`;
+}
+function findParentNode(tree, nodeId) {
   for (const node of tree) {
     if (node.children && node.children.some((child) => child.id === nodeId)) {
       return node;
@@ -337,25 +340,21 @@ const findParentNode = (tree, nodeId) => {
     }
   }
   return null;
-};
-
-// 节点点击事件
-const handleNodeClick = (data, node) => {
+}
+function handleNodeClick(data, node) {
   selectedNode.value = data;
-};
+}
 </script>
 
 <style scoped>
-/* 原树组件样式保持不变... */
-.file-tree-container {
+/* 原树组件样式保持不变 */
+.dt-file-tree-container {
   width: 100%;
-  height: 100%;
-  background-color: var(--el-bg-color);
+  background-color: transparent;
   border-right: 1px solid var(--el-border-color-light);
-  overflow-y: auto;
 }
 
-.custom-file-tree {
+.dt-file-tree {
   --el-tree-node-hover-bg-color: rgba(220, 220, 220, 0.1);
   --el-tree-node-current-bg-color: rgba(64, 158, 255, 0.1);
   --el-tree-node-current-color: var(--el-color-primary);
@@ -389,70 +388,5 @@ const handleNodeClick = (data, node) => {
   width: 140px !important;
   padding: 2px 4px !important;
   margin: 0 !important;
-}
-
-/* VS Code 风格右键菜单核心样式 */
-.vscode-context-menu {
-  position: fixed;
-  width: 220px; /* VS Code 菜单宽度 */
-  background-color: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-dark);
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); /* 深沉阴影，贴近 VS Code */
-  z-index: 99999; /* 确保在所有组件之上 */
-  padding: 4px 0;
-  outline: none;
-  font-size: 13px; /* VS Code 字体大小 */
-}
-
-/* 菜单项样式 */
-.menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5px 12px;
-  cursor: pointer;
-  color: var(--el-text-color-primary);
-  transition: background-color 0.1s ease;
-}
-
-/* hover 高亮（VS Code 浅蓝背景） */
-.menu-item:hover:not(.menu-danger) {
-  background-color: rgba(66, 133, 244, 0.15);
-  color: var(--el-color-primary);
-}
-
-/* 危险操作样式（删除） */
-.menu-danger {
-  color: #ff4d4f;
-}
-.menu-danger:hover {
-  background-color: rgba(255, 77, 79, 0.1) !important;
-}
-
-/* 菜单分隔线 */
-.menu-separator {
-  height: 1px;
-  background-color: var(--el-border-color-dark);
-  margin: 4px 0;
-}
-
-/* 快捷键提示样式（右对齐、灰色） */
-.menu-shortcut {
-  color: var(--el-text-color-placeholder);
-  font-size: 11px;
-}
-
-/* 深色模式适配（如果项目支持） */
-:root.dark .vscode-context-menu {
-  background-color: #1e1e1e;
-  border-color: #3c3c3c;
-}
-:root.dark .menu-item:hover:not(.menu-danger) {
-  background-color: #094771;
-  color: #e3f2fd;
-}
-:root.dark .menu-separator {
-  background-color: #3c3c3c;
 }
 </style>
