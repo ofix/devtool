@@ -10,6 +10,7 @@
       :default-expand-all="false"
       :default-active="firstActive"
       :default-openeds="firstOpeneds"
+      :height="treeHeight"
       @node-click="handleNodeClick"
       @node-contextmenu="handleRightClick"
       class="dt-file-tree"
@@ -18,7 +19,8 @@
       <template #default="{ node, data }">
         <div class="tree-node-content">
           <el-icon v-if="data.type === 'file'" class="node-icon">
-            <IconFileHtml v-if="data.ext === 'html'" />
+            <IconFileHtml v-if="data.ext === 'html' || data.ext === 'htm'" />
+            <IconFileCss v-else-if="data.ext === 'css'" />
             <IconFileJson v-else-if="data.ext === 'json'" />
             <IconFileJs v-else-if="data.ext === 'js' || data.ext === 'ts'" />
             <IconFileVue v-else-if="data.ext === 'vue'" />
@@ -84,6 +86,7 @@
 import { ref, computed, reactive, nextTick } from "vue";
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
+import IconFileCss from "@/components/icons/IconFileCss.vue";
 import IconFileJson from "@/components/icons/IconFileJson.vue";
 import IconFileJs from "@/components/icons/IconFileJs.vue";
 import IconFileVue from "@/components/icons/IconFileVue.vue";
@@ -115,7 +118,7 @@ const fileTreeData = ref([
     type: "folder",
     children: [
       { id: "2", name: "Debug.vue", type: "file", ext: "vue" },
-      { id: "3", name: "FileCompare.Html", type: "file", ext: "Html" },
+      { id: "3", name: "FileCompare.html", type: "file", ext: "html" },
     ],
   },
   {
@@ -123,25 +126,26 @@ const fileTreeData = ref([
     name: "renderer",
     type: "folder",
     children: [
-      { id: "4", name: "Debug.java", type: "file", ext: "java" },
-      { id: "5", name: "FileCompare.c", type: "file", ext: "c" },
-      { id: "6", name: "Debug.cpp", type: "file", ext: "cpp" },
-      { id: "7", name: "Test.yaml", type: "file", ext: "yaml" },
-      { id: "8", name: "main.go", type: "file", ext: "go" },
-      { id: "9", name: "ProductService.php", type: "file", ext: "php" },
-      { id: "10", name: "search.sql", type: "file", ext: "sql" },
-      { id: "11", name: "BigData.scala", type: "file", ext: "scala" },
-      { id: "12", name: "ResponseData.json", type: "file", ext: "json" },
-      { id: "13", name: "FileCompare.css", type: "file", ext: "css" },
-      { id: "14", name: "Debug.h", type: "file", ext: "h" },
-      { id: "15", name: "FileCompare.py", type: "file", ext: "py" },
-      { id: "16", name: "Debug.sh", type: "file", ext: "sh" },
+      { id: "5", name: "Debug.java", type: "file", ext: "java" },
+      { id: "6", name: "FileCompare.c", type: "file", ext: "c" },
+      { id: "7", name: "Debug.cpp", type: "file", ext: "cpp" },
+      { id: "8", name: "Test.yaml", type: "file", ext: "yaml" },
+      { id: "9", name: "main.go", type: "file", ext: "go" },
+      { id: "10", name: "ProductService.php", type: "file", ext: "php" },
+      { id: "11", name: "search.sql", type: "file", ext: "sql" },
+      { id: "12", name: "BigData.scala", type: "file", ext: "scala" },
+      { id: "13", name: "ResponseData.json", type: "file", ext: "json" },
+      { id: "14", name: "FileCompare.css", type: "file", ext: "css" },
+      { id: "15", name: "Debug.h", type: "file", ext: "h" },
+      { id: "16", name: "FileCompare.py", type: "file", ext: "py" },
+      { id: "17", name: "Debug.sh", type: "file", ext: "sh" },
       // 其他节点...
     ],
   },
   { id: "17", name: "FileCompare.dart", type: "file", ext: "dart" },
   { id: "18", name: "FileCompare.js", type: "file", ext: "js" },
 ]);
+const treeHeight = ref(window.innerHeight - 34);
 const treeProps = reactive({
   label: "name",
   children: "children",
@@ -350,14 +354,17 @@ function handleNodeClick(data, node) {
 /* 原树组件样式保持不变 */
 .dt-file-tree-container {
   width: 100%;
+  height: 100%;
   background-color: transparent;
   border-right: 1px solid var(--el-border-color-light);
+  overflow-y: hidden;
 }
 
 .dt-file-tree {
   --el-tree-node-hover-bg-color: rgba(220, 220, 220, 0.1);
   --el-tree-node-current-bg-color: rgba(64, 158, 255, 0.1);
-  --el-tree-node-current-color: var(--el-color-primary);
+  --el-tree-node-current-color: #37373d; /*var(--el-color-primary);*/
+  overflow-y: hidden;
 }
 
 .tree-node-content {
@@ -373,15 +380,31 @@ function handleNodeClick(data, node) {
   height: 16px;
 }
 
+::v-deep
+  .el-tree--highlight-current
+  .el-tree-node.is-current
+  > .el-tree-node__content {
+  background-color: #37373d !important;
+}
+
+::v-deep
+  .el-tree--highlight-current:hover
+  .el-tree-node.is-current
+  > .el-tree-node__content {
+  background-color: #37373d !important;
+}
+
 .node-name {
   cursor: pointer;
   flex: 1;
   padding: 2px 4px;
   border-radius: 2px;
+  color: #cccccc;
+  font-size: 12px;
 }
 
 .node-name:hover {
-  background-color: var(--el-tree-node-hover-bg-color);
+  font-size: 12px;
 }
 
 .edit-input {

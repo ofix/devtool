@@ -139,6 +139,10 @@ defineExpose({ isMaximized, titleBarHeight });
   line-height: 1;
   padding: 0;
   margin: 0;
+  /* 核心：清除默认焦点边框 */
+  outline: none !important; /* 清除 outline 焦点样式 */
+  box-shadow: none !important; /* 清除部分浏览器的阴影式焦点 */
+  -webkit-tap-highlight-color: transparent; /* 清除移动端点击高亮（可选） */
 }
 
 .title-bar-controls .control-btn:hover {
