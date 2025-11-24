@@ -11,7 +11,7 @@
         class="control-btn"
         aria-label="最小化"
       >
-        —
+        <IconMinimizeBox />
       </button>
       <button
         ref="maxBtn"
@@ -19,7 +19,8 @@
         class="control-btn"
         aria-label="最大化/还原"
       >
-        □
+        <IconMaximizeBox v-if="!isMaximized" />
+        <IconRestoreBox v-else />
       </button>
       <button
         ref="closeBtn"
@@ -27,7 +28,7 @@
         class="control-btn close"
         aria-label="关闭"
       >
-        ×
+        <IconCloseBox />
       </button>
     </div>
   </div>
@@ -36,6 +37,10 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
 import RedfishIcon from "@/components/icons/IconRedfish.vue";
+import IconMaximizeBox from "@/components/icons/IconMaximizeBox.vue";
+import IconMinimizeBox from "@/components/icons/IconMinimizeBox.vue";
+import IconRestoreBox from "@/components/icons/IconRestoreBox.vue";
+import IconCloseBox from "@/components/icons/IconCloseBox.vue";
 
 // 可传入的 props
 const props = defineProps({
@@ -99,7 +104,7 @@ defineExpose({ isMaximized, titleBarHeight });
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0;
   -webkit-app-region: drag; /* 可拖拽区域 */
   user-select: none;
 }
@@ -118,7 +123,7 @@ defineExpose({ isMaximized, titleBarHeight });
   background: transparent;
   border: none;
   color: #fff;
-  width: 32px;
+  width: 48px;
   height: 32px;
   display: flex;
   align-items: center;
