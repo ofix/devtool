@@ -16,19 +16,25 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Compile and hot-reload for development
 
 ```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
+### Compile renderer code use vite
 
 ```sh
 npm run build
 ```
 
-### Package and Deploy your application
+### Compile unpackaged application for production
+
+```sh
+npm run package
+```
+
+### Package your application for distribution
 
 ```sh
 npm run make

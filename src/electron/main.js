@@ -32,6 +32,7 @@ const createWindow = () => {
     let listenUrl = process.argv[2]
     if (listenUrl) {
         window.loadURL(listenUrl)
+        window.webContents.openDevTools();
     } else {
         // __dirname 是当前 main.js 所在目录：src/electron
         // ../../dist/renderer/index.html = app.asar/dist/renderer/index.html
@@ -46,7 +47,6 @@ const createWindow = () => {
     const appPath = app.getAppPath()
     // window.fullScreen = true;
     Menu.setApplicationMenu(null);
-    window.webContents.openDevTools();
 
     globalShortcut.register('ESC', () => {
         window.fullScreen = false;

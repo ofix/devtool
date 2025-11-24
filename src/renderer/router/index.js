@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import MenuRoutes from '@/router/MenuRoutes.js' // 导入统一数据
 
 export const routes = MenuRoutes.map(route => ({
@@ -16,7 +16,7 @@ export const routes = MenuRoutes.map(route => ({
 }))
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL), // createWebHashHistory 同时兼容 squirrel 打包工具 和 wix 打包工具，
   routes
 })
 
