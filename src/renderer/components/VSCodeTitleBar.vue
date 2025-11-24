@@ -1,7 +1,9 @@
 <template>
   <div class="vscode-title-bar">
     <span>
-      <el-icon style="margin: 4px 4px 4px 0" size="28"><RedfishIcon /></el-icon>
+      <el-icon style="margin: 4px 4px 4px 12px" size="28"
+        ><RedfishIcon
+      /></el-icon>
     </span>
     <span class="title">{{ title }}</span>
     <div class="title-bar-controls">

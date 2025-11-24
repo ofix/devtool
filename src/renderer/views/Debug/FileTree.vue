@@ -354,7 +354,6 @@ function handleNodeClick(data, node) {
 /* 原树组件样式保持不变 */
 .dt-file-tree-container {
   width: 100%;
-  height: 100%;
   background-color: transparent;
   border-right: 1px solid var(--el-border-color-light);
   overflow-y: hidden;
@@ -364,6 +363,8 @@ function handleNodeClick(data, node) {
   --el-tree-node-hover-bg-color: rgba(220, 220, 220, 0.1);
   --el-tree-node-current-bg-color: rgba(64, 158, 255, 0.1);
   --el-tree-node-current-color: #37373d; /*var(--el-color-primary);*/
+  height: calc(100vh - 156px);
+  max-height: calc(100vh - 156px);
   overflow-y: hidden;
 }
 

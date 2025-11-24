@@ -3,7 +3,7 @@
     <el-splitter>
       <el-splitter-panel :min="100" :size="300">
         <div class="panel-left">
-          <FileTreePanel />
+          <DebugLeftPanel />
         </div>
       </el-splitter-panel>
       <el-splitter-panel>
@@ -15,7 +15,7 @@
 
 <script setup>
 import { ref } from "vue";
-import FileTreePanel from "@/views/Debug/FileTreePanel.vue";
+import DebugLeftPanel from "./DebugLeftPanel.vue";
 </script>
 
 <style scoped>
