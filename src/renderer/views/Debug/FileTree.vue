@@ -385,14 +385,14 @@ function handleNodeClick(data, node) {
   .el-tree--highlight-current
   .el-tree-node.is-current
   > .el-tree-node__content {
-  background-color: #37373d !important;
+  background-color: var(--dt-primary-bg-color) !important;
 }
 
 ::v-deep
   .el-tree--highlight-current:hover
   .el-tree-node.is-current
   > .el-tree-node__content {
-  background-color: #37373d !important;
+  background-color: var(--dt-primary-bg-color) !important;
 }
 
 .node-name {
@@ -400,7 +400,7 @@ function handleNodeClick(data, node) {
   flex: 1;
   padding: 2px 4px;
   border-radius: 2px;
-  color: #cccccc;
+  color: var(--dt-primary-text-color);
   font-size: 12px;
 }
 

@@ -10,7 +10,7 @@ const createWindow = () => {
         width: 1280,
         height: 960,
         icon: path.join(__dirname, '../renderer/assets/devtool.ico'),
-        frame: isLinux, // Linux 使用系统标题栏；Windows/macOS 使用隐藏式标题栏
+        frame: false, // 麒麟系统实际验证，也是可以自定义标题栏
         titleBarStyle: (isWin || isMac) ? 'hiddenInset' : 'default',// 关键：彻底隐藏系统按钮和标题栏框架必须hiddenInset
         // 仅在 Windows/Linux 且使用 hidden 样式时，才启用 titleBarOverlay
         ...((isWin || isMac) && {

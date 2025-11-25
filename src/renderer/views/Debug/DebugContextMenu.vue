@@ -89,15 +89,19 @@ const handleMouseLeave = () => {
 /* VS Code 风格右键菜单核心样式（迁移原样式） */
 .vscode-context-menu {
   position: fixed;
-  width: 220px; /* VS Code 菜单宽度 */
-  background-color: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-dark);
+  width: 220px;
+  /* VS Code 菜单宽度 */
+  background-color: var(--dt-context-menu-bg-color);
+  border: 1px solid var(--dt-border-color);
   border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); /* 深沉阴影，贴近 VS Code */
-  z-index: 99999; /* 确保在所有组件之上 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  /* 深沉阴影，贴近 VS Code */
+  z-index: 99999;
+  /* 确保在所有组件之上 */
   padding: 4px 0;
   outline: none;
-  font-size: 13px; /* VS Code 字体大小 */
+  font-size: 13px;
+  /* VS Code 字体大小 */
 }
 
 /* 菜单项样式 */
@@ -107,7 +111,7 @@ const handleMouseLeave = () => {
   align-items: center;
   padding: 5px 12px;
   cursor: pointer;
-  color: var(--el-text-color-primary);
+  color: var(--dt-context-menu-text-color);
   transition: background-color 0.1s ease;
 }
 
@@ -121,6 +125,7 @@ const handleMouseLeave = () => {
 .menu-danger {
   color: #ff4d4f;
 }
+
 .menu-danger:hover {
   background-color: rgba(255, 77, 79, 0.1) !important;
 }
@@ -128,26 +133,26 @@ const handleMouseLeave = () => {
 /* 菜单分隔线 */
 .menu-separator {
   height: 1px;
-  background-color: var(--el-border-color-dark);
+  background-color: var(--dt-border-color);
   margin: 4px 0;
 }
 
 /* 快捷键提示样式（右对齐、灰色） */
 .menu-shortcut {
-  color: var(--el-text-color-placeholder);
+  color: var(--dt-context-menu-text-color);
   font-size: 11px;
 }
 
-/* 深色模式适配（如果项目支持） */
-:root.dark .vscode-context-menu {
-  background-color: #1e1e1e;
-  border-color: #3c3c3c;
+.menu-item:hover .menu-shortcut {
+  color: var(--dt-hilight-text-color);
 }
-:root.dark .menu-item:hover:not(.menu-danger) {
-  background-color: #094771;
-  color: #e3f2fd;
+
+.menu-item:hover:not(.menu-danger) {
+  background-color: var(--dt-hilight-bg-color);
+  color: var(--dt-hilight-text-color);
 }
-:root.dark .menu-separator {
-  background-color: #3c3c3c;
+
+.menu-separator {
+  background-color: var(--dt-border-color);
 }
 </style>

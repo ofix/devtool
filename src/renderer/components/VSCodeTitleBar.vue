@@ -1,9 +1,9 @@
 <template>
   <div class="vscode-title-bar">
     <span>
-      <el-icon style="margin: 4px 4px 4px 12px" size="28"
-        ><RedfishIcon
-      /></el-icon>
+      <el-icon style="margin: 4px 4px 4px 12px" size="28">
+        <RedfishIcon />
+      </el-icon>
     </span>
     <span class="title">{{ title }}</span>
     <div class="title-bar-controls">
@@ -99,21 +99,23 @@ defineExpose({ isMaximized, titleBarHeight });
 <style scoped>
 .vscode-title-bar {
   width: 100%;
-  height: var(--titlebar-height);
-  background: #1f1f1f;
-  color: #8b949e;
-  border-bottom: 1px solid #3c3c3c;
+  height: var(--dt-titlebar-height);
+  background: var(--dt-primary-bg-color);
+  color: var(--dt-primary-text-color);
+  border-bottom: 1px solid var(--dt-border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0;
-  -webkit-app-region: drag; /* 可拖拽区域 */
+  -webkit-app-region: drag;
+  /* 可拖拽区域 */
   user-select: none;
 }
 
 .title {
   font-size: 14px;
-  pointer-events: none; /* 避免文字拦截拖拽 */
+  pointer-events: none;
+  /* 避免文字拦截拖拽 */
 }
 
 .title-bar-controls {
@@ -121,30 +123,29 @@ defineExpose({ isMaximized, titleBarHeight });
 }
 
 .title-bar-controls .control-btn {
-  -webkit-app-region: no-drag; /* 按钮必须不可拖拽 */
+  -webkit-app-region: no-drag;
+  /* 按钮必须不可拖拽 */
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--dt-primary-text-color);
   width: 48px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-family:
-    system-ui,
-    -apple-system,
-    "PingFang SC",
-    "Microsoft YaHei",
-    sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 14px;
   line-height: 1;
   padding: 0;
   margin: 0;
   /* 核心：清除默认焦点边框 */
-  outline: none !important; /* 清除 outline 焦点样式 */
-  box-shadow: none !important; /* 清除部分浏览器的阴影式焦点 */
-  -webkit-tap-highlight-color: transparent; /* 清除移动端点击高亮（可选） */
+  outline: none !important;
+  /* 清除 outline 焦点样式 */
+  box-shadow: none !important;
+  /* 清除部分浏览器的阴影式焦点 */
+  -webkit-tap-highlight-color: transparent;
+  /* 清除移动端点击高亮（可选） */
 }
 
 .title-bar-controls .control-btn:hover {

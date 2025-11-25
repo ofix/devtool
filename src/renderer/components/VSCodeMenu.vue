@@ -100,7 +100,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888888;
+  color: var(--dt-primary-text-color);
   cursor: pointer;
   background: none;
   width: 100%;
@@ -135,6 +135,6 @@ onMounted(() => {
 
 .menu-item.active {
   color: #ffffff;
-  border-left: 2px solid #0078d4;
+  border-left: 2px solid var(--dt-menu-hilight-border-color);
 }
 </style>

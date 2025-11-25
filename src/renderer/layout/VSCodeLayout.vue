@@ -18,37 +18,29 @@
 <script setup>
 import { ref } from "vue";
 import VSCodeMenu from "@/components/VSCodeMenu.vue";
-import VSCodeTitleBar from "@/components/VScodeTitleBar.vue";
+import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
 </script>
 
 <style type="scss" scoped>
 .vscode-content {
   display: flex;
-  height: calc(100% - var(--titlebar-height));
+  height: calc(100% - var(--dt-titlebar-height));
   overflow-y: hidden;
-  background: #1a1a1a;
+  background: var(--dt-primary-bg-color);
 }
+
 .el-container {
   height: 100%;
 }
-.el-aside {
-  background-color: #252526;
-}
 
-@media screen and (resolution: 1.5dppx) {
-  .el-aside {
-    width: 48px;
-  }
-}
-@media screen and (resolution: 2dppx) {
-  .el-aside {
-    width: 32px;
-  }
+.el-aside {
+  background-color: var(--dt-primary-bg-color);
+  border-right: 1px solid var(--dt-border-color);
 }
 
 .el-main {
-  background-color: #1e1e1e;
-  color: #ffffff;
+  background-color: var(--dt-primary-bg-color);
+  color: var(--dt-primary-text-color);
   padding: 0;
 }
 </style>

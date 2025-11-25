@@ -5,7 +5,6 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import { StartElectronPlugin } from './vite.start.electron.js'
-
 export default defineConfig({
     plugins: [
         vue(),
@@ -21,6 +20,4 @@ export default defineConfig({
         },
         extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'] // 显式包含 .vue
     }
-
-}
-)
+})

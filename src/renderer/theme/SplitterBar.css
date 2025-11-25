@@ -4,7 +4,3 @@
 .el-splitter-bar__dragger-horizontal:before {
   width: 1px !important;
 }
-
-:root {
-  --el-border-color-light: #3a3a3a;
-}
