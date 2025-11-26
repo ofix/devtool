@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import IPCManager from "./service/IPCManager.js"
 
 // 创建ES模块的__dirname
 const __filename = fileURLToPath(import.meta.url)
@@ -57,34 +58,8 @@ const createWindow = () => {
         window.fullScreen = false;
     })
 
-    ipcMain.on("full-screen", (enent, flag) => {
-        if (flag == 0) {
-            console.log(window.isMinimized())
-            console.log(window.isVisible())
-            if (window.isMinimized()) {
-                window.restore(); // 先恢复窗口  
-                window.setFullScreen(true); // 再全屏显示  
-            } else if (!window.isVisible()) {
-                window.show(); // 如果窗口不可见，则显示窗口  
-                window.setFullScreen(true); // 再全屏显示  
-            } else {
-                window.setFullScreen(true); // 直接全屏显示  
-            }
-        } else if (flag == 1) {
-            window.fullScreen = false;  // 还原
-        }
-    })
-
-    ipcMain.on('window-minimize', () => window.minimize())
-    ipcMain.on('window-close', () => window.close())
-
-    ipcMain.on('window-maximize-toggle', () => {
-        if (window.isMaximized()) window.unmaximize()
-        else window.maximize()
-    })
-    // 可选：同步状态
-    window.on('maximize', () => window.webContents.send('maximized'))
-    window.on('unmaximize', () => window.webContents.send('unmaximized'))
+    let ipcManager = new IPCManager(window);
+    ipcManager.startListen();
 }
 
 

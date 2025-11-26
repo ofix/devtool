@@ -64,13 +64,13 @@ const closeBtn = ref(null);
 onMounted(() => {
   // 绑定事件（使用模板 ref，避免多次 getElementById）
   minBtn.value?.addEventListener("click", () =>
-    window.electronAPI.send("window-minimize")
+    window.channel.send("window-minimize")
   );
   maxBtn.value?.addEventListener("click", () =>
-    window.electronAPI.send("window-maximize-toggle")
+    window.channel.send("window-maximize-toggle")
   );
   closeBtn.value?.addEventListener("click", () =>
-    window.electronAPI.send("window-close")
+    window.channel.send("window-close")
   );
 
   // 同步最大化/还原
@@ -82,13 +82,13 @@ onMounted(() => {
     isMaximized.value = false;
     emit("unmaximized");
   };
-  window.electronAPI.on("maximized", onMax);
-  window.electronAPI.on("unmaximized", onUnmax);
+  window.channel.on("maximized", onMax);
+  window.channel.on("unmaximized", onUnmax);
 
   // 清理监听
   onUnmounted(() => {
-    window.electronAPI.off("maximized", onMax);
-    window.electronAPI.off("unmaximized", onUnmax);
+    window.channel.off("maximized", onMax);
+    window.channel.off("unmaximized", onUnmax);
   });
 });
 

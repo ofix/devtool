@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron/renderer')
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld('channel', {
     setFullScreen: (flag) => ipcRenderer.send('full-screen', flag),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),
     on: (channel, listener) => ipcRenderer.on(channel, (_evt, ...args) => listener(...args)),
