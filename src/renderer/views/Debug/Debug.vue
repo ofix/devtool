@@ -14,8 +14,15 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref,onMounted,onUnmounted ,watchEffect,toValue} from "vue";
 import DebugLeftPanel from "./DebugLeftPanel.vue";
+
+
+onMounted(()=>{
+
+});
+
+
 </script>
 
 <style scoped>

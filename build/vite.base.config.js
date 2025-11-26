@@ -19,5 +19,9 @@ export default defineConfig({
             '@': fileURLToPath(new URL('../src/renderer', import.meta.url))
         },
         extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'] // 显式包含 .vue
-    }
+    },
+    // 解决原生模块问题
+    optimizeDeps: {
+        exclude: ['ssh2'] // 排除ssh2从预构建
+    },
 })

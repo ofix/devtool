@@ -1,5 +1,10 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain } = require('electron')
-const path = require('path')
+import { app, BrowserWindow, Menu, globalShortcut, ipcMain } from 'electron';
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// 创建ES模块的__dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const isWin = process.platform === 'win32'
 const isMac = process.platform === 'darwin'
@@ -9,7 +14,7 @@ const createWindow = () => {
     const window = new BrowserWindow({
         width: 1280,
         height: 960,
-        icon: path.join(__dirname, '../renderer/assets/devtool.ico'),
+        icon: join(__dirname, '../renderer/assets/devtool.ico'),
         frame: false, // 麒麟系统实际验证，也是可以自定义标题栏
         titleBarStyle: (isWin || isMac) ? 'hiddenInset' : 'default',// 关键：彻底隐藏系统按钮和标题栏框架必须hiddenInset
         // 仅在 Windows/Linux 且使用 hidden 样式时，才启用 titleBarOverlay
@@ -21,7 +26,7 @@ const createWindow = () => {
             },
         }),
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: join(__dirname, 'preload.cjs'),
             nodeIntegration: true,
             contextIsolation: true,
             sandbox: false,
@@ -36,7 +41,7 @@ const createWindow = () => {
     } else {
         // __dirname 是当前 main.js 所在目录：src/electron
         // ../../dist/renderer/index.html = app.asar/dist/renderer/index.html
-        const entryPath = path.join(__dirname, '../../dist/renderer/index.html');
+        const entryPath = join(__dirname, '../../dist/renderer/index.html');
         // 使用 file 协议 URL（Electron 会自动识别 asar 内路径）
         window.loadURL(`file://${entryPath}`);
     }

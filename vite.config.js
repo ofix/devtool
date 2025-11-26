@@ -1,5 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
-import path from "path"
+import { dirname, resolve } from 'node:path'
 
 import ViteBaseConfig from './build/vite.base.config'
 import ViteProdConfig from './build/vite.prod.config'
@@ -18,7 +18,7 @@ const envResolver = {
 
 export default defineConfig(({ command, mode }) => {
   // 加载不同环境下参数
-  const envParams = loadEnv(mode, path.resolve(process.cwd(), './build/env'))
+  const envParams = loadEnv(mode, resolve(process.cwd(), './build/env'))
   const viteConfig = envResolver[command]()
   viteConfig.server = {
     proxy: {
