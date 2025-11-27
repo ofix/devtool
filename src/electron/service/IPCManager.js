@@ -11,10 +11,11 @@ class IPCManager {
         ipcMain.on('sftp-download-dir', async (event, config) => {
             let sftp = new SFTPService();
             config.localPath = Utils.sftpDownloadDir(config.host);
+            await sftp.debugSSH2();
             // sftp.setConfig(config);
-            await sftp.scpDownloadDir(config, config.remotePath, config.localPath, (dirProgress) => {
-                event.reply('sftp-download-dir-progress', dirProgress);
-            });
+            // await sftp.scpDownloadDir(config, config.remotePath, config.localPath, (dirProgress) => {
+            //     event.reply('sftp-download-dir-progress', dirProgress);
+            // });
         })
         ipcMain.on("full-screen", (enent, flag) => {
             if (flag == 0) {
