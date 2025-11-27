@@ -19,12 +19,11 @@ import DebugLeftPanel from "./DebugLeftPanel.vue";
 
 onMounted(() => {
   window.channel.send("sftp-download-dir", {
-    host: "192.168.43.132",
+    host: "172.26.3.11",
     port: 22,
-    username: "ofix",
-    password: "123",
+    username: "root",
+    password: "0penBmc",
     remotePath: "/usr/share/www",
-    localPath: "D:/sftp.192.168.43.132",
   });
 
   window.channel.on("sftp-download-dir-progress", (data) => {

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import SFTPService from './SFTPService.js';
+import Utils from "../core/Utils.js";
 
 class IPCManager {
     constructor(window) {
@@ -7,13 +8,12 @@ class IPCManager {
     }
     startListen () {
         // SFTP下载文件夹到本地
-        ipcMain.on('sftp-download-dir', async (event, para) => {
+        ipcMain.on('sftp-download-dir', async (event, config) => {
             let sftp = new SFTPService();
-            sftp.setConfig(para);
-            await sftp.downloadDir(para.host, para.remotePath, para.localPath, (dirProgress) => {
+            config.localPath = Utils.sftpDownloadDir(config.host);
+            // sftp.setConfig(config);
+            await sftp.scpDownloadDir(config, config.remotePath, config.localPath, (dirProgress) => {
                 event.reply('sftp-download-dir-progress', dirProgress);
-            }, (fileProgress) => {
-                event.reply('sftp-download-file-progress', fileProgress);
             });
         })
         ipcMain.on("full-screen", (enent, flag) => {
