@@ -5,11 +5,14 @@ class HexDump {
     }
 
     // 输出不重复行数据
-    hexDiffLine(buffer, line_no) {
+    hexDiffLine (buffer, line_no) {
         let line = this.formatLineNo(line_no) + "  ";
         let data = [...new Uint8Array(buffer)].map(x => x.toString(16).padStart(2, "0"));
-        line += data.slice(0, 8).join(" ") + "  ";
-        line += data.slice(8, 16).join(" ");
+        for (let i = 0; i < data.length; i += 8) {
+            let start = i;
+            let end = start + 8 > data.length ? data.length : start + 8;
+            line += data.slice(start, end).join(" ") + "  ";
+        }
         line += '  |';
         line += [...new Uint8Array(buffer)].map(x => { if (x < 32 || x >= 128) return "."; return String.fromCharCode(x); }).join("");
         line += '|';
@@ -17,12 +20,12 @@ class HexDump {
     }
 
     // 格式化行号
-    formatLineNo(line_no) {
+    formatLineNo (line_no) {
         return line_no.toString(16).padStart(8, "0");
     }
 
     // 是否是重复行
-    isSameHexLine(line, prev_line) {
+    isSameHexLine (line, prev_line) {
         if (line.byteLength != prev_line.byteLength) {
             return false;
         }
@@ -39,7 +42,7 @@ class HexDump {
     }
 
     // 获取16进制数据行
-    web() {
+    web () {
         let buf = this.buffer;
         let prevLine = new Uint8Array();
         let lines = [];
@@ -73,7 +76,7 @@ class HexDump {
     }
 
     // 输出不同行数据前半部分(部分数据块16进制展示)
-    offsetLineFront(buffer, offset, line_no) {
+    offsetLineFront (buffer, offset, line_no) {
         let line = this.formatLineNo(line_no) + "  ";
         let data = [...new Uint8Array(buffer)].map(x => x.toString(16).padStart(2, "0"));
         for (let i = 0; i < offset; i++) {
@@ -91,7 +94,7 @@ class HexDump {
     }
 
     // 输出不同行数据后半部分(部分数据块16进制展示)
-    offsetLineTail(buffer, line_no) {
+    offsetLineTail (buffer, line_no) {
         let line = this.formatLineNo(line_no) + "  ";
         let data = [...new Uint8Array(buffer)].map(x => x.toString(16).padStart(2, "0"));
         for (let i = 0; i < 16 - buffer.length; i++) {
@@ -109,7 +112,7 @@ class HexDump {
     }
 
     // 打印任意一块带有偏移位置的二进制数据块
-    consoleFileMap(offset) {
+    consoleFileMap (offset) {
         let label = "+++++++++++++++ HEX DATA DEBUGGER +++++++++++++++";
         console.group(label);
         let buf = this.buffer;
@@ -154,7 +157,7 @@ class HexDump {
     }
 
     // 控制台输出16进制数据
-    console() {
+    console () {
         let label = "++++++++++++++++++++++++++++++++++ HEX DATA DEBUGGER ++++++++++++++++++++++++++++++";
         console.group(label);
         let buf = this.buffer;
@@ -182,9 +185,6 @@ class HexDump {
             i += this.cols;
             prevLine = data;
         }
-
-        console.log("*");
-        console.log(this.formatLineNo(line_no + 16));
         console.groupEnd(label);
     }
 }
