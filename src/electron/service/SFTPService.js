@@ -5,17 +5,20 @@ import { Client } from 'ssh2';
 import * as fs from 'fs'; // 核心修复：直接导入完整 fs 模块（含同步+异步）
 import * as path from 'path';
 import * as os from 'os';
+import SCPClient from "./SCPClient.js"
+import Print from "../core/Print.js";
 
 
 class SFTPService extends EventEmitter {
     constructor() {
         super();
-        this.sftpClients = new Map(); // host -> SFTP client
+        this.sshClients = new Map(); // host -> SFTP client
         this.connectionConfig = new Map(); // 新增：host -> 连接参数（username/password/port）
         this.connectionStatus = new Map(); // host → 连接状态（true=有效）
         this.transferSessions = new Map(); // sessionId -> transfer session
         this.activeTransfers = new Map(); // host -> active transfers
         this.stateDir = Utils.sftpDownloadMetaDir();
+        Print.level = 7;
         this.ensureStateDirectory();
     }
 
@@ -24,7 +27,7 @@ class SFTPService extends EventEmitter {
      * 方式 1：按顺序传参 → setConfig(host, username, password, port)
      * 方式 2：传入对象 → setConfig({ host, username, password, port })
      */
-    setConfig (...args) {
+    setConfig(...args) {
         let host, username = 'root', password = '0penBmc', port = 22;
         if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
             const config = args[0];
@@ -53,186 +56,51 @@ class SFTPService extends EventEmitter {
     }
 
     // 确保状态目录存在
-    ensureStateDirectory () {
+    ensureStateDirectory() {
         if (!fs.existsSync(this.stateDir)) {
             fs.mkdirSync(this.stateDir, { recursive: true });
         }
     }
 
-
-    async debugSSH2 () {
-        const conn = new Client();
-        let isConnected = false;
-
-        // 1. SSH 连接配置
-        const SSH_CONFIG = {
-            host: '192.168.43.132',
-            port: 22,
-            username: 'ofix',
-            password: '123',
-            strictHostKeyChecking: 'no',
-            debug: (message) => {
-                console.log(`[DEBUG] SSH2: ${message}`);
-            },
-            hostVerifier: (key) => {
-                try {
-                    const fingerprint = key.getFingerprint('sha256').toString('base64');
-                    console.log(`[DEBUG] 主机密钥指纹: ${fingerprint}`);
-                } catch (err) {
-                    console.warn(`[DEBUG] 获取指纹失败（旧版本兼容）: ${err.message}`);
-                }
-                return true;
-            },
-        };
-
-        try {
-            // 步骤 1：等待 SSH 连接就绪（握手 + 认证）
-            console.log('\n===== 步骤 1：验证 SSH 基础连接 =====');
-            await new Promise((resolve, reject) => {
-                conn.on('ready', () => {
-                    console.log('[SUCCESS] SSH 连接成功（已认证）');
-                    isConnected = true;
-                    resolve(); // 连接就绪后，才 resolve 进入下一步
-                });
-
-                conn.on('error', (err) => {
-                    console.error('[ERROR] SSH 连接错误:', err.message);
-                    reject(err);
-                });
-
-                conn.on('close', (hadError) => {
-                    console.log(`[DEBUG] SSH 连接关闭，是否有错误: ${hadError}`);
-                    if (!isConnected) reject(new Error('SSH 连接意外关闭'));
-                });
-
-                // 发起连接（仅发起，不立即执行 exec）
-                conn.connect(SSH_CONFIG);
-            });
-
-            // 步骤 2：SSH 连接就绪后，再创建 SCP 通道（核心修复：顺序调整）
-            console.log('\n===== 步骤 2：验证 SCP 通道创建 =====');
-            await new Promise((resolve, reject) => {
-                // 1. 去掉 -O 参数，兼容旧版 scp
-                conn.exec('/usr/bin/scp -f', (err, stream) => {
-                    if (err) {
-                        console.error('[ERROR] 创建 SCP 通道失败:', err.message);
-                        return reject(err);
-                    }
-                    console.log('[SUCCESS] SCP 通道创建成功');
-
-                    let isRejected = false; // 避免重复 reject
-                    let responseBuffer = Buffer.alloc(0);
-
-                    // 2. 优先注册 stderr 监听，捕获所有服务器 scp 错误
-                    stream.stderr.on('data', (data) => {
-                        if (isRejected) return;
-                        const errMsg = data.toString().trim();
-                        console.error('[ERROR] 服务器 scp 命令错误:', errMsg);
-                        isRejected = true;
-                        reject(new Error(`服务器 scp 错误: ${errMsg}`));
-                    });
-
-                    // 通道错误监听
-                    stream.on('error', (err) => {
-                        if (isRejected) return;
-                        clearTimeout(responseTimeout);
-                        console.error('[ERROR] SCP 通道错误:', err.message);
-                        isRejected = true;
-                        reject(err);
-                    });
-
-                    // 通道关闭监听
-                    stream.on('close', (code) => {
-                        clearTimeout(responseTimeout);
-                        console.log(`[DEBUG] SCP 通道关闭，退出码: ${code}`);
-                        if (!responseBuffer.length && !isRejected) {
-                            isRejected = true;
-                            reject(new Error(`SCP 通道关闭但未收到响应（退出码: ${code}）`));
-                        }
-                    });
-
-                    // 步骤 3：SCP 协议交互
-                    console.log('\n===== 步骤 3：验证 SCP 协议交互 =====');
-                    const remoteFile = '/usr/share/www/favicon.ico';
-                    // 3. 简化路径转义（仅转义单引号）
-                    const escapedPath = remoteFile.replace(/'/g, '\'\\\'\''); // 单引号内转义单引号
-                    console.log(`[DEBUG] 发送远程文件路径（转义后）: ${escapedPath}`);
-
-                    // 1. 发送路径（末尾必须加 \n，协议要求）
-                    const pathBuffer = Buffer.from(`${escapedPath}\n`, 'utf8');
-                    const isPathWritten = stream.write(pathBuffer);
-                    console.log(`[DEBUG] 路径发送结果（缓冲区是否未满）: ${isPathWritten}`);
-
-                    // 接收文件内容
-                    // const writeStream = fs.createWriteStream('C:/Users/Lenovo/Documents/devtool/sftp.192.168.43.132/favicon.ico');
-                    // stream.pipe(writeStream);
-
-                    // 处理缓冲区已满
-                    const sendConfirmByte = () => {
-                        if (isRejected) return;
-                        // 2. 发送 0x00 确认（告知服务器路径发送完成）
-                        stream.write(Buffer.alloc(1));
-                        console.log('[DEBUG] 已发送路径确认字节（0x00），等待服务器元数据...');
-                    };
-
-                    // // 处理缓冲区已满
-                    // if (!isPathWritten) {
-                    //     console.log('[DEBUG] 缓冲区已满，等待 drain 事件...');
-                    //     stream.once('drain', () => {
-                    //         console.log('[DEBUG] 缓冲区可用，发送确认字节');
-                    //         sendConfirmByte();
-                    //     });
-                    // } else {
-                    //     sendConfirmByte();
-                    // }
-
-                    // 响应处理
-                    responseBuffer = Buffer.alloc(0);
-                    const responseTimeout = setTimeout(() => {
-                        const err = new Error('接收响应超时（10秒）');
-                        console.error('[ERROR]', err.message);
-                        stream.destroy();
-                        reject(err);
-                    }, 10000);
-
-
-                    // 接收服务器数据
-                    stream.on('data', (chunk) => {
-                        clearTimeout(responseTimeout);
-                        responseBuffer = Buffer.concat([responseBuffer, chunk]);
-                        console.log(`[DEBUG] 收到响应（长度: ${chunk.length} 字节）`);
-                        console.log(`[DEBUG] 响应十六进制: ${responseBuffer.toString('hex')}`);
-                        console.log(`[DEBUG] 响应字符串: ${responseBuffer.toString('utf8').trim()}`);
-
-                        const status = responseBuffer[0];
-                        if (status === 0) {
-                            console.log('[SUCCESS] 服务器响应成功（状态码 0）');
-                            const meta = responseBuffer.slice(1).toString('utf8').trim();
-                            if (meta.startsWith('C')) {
-                                const [perm, size, filename] = meta.slice(1).split(/\s+/);
-                                console.log(`[DEBUG] 文件元信息 - 权限: ${perm}, 大小: ${size} 字节, 文件名: ${filename}`);
-                            }
-                            resolve();
-                        } else {
-                            const errorMsg = responseBuffer.slice(1).toString('utf8').trim();
-                            console.error(`[ERROR] 服务器错误（状态码 ${status}）: ${errorMsg}`);
-                            reject(new Error(`服务器错误: ${errorMsg}`));
-                        }
-                    });
-                });
-            });
-
-            console.log('\n===== 所有步骤验证通过 =====');
-
-        } catch (err) {
-            console.error('\n[FATAL] 调试失败:', err.message);
-        } finally {
-            // 关闭 SSH 连接
-            if (conn && !conn._closed) {
-                console.log('\n[DEBUG] 关闭 SSH 连接');
-                conn.end();
-            }
+    debug(message) {
+        if (this.debug) {
+            console.log(message);
         }
+    }
+
+    async debugSSH2() {
+        let result = await this.connectServer('172.26.3.11', 'root', '0penBmc', 22);
+        if (!result.success) {
+            Print.error("SSH连接失败!");
+            return;
+        }
+        let conn = result.client;
+        await new Promise((resolve, reject) => {
+            // 1. 去掉 -O 参数，兼容旧版 scp
+            const remoteFile = '/usr/share/www/favicon.ico.gz';
+            conn.exec(`scp -f ${remoteFile}`, (err, stream) => {
+                if (err) {
+                    console.error('[ERROR] 创建 SCP 通道失败:', err.message);
+                    return reject(err);
+                }
+                stream.write('\x00');
+                let localFile = '/home/greatwall/文档/devtool/sftp.172.26.3.11/favicon.ico.gz';
+                let scpClient = new SCPClient(remoteFile, localFile);
+                // 接收服务器数据
+                stream.on('data', (chunk) => {
+                    scpClient.recv(stream, chunk, (data) => {
+                        console.log("progress = ", data);
+                        if (data.status == 1) {
+                            resolve();
+                        } else if (data.status == -1) {
+                            reject();
+                        }
+                    })
+                });
+            });
+        });
+        console.log('\n===== 所有步骤验证通过 =====');
+
     }
 
     /**
@@ -325,55 +193,153 @@ class SFTPService extends EventEmitter {
      */
 
     // 连接到服务器
-    async connectServer (host, username = 'root', password = '0penBmc', port = 22) {
-        try {
-            if (this.sftpClients.has(host) && this.sftpClients.get(host).connected) {
-                return { success: true, message: 'Already connected' };
-            }
-            const sftp = new Client();
-            await sftp.connect({
-                host,
-                port,
-                username,
-                password,
-                readyTimeout: 10000,
-                // 添加调试信息
-                debug: msg => console.log('SFTP Debug:', msg),
-                algorithms: {
-                    cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-                    serverHostKey: ['ssh-rsa', 'ssh-dss']
-                }
-            });
-            // 监听连接成功：设置状态为 true
-            sftp.on('ready', () => {
-                console.log("SSH 登录成功！");
-                this.connectionStatus.set(host, true);
-            });
+    async connectServer(host, username = 'root', password = '0penBmc', port = 22) {
+        // 🔧 改进点5：参数验证
+        if (!host || typeof host !== 'string') {
+            throw new Error('host参数必须是非空字符串');
+        }
 
-            // 监听连接关闭/错误：设置状态为 false
-            sftp.on('close', () => {
-                this.connectionStatus.set(host, false);
-            });
-            sftp.on('error', () => {
-                this.connectionStatus.set(host, false);
-            });
-            this.sftpClients.set(host, sftp);
+        try {
+            // 检查现有活跃连接
+            const existingClient = this.sshClients.get(host);
+            if (existingClient && this.isConnectionAlive(existingClient)) {
+                Print.debug(`复用现有SSH连接: ${host}`);
+                return {
+                    success: true,
+                    message: 'Using existing connection',
+                    client: existingClient
+                };
+            }
+
+            Print.debug(`\n连接SSH服务器: ${username}@${host}:${port}`);
+            const sshClient = new Client();
+            // 使用Promise.race实现超时控制
+            const connectionResult = await Promise.race([
+                this.createSSHConnection(sshClient, { host, port, username, password }),
+                this.createTimeout(15000, `SSH连接超时（15秒）: ${host}`)
+            ]);
+
+            // 缓存新连接
+            this.sshClients.set(host, sshClient);
             this.connectionConfig.set(host, { username, password, port });
-            return { success: true, message: 'Connected successfully' };
+            this.connectionStatus.set(host, true);
+            Print.debug(`缓存SSH连接: ${host}`);
+            Print.debug(`SSH连接成功: ${host}`);
+            return {
+                success: true,
+                client: sshClient,
+                message: 'Connection established'
+            };
 
         } catch (error) {
-            this.connectionStatus.set(host, false);
-            return { success: false, message: `Connection failed: ${error.message}` };
+            return this.handleConnectionError(host, error);
         }
     }
 
-    // 断开服务器连接
-    async disconnectServer (host) {
+    createSSHConnection(sshClient, config) {
+        return new Promise((resolve, reject) => {
+            sshClient.on('ready', () => {
+                Print.debug('SSH认证成功');
+                resolve(sshClient);
+            });
+
+            sshClient.on('error', (err) => {
+                reject(new Error(`SSH错误: ${err.message}`));
+            });
+
+            sshClient.on('close', (hadError) => {
+                if (hadError) {
+                    reject(new Error('SSH连接异常关闭'));
+                }
+            });
+
+            // 连接配置
+            sshClient.connect({
+                host: config.host,
+                port: config.port,
+                username: config.username,
+                password: config.password,
+                readyTimeout: 10000,
+                algorithms: {
+                    cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
+                    serverHostKey: ['ssh-rsa', 'ssh-dss']
+                },
+                hostVerifier: (key) => {
+                    try {
+                        const fingerprint = key.getFingerprint('sha256').toString('hex');
+                        Print.debug(`服务器指纹: ${fingerprint}`);
+                        return true;
+                    } catch (err) {
+                        Print.warn('指纹检查跳过');
+                        return true;
+                    }
+                }
+            });
+        });
+    }
+
+    // 🔧 改进点7：独立的超时控制
+    createTimeout(ms, message) {
+        return new Promise((_, reject) => {
+            setTimeout(() => reject(new Error(message)), ms);
+        });
+    }
+
+    // 🔧 改进点8：连接活性检查
+    isConnectionAlive(client) {
         try {
-            const sftp = this.sftpClients.get(host);
-            if (sftp) {
-                await sftp.end();
-                this.sftpClients.delete(host);
+            return client && typeof client === 'object' && client.connected === true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // 🔧 改进点10：统一的错误处理
+    handleConnectionError(host, error) {
+        this.connectionStatus.set(host, false);
+
+        const errorInfo = {
+            success: false,
+            message: error.message,
+            host,
+            timestamp: new Date().toISOString()
+        };
+
+        // 根据错误类型提供更具体的消息
+        if (error.message.includes('timed out')) {
+            errorInfo.suggestion = '检查网络连接或增加超时时间';
+        } else if (error.message.includes('Authentication failed')) {
+            errorInfo.suggestion = '验证用户名和密码';
+        } else if (error.message.includes('ENOTFOUND')) {
+            errorInfo.suggestion = '检查主机名是否正确';
+        }
+
+        Print.error(`❌ SSH连接失败 [${host}]:`, error.message);
+        return errorInfo;
+    }
+
+    // 获取缓存的已打开连接的SSH2客户端
+    async getSSHClient(host) {
+        const hasClient = this.sshClients.has(host);
+        if (!hasClient) {
+            // 从缓存中获取之前的连接参数（若有），若无则用默认值
+            const { username = 'root', password = '0penBmc', port = 22 } = this.connectionConfig.get(host) || {};
+            // 复用缓存的参数重新连接，而非只传 host
+            const result = await this.connectServer(host, username, password, port);
+            if (!result.success) {
+                throw new Error(`Failed to connect to ${host}: ${result.message}`);
+            }
+        }
+        return this.sshClients.get(host);
+    }
+
+    // 断开服务器连接
+    async disconnectServer(host) {
+        try {
+            const sshClient = this.sshClients.get(host);
+            if (sshClient) {
+                await sshClient.end();
+                this.sshClients.delete(host);
                 this.connectionConfig.delete(host); // 断开时清除参数缓存
             }
             return { success: true, message: 'Disconnected' };
@@ -383,42 +349,17 @@ class SFTPService extends EventEmitter {
     }
 
     // 生成会话ID
-    generateSessionId (host, type, remotePath, localPath) {
+    generateSessionId(host, type, remotePath, localPath) {
         const data = `${host}-${type}-${remotePath}-${localPath}-${Date.now()}`;
         return Buffer.from(data).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
     }
-
-
-
-    /**
-     * SSH配置类型定义
-     * @typedef {Object} SshConfig
-     * @property {string} host - 服务器IP
-     * @property {number} [port=22] - 端口
-     * @property {string} username - 用户名
-     * @property {string} password - 密码
-     * @property {string} [sshKeyPath] - 私钥路径（可选，优先于密码）
-     */
-
-    /**
-     * 进度回调函数类型
-     * @typedef {Function} ProgressCallback
-     * @param {Object} progress - 进度信息
-     * @param {number} progress.fileCount - 已传输文件数
-     * @param {number} progress.totalFiles - 总文件数
-     * @param {number} progress.byteCount - 已传输字节数
-     * @param {number} progress.totalBytes - 总字节数
-     * @param {number} progress.percent - 进度百分比（0-100）
-     * @param {string} [progress.currentFile] - 当前传输的文件路径
-     * @param {string} [progress.status] - 状态描述（如 "上传中"、"下载中"）
-     */
 
     /**
      * 修复：确保读取到完整响应（处理分块传输）
      * @param {import('stream').Duplex} stream - SSH 通道流
      * @returns {Promise<{ status: number; message: string }>}
      */
-    readScpResponse (stream) {
+    readScpResponse(stream) {
         return new Promise((resolve, reject) => {
             let buffer = Buffer.alloc(0);
             let timeoutTimer = null;
@@ -470,47 +411,18 @@ class SFTPService extends EventEmitter {
             });
         });
     }
-    /**
-     * 发送SCP协议请求（符合SCP协议规范）
-     * @param {import('stream').Writable} stream - SSH通道可写流（必须是未销毁的Duplex流）
-     * @param {string} data - 要发送的数据（如文件路径、偏移量指令 S1024）
-     * @throws {Error} 流不可用或发送失败时抛出错误
-     */
-    async writeScpRequest (stream, data) {
-        // 1. 校验流状态（避免向已关闭的流写入）
-        if (!stream || stream.destroyed || !stream.writable) {
-            throw new Error('SCP 通道流不可用（已关闭或不可写）');
-        }
-
-        // 2. SCP协议要求：请求末尾必须加换行符（\n），而非NULL
-        const requestBuffer = Buffer.from(`${data}\n`, 'utf8');
-
-        // 3. 处理流写入（兼容缓冲区已满的情况）
-        const isWritten = stream.write(requestBuffer);
-
-        // 4. 若返回false，说明缓冲区已满，需监听drain事件避免数据丢失（可选但推荐）
-        if (!isWritten) {
-            return new Promise((resolve) => {
-                stream.once('drain', resolve);
-            });
-        }
-
-        // 5. 写入成功，返回空Promise（统一异步接口）
-        return Promise.resolve();
-    }
 
     /**
      * 扫描本地文件夹，获取文件列表、大小和相对路径
      * @param {string} localDir - 本地文件夹路径
      * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
      */
-    async scanLocalDir (localDir) {
+    async scanLocalDir(localDir) {
         const files = [];
         let totalBytes = 0;
 
-        async function traverse (dir) {
+        async function traverse(dir) {
             try {
-                // 异步方法：用 fs.promises.xxx
                 const entries = await fs.promises.readdir(dir, { withFileTypes: true });
                 for (const entry of entries) {
                     const fullPath = path.join(dir, entry.name);
@@ -544,7 +456,7 @@ class SFTPService extends EventEmitter {
   * @param {string} remoteDir - 远程文件夹路径（绝对路径）
   * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
   */
-    async scanRemoteDir (conn, remoteDir) {
+    async scanRemoteDir(conn, remoteDir) {
         const files = [];
         let totalBytes = 0;
         // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
@@ -638,7 +550,7 @@ class SFTPService extends EventEmitter {
      * @param {Object[]} targetFiles - 目标文件列表（含path/size/relPath）
      * @returns {Object[]} 需要传输的源文件列表
      */
-    filterNeedTransferFiles (sourceFiles, targetFiles) {
+    filterNeedTransferFiles(sourceFiles, targetFiles) {
         const targetMap = new Map();
         targetFiles.forEach(file => targetMap.set(file.relPath, file.size));
 
@@ -671,7 +583,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调（单文件）
      * @returns {Promise<void>}
      */
-    async scpUploadFile (conn, localFile, remoteFile, fileSize, startOffset = 0, onProgress) {
+    async scpUploadFile(conn, localFile, remoteFile, fileSize, startOffset = 0, onProgress) {
         return new Promise((resolve, reject) => {
             // 执行远程scp接收命令（-t=to，接收文件）
             conn.exec(`scp -t "${remoteFile}"`, (err, stream) => {
@@ -747,7 +659,7 @@ class SFTPService extends EventEmitter {
   * @param {Function} [onProgress] - 进度回调
   * @returns {Promise<void>}
   */
-    async scpDownloadFile (conn, remoteFile, localFile, fileSize, startOffset = 0, onProgress) {
+    async scpDownloadFile(conn, remoteFile, localFile, fileSize, startOffset = 0, onProgress) {
         return new Promise((resolve, reject) => {
             // 1. 确保本地目录存在
             const localDir = path.dirname(localFile);
@@ -931,7 +843,7 @@ class SFTPService extends EventEmitter {
      * @param {import('stream').Duplex} stream - SSH 通道流
      * @param {import('fs').WriteStream} writeStream - 本地写入流
      */
-    destroyStream (stream, writeStream) {
+    destroyStream(stream, writeStream) {
         if (stream && !stream.destroyed) {
             stream.destroy();
         }
@@ -948,7 +860,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      */
-    async scpUploadDir (config, localDir, remoteDir, onProgress) {
+    async scpUploadDir(config, localDir, remoteDir, onProgress) {
         let conn = null;
         try {
             // 校验入参
@@ -1109,7 +1021,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      */
-    async scpDownloadDir (config, remoteDir, localDir, onProgress) {
+    async scpDownloadDir(config, remoteDir, localDir, onProgress) {
         let conn = null;
         try {
             // 校验入参
