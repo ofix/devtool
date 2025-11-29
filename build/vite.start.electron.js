@@ -43,7 +43,6 @@ export const StartElectronPlugin = () => {
       ],
       {
         ignoreInitial: true, // 忽略初始扫描（避免启动时触发重启）
-        cwd: electronDir,
         ignore: ['node_modules/**']
       }
     );
@@ -69,25 +68,10 @@ export const StartElectronPlugin = () => {
     configureServer (server) {
       // 监听 Vite 服务器「监听成功」事件（端口已就绪）
       server.httpServer.once('listening', () => {
-        // 关闭之前可能残留的 Electron 进程（避免多开）
-        if (electronProcess) {
-          electronProcess.kill();
-        }
-
         let addr = server.httpServer?.address()
         const listenUrl = `http://localhost:${addr.port}`
-
         watchElectronFiles(listenUrl);
-
-        // 启动 Electron（关键：--no-devtools 禁用内置 DevTools，消除报错）
-        electronProcess = spawn(
-          electron + '',
-          ["src/electron/main.js", listenUrl], // 启动参数：Electron 主进程入口 + 禁用 DevTools
-          {
-            cwd: process.cwd(), // 工作目录
-            stdio: 'inherit' // 共享日志输出（Electron 日志会同步到终端）
-          }
-        );
+        restartElectron(listenUrl);
       });
 
       // Vite 服务器关闭时，关闭 Electron 进程

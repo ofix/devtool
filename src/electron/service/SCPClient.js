@@ -8,7 +8,10 @@ import Print from '../core/Print.js';
 const SCP_STATE = {
     WAITING_HEADER: 0,
     RECEIVING_FILE: 1,
-    RECEIVING_DIR: 2
+    RECEIVING_DIR: 2,
+    // SEND_WAIT_ACK: 3,
+    // SEND_FILE_META: 4,
+    // SEND_FILE: 4,
 };
 class SCPClient {
     constructor(conn, remoteFileAbsPath, localFileAbsPath) {
@@ -16,7 +19,7 @@ class SCPClient {
         this.remoteFilePath = remoteFileAbsPath; // 远程文件绝对路径
         this.localFilePath = localFileAbsPath; // 本地文件绝对路径
         this.localFile = null; // 本地文件句柄
-        this.state = SCP_STATE.WAITING_HEADER; // 当前SCP协议状态
+        this.recvState = SCP_STATE.WAITING_HEADER; // 当前SCP协议状态
         this.buffer = Buffer.alloc(0); // SCP服务器响应元数据缓存
         this.recvFileBytes = 0; // 已接收文件字节数
         this.fileInfo = null; // 文件信息
@@ -25,18 +28,12 @@ class SCPClient {
 
     async downloadFile (progressCallback) {
         await new Promise((resolve, reject) => {
-            // 1. 去掉 -O 参数，兼容旧版 scp
             this.conn.exec(`scp -f ${this.remoteFilePath}`, (err, stream) => {
                 if (err) {
                     Print.error('[ERROR] 创建 SCP 通道失败:', err.message);
                     return reject(err);
                 }
-                // 关键 2：延迟 50ms 发送初始确认（解决 Channel 绑定延迟）
-                // 避免在 exec 回调中立即发送，给 Channel 注册留时间
-
                 stream.write(Buffer.from([0]));
-
-                // 接收服务器数据
                 stream.on('data', (chunk) => {
                     this.recv(stream, chunk, (data) => {
                         if (data.status == 1) {
@@ -51,21 +48,14 @@ class SCPClient {
                             }
                         }
                     })
-                });
-                // 监听 Channel 错误/关闭
-                stream.on('error', (err) => {
+                }).on('error', (err) => {
                     Print.error(`[SCP] Channel ${stream.outgoing.id} 错误:`, err.message);
                     stream.close();
                     reject(err.message);
-                });
-
-                stream.on('close', (code) => {
+                }).on('close', (code) => {
                     Print.debug(`[SCP] Channel ${stream.outgoing.id} 关闭，退出码: ${code}`);
                     this._resetTransferState();
-                });
-
-                // 关键 4：监听 'end' 事件，确保数据传输完成
-                stream.on('end', () => {
+                }).on('end', () => {
                     Print.debug(`[SCP] Channel ${stream.outgoing.id} 数据传输结束`);
                 });
             });
@@ -88,7 +78,7 @@ class SCPClient {
             return;
         }
         // 根据当前状态处理数据
-        switch (this.state) {
+        switch (this.recvState) {
             case SCP_STATE.WAITING_HEADER:
                 this._recvHeader(stream, chunk, callback);
                 break;
@@ -126,7 +116,7 @@ class SCPClient {
         if (scpHeader[0] === 'C') {
             this.fileInfo = this._parseFileInfo(scpHeader);
             stream.write(Buffer.from([0]));  // 发送确认消息给SCP服务器, 客户端准备接收文件数据
-            this.state = SCP_STATE.RECEIVING_FILE;
+            this.recvState = SCP_STATE.RECEIVING_FILE;
         } else if (scpHeader[0] === 'D') {
             this._recvDir(stream, chunk);
         } else {
@@ -196,7 +186,7 @@ class SCPClient {
      * 重置传输状态
      */
     _resetTransferState () {
-        this.state = SCP_STATE.WAITING_HEADER;
+        this.recvState = SCP_STATE.WAITING_HEADER;
         this.fileInfo = null;
         this.recvFileBytes = 0;
         this.lastProgress = 0;
