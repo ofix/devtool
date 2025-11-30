@@ -578,56 +578,21 @@ class SFTPService extends EventEmitter {
     }
 
     /**************************************************************
-     * 修复：确保读取到完整响应（处理分块传输）
-     * @param {import('stream').Duplex} stream - SSH 通道流
-     * @returns {Promise<{ status: number; message: string }>}
-     **************************************************************/
-    readScpResponse (stream) {
-        return new Promise((resolve, reject) => {
-            let buffer = Buffer.alloc(0);
-            const onData = (chunk) => {
-                buffer = Buffer.concat([buffer, chunk]);
-                Print.debug(`[SCP] 读取响应: ${buffer.toString('hex')}`);
-                if (buffer[0] == 0) {
-                    stream.off('data', onData); // 移除监听器,防止重复触发
-                    stream.off('error', onErr);
-                    // 消费掉第一个字节 0x00，把剩余字节 原样回灌 到数据流
-                    const rest = buffer.subarray(1);
-                    if (rest.length > 0) {
-                        stream.unshift(rest);
-                    }
-                    resolve({ status: 0, message: "success" });
-                } else {
-                    Print.debug(`[SCP] +++++ 读取错误响应: ${buffer.toString('utf-8')}`);
-                    stream.off('data', onData); // 移除监听器,防止重复触发
-                    stream.off('error', onErr);
-                }
-            }
-            const onErr = (err) => {
-                console.log("服务器出错！", err.message.toString());
-                reject(new Error(`读取响应错误: ${err.message.toString()}`));
-            }
-            // 2. 持续监听数据，直到读取到完整响应
-            stream.on('data', onData).once('error', onErr);
-        });
-    }
-
-    /**
      * 文件夹SCP上传（支持断点续传+进度回调）
      * @param {string} host - 远程主机
      * @param {string} localDir - 本地文件夹路径
      * @param {string} remoteDir - 远程文件夹路径
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
-     */
+     **************************************************************/
     async uploadDir (host, localDir, remoteDir, onProgress) {
         let conn = null;
         let totalProgress = 0;
         try {
             const { files: localFiles, dirs: localDirs, totalBytes: totalBytes } = await this.scanLocalDir(localDir);
             conn = await this.getSSHClient(host);
-            const { files: remoteFiles, dirs: remoteDirs } = await this.scanRemoteDir(conn, remoteDir);
 
+            const { files: remoteFiles, dirs: remoteDirs } = await this.scanRemoteDir(conn, remoteDir);
             let missingRemoteDirs = Utils.getMissingDirs(localDir, localDirs, remoteDir, remoteDirs);
             Print.debug(missingRemoteDirs);
 
@@ -695,6 +660,7 @@ class SFTPService extends EventEmitter {
             });
             console.log(`文件夹上传完成：${localDir} → ${remoteDir}`);
         } catch (err) {
+            Print.error(`文件夹上传失败: ${err.message}`);
             onProgress?.({ status: -1, percent: totalProgress });
             throw err; // 抛出错误，让调用方处理
         } finally {
@@ -705,124 +671,171 @@ class SFTPService extends EventEmitter {
         }
     }
 
-
-    /**
-    * 单个文件SCP上传（支持断点续传）
-    * @param {import('ssh2').Client} conn - SSH连接实例
-    * @param {string} localFile - 本地文件路径
-    * @param {string} remoteFile - 远程文件路径
-    * @param {ProgressCallback} [onProgress] - 进度回调（单文件）
-    * @returns {Promise<void>}
-    */
+    /**************************************************************
+     * 单个文件SCP上传 - 简洁版本
+     **************************************************************/
     async uploadFile (conn, localFile, remoteFile, onProgress) {
         return new Promise((resolve, reject) => {
-            // 执行远程scp接收命令（-t=to，接收文件）
-            conn.exec(`scp -t "${remoteFile}"`, (err, stream) => {
+            conn.exec(`scp -t "${remoteFile}"`, async (err, stream) => {
                 if (err) return reject(new Error(`创建上传通道失败: ${err.message}`));
-                let bytesTransferred = 0; // 已传输字节数（含断点偏移）
-                let fileSize = 0;
-                const stderr = [];
-                // 1. 读取服务器初始响应
-                this.readScpResponse(stream)
-                    .then(async ({ status, message }) => {
-                        if (status !== 0) throw new Error(`服务器响应错误: ${message}`);
+                let readStream = null;
+                try {
+                    // 1. 初始握手
+                    await this._awaitScpServerAck(stream, "等待服务器SCP文件上传响应");
 
-                        // 2. 发送文件元信息（C0644 权限 + 大小 + 文件名）
-                        const fileName = path.basename(remoteFile);
+                    // 2. 发送文件元数据
+                    const stats = await fs.promises.stat(localFile);
+                    const fileName = path.basename(remoteFile);
+                    const safeName = fileName.includes(' ') ? `"${fileName}"` : fileName;
+                    stream.write(`C0644 ${stats.size} ${safeName}\n`);
+                    await this._awaitScpServerAck(stream, "等待服务器确认");
 
-                        // 修复后：加换行符 + 特殊文件名用双引号包裹
-                        const safeFileName = fileName.includes('-') || fileName.includes(' ')
-                            ? `"${fileName}"`  // 包含特殊字符则包裹
-                            : fileName;
+                    // 3. 传输文件数据
+                    await this._uploadFileInChunk(stream, localFile, stats.size, onProgress);
 
-                        const stats = await fs.promises.stat(localFile);
-                        fileSize = stats.size;
-                        Print.debug("\n\n");
-                        Print.debug(`发送文件元信息：C0644 ${fileSize} ${safeFileName}`);
-                        stream.write(`C0644 ${fileSize} ${safeFileName}\n`, 'utf-8');
-                        // 3. 读取元信息响应
-                        return this.readScpResponse(stream);
-                    })
-                    .then(async ({ status, message }) => {
-                        if (status !== 0) throw new Error(`元信息发送失败: ${message}`);
+                    // 4. 发送终止符并确认
+                    await this._awaitUploadFinishAck(stream, "发送上传结束符");
 
-                        // 4. 发送文件数据（从断点偏移开始）
-                        // 同步方法：fs.createReadStream（核心修复）
-                        const readStream = fs.createReadStream(localFile, { start: 0 });
-                        Print.debug(`+++ 文件${localFile}开始上传 +++`);
-                        readStream.on('data', (chunk) => {
-                            // 优化：控制写入流速，避免缓冲区溢出（源码中 Channel 有窗口控制机制）
-                            const canWrite = stream.write(chunk);
-                            if (!canWrite) {
-                                readStream.pause(); // 缓冲区满了，暂停读流
-                            }
-                            Print.debug(`+++ 文件${localFile}已发送${chunk.length}字节 +++`);
-                            bytesTransferred += chunk.length;
-                            onProgress?.({
-                                sendBytes: bytesTransferred,
-                                totalBytes: fileSize,
-                                progress: Math.round((bytesTransferred / fileSize) * 100),
-                                status: 0
-                            });
+                    resolve();
 
-                        });
-                        // 关键：通道流缓冲区清空后，恢复读流（避免数据积压）
-                        stream.on('drain', () => {
-                            readStream.resume();
-                        });
-                        // 补充：本地读流出错时，立即清理通道
-                        readStream.on('error', (err) => {
-                            Print.error(`读取本地文件失败: ${err.message}`);
-                            readStream.destroy();
-                            stream.close();
-                            reject(err);
-                        });
-
-                        // 补充：通道出错时，清理本地读流
-                        stream.on('error', (err) => {
-                            Print.error(`通道异常: ${err.message}`);
-                            readStream.destroy();
-                            reject(err);
-                        });
-                        readStream.on('end', () => {
-                            Print.debug(`+++ 文件${localFile}发送完成，等待服务器响应！+++`);
-                            // 步骤1：发送 SCP 终止符（空包，告诉服务器数据传输结束）
-                            stream.write(Buffer.from([0]), (writeErr) => {
-                                if (writeErr) {
-                                    Print.error(`发送终止符失败: ${writeErr.message}`);
-                                    readStream.destroy();
-                                    stream.destroy(); // 直接销毁通道
-                                    return reject(writeErr);
-                                }
-                                this.readScpResponse(stream).then(({ status, message }) => {
-                                    if (status == 0) {
-                                        readStream.destroy();
-                                        // 步骤4：关闭 Channel 通道（向服务器发 CHANNEL_CLOSE）
-                                        stream.close();
-                                        // 步骤5：监听通道关闭确认，确保资源释放后再 resolve
-                                        stream.once('close', (code) => {
-                                            Print.debug(`通道已彻底关闭，文件上传完成`);
-                                            resolve();
-                                        });
-                                    } else {
-                                        // 上传失败，立即清理
-                                        readStream.destroy();
-                                        stream.close();
-                                        reject(new Error(`文件上传失败: ${message}`));
-                                    }
-                                });
-
-                            });
-                        });
-                        readStream.resume();
-                    })
-                    .catch((err) => {
-                        // 捕获响应读取异常，避免资源泄漏
-                        readStream.destroy();
-                        stream.destroy();
-                        reject(err);
-                    });
+                } catch (error) {
+                    console.log(error);
+                    reject(error);
+                } finally {
+                    readStream?.destroy();
+                    stream?.close();
+                }
             });
+        });
+    }
+
+
+    /**************************************************************
+     * 读取SCP服务器响应（简洁版本）
+     * @param {import('stream').Duplex} stream - SSH 通道流
+     * @returns {Promise<{ status: number; message: string }>}
+     **************************************************************/
+    async _readScpServerResponse (stream) {
+        return new Promise((resolve, reject) => {
+            let buffer = Buffer.alloc(0);
+            let timeoutId;
+
+            const cleanup = () => {
+                stream.off('data', onData);
+                stream.off('error', onError);
+                clearTimeout(timeoutId);
+            };
+
+            const onData = (chunk) => {
+                buffer = Buffer.concat([buffer, chunk]);
+                Print.debug(`[SCP] 读取响应: ${buffer.toString('hex')}`);
+
+                const responseType = buffer[0];
+
+                // 只有收到完整响应时才处理
+                if (responseType === 0 || responseType === 1 || responseType === 2) {
+                    cleanup(); // 先清理监听器，再resolve
+
+                    if (responseType === 0) {
+                        // 成功：回灌剩余数据
+                        const remainingData = buffer.subarray(1);
+                        if (remainingData.length > 0) {
+                            stream.unshift(remainingData);
+                            Print.debug(`[SCP] 回灌 ${remainingData.length} 字节剩余数据`);
+                        }
+                        Print.debug(`[SCP] 响应成功`);
+                        resolve({ status: 0, message: "success" });
+                    } else {
+                        // 错误/警告
+                        const message = buffer.subarray(1).toString('utf-8').trim();
+                        const result = {
+                            status: responseType,
+                            message: message || (responseType === 1 ? '警告' : '错误')
+                        };
+                        Print.debug(`[SCP] 响应${result.status === 1 ? '警告' : '错误'}: ${result.message}`);
+                        resolve(result);
+                    }
+                }
+            };
+
+            const onError = (err) => {
+                cleanup();
+                reject(new Error(`SCP响应读取错误: ${err.message}`));
+            };
+
+            // 设置超时
+            timeoutId = setTimeout(() => {
+                cleanup();
+                reject(new Error('SCP响应读取超时'));
+            }, 30000);
+
+            stream.on('data', onData);
+            stream.once('error', onError);
+        });
+    }
+
+    /**************************************************************
+     * 等待SCP响应（通用方法）
+     **************************************************************/
+    async _awaitScpServerAck (stream, stepName) {
+        try {
+            Print.debug("等待服务器应答");
+            const response = await this._readScpServerResponse(stream);
+
+            if (response.status === 0) {
+                return; // 成功，直接返回
+            } else {
+                throw new Error(`${stepName}失败: ${response.message}`);
+            }
+        } catch (error) {
+            console.error('SCP响应等待失败:', error.message);
+            throw error;
+        }
+    }
+
+    /**************************************************************
+     * @todo 发送上传结束符并等待服务器响应
+     **************************************************************/
+    _awaitUploadFinishAck (stream, stepName) {
+        return new Promise((resolve, reject) => {
+            stream.write(Buffer.from([0]), async (err) => {
+                if (err) return reject(new Error(`发送${stepName}失败: ${err.message}`));
+
+                try {
+                    await this._awaitScpServerAck(stream, `${stepName}确认`);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    /**************************************************************
+     * @todo SSH2 分块上传数据给服务器端
+     **************************************************************/
+    _uploadFileInChunk (stream, localFile, fileSize, onProgress) {
+        return new Promise((resolve, reject) => {
+            const readStream = fs.createReadStream(localFile);
+            let transferred = 0;
+
+            readStream.on('data', (chunk) => {
+                if (!stream.write(chunk)) {
+                    readStream.pause();
+                }
+                transferred += chunk.length;
+                onProgress?.({
+                    sendBytes: transferred,
+                    totalBytes: fileSize,
+                    progress: Math.round((transferred / fileSize) * 100),
+                    status: 0
+                });
+            });
+
+            stream.on('drain', () => readStream.resume());
+            readStream.on('end', resolve);
+            readStream.on('error', reject);
+            stream.on('error', reject);
         });
     }
 }
