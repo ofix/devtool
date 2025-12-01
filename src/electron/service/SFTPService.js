@@ -1,13 +1,11 @@
-// import Client from 'ssh2-sftp-client';
 import { EventEmitter } from 'events';
 import Utils from "../core/Utils.js";
 import { Client } from 'ssh2';
-import * as fs from 'fs'; // 核心修复：直接导入完整 fs 模块（含同步+异步）
-import * as path from 'path';
-import * as os from 'os';
-import SCPClient from "./SCPClient.js"
+import fs from 'fs'; // 核心修复：直接导入完整 fs 模块（含同步+异步）
+import path from 'path';
 import Print from "../core/Print.js";
-
+import { debug } from 'console';
+// import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
     constructor() {
@@ -21,12 +19,12 @@ class SFTPService extends EventEmitter {
         Print.level = 7;
     }
 
-    async init() {
+    async init () {
         this.stateDir = await Utils.sftpDownloadMetaDir();
     }
 
     // 静态工厂方法（封装创建+初始化）
-    static async create() {
+    static async create () {
         const service = new SFTPService();
         await service.init(); // 内部调用异步初始化
         return service;
@@ -37,7 +35,7 @@ class SFTPService extends EventEmitter {
      * 方式 1：按顺序传参 → setConfig(host, username, password, port)
      * 方式 2：传入对象 → setConfig({ host, username, password, port })
      */
-    setConfig(...args) {
+    setConfig (...args) {
         let host, username = 'root', password = '0penBmc', port = 22;
         if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
             const config = args[0];
@@ -157,7 +155,7 @@ class SFTPService extends EventEmitter {
      */
 
     // 连接到服务器
-    async connectServer(host, username = 'root', password = '0penBmc', port = 22) {
+    async connectServer (host, username = 'root', password = '0penBmc', port = 22) {
         // 🔧 改进点5：参数验证
         if (!host || typeof host !== 'string') {
             throw new Error('host参数必须是非空字符串');
@@ -200,7 +198,7 @@ class SFTPService extends EventEmitter {
         }
     }
 
-    newSSHConnection(sshClient, config) {
+    newSSHConnection (sshClient, config) {
         return new Promise((resolve, reject) => {
             sshClient.on('ready', () => {
                 Print.debug('SSH认证成功');
@@ -244,14 +242,14 @@ class SFTPService extends EventEmitter {
         });
     }
 
-    createTimeout(ms, message) {
+    createTimeout (ms, message) {
         return new Promise((_, reject) => {
             setTimeout(() => reject(new Error(message)), ms);
         });
     }
 
     // 🔧 改进点8：连接活性检查
-    isConnectionAlive(client) {
+    isConnectionAlive (client) {
         try {
             return client && typeof client === 'object' && client.connected === true;
         } catch (error) {
@@ -259,7 +257,7 @@ class SFTPService extends EventEmitter {
         }
     }
 
-    handleConnectionError(host, error) {
+    handleConnectionError (host, error) {
         this.connectionStatus.set(host, false);
 
         const errorInfo = {
@@ -283,7 +281,7 @@ class SFTPService extends EventEmitter {
     }
 
     // 获取缓存的已打开连接的SSH2客户端
-    async getSSHClient(host) {
+    async getSSHClient (host) {
         const hasClient = this.sshClients.has(host);
         if (!hasClient) {
             // 从缓存中获取之前的连接参数（若有），若无则用默认值
@@ -299,7 +297,7 @@ class SFTPService extends EventEmitter {
     }
 
     // 断开服务器连接
-    async disconnectServer(host) {
+    async disconnectServer (host) {
         try {
             const sshClient = this.sshClients.get(host);
             if (sshClient) {
@@ -314,7 +312,7 @@ class SFTPService extends EventEmitter {
     }
 
     // 生成会话ID
-    generateSessionId(host, type, remotePath, localPath) {
+    generateSessionId (host, type, remotePath, localPath) {
         const data = `${host}-${type}-${remotePath}-${localPath}-${Date.now()}`;
         return Buffer.from(data).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
     }
@@ -330,53 +328,32 @@ class SFTPService extends EventEmitter {
      * @param {Function} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadFile(conn, remoteFile, localFile, onProgress) {
+    async downloadFile (conn, remoteFile, localFile, onProgress) {
         return new Promise(async (resolve, reject) => {
-            conn.exec(`scp -f ${this.remoteFilePath}`, async (err, stream) => {
+            conn.exec(`scp -f ${remoteFile}`, async (err, stream) => {
                 if (err) {
                     return reject(new Error(`创建下载通道失败: ${err.message}`));
                 }
 
-                // 存储文件元数据（大小、权限等）
-                let fileStats = { size: 0 };
-
                 try {
-                    // 1. 初始握手
-                    await this._sendAckToScpServer(stream, "发送应答码给服务器");
+                    await this._sendAckToScpServer(stream, "1.发送应答码给服务器");
 
-                    // 2. 等待服务器返回元数据
-                    await this._awaitScpServerAck(stream, "等待服务器确认");
-
-                    // 1. 等待服务器返回文件元数据（SCP 协议：c 开头表示文件）
-                    const meta = await this._awaitScpServerAck(stream, "等待服务器确认");
-                    if (!meta.startsWith('c')) {
-                        throw new Error(`不支持的 SCP 数据类型: ${meta.slice(0, 1)}`);
+                    const result = await this._awaitScpServerFileInfo(stream, "等待服务器返回文件元信息");
+                    if (result.status == -1) {
+                        throw new Error(`无法解析文件元信息`);
                     }
 
-                    // 解析文件元数据（格式：c<权限> <大小> <文件名>\n）
-                    const metaParts = meta.trim().split(/\s+/);
-                    if (metaParts.length < 3) {
-                        throw new Error(`无效的文件元数据: ${meta}`);
-                    }
+                    // 确认元数据接收，发送 ACK（0x00）
+                    await this._sendAckToScpServer(stream, '2.发送应答码给服务器');
 
-                    fileStats.size = parseInt(metaParts[1], 10);
-                    if (isNaN(fileStats.size)) {
-                        throw new Error(`无法解析文件大小: ${metaParts[1]}`);
-                    }
+                    // 下载文件数据
+                    await this._downloadFileInChunk(stream, localFile, result.fileInfo, onProgress);
 
-                    // 2. 确认元数据接收，发送 ACK（0x00）
-                    await this._sendAckToScpServer(stream);
-
-                    // 3. 下载文件数据
-                    await this._downloadFileInChunk(stream, localFile, fileStats.size, onProgress);
-
-                    // 4. 发送终止符并确认
-                    await this._sendAckToScpServer(stream, "发送下载结束符");
-
+                    // 终止会话并确认
+                    await this._sendAckToScpServer(stream, "3.关闭会话,防止会话干扰");
                     resolve();
-
                 } catch (error) {
-                    console.log(error);
+                    Print.log(error);
                     reject(error);
                 } finally {
                     stream?.close();
@@ -386,184 +363,238 @@ class SFTPService extends EventEmitter {
     }
 
 
-    /**************************************************************
-    * @todo 接受SCP服务器响应的数据内容
-    * @property {string} stream     - SSH2 数据加密传输通道
-    * @property {string} localFile  - 本地文件
-    * @property {buffer} chunk      - SCP服务器响应数据
-    * @property {funtion} onProgress  - 回调函数
-    **************************************************************/
-    async _downloadFileInChunk(stream, localFilePath, chunk, onProgress) {
-        await Utils.ensureDir(localFilePath, true);
-        let localFile = fs.openSync(this.localFilePath, 'w');
-
-        // 同步写入数据块到文件,防止异步写带来的顺序问题
-        const bytesWritten = fs.writeSync(localFile, chunk, 0, chunk.length, this.recvFileBytes);
-        this.recvFileBytes += chunk.length;
-        // 验证写入完整性
-        if (bytesWritten !== chunk.length) {
-            throw new Error(`写入不完整: 预期 ${chunk.length}, 实际 ${bytesWritten}`);
-        }
-        // let hexDump = new HexDump(chunk, 16);
-        // hexDump.console();
-        const progressPercent = Math.min((this.recvFileBytes / this.fileInfo.size * 100), 100).toFixed(1);
-        const currentProgress = Math.floor(progressPercent);
-        if (currentProgress !== this.lastProgress || this.recvFileBytes === this.fileInfo.size) {
-            onProgress?.({
-                status: 0,
-                progress: `${progressPercent}%`,
-                recvBytes: this.recvFileBytes,
-                totalBytes: this.fileInfo.size,
-                filename: this.fileInfo.name
-            });
-            this.lastProgress = currentProgress;
-        }
-        if (this.recvFileBytes >= this.fileInfo.size) {
-            if (this.localFile) {
-                fs.closeSync(this.localFile);
-            }
-            Print.debug("文件结束完毕，发送应答码");
-            stream.write(Buffer.from([0])); // 发送确认消息给SCP服务器,已完成一次数据传输
-            onProgress?.({
-                status: 1,
-                progress: '100%',
-                recvBytes: this.recvFileBytes,
-                totalBytes: this.fileInfo.size,
-                filename: this.fileInfo.name,
-                message: '文件传输完成'
-            });
-            this._resetTransferState();
-        }
-    }
-
     /**
-     * 辅助方法：分块下载文件数据并写入本地（修复 0x00 误判问题）
-     * @param {Object} options - 下载选项
-     * @param {Object} options.stream - SCP 命令流
-     * @param {string} options.localFile - 本地保存路径
-     * @param {number} options.totalSize - 文件总大小（从元数据中解析的准确大小）
-     * @param {Function} options.onProgress - 块下载完成回调（参数：chunkSize）
+     * @todo 辅助方法：等待 SCP 服务器的文件元信息响应（SCP 协议：C 开头表示文件）
+     * @param {Object} stream - SCP 命令流
+     * @returns {Promise<{ status: number, fileInfo: Object }>} 元信息解析结果
      */
-    async _downloadFileInChunk(stream, localFile, totalSize, onProgress) {
+    async _awaitScpServerFileInfo (stream) {
         return new Promise((resolve, reject) => {
-            const writeStream = createWriteStream(localFile, { flags: 'w' });
-            let loadedBytes = 0; // 已接收的文件数据字节数（关键：用于和总大小对比）
-            let isDataCompleted = false; // 状态标记：文件数据是否已传输完成
+            const buffer = [];
 
-            // 写入本地文件失败
-            writeStream.on('error', (err) => {
-                reject(new Error(`写入本地文件失败: ${err.message}`));
-            });
-
-            // 写入完成
-            writeStream.on('finish', () => {
-                resolve();
-            });
-
-            // 处理 SCP 数据流（核心优化：基于总大小判断是否结束）
-            const onData = (chunk) => {
-                // 若已确认数据完成，不再处理后续数据
-                if (isDataCompleted) return;
-
-                // 关键逻辑：只有已接收数据达到总大小，才判断是否为结束标识
-                if (loadedBytes >= totalSize) {
-                    // 此时的 0x00 是结束标识，而非文件数据
-                    if (chunk[0] === 0) {
-                        isDataCompleted = true;
-                        stream.off('data', onData); // 移除数据监听
-                        writeStream.end(); // 结束本地文件写入
-                    } else {
-                        reject(new Error(`数据传输异常：预期结束标识，实际收到 ${chunk[0].toString(16)}`));
-                    }
+            const onData = (data) => {
+                const newlineIndex = data.indexOf(0x0A); // 0x0A = \n 的 ASCII 码
+                if (newlineIndex === -1) {
+                    buffer.push(data);
                     return;
                 }
 
-                // 未达到总大小：无论 chunk[0] 是否为 0x00，都视为正常文件数据
-                const needWriteSize = Math.min(chunk.length, totalSize - loadedBytes); // 避免超出总大小（防止冗余数据）
-                const writeChunk = chunk.slice(0, needWriteSize);
+                const fullMetaBuffer = Buffer.concat([
+                    ...buffer,
+                    data.slice(0, newlineIndex + 1) // 包含换行符（协议要求完整元信息需带换行）
+                ]);
+                const scpFileInfo = fullMetaBuffer.toString('utf8');
 
-                // 写入本地文件
-                writeStream.write(writeChunk, (err) => {
-                    if (err) {
-                        reject(new Error(`写入文件块失败: ${err.message}`));
-                        return;
-                    }
+                // 处理当前 chunk 中换行符后的冗余数据（关键：避免数据丢失）
+                const remainingData = data.slice(newlineIndex + 1);
+                if (remainingData.length > 0) {
+                    // 把冗余数据重新注入流（后续数据处理逻辑会接收）
+                    stream.unshift(remainingData);
+                }
 
-                    loadedBytes += needWriteSize;
-                    onProgress(needWriteSize); // 回调进度
+                // 移除所有事件监听（防止重复触发/内存泄漏）
+                cleanupListeners();
 
-                    // 若写入后达到总大小，准备等待结束标识
-                    if (loadedBytes >= totalSize) {
-                        // 若当前 chunk 有剩余数据（超出总大小部分），直接处理为结束标识
-                        if (chunk.length > needWriteSize) {
-                            const remainingChunk = chunk.slice(needWriteSize);
-                            if (remainingChunk[0] === 0) {
-                                isDataCompleted = true;
-                                stream.off('data', onData);
-                                writeStream.end();
-                            } else {
-                                reject(new Error(`数据传输异常：文件数据已完成，收到无效标识 ${remainingChunk[0].toString(16)}`));
-                            }
+                // 协议类型判断与解析
+                switch (scpFileInfo[0]) {
+                    case 'C': // 文件类型（SCP 协议大小写不敏感，部分服务器返回小写 'c'）
+                    case 'c': {
+                        try {
+                            const fileInfo = this._parseFileInfo(scpFileInfo);
+                            resolve({ status: 0, fileInfo });
+                        } catch (parseErr) {
+                            reject({ status: -1, message: `解析文件元信息失败：${parseErr.message}` });
                         }
-                        // 若当前 chunk 刚好写满，等待下一个 chunk 中的结束标识
+                        break;
                     }
-                });
+                    case 'D':
+                    case 'd':
+                        reject({ status: -1, message: '不支持文件夹类型（当前仅支持文件下载）' });
+                        break;
+                    default:
+                        reject({ status: -1, message: `不支持的 SCP 数据类型：${scpFileInfo[0]}` });
+                        break;
+                }
             };
 
+            // 错误处理：服务器返回 stderr（如文件不存在、权限不足）
+            const onStderr = (errData) => {
+                cleanupListeners();
+                reject({ status: -1, message: `服务器错误：${errData.toString('utf8').trim()}` });
+            };
+
+            // 超时处理
+            const onTimeout = () => {
+                cleanupListeners();
+                reject({ status: -1, message: '等待服务器文件元信息超时' });
+            };
+
+            // 移除所有事件监听的工具函数（避免内存泄漏）
+            const cleanupListeners = () => {
+                stream.off('data', onData);
+                stream.off('stderr', onStderr);
+                stream.off('timeout', onTimeout);
+            };
+
+            // 注册事件监听
             stream.on('data', onData);
-
-            // 流超时处理
-            stream.on('timeout', () => {
-                reject(new Error(`文件下载超时（已接收 ${loadedBytes}/${totalSize} 字节）`));
-            });
-
-            // 流异常处理
-            stream.on('error', (err) => {
-                reject(new Error(`下载流异常: ${err.message}`));
-            });
+            stream.on('stderr', onStderr);
+            stream.on('timeout', onTimeout);
         });
     }
 
 
     /**************************************************************
-     * @todo 单个文件SCP上传 - 简洁版本
+     * @todo   解析SCP服务器返回的文件元信息
+     * @notice 格式: C0644 1234 filename.txt\n
      **************************************************************/
-    async uploadFile(conn, localFile, remoteFile, onProgress) {
+    _parseFileInfo (scpHeader) {
+        const match = scpHeader.match(/^C([0-7]{4})\s+(\d+)\s+([^\n]+)\n$/);
+        if (!match) {
+            throw new Error(`无法解析文件信息: ${scpHeader}`);
+        }
+        return {
+            mode: parseInt(match[1], 8), // 八进制转十进制
+            size: parseInt(match[2], 10),
+            name: match[3].trim()
+        };
+    }
+
+    /**
+     * 辅助方法：分块下载文件数据并写入本地
+     * @param {Object} stream - SCP 命令流
+     * @param {string} localFile - 本地保存路径
+     * @param {Object} fileInfo - 文件信息（含 size/name 等）
+     * @param {Function} onProgress - 进度回调（{ status, progress, recvBytes, totalBytes, filename }）
+     */
+    async _downloadFileInChunk (stream, localFile, fileInfo, onProgress) {
         return new Promise((resolve, reject) => {
-            conn.exec(`scp -t "${remoteFile}"`, async (err, stream) => {
-                if (err) {
-                    return reject(new Error(`创建上传通道失败: ${err.message}`));
-                }
-                let readStream = null;
-                try {
-                    // 1. 初始握手
-                    await this._awaitScpServerAck(stream, "等待服务器SCP文件上传响应");
-
-                    // 2. 发送文件元数据
-                    const stats = await fs.promises.stat(localFile);
-                    const fileName = path.basename(remoteFile);
-                    const safeName = fileName.includes(' ') ? `"${fileName}"` : fileName;
-                    stream.write(`C0644 ${stats.size} ${safeName}\n`);
-                    await this._awaitScpServerAck(stream, "等待服务器确认");
-
-                    // 3. 传输文件数据
-                    await this._uploadFileInChunk(stream, localFile, stats.size, onProgress);
-
-                    // 4. 发送终止符并确认
-                    await this._awaitUploadFinishAck(stream, "发送上传结束符");
-
-                    resolve();
-
-                } catch (error) {
-                    console.log(error);
-                    reject(error);
-                } finally {
-                    readStream?.destroy();
-                    stream?.close();
-                }
+            const writeStream = fs.createWriteStream(localFile, { flags: 'w' });
+            let recvFileBytes = 0; // 已写入磁盘的字节数
+            const totalFileSize = fileInfo.size;
+            const progressCallback = typeof onProgress === 'function' ? onProgress : () => { };
+            // 写入失败：直接 reject
+            writeStream.on('error', (err) => {
+                cleanup();
+                reject(new Error(`写入本地文件失败: ${err.message}`));
             });
+
+            // 所有数据写入完成：resolve（真正的下载完成）
+            writeStream.on('finish', () => {
+                cleanup();
+                resolve();
+            });
+
+            // 缓冲区清空：恢复流读取（核心 drain 处理）
+            writeStream.on('drain', () => {
+                stream.resume(); // 恢复接收服务器数据
+            });
+
+            Print.debug("文件总大小: ", totalFileSize);
+            const onData = (chunk) => {
+                try {
+                    // 优先处理 SCP 协议的结束标识（关键：独立数据包的 0x00）
+                    if (recvFileBytes >= totalFileSize && chunk.length === 1 && chunk[0] === 0x00) {
+                        Print.debug('收到 SCP 结束标识（0x00），终止数据接收');
+                        handleEndMarker(chunk);
+                        return;
+                    }
+                    const needWrite = Math.min(chunk.length, totalFileSize - recvFileBytes);
+                    // 同步更新已接收字节数（关键：接收后立即更新，避免异步回调延迟）
+                    recvFileBytes += needWrite;
+                    Print.debug('当前分块大小：', chunk.length, "接收字节 = ", recvFileBytes);
+
+                    if (needWrite > 0) {
+                        // 计算需写入的字节数（避免超出总大小）
+                        let writeData = null;
+                        let remaining = null;
+                        if (needWrite != chunk.length) {
+                            writeData = chunk.slice(0, needWrite);
+                            remaining = chunk.slice(needWrite); // 超出部分（可能含结束标识）
+                        } else {
+                            writeData = chunk;
+                        }
+                        let canWrite = writeStream.write(writeData, (err) => {
+                            if (err) {
+                                Print.error(`块写入失败:`, err.message);
+                                return;
+                            }
+                            updateProgress();
+                            // 处理剩余数据（回注到流中，下次 onData 处理）
+                            if (remaining != null && remaining.length > 0) {
+                                Print.log('处理剩余数据：', remaining.length);
+                                stream.unshift(remaining);
+                            }
+                        });
+                        // 缓冲区满：暂停流，避免数据堆积
+                        if (!canWrite) {
+                            stream.pause(); // 暂停接收服务器数据
+                        }
+                    }
+                } catch (e) {
+                    Print.error(e);
+                }
+            };
+
+            // -------------------------- 辅助函数 --------------------------
+            // 处理服务器的 0x00 结束标识
+            const handleEndMarker = (chunk) => {
+                if (chunk[0] === 0x00) {
+                    Print.log('[DEBUG] 收到服务器结束标识，关闭写入流');
+                    writeStream.end(); // 否则文件写入流一直处于可写入状态，触发 finish 事件
+                } else {
+                    reject(new Error(`数据传输异常：预期结束标识（0x00），实际收到 0x${chunk[0].toString(16)}`));
+                    cleanup();
+                }
+            };
+
+            // 更新进度回调
+            const updateProgress = () => {
+                const progress = totalFileSize > 0
+                    ? Math.min((recvFileBytes / totalFileSize) * 100, 100).toFixed(1)
+                    : '100.0';
+                progressCallback({
+                    status: 0,
+                    progress: `${progress}%`,
+                    recvBytes: recvFileBytes,
+                    totalBytes: totalFileSize,
+                    filename: fileInfo.name || path.basename(localFile)
+                });
+            };
+
+            // 清理资源（避免内存泄漏）
+            const cleanup = () => {
+                stream.off('data', onData);
+                stream.off('timeout', onTimeout);
+                stream.off('error', onStreamError);
+                stream.off('close', onStreamClose);
+                writeStream.destroy(); // 销毁写入流
+            };
+
+            // -------------------------- 异常处理 --------------------------
+            const onTimeout = () => {
+                reject(new Error(`文件下载超时（已接收 ${recvFileBytes}/${totalFileSize} 字节）`));
+                cleanup();
+            };
+
+            const onStreamError = (err) => {
+                reject(new Error(`SCP 流异常: ${err.message}`));
+                cleanup();
+            };
+
+            const onStreamClose = (code) => {
+                reject(new Error(`SCP 流异常关闭（已接收 ${recvFileBytes}/${totalFileSize} 字节，退出码: ${code}`));
+                cleanup();
+            };
+
+            // -------------------------- 注册监听 --------------------------
+            stream.on('data', onData);
+            stream.on('timeout', onTimeout);
+            stream.on('error', onStreamError);
+            stream.on('close', onStreamClose);
         });
     }
+
 
 
     /**************************************************************
@@ -574,7 +605,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadDir(host, remoteDir, localDir, onProgress) {
+    async downloadDir (host, remoteDir, localDir, onProgress) {
         let recvFiles = 0;
         let totalFiles = 0;
         let recvBytes = 0;
@@ -652,328 +683,75 @@ class SFTPService extends EventEmitter {
         }
     }
 
-    /**************************************************************
-     * 扫描本地文件夹，获取文件列表、大小和相对路径
-     * @param {string} localDir - 本地文件夹路径
-     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
-     **************************************************************/
-    async scanLocalDir(localDir) {
-        const files = [];
-        const dirs = [];
-        const dirSet = new Set();
-        let totalBytes = 0;
-
-        async function traverse(dir) {
-            try {
-                const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-                for (const entry of entries) {
-                    const fullPath = path.join(dir, entry.name);
-                    const relPath = path.relative(localDir, fullPath).replace(/\\/g, '/'); // 统一为POSIX路径
-
-                    if (entry.isDirectory()) {
-                        dirSet.add(fullPath);
-                        await traverse(fullPath);
-                    } else if (entry.isFile()) {
-                        const stats = await fs.promises.stat(fullPath);
-                        files.push({ path: fullPath, size: stats.size, relPath });
-                        totalBytes += stats.size;
-                    }
-                }
-            } catch (err) {
-                throw new Error(`扫描本地文件夹失败: ${err.message}（路径：${dir}）`);
-            }
-        }
-
-        // 同步方法：直接用 fs.existsSync（核心修复）
-        if (!fs.existsSync(localDir)) {
-            throw new Error(`本地文件夹不存在: ${localDir}`);
-        }
-
-        await traverse(localDir);
-        dirs.push(...dirSet);
-        return { files, dirs, totalBytes };
-    }
 
     /**************************************************************
-     * @todo 非递归获取远程文件夹，获取直接子目录和文件（兼容 BusyBox 无find环境）
-     * @param {import('ssh2').Client} conn - SSH连接实例
-     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
-     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], dirs: string[], totalBytes: number}>}
-     * - files: 直接子文件列表（不含子目录内文件）
-     * - dirs: 直接子目录列表（不含嵌套子目录）
-     * - totalBytes: 直接子文件总大小
+     * @todo 单个文件SCP上传 - 简洁版本
      **************************************************************/
-    async listSubDir(conn, remoteDir) {
-        const files = [];
-        const dirs = [];
-        let totalBytes = 0;
-
-        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
-        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
-
-        try {
-            // 关键修改：移除 -R（递归）参数，只扫描当前目录
-            // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
-            const lsCmd = `ls -lAp "${normalizedRemoteDir}" 2>/dev/null`;
-
-            let lsResult = await this.exec(conn, lsCmd);
-            if (!lsResult.code) {
-                return { files, dirs, totalBytes };
-            }
-
-            // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
-            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
-
-            // 正则解析：兼容英文/中文月份、带空格文件名、目录（结尾无/，通过权限位判断）
-            // 格式：权限 链接数 所有者 组 大小 月 日 时间 文件名/（目录）
-            const lineRegex = /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
-
-            for (const line of lines) {
-                const match = line.match(lineRegex);
-                if (!match) continue;
-
-                const [
-                    , perm, , , , sizeStr, , , , name // 解构匹配结果：权限、大小、文件名
-                ] = match;
-
-                const size = parseInt(sizeStr, 10);
-                if (isNaN(size) || !name || name.trim() === '') continue;
-
-                // 拼接绝对路径（目标目录 + 子项名称）
-                const absPath = `${normalizedRemoteDir}/${name}`;
-
-                // 1. 判断是否为目录（权限位以 d 开头）
-                if (perm.startsWith('d')) {
-                    // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
-                    if (name === '.' || name === '..') continue;
-                    dirs.push(absPath); // 直接子目录，添加绝对路径
-                    continue;
-                }
-
-                // 2. 处理文件（非目录、非链接，权限位以 - 开头）
-                if (perm.startsWith('-')) {
-                    // 相对路径：直接使用文件名（非递归，无嵌套目录）
-                    const relPath = name;
-
-                    files.push({
-                        path: absPath,  // 远程文件绝对路径
-                        size: size,    // 文件大小（字节）
-                        relPath: relPath // 相对路径（相对于目标目录，直接是文件名）
-                    });
-                    totalBytes += size;
-                }
-
-                // 忽略链接文件（权限位以 l 开头），如需支持可自行扩展
-            }
-
-            console.debug(`非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`);
-            return { files, dirs, totalBytes };
-
-        } catch (err) {
-            console.error('扫描远程文件夹失败:', err.message);
-            throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);
-        }
-    }
-
-    /**************************************************************
-     * @todo 执行 SSH 命令并获取完整输出（性能优化版，减少字符串拼接开销）
-     * @param {import('ssh2').Client} conn - 已建立连接的 SSH Client 实例（必须处于 ready 状态）
-     * @param {string} command - 要执行的远程命令（如 'ls -l', 'pwd' 等）
-     * @param {Object} [options] - 可选配置
-     * @param {boolean} [options.throwOnNonZeroExit=true] - 非 0 退出码是否抛出异常（默认 true）
-     * @param {string|'buffer'} [options.encoding='utf8'] - 输出编码（默认 utf8，支持 'buffer'/'ascii'/'base64' 等）
-     * @returns {Promise<{
-     *   stdout: string|Buffer,
-     *   stderr: string|Buffer,
-     *   code: number // 命令退出码（0 表示成功）
-     * }>}
-     * @throws {Error} 当 SSH 连接异常、命令执行失败或非 0 退出码（且 throwOnNonZeroExit 为 true）时抛出
-     **************************************************************/
-    async exec(conn, command, options = {}) {
-        const {
-            throwOnNonZeroExit = true,
-            encoding = 'utf8'
-        } = options;
-
-        if (typeof command !== 'string' || command.trim() === '') {
-            throw new Error('命令 command 不能为空字符串');
-        }
+    async uploadFile (conn, localFile, remoteFile, onProgress) {
         return new Promise((resolve, reject) => {
-            const stdoutBuffers = [];
-            const stderrBuffers = [];
-            let stdoutTotalLength = 0; // 记录 stdout 总长度，减少 Buffer.concat 时的计算开销
-            let stderrTotalLength = 0; // 记录 stderr 总长度
-
-            // 执行 SSH 命令
-            conn.exec(command, (err, stream) => {
+            conn.exec(`scp -t "${remoteFile}"`, async (err, stream) => {
                 if (err) {
-                    return reject(new Error(`SSH 命令执行初始化失败 [${command}]: ${err.message}`));
+                    return reject(new Error(`创建上传通道失败: ${err.message}`));
                 }
+                let readStream = null;
+                try {
+                    // 1. 初始握手
+                    await this._awaitScpServerAck(stream, "等待服务器SCP文件上传响应");
 
-                // 收集 stdout 原始 Buffer（不做任何字符串转换）
-                stream.on('data', (chunk) => {
-                    stdoutBuffers.push(chunk);
-                    stdoutTotalLength += chunk.length;
-                });
+                    // 2. 发送文件元数据
+                    const stats = await fs.promises.stat(localFile);
+                    const fileName = path.basename(remoteFile);
+                    const safeName = fileName.includes(' ') ? `"${fileName}"` : fileName;
+                    stream.write(`C0644 ${stats.size} ${safeName}\n`);
+                    await this._awaitScpServerAck(stream, "等待服务器确认");
 
-                // 收集 stderr 原始 Buffer（不做任何字符串转换）
-                stream.on('stderr', (chunk) => {
-                    stderrBuffers.push(chunk);
-                    stderrTotalLength += chunk.length;
-                });
+                    // 3. 传输文件数据
+                    await this._uploadFileInChunk(stream, localFile, stats.size, onProgress);
 
-                // 命令执行完成：合并 Buffer 并按需转码
-                stream.on('close', (code) => {
-                    try {
-                        // 合并 Buffer（预计算总长度，提升 concat 性能）
-                        const stdoutBuffer = stdoutTotalLength > 0
-                            ? Buffer.concat(stdoutBuffers, stdoutTotalLength)
-                            : Buffer.alloc(0);
-                        const stderrBuffer = stderrTotalLength > 0
-                            ? Buffer.concat(stderrBuffers, stderrTotalLength)
-                            : Buffer.alloc(0);
+                    // 4. 发送终止符并确认
+                    await this._awaitUploadFinishAck(stream, "发送上传结束符");
 
-                        // 按需转码（仅最后一步处理编码，避免中间转换开销）
-                        const stdout = encoding === 'buffer'
-                            ? stdoutBuffer
-                            : stdoutBuffer.toString(encoding);
-                        const stderr = encoding === 'buffer'
-                            ? stderrBuffer
-                            : stderrBuffer.toString(encoding);
-                        const result = { stdout, stderr, code: code ?? -1 };
+                    resolve();
 
-                        // 非 0 退出码处理
-                        if (throwOnNonZeroExit && code !== 0) {
-                            const stderrPreview = typeof stderr === 'string'
-                                ? stderr.slice(0, 500)
-                                : stderr.toString('utf8', 0, 500);
-                            return reject(new Error(
-                                `SSH 命令执行失败 [${command}]：` +
-                                `退出码 ${code}，stderr: ${stderrPreview}`
-                            ));
-                        }
-
-                        resolve(result);
-                    } catch (transcodeErr) {
-                        reject(new Error(`输出编码转换失败 [${encoding}]: ${transcodeErr.message}`));
-                    }
-                });
-
-                // 流错误处理
-                stream.on('error', (err) => {
-                    reject(new Error(`SSH 命令流错误 [${command}]: ${err.message}`));
-                });
+                } catch (error) {
+                    console.log(error);
+                    reject(error);
+                } finally {
+                    readStream?.destroy();
+                    stream?.close();
+                }
             });
         });
     }
 
     /**************************************************************
-     * @todo 扫描远程文件夹，获取文件列表、大小和相对路径（兼容 BusyBox 无find环境）
-     * @param {import('ssh2').Client} conn - SSH连接实例
-     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
-     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
+     * @todo SSH2 分块上传数据给服务器端
      **************************************************************/
-    async scanRemoteDir(conn, remoteDir) {
-        const files = [];
-        const dirs = [];
-        const dirSet = new Set();
-        let totalBytes = 0;
-        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
-        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
-        try {
-            // BusyBox 兼容的 ls 命令：-l（详细信息）、-R（递归）、-A（显示隐藏文件，不含.和..）
-            const lsCmd = `ls -lRA "${normalizedRemoteDir}" 2>/dev/null`;
-            let lsResult = await this.exec(conn, lsCmd);
-            if (lsResult.code) {
-                return { files, dirs, totalBytes };
-            }
+    _uploadFileInChunk (stream, localFile, fileSize, onProgress) {
+        return new Promise((resolve, reject) => {
+            const readStream = fs.createReadStream(localFile);
+            let transferred = 0;
 
-            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
-            let currentAbsDir = normalizedRemoteDir; // 记录当前递归的绝对目录
-
-            // BusyBox ls -l 输出格式示例:
-            // /usr/share/www/fonts:  <--- 目录
-            // 总计 140               <--- 统计行
-            // 权限        链接数  所有者    组     大小    月     日    时间    文件名
-            // -rw-r--r--  1      root     root   1234    Jan    1    10:00   test.txt                      <--- 英文文件行
-            // drwxr-xr-x  2      root     root   4096    Jan    2    11:00   subdir
-            // -rwxrw-rw-  1      ofix     ofix   55956   11月   26   20:33   element-icons.f1a45d74.ttf    <--- 中文文件行
-            // 正则解析：匹配权限、链接数、所有者、组、大小、时间、文件名（兼容空格文件名）
-            // 注意事项：兼容 英文月份(Jan/Feb)、中文月份(11月/3月)、多语言所有者/组名、带空格文件名
-            const fileLineRegex = /^([-lrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月年日])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
-
-            for (const line of lines) {
-                // 1. 匹配目录行（格式：/path/to/dir:）
-                if (line.endsWith(':')) {
-                    currentAbsDir = line.slice(0, -1).trim(); // 去除末尾 ":"，得到当前目录绝对路径
-                    dirSet.add(currentAbsDir);
-                    continue;
+            readStream.on('data', (chunk) => {
+                if (!stream.write(chunk)) {
+                    readStream.pause();
                 }
-
-                // 2. 匹配文件行（跳过目录行和无效行）
-                const fileMatch = line.match(fileLineRegex);
-                if (!fileMatch) continue;
-
-                const [, , , , , sizeStr, , , , fileName] = fileMatch;
-                const size = parseInt(sizeStr, 10);
-
-                // 过滤无效数据：
-                // - 目录的大小是4096（BusyBox默认），需排除
-                // - 解析失败的大小、空文件名
-                if (isNaN(size) || size === 4096 || !fileName || fileName.trim() === '') continue;
-
-                // 3. 计算绝对路径和相对路径
-                const absPath = `${currentAbsDir}/${fileName}`; // 拼接文件绝对路径
-                // 相对路径：当前目录绝对路径 - 根目录路径 = 相对目录，再拼接文件名
-                const relDir = currentAbsDir.replace(normalizedRemoteDir, '');
-                const relPath = `${relDir}/${fileName}`.replace(/^\/+/, ''); // 去除开头多余斜杠
-
-                // 4. 添加到结果列表
-                files.push({
-                    path: absPath,
-                    size,
-                    relPath
+                transferred += chunk.length;
+                onProgress?.({
+                    sendBytes: transferred,
+                    totalBytes: fileSize,
+                    progress: Math.round((transferred / fileSize) * 100),
+                    status: 0
                 });
-                totalBytes += size;
-            }
-            dirs.push(...dirSet);
-            Print.debug(`扫描完成，共找到 ${files.length} 个文件，总字节数 ${totalBytes}`);
-            return { files, dirs, totalBytes };
-        } catch (err) {
-            Print.error(err.message);
-            throw new Error(`扫描远程文件夹失败: ${err.message}`);
-        }
-    }
+            });
 
-
-    /**************************************************************
-     * @todo 过滤需要传输的文件（断点续传核心）
-     * @param {Object[]} sourceFiles - 源文件列表（含path/size/relPath）
-     * @param {Object[]} targetFiles - 目标文件列表（含path/size/relPath）
-     * @returns {Object[]} 需要传输的源文件列表
-     **************************************************************/
-    filterNeedTransferFiles(sourceFiles, targetFiles) {
-        const targetMap = new Map();
-        targetFiles.forEach(file => targetMap.set(file.relPath, file.size));
-
-        // 2. 过滤逻辑：覆盖「本地无文件、文件不存在、传输中断、文件更新」场景
-        return sourceFiles.filter(sourceFile => {
-            const targetFile = targetMap.get(sourceFile.relPath);
-
-            // 场景1：本地文件夹不存在 / 目标文件不存在 → 必须传输
-            if (!targetFile) {
-                return true;
-            }
-
-            // 场景2：源文件大小 ≠ 目标文件大小 → 传输中断/文件损坏/源文件更新，需传输
-            if (sourceFile.size !== targetFile.size) {
-                return true;
-            }
-
-            // 场景3：文件大小一致 + （可选）修改时间一致 → 已传输完成，无需重复传输
-            return false;
+            stream.on('drain', () => readStream.resume());
+            readStream.on('end', resolve);
+            readStream.on('error', reject);
+            stream.on('error', reject);
         });
     }
+
 
     /**************************************************************
      * @todo 文件夹SCP上传（支持断点续传+进度回调）
@@ -983,7 +761,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async uploadDir(host, localDir, remoteDir, onProgress) {
+    async uploadDir (host, localDir, remoteDir, onProgress) {
         let conn = null;
         let totalProgress = 0;
         try {
@@ -1069,11 +847,334 @@ class SFTPService extends EventEmitter {
     }
 
     /**************************************************************
+     * 扫描本地文件夹，获取文件列表、大小和相对路径
+     * @param {string} localDir - 本地文件夹路径
+     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
+     **************************************************************/
+    async scanLocalDir (localDir) {
+        const files = [];
+        const dirs = [];
+        const dirSet = new Set();
+        let totalBytes = 0;
+
+        async function traverse (dir) {
+            try {
+                const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                    const fullPath = path.join(dir, entry.name);
+                    const relPath = path.relative(localDir, fullPath).replace(/\\/g, '/'); // 统一为POSIX路径
+
+                    if (entry.isDirectory()) {
+                        dirSet.add(fullPath);
+                        await traverse(fullPath);
+                    } else if (entry.isFile()) {
+                        const stats = await fs.promises.stat(fullPath);
+                        files.push({ path: fullPath, size: stats.size, relPath });
+                        totalBytes += stats.size;
+                    }
+                }
+            } catch (err) {
+                throw new Error(`扫描本地文件夹失败: ${err.message}（路径：${dir}）`);
+            }
+        }
+
+        // 同步方法：直接用 fs.existsSync（核心修复）
+        if (!fs.existsSync(localDir)) {
+            throw new Error(`本地文件夹不存在: ${localDir}`);
+        }
+
+        await traverse(localDir);
+        dirs.push(...dirSet);
+        return { files, dirs, totalBytes };
+    }
+
+    /**************************************************************
+     * @todo 非递归获取远程文件夹，获取直接子目录和文件（兼容 BusyBox 无find环境）
+     * @param {import('ssh2').Client} conn - SSH连接实例
+     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
+     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], dirs: string[], totalBytes: number}>}
+     * - files: 直接子文件列表（不含子目录内文件）
+     * - dirs: 直接子目录列表（不含嵌套子目录）
+     * - totalBytes: 直接子文件总大小
+     **************************************************************/
+    async listSubDir (conn, remoteDir) {
+        const files = [];
+        const dirs = [];
+        let totalBytes = 0;
+
+        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
+        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
+
+        try {
+            // 关键修改：移除 -R（递归）参数，只扫描当前目录
+            // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
+            const lsCmd = `ls -lAp "${normalizedRemoteDir}" 2>/dev/null`;
+
+            let lsResult = await this.exec(conn, lsCmd);
+            if (!lsResult.code) {
+                return { files, dirs, totalBytes };
+            }
+
+            // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
+            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
+
+            // 正则解析：兼容英文/中文月份、带空格文件名、目录（结尾无/，通过权限位判断）
+            // 格式：权限 链接数 所有者 组 大小 月 日 时间 文件名/（目录）
+            const lineRegex = /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
+
+            for (const line of lines) {
+                const match = line.match(lineRegex);
+                if (!match) continue;
+
+                const [
+                    , perm, , , , sizeStr, , , , name // 解构匹配结果：权限、大小、文件名
+                ] = match;
+
+                const size = parseInt(sizeStr, 10);
+                if (isNaN(size) || !name || name.trim() === '') continue;
+
+                // 拼接绝对路径（目标目录 + 子项名称）
+                const absPath = `${normalizedRemoteDir}/${name}`;
+
+                // 1. 判断是否为目录（权限位以 d 开头）
+                if (perm.startsWith('d')) {
+                    // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
+                    if (name === '.' || name === '..') continue;
+                    dirs.push(absPath); // 直接子目录，添加绝对路径
+                    continue;
+                }
+
+                // 2. 处理文件（非目录、非链接，权限位以 - 开头）
+                if (perm.startsWith('-')) {
+                    // 相对路径：直接使用文件名（非递归，无嵌套目录）
+                    const relPath = name;
+
+                    files.push({
+                        path: absPath,  // 远程文件绝对路径
+                        size: size,    // 文件大小（字节）
+                        relPath: relPath // 相对路径（相对于目标目录，直接是文件名）
+                    });
+                    totalBytes += size;
+                }
+
+                // 忽略链接文件（权限位以 l 开头），如需支持可自行扩展
+            }
+
+            console.debug(`非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`);
+            return { files, dirs, totalBytes };
+
+        } catch (err) {
+            console.error('扫描远程文件夹失败:', err.message);
+            throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);
+        }
+    }
+
+    /**************************************************************
+     * @todo 执行 SSH 命令并获取完整输出（性能优化版，减少字符串拼接开销）
+     * @param {import('ssh2').Client} conn - 已建立连接的 SSH Client 实例（必须处于 ready 状态）
+     * @param {string} command - 要执行的远程命令（如 'ls -l', 'pwd' 等）
+     * @param {Object} [options] - 可选配置
+     * @param {boolean} [options.throwOnNonZeroExit=true] - 非 0 退出码是否抛出异常（默认 true）
+     * @param {string|'buffer'} [options.encoding='utf8'] - 输出编码（默认 utf8，支持 'buffer'/'ascii'/'base64' 等）
+     * @returns {Promise<{
+     *   stdout: string|Buffer,
+     *   stderr: string|Buffer,
+     *   code: number // 命令退出码（0 表示成功）
+     * }>}
+     * @throws {Error} 当 SSH 连接异常、命令执行失败或非 0 退出码（且 throwOnNonZeroExit 为 true）时抛出
+     **************************************************************/
+    async exec (conn, command, options = {}) {
+        const {
+            throwOnNonZeroExit = true,
+            encoding = 'utf8'
+        } = options;
+
+        if (typeof command !== 'string' || command.trim() === '') {
+            throw new Error('命令 command 不能为空字符串');
+        }
+        return new Promise((resolve, reject) => {
+            const stdoutBuffers = [];
+            const stderrBuffers = [];
+            let stdoutTotalLength = 0; // 记录 stdout 总长度，减少 Buffer.concat 时的计算开销
+            let stderrTotalLength = 0; // 记录 stderr 总长度
+
+            // 执行 SSH 命令
+            conn.exec(command, (err, stream) => {
+                if (err) {
+                    return reject(new Error(`SSH 命令执行初始化失败 [${command}]: ${err.message}`));
+                }
+
+                // 收集 stdout 原始 Buffer（不做任何字符串转换）
+                stream.on('data', (chunk) => {
+                    stdoutBuffers.push(chunk);
+                    stdoutTotalLength += chunk.length;
+                });
+
+                // 收集 stderr 原始 Buffer（不做任何字符串转换）
+                stream.on('stderr', (chunk) => {
+                    stderrBuffers.push(chunk);
+                    stderrTotalLength += chunk.length;
+                });
+
+                // 命令执行完成：合并 Buffer 并按需转码
+                stream.on('close', (code) => {
+                    try {
+                        // 合并 Buffer（预计算总长度，提升 concat 性能）
+                        const stdoutBuffer = stdoutTotalLength > 0
+                            ? Buffer.concat(stdoutBuffers, stdoutTotalLength)
+                            : Buffer.alloc(0);
+                        const stderrBuffer = stderrTotalLength > 0
+                            ? Buffer.concat(stderrBuffers, stderrTotalLength)
+                            : Buffer.alloc(0);
+
+                        // 按需转码（仅最后一步处理编码，避免中间转换开销）
+                        const stdout = encoding === 'buffer'
+                            ? stdoutBuffer
+                            : stdoutBuffer.toString(encoding);
+                        const stderr = encoding === 'buffer'
+                            ? stderrBuffer
+                            : stderrBuffer.toString(encoding);
+                        const result = { stdout, stderr, code: code ?? -1 };
+
+                        // 非 0 退出码处理
+                        if (throwOnNonZeroExit && code !== 0) {
+                            const stderrPreview = typeof stderr === 'string'
+                                ? stderr.slice(0, 500)
+                                : stderr.toString('utf8', 0, 500);
+                            return reject(new Error(
+                                `SSH 命令执行失败 [${command}]：` +
+                                `退出码 ${code}，stderr: ${stderrPreview}`
+                            ));
+                        }
+
+                        resolve(result);
+                    } catch (transcodeErr) {
+                        reject(new Error(`输出编码转换失败 [${encoding}]: ${transcodeErr.message}`));
+                    }
+                });
+
+                // 流错误处理
+                stream.on('error', (err) => {
+                    reject(new Error(`SSH 命令流错误 [${command}]: ${err.message}`));
+                });
+            });
+        });
+    }
+
+    /**************************************************************
+     * @todo 扫描远程文件夹，获取文件列表、大小和相对路径（兼容 BusyBox 无find环境）
+     * @param {import('ssh2').Client} conn - SSH连接实例
+     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
+     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
+     **************************************************************/
+    async scanRemoteDir (conn, remoteDir) {
+        const files = [];
+        const dirs = [];
+        const dirSet = new Set();
+        let totalBytes = 0;
+        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
+        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
+        try {
+            // BusyBox 兼容的 ls 命令：-l（详细信息）、-R（递归）、-A（显示隐藏文件，不含.和..）
+            const lsCmd = `ls -lRA "${normalizedRemoteDir}" 2>/dev/null`;
+            let lsResult = await this.exec(conn, lsCmd);
+            if (lsResult.code) {
+                return { files, dirs, totalBytes };
+            }
+
+            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
+            let currentAbsDir = normalizedRemoteDir; // 记录当前递归的绝对目录
+
+            // BusyBox ls -l 输出格式示例:
+            // /usr/share/www/fonts:  <--- 目录
+            // 总计 140               <--- 统计行
+            // 权限        链接数  所有者    组     大小    月     日    时间    文件名
+            // -rw-r--r--  1      root     root   1234    Jan    1    10:00   test.txt                      <--- 英文文件行
+            // drwxr-xr-x  2      root     root   4096    Jan    2    11:00   subdir
+            // -rwxrw-rw-  1      ofix     ofix   55956   11月   26   20:33   element-icons.f1a45d74.ttf    <--- 中文文件行
+            // 正则解析：匹配权限、链接数、所有者、组、大小、时间、文件名（兼容空格文件名）
+            // 注意事项：兼容 英文月份(Jan/Feb)、中文月份(11月/3月)、多语言所有者/组名、带空格文件名
+            const fileLineRegex = /^([-lrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月年日])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
+
+            for (const line of lines) {
+                // 1. 匹配目录行（格式：/path/to/dir:）
+                if (line.endsWith(':')) {
+                    currentAbsDir = line.slice(0, -1).trim(); // 去除末尾 ":"，得到当前目录绝对路径
+                    dirSet.add(currentAbsDir);
+                    continue;
+                }
+
+                // 2. 匹配文件行（跳过目录行和无效行）
+                const fileMatch = line.match(fileLineRegex);
+                if (!fileMatch) continue;
+
+                const [, , , , , sizeStr, , , , fileName] = fileMatch;
+                const size = parseInt(sizeStr, 10);
+
+                // 过滤无效数据：
+                // - 目录的大小是4096（BusyBox默认），需排除
+                // - 解析失败的大小、空文件名
+                if (isNaN(size) || size === 4096 || !fileName || fileName.trim() === '') continue;
+
+                // 3. 计算绝对路径和相对路径
+                const absPath = `${currentAbsDir}/${fileName}`; // 拼接文件绝对路径
+                // 相对路径：当前目录绝对路径 - 根目录路径 = 相对目录，再拼接文件名
+                const relDir = currentAbsDir.replace(normalizedRemoteDir, '');
+                const relPath = `${relDir}/${fileName}`.replace(/^\/+/, ''); // 去除开头多余斜杠
+
+                // 4. 添加到结果列表
+                files.push({
+                    path: absPath,
+                    size,
+                    relPath
+                });
+                totalBytes += size;
+            }
+            dirs.push(...dirSet);
+            Print.debug(`扫描完成，共找到 ${files.length} 个文件，总字节数 ${totalBytes}`);
+            return { files, dirs, totalBytes };
+        } catch (err) {
+            Print.error(err.message);
+            throw new Error(`扫描远程文件夹失败: ${err.message}`);
+        }
+    }
+
+
+    /**************************************************************
+     * @todo 过滤需要传输的文件（断点续传核心）
+     * @param {Object[]} sourceFiles - 源文件列表（含path/size/relPath）
+     * @param {Object[]} targetFiles - 目标文件列表（含path/size/relPath）
+     * @returns {Object[]} 需要传输的源文件列表
+     **************************************************************/
+    filterNeedTransferFiles (sourceFiles, targetFiles) {
+        const targetMap = new Map();
+        targetFiles.forEach(file => targetMap.set(file.relPath, file.size));
+
+        // 2. 过滤逻辑：覆盖「本地无文件、文件不存在、传输中断、文件更新」场景
+        return sourceFiles.filter(sourceFile => {
+            const targetFile = targetMap.get(sourceFile.relPath);
+
+            // 场景1：本地文件夹不存在 / 目标文件不存在 → 必须传输
+            if (!targetFile) {
+                return true;
+            }
+
+            // 场景2：源文件大小 ≠ 目标文件大小 → 传输中断/文件损坏/源文件更新，需传输
+            if (sourceFile.size !== targetFile.size) {
+                return true;
+            }
+
+            // 场景3：文件大小一致 + （可选）修改时间一致 → 已传输完成，无需重复传输
+            return false;
+        });
+    }
+
+    /**************************************************************
      * @todo 读取SCP服务器响应（简洁版本）
      * @param {import('stream').Duplex} stream - SSH 通道流
      * @returns {Promise<{ status: number; message: string }>}
      **************************************************************/
-    async _readScpServerResponse(stream) {
+    async _readScpServerResponse (stream) {
         return new Promise((resolve, reject) => {
             let buffer = Buffer.alloc(0);
             let timeoutId;
@@ -1135,10 +1236,10 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 发送应答给SCP服务器
      **************************************************************/
-    async _sendAckToScpServer(stream, stepName) {
+    async _sendAckToScpServer (stream, stepName) {
         Print.debug(stepName);
         return new Promise((resolve, reject) => {
-            stream.write(Buffer.from([code]), (err) => {
+            stream.write(Buffer.from([0]), (err) => {
                 if (err) {
                     reject(new Error(`发送 ACK 失败: ${err.message}`));
                 } else {
@@ -1151,11 +1252,9 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 等待SCP服务器响应
      **************************************************************/
-    async _awaitScpServerAck(stream, stepName) {
+    async _awaitScpServerAck (stream, stepName) {
         try {
-            Print.debug("等待服务器应答");
             const response = await this._readScpServerResponse(stream);
-
             if (response.status === 0) {
                 return; // 成功，直接返回
             } else {
@@ -1170,7 +1269,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 发送上传结束符并等待服务器响应
      **************************************************************/
-    _awaitUploadFinishAck(stream, stepName) {
+    _awaitUploadFinishAck (stream, stepName) {
         return new Promise((resolve, reject) => {
             stream.write(Buffer.from([0]), async (err) => {
                 if (err) return reject(new Error(`发送${stepName}失败: ${err.message}`));
@@ -1182,34 +1281,6 @@ class SFTPService extends EventEmitter {
                     reject(error);
                 }
             });
-        });
-    }
-
-    /**************************************************************
-     * @todo SSH2 分块上传数据给服务器端
-     **************************************************************/
-    _uploadFileInChunk(stream, localFile, fileSize, onProgress) {
-        return new Promise((resolve, reject) => {
-            const readStream = fs.createReadStream(localFile);
-            let transferred = 0;
-
-            readStream.on('data', (chunk) => {
-                if (!stream.write(chunk)) {
-                    readStream.pause();
-                }
-                transferred += chunk.length;
-                onProgress?.({
-                    sendBytes: transferred,
-                    totalBytes: fileSize,
-                    progress: Math.round((transferred / fileSize) * 100),
-                    status: 0
-                });
-            });
-
-            stream.on('drain', () => readStream.resume());
-            readStream.on('end', resolve);
-            readStream.on('error', reject);
-            stream.on('error', reject);
         });
     }
 }
