@@ -26,7 +26,7 @@ class SCPClient {
         this.lastProgress = 0; // 上次进度百分比
     }
 
-    async downloadFile (progressCallback) {
+    async downloadFile(progressCallback) {
         await new Promise((resolve, reject) => {
             this.conn.exec(`scp -f ${this.remoteFilePath}`, (err, stream) => {
                 if (err) {
@@ -68,26 +68,30 @@ class SCPClient {
      * @property {buffer} chunk        - SCP服务器响应数据
      * @property {funtion} callback    - 回调函数
      **************************************************************/
-    recv (stream, chunk, callback) {
+    async recv(stream, chunk, callback) {
         // 检查第一个字节可以快速判断SCP响应头状态
-        const firstByte = chunk[0];
-        if (firstByte === 0x01 || firstByte === 0x02) {
-            const errorMsg = chunk.slice(1).toString(); // 错误消息一定是文本类型
-            stream.close(); // 新增：错误时关闭 stream
-            Print.error('SCP 错误:', errorMsg);
-            return;
-        }
-        // 根据当前状态处理数据
-        switch (this.recvState) {
-            case SCP_STATE.WAITING_HEADER:
-                this._recvHeader(stream, chunk, callback);
-                break;
-            case SCP_STATE.RECEIVING_FILE:
-                this._recvFile(stream, chunk, callback);
-                break;
-            case SCP_STATE.RECEIVING_DIR:
-                this._recvDir(stream, chunk, callback);
-                break;
+        try {
+            const firstByte = chunk[0];
+            if (firstByte === 0x01 || firstByte === 0x02) {
+                const errorMsg = chunk.slice(1).toString(); // 错误消息一定是文本类型
+                stream.close(); // 新增：错误时关闭 stream
+                Print.error('SCP 错误:', errorMsg);
+                return;
+            }
+            // 根据当前状态处理数据
+            switch (this.recvState) {
+                case SCP_STATE.WAITING_HEADER:
+                    this._recvHeader(stream, chunk, callback);
+                    break;
+                case SCP_STATE.RECEIVING_FILE:
+                    await this._recvFile(stream, chunk, callback);
+                    break;
+                case SCP_STATE.RECEIVING_DIR:
+                    this._recvDir(stream, chunk, callback);
+                    break;
+            }
+        } catch (e) {
+            Print.error(e.message);
         }
     }
 
@@ -98,7 +102,7 @@ class SCPClient {
      * @property {ctx} ctx          - 缓存SCP服务器响应的数据
      * @property {funtion} callback - 回调函数
      **************************************************************/
-    _recvHeader (stream, data, callback) {
+    _recvHeader(stream, data, callback) {
         let newBuffer = Buffer.concat([this.buffer, data]);
         // 查找换行符位置（SCP文件元信息结束标记）
         const newlineIndex = newBuffer.indexOf(0x0A); // \n 的 ASCII 码
@@ -133,9 +137,9 @@ class SCPClient {
      * @property {buffer} chunk      - SCP服务器响应数据
      * @property {funtion} callback - 回调函数
      **************************************************************/
-    _recvFile (stream, chunk, callback) {
+    async _recvFile(stream, chunk, callback) {
         if (!this.localFile) {
-            Utils.ensureDirSync(this.localFilePath, true);
+            await Utils.ensureDir(this.localFilePath, true);
             this.localFile = fs.openSync(this.localFilePath, 'w');
         }
         // 同步写入数据块到文件,防止异步写带来的顺序问题
@@ -163,6 +167,7 @@ class SCPClient {
             if (this.localFile) {
                 fs.closeSync(this.localFile);
             }
+            Print.debug("文件结束完毕，发送应答码");
             stream.write(Buffer.from([0])); // 发送确认消息给SCP服务器,已完成一次数据传输
             callback({
                 status: 1,
@@ -176,7 +181,7 @@ class SCPClient {
         }
     }
 
-    _recvDir (stream, chunk, callback) {
+    _recvDir(stream, chunk, callback) {
         Print.error('SCP 目录传输暂不支持');
         stream.write('\x02');
         stream.close();
@@ -185,7 +190,7 @@ class SCPClient {
     /**
      * 重置传输状态
      */
-    _resetTransferState () {
+    _resetTransferState() {
         this.recvState = SCP_STATE.WAITING_HEADER;
         this.fileInfo = null;
         this.recvFileBytes = 0;
@@ -197,7 +202,7 @@ class SCPClient {
      * @todo   解析SCP服务器返回的文件元信息
      * @notice 格式: C0644 1234 filename.txt\n
      **************************************************************/
-    _parseFileInfo (scpHeader) {
+    _parseFileInfo(scpHeader) {
         const match = scpHeader.match(/^C([0-7]{4})\s+(\d+)\s+([^\n]+)\n$/);
         if (!match) {
             throw new Error(`无法解析文件信息: ${scpHeader}`);

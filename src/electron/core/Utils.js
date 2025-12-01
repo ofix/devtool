@@ -6,23 +6,23 @@ import Print from './Print.js';
 
 class Utils {
     // 改为静态 getter，延迟执行 app.getPath()
-    static get sysDownloadDir () {
+    static get sysDownloadDir() {
         return app.getPath('downloads');
     }
 
-    static get sysDocumentDir () {
+    static get sysDocumentDir() {
         return app.getPath('documents');
     }
 
-    static get sysAppData () {
+    static get sysAppData() {
         return app.getPath('appData');
     }
 
-    static get temp () {
+    static get temp() {
         return app.getPath('temp');
     }
 
-    static get desktop () {
+    static get desktop() {
         return app.getPath('desktop');
     }
 
@@ -30,9 +30,9 @@ class Utils {
         throw new Error('Utils 不能被实例化');
     }
 
-    static sftpLocalDir (host) {
+    static async sftpLocalDir(host) {
         const dir = join(Utils.sysDocumentDir, 'devtool', `sftp.${host}`);
-        this.ensureDirSync(dir);
+        await this.ensureDir(dir);
         return dir;
     }
 
@@ -45,14 +45,14 @@ class Utils {
      * @param {boolean} [options.recursive=true] - 是否递归创建嵌套目录（默认 true，强制开启）
      * @throws {Error} 非目录相关的错误（如权限不足、路径非法等）
      **************************************************************/
-    static ensureDirSync (filePath, ignoreFileName = false) {
+    static async ensureDir(filePath, ignoreFileName = false) {
         // 避免相对路径歧义
         let absolutePath = path.resolve(filePath);
         try {
             if (ignoreFileName) {
                 absolutePath = path.dirname(absolutePath);
             }
-            fs.mkdirSync(absolutePath, {
+            await fs.promises.mkdir(absolutePath, {
                 recursive: true,
                 mode: 0o777
             });
@@ -65,45 +65,87 @@ class Utils {
         return true;
     }
 
-    static sftpDownloadMetaDir () {
+    static async sftpDownloadMetaDir() {
         const dir = join(Utils.sysDocumentDir, 'devtool', '.sftp.state');
-        Utils.ensureDirSync(dir);
+        await this.ensureDir(dir);
         return dir;
     }
 
     /**************************************************************
-     * @todo 获取不存在的文件夹
-     * @param {String} localRootDir 
-     * @param {Array<String>} localDirs 
-     * @param {String} remoteRootDir 
-     * @param {Array<String>} remoteDirs 
-     * @returns 
+     * 批量创建目录（支持嵌套目录，幂等性：目录已存在不报错）
+     * @param {Array<String>} dirs - 要创建的目录路径列表
      **************************************************************/
-    static getMissingDirs (localRootDir, localDirs, remoteRootDir, remoteDirs) {
-        // 1. 统一路径分隔符（Windows \ → /，避免映射错误）
-        const normalizeLocalPath = (p) => p.replace(/\\/g, '/');
-        const normalizedLocalRoot = normalizeLocalPath(localRootDir);
-
-        // 2. 本地子目录 → 远程子目录：映射逻辑
-        const remoteSubDirs = localDirs.map((localDir) => {
-            const normalizedLocalDir = normalizeLocalPath(localDir);
-            // 提取本地子目录相对于本地根的路径（如 css、fonts/img）
-            const relativeDir = normalizedLocalDir.replace(normalizedLocalRoot + '/', '');
-            // 拼接为远程绝对路径（如 /usr/share/www/upload/css）
-            return path.posix.join(remoteRootDir, relativeDir); // posix.join 确保 Linux 路径分隔符
-        });
-
-        // 3. 排除远程已存在的目录（忽略大小写？Linux 路径大小写敏感，按原字符串匹配）
-        const existingRemoteDirsSet = new Set(remoteDirs);
-        const dirsMissing = remoteSubDirs.filter(
-            (remoteDir) => !existingRemoteDirsSet.has(remoteDir)
-        );
-
-        if (remoteDirs.length == 0) {
-            dirsMissing.push(remoteRootDir);
+    static async mkdirs(dirs) {
+        // 防御性处理：过滤空目录数组、空路径
+        if (!Array.isArray(dirs) || dirs.length === 0) {
+            Print.warn('无需要创建的目录');
+            return;
         }
 
-        return dirsMissing;
+        try {
+            // 并发创建所有目录（高效）
+            await Promise.all(
+                dirs.map(async (dir) => {
+                    // 过滤空路径，避免无效调用
+                    if (typeof dir !== 'string' || !dir.trim()) return;
+                    // 使用 fs.promises.mkdir（Promise 式，支持 await）
+                    await fs.promises.mkdir(dir.trim(), {
+                        recursive: true, // 自动创建嵌套目录（关键）
+                        mode: 0o755 // 可选：设置目录权限（Linux/macOS）
+                    });
+                })
+            );
+            Print.log(`成功创建 ${dirs.length} 个目录`);
+        } catch (err) {
+            // 捕获所有错误，避免 UnhandledPromiseRejection
+            Print.error('批量创建目录失败：', err.message);
+            throw err; // 可选：抛出错误让调用方处理
+        }
+    }
+
+    /**************************************************************
+     * @todo 获取不存在的文件夹（本地比远程多则返回远程缺失目录，反之返回本地缺失目录）
+     * @param {String} localRootDir - 本地根目录路径
+     * @param {Array<String>} localDirs - 本地目录列表（绝对路径）
+     * @param {String} remoteRootDir - 远程根目录路径
+     * @param {Array<String>} remoteDirs - 远程目录列表（绝对路径）
+     * @returns {Array<String>} 缺失的目录列表（绝对路径）
+     **************************************************************/
+    static getMissingDirs(localRootDir, localDirs, remoteRootDir, remoteDirs) {
+        // 极简路径标准化：仅统一分隔符（无额外校验，保持轻量）
+        const normalize = p => p?.replace(/\\/g, '/').replace(/\/+/g, '/') || '';
+
+        // 提取相对路径（极简实现，依赖业务保证目录归属根路径）
+        const getRelative = (full, root) => {
+            const normalizedFull = normalize(full);
+            const normalizedRoot = normalize(root);
+            return normalizedFull.startsWith(normalizedRoot)
+                ? normalizedFull.slice(normalizedRoot.length).replace(/^\/+/, '')
+                : '';
+        };
+
+        // 按目录数量判断方向，按需处理（仅标准化当前方向所需路径）
+        if (localDirs.length > remoteDirs.length) {
+            // 本地 → 远程：仅标准化本地目录、远程根目录、远程已存在目录
+            const localRootNorm = normalize(localRootDir);
+            const remoteRootNorm = normalize(remoteRootDir);
+            const remoteExistingSet = new Set(remoteDirs.map(normalize));
+
+            return localDirs
+                .map(dir => path.posix.join(remoteRootNorm, getRelative(dir, localRootNorm)))
+                .filter(remoteDir => !remoteExistingSet.has(remoteDir))
+                .concat(localDirs.length && !remoteDirs.length ? [remoteRootNorm] : []);
+        } else {
+            // 远程 → 本地：仅标准化远程目录、本地根目录、本地已存在目录
+            const remoteRootNorm = normalize(remoteRootDir);
+            const localRootNorm = normalize(localRootDir);
+            const localExistingSet = new Set(localDirs.map(normalize));
+
+            return remoteDirs
+                .map(dir => path.posix.join(localRootNorm, getRelative(dir, remoteRootNorm)))
+                .filter(localDir => !localExistingSet.has(localDir))
+                .concat(remoteDirs.length && !localDirs.length ? [localRootNorm] : []);
+        }
     }
 }
 

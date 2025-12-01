@@ -9,15 +9,15 @@ class IPCManager {
     startListen () {
         // SCP下载文件夹到本地
         ipcMain.on('sftp-download-dir', async (event, config) => {
-            let sftp = new SFTPService();
-            config.localPath = Utils.sftpLocalDir(config.host);
+            const sftp = await SFTPService.create();
+            config.localPath = await Utils.sftpLocalDir(config.host);
             sftp.setConfig(config);
             await sftp.downloadDir(config.host, config.remotePath, config.localPath, (dirProgress) => {
                 event.reply('download-dir-progress', dirProgress);
             });
         })
         ipcMain.on('sftp-upload-dir', async (event, config) => {
-            let sftp = new SFTPService();
+            const sftp = await SFTPService.create();
             config.localPath = Utils.sftpLocalDir(config.host);
             sftp.setConfig(config);
             await sftp.uploadDir(config.host, config.localPath, config.remotePath, (dirProgress) => {
