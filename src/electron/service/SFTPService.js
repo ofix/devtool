@@ -330,11 +330,10 @@ class SFTPService extends EventEmitter {
      **************************************************************/
     async downloadFile (conn, remoteFile, localFile, onProgress) {
         return new Promise(async (resolve, reject) => {
-            conn.exec(`scp -f ${remoteFile}`, async (err, stream) => {
+            conn.exec(`scp -f '${remoteFile}'`, async (err, stream) => { // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
                 if (err) {
                     return reject(new Error(`创建下载通道失败: ${err.message}`));
                 }
-
                 try {
                     await this._sendAckToScpServer(stream, "1.发送应答码给服务器");
 
@@ -1076,7 +1075,7 @@ class SFTPService extends EventEmitter {
         const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
         try {
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-R（递归）、-A（显示隐藏文件，不含.和..）
-            const lsCmd = `ls -lRA "${normalizedRemoteDir}" 2>/dev/null`;
+            const lsCmd = `ls -lRA '${normalizedRemoteDir}' 2>/dev/null`;
             let lsResult = await this.exec(conn, lsCmd);
             if (lsResult.code) {
                 return { files, dirs, totalBytes };
