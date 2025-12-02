@@ -1,41 +1,44 @@
 import { FileNodeType, SortDirection } from "./FileNodeType";
-class FileNode {
+class FileTreeNode {
     /**
      * @param {Object} options - 节点配置
      * @param {string} options.name - 节点名称
      * @param {FileNodeType} options.type - 节点类型
-     * @param {string} [options.permissions=''] - 权限字符串
      * @param {number} [options.size=0] - 大小（字节）
-     * @param {string} [options.date=''] - 修改日期（格式：Mon DD YYYY 或 Mon DD HH:MM）
-     * @param {string} [options.symlinkTarget=''] - 符号链接目标
+     * @param {string} [mtime=''] - 修改日期
+     * @param {string} [options.mode=''] - 权限字符串
+     * @param {string} [options.owner=''] - 权限字符串
+     * @param {string} [options.group=''] - 权限字符串
+     * @param {string} [options.parent] -父节点（格式：Mon DD YYYY 或 Mon DD HH:MM）
      * @param {FileNode|null} [options.parent=null] - 父节点
      */
     constructor({
-        name,
-        type,
-        permissions = '',
-        size = 0,
-        date = '',
-        symlinkTarget = '',
-        parent = null
+        name, // 名称
+        type, // 目录或者文件
+        size = 0, // 大小
+        mtime = '', // 文件修改日期
+        mode = '', // 权限
+        owner, // 拥有者
+        group, // 所在组
+        parent = null // 父节点
     }) {
-        if (!FileNodeType.isValid(type)) {
-            throw new Error(
-                `Invalid node type: ${type}. Must be one of ${Object.values(FileNodeType).filter(v => typeof v === 'number').join(', ')}`
-            );
-        }
-
         this.name = name;
         this.type = type;
-        this.permissions = permissions;
         this.size = size;
-        this.date = date;
-        this.symlinkTarget = symlinkTarget;
+        this.sizeFormatted = formatSize(size);
+        this.mtime = mtime;
+        this.mode = mode;
+        this.owner = owner;
+        this.group = group;
         this.parent = parent;
         this.children = type === FileNodeType.DIRECTORY ? [] : null;
+        this.timestamp = this.parseDateToTimestamp(createdAt);
+        this.ignored = false; // 是否忽略当前文件或者目录
+        this.visible = false; // 搜索文件的时候需要显示/隐藏
+    }
 
-        // 解析日期为时间戳（便于日期排序）
-        this.timestamp = this.parseDateToTimestamp(date);
+    formatSize(size) {
+        return size;
     }
 
     /**
@@ -207,4 +210,4 @@ class FileNode {
     }
 }
 
-export default FileNode;
+export default FileTreeNode;

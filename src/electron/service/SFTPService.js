@@ -1,10 +1,10 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 import Utils from "../core/Utils.js";
-import { Client } from 'ssh2';
-import fs from 'fs'; // 核心修复：直接导入完整 fs 模块（含同步+异步）
-import path from 'path';
+import { Client } from "ssh2";
+import fs from "fs"; // 核心修复：直接导入完整 fs 模块（含同步+异步）
+import path from "path";
 import Print from "../core/Print.js";
-import { debug } from 'console';
+import { debug } from "console";
 // import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
@@ -19,12 +19,12 @@ class SFTPService extends EventEmitter {
         Print.level = 7;
     }
 
-    async init () {
+    async init() {
         this.stateDir = await Utils.sftpDownloadMetaDir();
     }
 
     // 静态工厂方法（封装创建+初始化）
-    static async create () {
+    static async create() {
         const service = new SFTPService();
         await service.init(); // 内部调用异步初始化
         return service;
@@ -35,26 +35,29 @@ class SFTPService extends EventEmitter {
      * 方式 1：按顺序传参 → setConfig(host, username, password, port)
      * 方式 2：传入对象 → setConfig({ host, username, password, port })
      */
-    setConfig (...args) {
-        let host, username = 'root', password = '0penBmc', port = 22;
-        if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+    setConfig(...args) {
+        let host,
+            username = "root",
+            password = "0penBmc",
+            port = 22;
+        if (args.length === 1 && typeof args[0] === "object" && args[0] !== null) {
             const config = args[0];
             if (!config.host) {
-                throw new Error('配置对象必须包含 host 属性（服务器 IP/域名）');
+                throw new Error("配置对象必须包含 host 属性（服务器 IP/域名）");
             }
             host = config.host;
             username = config.username || username;
             password = config.password || password;
             port = config.port || port;
-        }
-        else if (args.length >= 1) {
+        } else if (args.length >= 1) {
             host = args[0];
             username = args[1] || username;
             password = args[2] || password;
             port = args[3] || port;
-        }
-        else {
-            throw new Error('传参错误！支持：1. 传入配置对象 {host, username, password, port}；2. 按顺序传参 (host, username?, password?, port?)');
+        } else {
+            throw new Error(
+                "传参错误！支持：1. 传入配置对象 {host, username, password, port}；2. 按顺序传参 (host, username?, password?, port?)"
+            );
         }
         port = Number(port) || 22;
 
@@ -62,8 +65,6 @@ class SFTPService extends EventEmitter {
         this.connectionConfig.set(host, { host, username, password, port });
         console.log(`已保存 ${host} 的连接配置：`, { username, password, port });
     }
-
-
 
     /**
      * @notice 连接BMC后端，会出现如下错误，
@@ -155,10 +156,15 @@ class SFTPService extends EventEmitter {
      */
 
     // 连接到服务器
-    async connectServer (host, username = 'root', password = '0penBmc', port = 22) {
+    async connectServer(
+        host,
+        username = "root",
+        password = "0penBmc",
+        port = 22
+    ) {
         // 🔧 改进点5：参数验证
-        if (!host || typeof host !== 'string') {
-            throw new Error('host参数必须是非空字符串');
+        if (!host || typeof host !== "string") {
+            throw new Error("host参数必须是非空字符串");
         }
 
         try {
@@ -168,8 +174,8 @@ class SFTPService extends EventEmitter {
                 Print.debug(`复用现有SSH连接: ${host}`);
                 return {
                     success: true,
-                    message: 'Using existing connection',
-                    client: existingClient
+                    message: "Using existing connection",
+                    client: existingClient,
                 };
             }
 
@@ -178,7 +184,7 @@ class SFTPService extends EventEmitter {
             // 使用Promise.race实现超时控制
             const connectionResult = await Promise.race([
                 this.newSSHConnection(sshClient, { host, port, username, password }),
-                this.createTimeout(15000, `SSH连接超时（15秒）: ${host}`)
+                this.createTimeout(15000, `SSH连接超时（15秒）: ${host}`),
             ]);
 
             // 缓存新连接
@@ -190,28 +196,27 @@ class SFTPService extends EventEmitter {
             return {
                 success: true,
                 client: sshClient,
-                message: 'Connection established'
+                message: "Connection established",
             };
-
         } catch (error) {
             return this.handleConnectionError(host, error);
         }
     }
 
-    newSSHConnection (sshClient, config) {
+    newSSHConnection(sshClient, config) {
         return new Promise((resolve, reject) => {
-            sshClient.on('ready', () => {
-                Print.debug('SSH认证成功');
+            sshClient.on("ready", () => {
+                Print.debug("SSH认证成功");
                 resolve(sshClient);
             });
 
-            sshClient.on('error', (err) => {
+            sshClient.on("error", (err) => {
                 reject(new Error(`SSH错误: ${err.message}`));
             });
 
-            sshClient.on('close', (hadError) => {
+            sshClient.on("close", (hadError) => {
                 if (hadError) {
-                    reject(new Error('SSH连接异常关闭'));
+                    reject(new Error("SSH连接异常关闭"));
                 }
             });
 
@@ -222,58 +227,63 @@ class SFTPService extends EventEmitter {
                 username: config.username,
                 password: config.password,
                 readyTimeout: 10000,
-                strictHostKeyChecking: 'no',
+                strictHostKeyChecking: "no",
                 debug: (message) => Print.debug(`[SSH2 Debug]: ${message}`),
                 algorithms: {
-                    cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-                    serverHostKey: ['ssh-rsa', 'ssh-dss', 'ssh-rsa', 'ecdsa-sha2-nistp256']
+                    cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+                    serverHostKey: [
+                        "ssh-rsa",
+                        "ssh-dss",
+                        "ssh-rsa",
+                        "ecdsa-sha2-nistp256",
+                    ],
                 },
                 hostVerifier: (key) => {
                     try {
-                        const fingerprint = key.getFingerprint('sha256').toString('hex');
+                        const fingerprint = key.getFingerprint("sha256").toString("hex");
                         Print.debug(`服务器指纹: ${fingerprint}`);
                         return true;
                     } catch (err) {
-                        Print.warn('指纹检查跳过');
+                        Print.warn("指纹检查跳过");
                         return true;
                     }
-                }
+                },
             });
         });
     }
 
-    createTimeout (ms, message) {
+    createTimeout(ms, message) {
         return new Promise((_, reject) => {
             setTimeout(() => reject(new Error(message)), ms);
         });
     }
 
     // 🔧 改进点8：连接活性检查
-    isConnectionAlive (client) {
+    isConnectionAlive(client) {
         try {
-            return client && typeof client === 'object' && client.connected === true;
+            return client && typeof client === "object" && client.connected === true;
         } catch (error) {
             return false;
         }
     }
 
-    handleConnectionError (host, error) {
+    handleConnectionError(host, error) {
         this.connectionStatus.set(host, false);
 
         const errorInfo = {
             success: false,
             message: error.message,
             host,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         };
 
         // 根据错误类型提供更具体的消息
-        if (error.message.includes('timed out')) {
-            errorInfo.suggestion = '检查网络连接或增加超时时间';
-        } else if (error.message.includes('Authentication failed')) {
-            errorInfo.suggestion = '验证用户名和密码';
-        } else if (error.message.includes('ENOTFOUND')) {
-            errorInfo.suggestion = '检查主机名是否正确';
+        if (error.message.includes("timed out")) {
+            errorInfo.suggestion = "检查网络连接或增加超时时间";
+        } else if (error.message.includes("Authentication failed")) {
+            errorInfo.suggestion = "验证用户名和密码";
+        } else if (error.message.includes("ENOTFOUND")) {
+            errorInfo.suggestion = "检查主机名是否正确";
         }
 
         Print.error(`❌ SSH连接失败 [${host}]:`, error.message);
@@ -281,11 +291,15 @@ class SFTPService extends EventEmitter {
     }
 
     // 获取缓存的已打开连接的SSH2客户端
-    async getSSHClient (host) {
+    async getSSHClient(host) {
         const hasClient = this.sshClients.has(host);
         if (!hasClient) {
             // 从缓存中获取之前的连接参数（若有），若无则用默认值
-            const { username = 'root', password = '0penBmc', port = 22 } = this.connectionConfig.get(host) || {};
+            const {
+                username = "root",
+                password = "0penBmc",
+                port = 22,
+            } = this.connectionConfig.get(host) || {};
             // 复用缓存的参数重新连接，而非只传 host
             const result = await this.connectServer(host, username, password, port);
             if (!result.success) {
@@ -297,7 +311,7 @@ class SFTPService extends EventEmitter {
     }
 
     // 断开服务器连接
-    async disconnectServer (host) {
+    async disconnectServer(host) {
         try {
             const sshClient = this.sshClients.get(host);
             if (sshClient) {
@@ -305,18 +319,19 @@ class SFTPService extends EventEmitter {
                 this.sshClients.delete(host);
                 this.connectionConfig.delete(host); // 断开时清除参数缓存
             }
-            return { success: true, message: 'Disconnected' };
+            return { success: true, message: "Disconnected" };
         } catch (error) {
             return { success: false, message: `Disconnect failed: ${error.message}` };
         }
     }
 
     // 生成会话ID
-    generateSessionId (host, type, remotePath, localPath) {
+    generateSessionId(host, type, remotePath, localPath) {
         const data = `${host}-${type}-${remotePath}-${localPath}-${Date.now()}`;
-        return Buffer.from(data).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
+        return Buffer.from(data)
+            .toString("base64")
+            .replace(/[^a-zA-Z0-9]/g, "");
     }
-
 
     /**************************************************************
      * 单个文件SCP下载（支持断点续传，修复协议交互流程）
@@ -328,25 +343,34 @@ class SFTPService extends EventEmitter {
      * @param {Function} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadFile (conn, remoteFile, localFile, onProgress) {
+    async downloadFile(conn, remoteFile, localFile, onProgress) {
         return new Promise(async (resolve, reject) => {
-            conn.exec(`scp -f '${remoteFile}'`, async (err, stream) => { // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
+            conn.exec(`scp -f '${remoteFile}'`, async (err, stream) => {
+                // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
                 if (err) {
                     return reject(new Error(`创建下载通道失败: ${err.message}`));
                 }
                 try {
                     await this._sendAckToScpServer(stream, "1.发送应答码给服务器");
 
-                    const result = await this._awaitScpServerFileInfo(stream, "等待服务器返回文件元信息");
+                    const result = await this._awaitScpServerFileInfo(
+                        stream,
+                        "等待服务器返回文件元信息"
+                    );
                     if (result.status == -1) {
                         throw new Error(`无法解析文件元信息`);
                     }
 
                     // 确认元数据接收，发送 ACK（0x00）
-                    await this._sendAckToScpServer(stream, '2.发送应答码给服务器');
+                    await this._sendAckToScpServer(stream, "2.发送应答码给服务器");
 
                     // 下载文件数据
-                    await this._downloadFileInChunk(stream, localFile, result.fileInfo, onProgress);
+                    await this._downloadFileInChunk(
+                        stream,
+                        localFile,
+                        result.fileInfo,
+                        onProgress
+                    );
 
                     // 终止会话并确认
                     await this._sendAckToScpServer(stream, "3.关闭会话,防止会话干扰");
@@ -361,18 +385,17 @@ class SFTPService extends EventEmitter {
         });
     }
 
-
     /**
      * @todo 辅助方法：等待 SCP 服务器的文件元信息响应（SCP 协议：C 开头表示文件）
      * @param {Object} stream - SCP 命令流
      * @returns {Promise<{ status: number, fileInfo: Object }>} 元信息解析结果
      */
-    async _awaitScpServerFileInfo (stream) {
+    async _awaitScpServerFileInfo(stream) {
         return new Promise((resolve, reject) => {
             const buffer = [];
 
             const onData = (data) => {
-                const newlineIndex = data.indexOf(0x0A); // 0x0A = \n 的 ASCII 码
+                const newlineIndex = data.indexOf(0x0a); // 0x0A = \n 的 ASCII 码
                 if (newlineIndex === -1) {
                     buffer.push(data);
                     return;
@@ -380,9 +403,9 @@ class SFTPService extends EventEmitter {
 
                 const fullMetaBuffer = Buffer.concat([
                     ...buffer,
-                    data.slice(0, newlineIndex + 1) // 包含换行符（协议要求完整元信息需带换行）
+                    data.slice(0, newlineIndex + 1), // 包含换行符（协议要求完整元信息需带换行）
                 ]);
-                const scpFileInfo = fullMetaBuffer.toString('utf8');
+                const scpFileInfo = fullMetaBuffer.toString("utf8");
 
                 // 处理当前 chunk 中换行符后的冗余数据（关键：避免数据丢失）
                 const remainingData = data.slice(newlineIndex + 1);
@@ -396,22 +419,31 @@ class SFTPService extends EventEmitter {
 
                 // 协议类型判断与解析
                 switch (scpFileInfo[0]) {
-                    case 'C': // 文件类型（SCP 协议大小写不敏感，部分服务器返回小写 'c'）
-                    case 'c': {
+                    case "C": // 文件类型（SCP 协议大小写不敏感，部分服务器返回小写 'c'）
+                    case "c": {
                         try {
                             const fileInfo = this._parseFileInfo(scpFileInfo);
                             resolve({ status: 0, fileInfo });
                         } catch (parseErr) {
-                            reject({ status: -1, message: `解析文件元信息失败：${parseErr.message}` });
+                            reject({
+                                status: -1,
+                                message: `解析文件元信息失败：${parseErr.message}`,
+                            });
                         }
                         break;
                     }
-                    case 'D':
-                    case 'd':
-                        reject({ status: -1, message: '不支持文件夹类型（当前仅支持文件下载）' });
+                    case "D":
+                    case "d":
+                        reject({
+                            status: -1,
+                            message: "不支持文件夹类型（当前仅支持文件下载）",
+                        });
                         break;
                     default:
-                        reject({ status: -1, message: `不支持的 SCP 数据类型：${scpFileInfo[0]}` });
+                        reject({
+                            status: -1,
+                            message: `不支持的 SCP 数据类型：${scpFileInfo[0]}`,
+                        });
                         break;
                 }
             };
@@ -419,35 +451,37 @@ class SFTPService extends EventEmitter {
             // 错误处理：服务器返回 stderr（如文件不存在、权限不足）
             const onStderr = (errData) => {
                 cleanupListeners();
-                reject({ status: -1, message: `服务器错误：${errData.toString('utf8').trim()}` });
+                reject({
+                    status: -1,
+                    message: `服务器错误：${errData.toString("utf8").trim()}`,
+                });
             };
 
             // 超时处理
             const onTimeout = () => {
                 cleanupListeners();
-                reject({ status: -1, message: '等待服务器文件元信息超时' });
+                reject({ status: -1, message: "等待服务器文件元信息超时" });
             };
 
             // 移除所有事件监听的工具函数（避免内存泄漏）
             const cleanupListeners = () => {
-                stream.off('data', onData);
-                stream.off('stderr', onStderr);
-                stream.off('timeout', onTimeout);
+                stream.off("data", onData);
+                stream.off("stderr", onStderr);
+                stream.off("timeout", onTimeout);
             };
 
             // 注册事件监听
-            stream.on('data', onData);
-            stream.on('stderr', onStderr);
-            stream.on('timeout', onTimeout);
+            stream.on("data", onData);
+            stream.on("stderr", onStderr);
+            stream.on("timeout", onTimeout);
         });
     }
-
 
     /**************************************************************
      * @todo   解析SCP服务器返回的文件元信息
      * @notice 格式: C0644 1234 filename.txt\n
      **************************************************************/
-    _parseFileInfo (scpHeader) {
+    _parseFileInfo(scpHeader) {
         const match = scpHeader.match(/^C([0-7]{4})\s+(\d+)\s+([^\n]+)\n$/);
         if (!match) {
             throw new Error(`无法解析文件信息: ${scpHeader}`);
@@ -455,7 +489,7 @@ class SFTPService extends EventEmitter {
         return {
             mode: parseInt(match[1], 8), // 八进制转十进制
             size: parseInt(match[2], 10),
-            name: match[3].trim()
+            name: match[3].trim(),
         };
     }
 
@@ -466,26 +500,27 @@ class SFTPService extends EventEmitter {
      * @param {Object} fileInfo - 文件信息（含 size/name 等）
      * @param {Function} onProgress - 进度回调（{ status, progress, recvBytes, totalBytes, filename }）
      */
-    async _downloadFileInChunk (stream, localFile, fileInfo, onProgress) {
+    async _downloadFileInChunk(stream, localFile, fileInfo, onProgress) {
         return new Promise((resolve, reject) => {
-            const writeStream = fs.createWriteStream(localFile, { flags: 'w' });
+            const writeStream = fs.createWriteStream(localFile, { flags: "w" });
             let recvFileBytes = 0; // 已写入磁盘的字节数
             const totalFileSize = fileInfo.size;
-            const progressCallback = typeof onProgress === 'function' ? onProgress : () => { };
+            const progressCallback =
+                typeof onProgress === "function" ? onProgress : () => { };
             // 写入失败：直接 reject
-            writeStream.on('error', (err) => {
+            writeStream.on("error", (err) => {
                 cleanup();
                 reject(new Error(`写入本地文件失败: ${err.message}`));
             });
 
             // 所有数据写入完成：resolve（真正的下载完成）
-            writeStream.on('finish', () => {
+            writeStream.on("finish", () => {
                 cleanup();
                 resolve();
             });
 
             // 缓冲区清空：恢复流读取（核心 drain 处理）
-            writeStream.on('drain', () => {
+            writeStream.on("drain", () => {
                 stream.resume(); // 恢复接收服务器数据
             });
 
@@ -493,15 +528,27 @@ class SFTPService extends EventEmitter {
             const onData = (chunk) => {
                 try {
                     // 优先处理 SCP 协议的结束标识（关键：独立数据包的 0x00）
-                    if (recvFileBytes >= totalFileSize && chunk.length === 1 && chunk[0] === 0x00) {
-                        Print.debug('收到 SCP 结束标识（0x00），终止数据接收');
+                    if (
+                        recvFileBytes >= totalFileSize &&
+                        chunk.length === 1 &&
+                        chunk[0] === 0x00
+                    ) {
+                        Print.debug("收到 SCP 结束标识（0x00），终止数据接收");
                         handleEndMarker(chunk);
                         return;
                     }
-                    const needWrite = Math.min(chunk.length, totalFileSize - recvFileBytes);
+                    const needWrite = Math.min(
+                        chunk.length,
+                        totalFileSize - recvFileBytes
+                    );
                     // 同步更新已接收字节数（关键：接收后立即更新，避免异步回调延迟）
                     recvFileBytes += needWrite;
-                    Print.debug('当前分块大小：', chunk.length, "接收字节 = ", recvFileBytes);
+                    Print.debug(
+                        "当前分块大小：",
+                        chunk.length,
+                        "接收字节 = ",
+                        recvFileBytes
+                    );
 
                     if (needWrite > 0) {
                         // 计算需写入的字节数（避免超出总大小）
@@ -521,7 +568,7 @@ class SFTPService extends EventEmitter {
                             updateProgress();
                             // 处理剩余数据（回注到流中，下次 onData 处理）
                             if (remaining != null && remaining.length > 0) {
-                                Print.log('处理剩余数据：', remaining.length);
+                                Print.log("处理剩余数据：", remaining.length);
                                 stream.unshift(remaining);
                             }
                         });
@@ -539,40 +586,49 @@ class SFTPService extends EventEmitter {
             // 处理服务器的 0x00 结束标识
             const handleEndMarker = (chunk) => {
                 if (chunk[0] === 0x00) {
-                    Print.log('[DEBUG] 收到服务器结束标识，关闭写入流');
+                    Print.log("[DEBUG] 收到服务器结束标识，关闭写入流");
                     writeStream.end(); // 否则文件写入流一直处于可写入状态，触发 finish 事件
                 } else {
-                    reject(new Error(`数据传输异常：预期结束标识（0x00），实际收到 0x${chunk[0].toString(16)}`));
+                    reject(
+                        new Error(
+                            `数据传输异常：预期结束标识（0x00），实际收到 0x${chunk[0].toString(16)}`
+                        )
+                    );
                     cleanup();
                 }
             };
 
             // 更新进度回调
             const updateProgress = () => {
-                const progress = totalFileSize > 0
-                    ? Math.min((recvFileBytes / totalFileSize) * 100, 100).toFixed(1)
-                    : '100.0';
+                const progress =
+                    totalFileSize > 0
+                        ? Math.min((recvFileBytes / totalFileSize) * 100, 100).toFixed(1)
+                        : "100.0";
                 progressCallback({
                     status: 0,
                     progress: `${progress}%`,
                     recvBytes: recvFileBytes,
                     totalBytes: totalFileSize,
-                    filename: fileInfo.name || path.basename(localFile)
+                    filename: fileInfo.name || path.basename(localFile),
                 });
             };
 
             // 清理资源（避免内存泄漏）
             const cleanup = () => {
-                stream.off('data', onData);
-                stream.off('timeout', onTimeout);
-                stream.off('error', onStreamError);
-                stream.off('close', onStreamClose);
+                stream.off("data", onData);
+                stream.off("timeout", onTimeout);
+                stream.off("error", onStreamError);
+                stream.off("close", onStreamClose);
                 writeStream.destroy(); // 销毁写入流
             };
 
             // -------------------------- 异常处理 --------------------------
             const onTimeout = () => {
-                reject(new Error(`文件下载超时（已接收 ${recvFileBytes}/${totalFileSize} 字节）`));
+                reject(
+                    new Error(
+                        `文件下载超时（已接收 ${recvFileBytes}/${totalFileSize} 字节）`
+                    )
+                );
                 cleanup();
             };
 
@@ -582,19 +638,21 @@ class SFTPService extends EventEmitter {
             };
 
             const onStreamClose = (code) => {
-                reject(new Error(`SCP 流异常关闭（已接收 ${recvFileBytes}/${totalFileSize} 字节，退出码: ${code}`));
+                reject(
+                    new Error(
+                        `SCP 流异常关闭（已接收 ${recvFileBytes}/${totalFileSize} 字节，退出码: ${code}`
+                    )
+                );
                 cleanup();
             };
 
             // -------------------------- 注册监听 --------------------------
-            stream.on('data', onData);
-            stream.on('timeout', onTimeout);
-            stream.on('error', onStreamError);
-            stream.on('close', onStreamClose);
+            stream.on("data", onData);
+            stream.on("timeout", onTimeout);
+            stream.on("error", onStreamError);
+            stream.on("close", onStreamClose);
         });
     }
-
-
 
     /**************************************************************
      * 文件夹SCP下载（支持断点续传+进度回调）
@@ -604,7 +662,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadDir (host, remoteDir, localDir, onProgress) {
+    async downloadDir(host, remoteDir, localDir, onProgress) {
         let recvFiles = 0;
         let totalFiles = 0;
         let recvBytes = 0;
@@ -612,14 +670,26 @@ class SFTPService extends EventEmitter {
         let currentFile = "";
         try {
             let conn = await this.getSSHClient(host);
-            const { files: remoteFiles, dirs: remoteDirs, totalBytes: totalBytes } = await this.scanRemoteDir(conn, remoteDir);
+            const {
+                files: remoteFiles,
+                dirs: remoteDirs,
+                totalBytes: totalBytes,
+            } = await this.scanRemoteDir(conn, remoteDir);
             const { files: localFiles, dirs: localDirs } = fs.existsSync(localDir)
                 ? await this.scanLocalDir(localDir)
                 : { files: [], totalBytes: 0 };
 
-            let missingLocalDirs = Utils.getMissingDirs(localDir, localDirs, remoteDir, remoteDirs);
+            let missingLocalDirs = Utils.getMissingDirs(
+                localDir,
+                localDirs,
+                remoteDir,
+                remoteDirs
+            );
 
-            const needDownloadFiles = this.filterNeedTransferFiles(remoteFiles, localFiles);
+            const needDownloadFiles = this.filterNeedTransferFiles(
+                remoteFiles,
+                localFiles
+            );
             totalFiles = needDownloadFiles.length;
 
             // 创建本地目录
@@ -634,9 +704,8 @@ class SFTPService extends EventEmitter {
                     totalFiles: 0,
                     recvBytes: totalBytes,
                     totalBytes: totalBytes,
-
                 });
-                Print.debug('所有文件已下载完成，无需继续传输');
+                Print.debug("所有文件已下载完成，无需继续传输");
                 return;
             }
             for (const file of needDownloadFiles) {
@@ -670,7 +739,8 @@ class SFTPService extends EventEmitter {
         } catch (err) {
             onProgress?.({
                 status: -1,
-                progress: totalBytes == 0 ? 0 : Math.round((recvBytes / totalBytes) * 100),
+                progress:
+                    totalBytes == 0 ? 0 : Math.round((recvBytes / totalBytes) * 100),
                 remoteFile: currentFile,
                 recvFiles: recvFiles,
                 totalFiles: totalFiles,
@@ -682,11 +752,10 @@ class SFTPService extends EventEmitter {
         }
     }
 
-
     /**************************************************************
      * @todo 单个文件SCP上传 - 简洁版本
      **************************************************************/
-    async uploadFile (conn, localFile, remoteFile, onProgress) {
+    async uploadFile(conn, localFile, remoteFile, onProgress) {
         return new Promise((resolve, reject) => {
             conn.exec(`scp -t "${remoteFile}"`, async (err, stream) => {
                 if (err) {
@@ -700,18 +769,22 @@ class SFTPService extends EventEmitter {
                     // 2. 发送文件元数据
                     const stats = await fs.promises.stat(localFile);
                     const fileName = path.basename(remoteFile);
-                    const safeName = fileName.includes(' ') ? `"${fileName}"` : fileName;
+                    const safeName = fileName.includes(" ") ? `"${fileName}"` : fileName;
                     stream.write(`C0644 ${stats.size} ${safeName}\n`);
                     await this._awaitScpServerAck(stream, "等待服务器确认");
 
                     // 3. 传输文件数据
-                    await this._uploadFileInChunk(stream, localFile, stats.size, onProgress);
+                    await this._uploadFileInChunk(
+                        stream,
+                        localFile,
+                        stats.size,
+                        onProgress
+                    );
 
                     // 4. 发送终止符并确认
                     await this._awaitUploadFinishAck(stream, "发送上传结束符");
 
                     resolve();
-
                 } catch (error) {
                     console.log(error);
                     reject(error);
@@ -726,12 +799,12 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo SSH2 分块上传数据给服务器端
      **************************************************************/
-    _uploadFileInChunk (stream, localFile, fileSize, onProgress) {
+    _uploadFileInChunk(stream, localFile, fileSize, onProgress) {
         return new Promise((resolve, reject) => {
             const readStream = fs.createReadStream(localFile);
             let transferred = 0;
 
-            readStream.on('data', (chunk) => {
+            readStream.on("data", (chunk) => {
                 if (!stream.write(chunk)) {
                     readStream.pause();
                 }
@@ -740,17 +813,16 @@ class SFTPService extends EventEmitter {
                     sendBytes: transferred,
                     totalBytes: fileSize,
                     progress: Math.round((transferred / fileSize) * 100),
-                    status: 0
+                    status: 0,
                 });
             });
 
-            stream.on('drain', () => readStream.resume());
-            readStream.on('end', resolve);
-            readStream.on('error', reject);
-            stream.on('error', reject);
+            stream.on("drain", () => readStream.resume());
+            readStream.on("end", resolve);
+            readStream.on("error", reject);
+            stream.on("error", reject);
         });
     }
-
 
     /**************************************************************
      * @todo 文件夹SCP上传（支持断点续传+进度回调）
@@ -760,17 +832,32 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async uploadDir (host, localDir, remoteDir, onProgress) {
+    async uploadDir(host, localDir, remoteDir, onProgress) {
         let conn = null;
         let totalProgress = 0;
         try {
-            const { files: localFiles, dirs: localDirs, totalBytes: totalBytes } = await this.scanLocalDir(localDir);
+            const {
+                files: localFiles,
+                dirs: localDirs,
+                totalBytes: totalBytes,
+            } = await this.scanLocalDir(localDir);
             conn = await this.getSSHClient(host);
 
-            const { files: remoteFiles, dirs: remoteDirs } = await this.scanRemoteDir(conn, remoteDir);
-            let missingRemoteDirs = Utils.getMissingDirs(localDir, localDirs, remoteDir, remoteDirs);
+            const { files: remoteFiles, dirs: remoteDirs } = await this.scanRemoteDir(
+                conn,
+                remoteDir
+            );
+            let missingRemoteDirs = Utils.getMissingDirs(
+                localDir,
+                localDirs,
+                remoteDir,
+                remoteDirs
+            );
             Print.debug(missingRemoteDirs);
-            const needTransferFiles = this.filterNeedTransferFiles(localFiles, remoteFiles);
+            const needTransferFiles = this.filterNeedTransferFiles(
+                localFiles,
+                remoteFiles
+            );
             const totalFiles = needTransferFiles.length;
             let transferredFiles = 0;
             let totalTransferredBytes = 0;
@@ -785,12 +872,14 @@ class SFTPService extends EventEmitter {
                     sendBytes: totalBytes,
                     totalBytes: totalBytes,
                 });
-                Print.log('所有文件已上传完成，无需继续传输');
+                Print.log("所有文件已上传完成，无需继续传输");
                 return;
             }
             // 创建远程目录
             await new Promise((resolve, reject) => {
-                let manyDirs = missingRemoteDirs.map(p => `'${p.replace(/'/g, "'\\''")}'`).join(' ');
+                let manyDirs = missingRemoteDirs
+                    .map((p) => `'${p.replace(/'/g, "'\\''")}'`)
+                    .join(" ");
                 conn.exec(`mkdir -p ${manyDirs}`, (err) => {
                     if (err) reject(new Error(`创建远程目录失败: ${err.message}`));
                     else resolve();
@@ -850,18 +939,18 @@ class SFTPService extends EventEmitter {
      * @param {string} localDir - 本地文件夹路径
      * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
      **************************************************************/
-    async scanLocalDir (localDir) {
+    async scanLocalDir(localDir) {
         const files = [];
         const dirs = [];
         const dirSet = new Set();
         let totalBytes = 0;
 
-        async function traverse (dir) {
+        async function traverse(dir) {
             try {
                 const entries = await fs.promises.readdir(dir, { withFileTypes: true });
                 for (const entry of entries) {
                     const fullPath = path.join(dir, entry.name);
-                    const relPath = path.relative(localDir, fullPath).replace(/\\/g, '/'); // 统一为POSIX路径
+                    const relPath = path.relative(localDir, fullPath).replace(/\\/g, "/"); // 统一为POSIX路径
 
                     if (entry.isDirectory()) {
                         dirSet.add(fullPath);
@@ -896,13 +985,13 @@ class SFTPService extends EventEmitter {
      * - dirs: 直接子目录列表（不含嵌套子目录）
      * - totalBytes: 直接子文件总大小
      **************************************************************/
-    async listSubDir (conn, remoteDir) {
+    async listSubDir(conn, remoteDir) {
         const files = [];
         const dirs = [];
         let totalBytes = 0;
 
         // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
-        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
+        const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
 
         try {
             // 关键修改：移除 -R（递归）参数，只扫描当前目录
@@ -915,43 +1004,53 @@ class SFTPService extends EventEmitter {
             }
 
             // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
-            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
+            const lines = lsResult.stdout.split("\n").filter((line) => line.trim());
 
             // 正则解析：兼容英文/中文月份、带空格文件名、目录（结尾无/，通过权限位判断）
             // 格式：权限 链接数 所有者 组 大小 月 日 时间 文件名/（目录）
-            const lineRegex = /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
+            const lineRegex =
+                /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
 
             for (const line of lines) {
                 const match = line.match(lineRegex);
                 if (!match) continue;
 
                 const [
-                    , perm, , , , sizeStr, , , , name // 解构匹配结果：权限、大小、文件名
+                    ,
+                    perm,
+                    ,
+                    ,
+                    ,
+                    sizeStr,
+                    ,
+                    ,
+                    ,
+                    name, // 解构匹配结果：权限、大小、文件名
                 ] = match;
 
                 const size = parseInt(sizeStr, 10);
-                if (isNaN(size) || !name || name.trim() === '') continue;
+                if (isNaN(size) || !name || name.trim() === "") continue;
 
                 // 拼接绝对路径（目标目录 + 子项名称）
                 const absPath = `${normalizedRemoteDir}/${name}`;
 
                 // 1. 判断是否为目录（权限位以 d 开头）
-                if (perm.startsWith('d')) {
+                if (perm.startsWith("d")) {
                     // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
-                    if (name === '.' || name === '..') continue;
+                    if (name === "." || name === "..") continue;
                     dirs.push(absPath); // 直接子目录，添加绝对路径
                     continue;
                 }
 
                 // 2. 处理文件（非目录、非链接，权限位以 - 开头）
-                if (perm.startsWith('-')) {
+                if (perm.startsWith("-")) {
                     // 相对路径：直接使用文件名（非递归，无嵌套目录）
                     const relPath = name;
 
                     files.push({
-                        path: absPath,  // 远程文件绝对路径
-                        size: size,    // 文件大小（字节）
-                        relPath: relPath // 相对路径（相对于目标目录，直接是文件名）
+                        path: absPath, // 远程文件绝对路径
+                        size: size, // 文件大小（字节）
+                        relPath: relPath, // 相对路径（相对于目标目录，直接是文件名）
                     });
                     totalBytes += size;
                 }
@@ -959,11 +1058,12 @@ class SFTPService extends EventEmitter {
                 // 忽略链接文件（权限位以 l 开头），如需支持可自行扩展
             }
 
-            console.debug(`非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`);
+            console.debug(
+                `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`
+            );
             return { files, dirs, totalBytes };
-
         } catch (err) {
-            console.error('扫描远程文件夹失败:', err.message);
+            console.error("扫描远程文件夹失败:", err.message);
             throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);
         }
     }
@@ -982,14 +1082,11 @@ class SFTPService extends EventEmitter {
      * }>}
      * @throws {Error} 当 SSH 连接异常、命令执行失败或非 0 退出码（且 throwOnNonZeroExit 为 true）时抛出
      **************************************************************/
-    async exec (conn, command, options = {}) {
-        const {
-            throwOnNonZeroExit = true,
-            encoding = 'utf8'
-        } = options;
+    async exec(conn, command, options = {}) {
+        const { throwOnNonZeroExit = true, encoding = "utf8" } = options;
 
-        if (typeof command !== 'string' || command.trim() === '') {
-            throw new Error('命令 command 不能为空字符串');
+        if (typeof command !== "string" || command.trim() === "") {
+            throw new Error("命令 command 不能为空字符串");
         }
         return new Promise((resolve, reject) => {
             const stdoutBuffers = [];
@@ -1000,60 +1097,73 @@ class SFTPService extends EventEmitter {
             // 执行 SSH 命令
             conn.exec(command, (err, stream) => {
                 if (err) {
-                    return reject(new Error(`SSH 命令执行初始化失败 [${command}]: ${err.message}`));
+                    return reject(
+                        new Error(`SSH 命令执行初始化失败 [${command}]: ${err.message}`)
+                    );
                 }
 
                 // 收集 stdout 原始 Buffer（不做任何字符串转换）
-                stream.on('data', (chunk) => {
+                stream.on("data", (chunk) => {
                     stdoutBuffers.push(chunk);
                     stdoutTotalLength += chunk.length;
                 });
 
                 // 收集 stderr 原始 Buffer（不做任何字符串转换）
-                stream.on('stderr', (chunk) => {
+                stream.on("stderr", (chunk) => {
                     stderrBuffers.push(chunk);
                     stderrTotalLength += chunk.length;
                 });
 
                 // 命令执行完成：合并 Buffer 并按需转码
-                stream.on('close', (code) => {
+                stream.on("close", (code) => {
                     try {
                         // 合并 Buffer（预计算总长度，提升 concat 性能）
-                        const stdoutBuffer = stdoutTotalLength > 0
-                            ? Buffer.concat(stdoutBuffers, stdoutTotalLength)
-                            : Buffer.alloc(0);
-                        const stderrBuffer = stderrTotalLength > 0
-                            ? Buffer.concat(stderrBuffers, stderrTotalLength)
-                            : Buffer.alloc(0);
+                        const stdoutBuffer =
+                            stdoutTotalLength > 0
+                                ? Buffer.concat(stdoutBuffers, stdoutTotalLength)
+                                : Buffer.alloc(0);
+                        const stderrBuffer =
+                            stderrTotalLength > 0
+                                ? Buffer.concat(stderrBuffers, stderrTotalLength)
+                                : Buffer.alloc(0);
 
                         // 按需转码（仅最后一步处理编码，避免中间转换开销）
-                        const stdout = encoding === 'buffer'
-                            ? stdoutBuffer
-                            : stdoutBuffer.toString(encoding);
-                        const stderr = encoding === 'buffer'
-                            ? stderrBuffer
-                            : stderrBuffer.toString(encoding);
+                        const stdout =
+                            encoding === "buffer"
+                                ? stdoutBuffer
+                                : stdoutBuffer.toString(encoding);
+                        const stderr =
+                            encoding === "buffer"
+                                ? stderrBuffer
+                                : stderrBuffer.toString(encoding);
                         const result = { stdout, stderr, code: code ?? -1 };
 
                         // 非 0 退出码处理
                         if (throwOnNonZeroExit && code !== 0) {
-                            const stderrPreview = typeof stderr === 'string'
-                                ? stderr.slice(0, 500)
-                                : stderr.toString('utf8', 0, 500);
-                            return reject(new Error(
-                                `SSH 命令执行失败 [${command}]：` +
-                                `退出码 ${code}，stderr: ${stderrPreview}`
-                            ));
+                            const stderrPreview =
+                                typeof stderr === "string"
+                                    ? stderr.slice(0, 500)
+                                    : stderr.toString("utf8", 0, 500);
+                            return reject(
+                                new Error(
+                                    `SSH 命令执行失败 [${command}]：` +
+                                    `退出码 ${code}，stderr: ${stderrPreview}`
+                                )
+                            );
                         }
 
                         resolve(result);
                     } catch (transcodeErr) {
-                        reject(new Error(`输出编码转换失败 [${encoding}]: ${transcodeErr.message}`));
+                        reject(
+                            new Error(
+                                `输出编码转换失败 [${encoding}]: ${transcodeErr.message}`
+                            )
+                        );
                     }
                 });
 
                 // 流错误处理
-                stream.on('error', (err) => {
+                stream.on("error", (err) => {
                     reject(new Error(`SSH 命令流错误 [${command}]: ${err.message}`));
                 });
             });
@@ -1066,13 +1176,13 @@ class SFTPService extends EventEmitter {
      * @param {string} remoteDir - 远程文件夹路径（绝对路径）
      * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
      **************************************************************/
-    async scanRemoteDir (conn, remoteDir) {
+    async scanRemoteDir(conn, remoteDir) {
         const files = [];
         const dirs = [];
         const dirSet = new Set();
         let totalBytes = 0;
         // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
-        const normalizedRemoteDir = remoteDir.replace(/\/$/, '');
+        const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
         try {
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-R（递归）、-A（显示隐藏文件，不含.和..）
             const lsCmd = `ls -lRA '${normalizedRemoteDir}' 2>/dev/null`;
@@ -1081,7 +1191,7 @@ class SFTPService extends EventEmitter {
                 return { files, dirs, totalBytes };
             }
 
-            const lines = lsResult.stdout.split('\n').filter(line => line.trim());
+            const lines = lsResult.stdout.split("\n").filter((line) => line.trim());
             let currentAbsDir = normalizedRemoteDir; // 记录当前递归的绝对目录
 
             // BusyBox ls -l 输出格式示例:
@@ -1093,11 +1203,12 @@ class SFTPService extends EventEmitter {
             // -rwxrw-rw-  1      ofix     ofix   55956   11月   26   20:33   element-icons.f1a45d74.ttf    <--- 中文文件行
             // 正则解析：匹配权限、链接数、所有者、组、大小、时间、文件名（兼容空格文件名）
             // 注意事项：兼容 英文月份(Jan/Feb)、中文月份(11月/3月)、多语言所有者/组名、带空格文件名
-            const fileLineRegex = /^([-lrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月年日])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
+            const fileLineRegex =
+                /^([-lrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月年日])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
 
             for (const line of lines) {
                 // 1. 匹配目录行（格式：/path/to/dir:）
-                if (line.endsWith(':')) {
+                if (line.endsWith(":")) {
                     currentAbsDir = line.slice(0, -1).trim(); // 去除末尾 ":"，得到当前目录绝对路径
                     dirSet.add(currentAbsDir);
                     continue;
@@ -1107,30 +1218,63 @@ class SFTPService extends EventEmitter {
                 const fileMatch = line.match(fileLineRegex);
                 if (!fileMatch) continue;
 
-                const [, , , , , sizeStr, , , , fileName] = fileMatch;
-                const size = parseInt(sizeStr, 10);
+                const [mode, links, owner, group, _size_, month, day, time, fileName] =
+                    fileMatch;
+                debugPrint(`
+                    mode=${mode},
+                    links=${links},
+                    owner=${owner},
+                    group=${group},
+                    size=${_size_},
+                    month=${month},
+                    day=${day},
+                    time=${time},
+                    fileName=${fileName}`);
+                const size = parseInt(_size_, 10);
+
+                let mtime = `${month}-${day} ${time}`;
 
                 // 过滤无效数据：
                 // - 目录的大小是4096（BusyBox默认），需排除
                 // - 解析失败的大小、空文件名
-                if (isNaN(size) || size === 4096 || !fileName || fileName.trim() === '') continue;
+                if (isNaN(size) || size === 4096 || !fileName || fileName.trim() === "")
+                    continue;
 
                 // 3. 计算绝对路径和相对路径
                 const absPath = `${currentAbsDir}/${fileName}`; // 拼接文件绝对路径
                 // 相对路径：当前目录绝对路径 - 根目录路径 = 相对目录，再拼接文件名
-                const relDir = currentAbsDir.replace(normalizedRemoteDir, '');
-                const relPath = `${relDir}/${fileName}`.replace(/^\/+/, ''); // 去除开头多余斜杠
+                const relDir = currentAbsDir.replace(normalizedRemoteDir, "");
+                const relPath = `${relDir}/${fileName}`.replace(/^\/+/, ""); // 去除开头多余斜杠
 
-                // 4. 添加到结果列表
-                files.push({
+                // 处理符号链接
+                let actualFileName = fileName;
+                let symlinkTarget = "";
+                if (mode[0] === "l") {
+                    const [linkName, target] = fileName.split(" -> ");
+                    actualFileName = linkName || fileName;
+                    symlinkTarget = target || "";
+                }
+                // 添加到文件列表
+                const fileInfo = {
                     path: absPath,
+                    relPath,
+                    name: actualFileName,
                     size,
-                    relPath
-                });
+                    mode,
+                    links: parseInt(links, 10),
+                    owner,
+                    group,
+                    mtime: `${month}-${day} ${time}`,
+                    symlinkTarget,
+                };
+                // 4. 添加到结果列表
+                files.push(fileInfo);
                 totalBytes += size;
             }
             dirs.push(...dirSet);
-            Print.debug(`扫描完成，共找到 ${files.length} 个文件，总字节数 ${totalBytes}`);
+            Print.debug(
+                `扫描完成，共找到 ${files.length} 个文件，总字节数 ${totalBytes}`
+            );
             return { files, dirs, totalBytes };
         } catch (err) {
             Print.error(err.message);
@@ -1138,19 +1282,18 @@ class SFTPService extends EventEmitter {
         }
     }
 
-
     /**************************************************************
      * @todo 过滤需要传输的文件（断点续传核心）
      * @param {Object[]} sourceFiles - 源文件列表（含path/size/relPath）
      * @param {Object[]} targetFiles - 目标文件列表（含path/size/relPath）
      * @returns {Object[]} 需要传输的源文件列表
      **************************************************************/
-    filterNeedTransferFiles (sourceFiles, targetFiles) {
+    filterNeedTransferFiles(sourceFiles, targetFiles) {
         const targetMap = new Map();
-        targetFiles.forEach(file => targetMap.set(file.relPath, file.size));
+        targetFiles.forEach((file) => targetMap.set(file.relPath, file.size));
 
         // 2. 过滤逻辑：覆盖「本地无文件、文件不存在、传输中断、文件更新」场景
-        return sourceFiles.filter(sourceFile => {
+        return sourceFiles.filter((sourceFile) => {
             const targetFile = targetMap.get(sourceFile.relPath);
 
             // 场景1：本地文件夹不存在 / 目标文件不存在 → 必须传输
@@ -1173,20 +1316,20 @@ class SFTPService extends EventEmitter {
      * @param {import('stream').Duplex} stream - SSH 通道流
      * @returns {Promise<{ status: number; message: string }>}
      **************************************************************/
-    async _readScpServerResponse (stream) {
+    async _readScpServerResponse(stream) {
         return new Promise((resolve, reject) => {
             let buffer = Buffer.alloc(0);
             let timeoutId;
 
             const cleanup = () => {
-                stream.off('data', onData);
-                stream.off('error', onError);
+                stream.off("data", onData);
+                stream.off("error", onError);
                 clearTimeout(timeoutId);
             };
 
             const onData = (chunk) => {
                 buffer = Buffer.concat([buffer, chunk]);
-                Print.debug(`[SCP] 读取响应: ${buffer.toString('hex')}`);
+                Print.debug(`[SCP] 读取响应: ${buffer.toString("hex")}`);
 
                 const responseType = buffer[0];
 
@@ -1205,12 +1348,14 @@ class SFTPService extends EventEmitter {
                         resolve({ status: 0, message: "success" });
                     } else {
                         // 错误/警告
-                        const message = buffer.subarray(1).toString('utf-8').trim();
+                        const message = buffer.subarray(1).toString("utf-8").trim();
                         const result = {
                             status: responseType,
-                            message: message || (responseType === 1 ? '警告' : '错误')
+                            message: message || (responseType === 1 ? "警告" : "错误"),
                         };
-                        Print.debug(`[SCP] 响应${result.status === 1 ? '警告' : '错误'}: ${result.message}`);
+                        Print.debug(
+                            `[SCP] 响应${result.status === 1 ? "警告" : "错误"}: ${result.message}`
+                        );
                         resolve(result);
                     }
                 }
@@ -1224,18 +1369,18 @@ class SFTPService extends EventEmitter {
             // 设置超时
             timeoutId = setTimeout(() => {
                 cleanup();
-                reject(new Error('SCP响应读取超时'));
+                reject(new Error("SCP响应读取超时"));
             }, 30000);
 
-            stream.on('data', onData);
-            stream.once('error', onError);
+            stream.on("data", onData);
+            stream.once("error", onError);
         });
     }
 
     /**************************************************************
      * @todo 发送应答给SCP服务器
      **************************************************************/
-    async _sendAckToScpServer (stream, stepName) {
+    async _sendAckToScpServer(stream, stepName) {
         Print.debug(stepName);
         return new Promise((resolve, reject) => {
             stream.write(Buffer.from([0]), (err) => {
@@ -1251,7 +1396,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 等待SCP服务器响应
      **************************************************************/
-    async _awaitScpServerAck (stream, stepName) {
+    async _awaitScpServerAck(stream, stepName) {
         try {
             const response = await this._readScpServerResponse(stream);
             if (response.status === 0) {
@@ -1260,7 +1405,7 @@ class SFTPService extends EventEmitter {
                 throw new Error(`${stepName}失败: ${response.message}`);
             }
         } catch (error) {
-            console.error('SCP响应等待失败:', error.message);
+            console.error("SCP响应等待失败:", error.message);
             throw error;
         }
     }
@@ -1268,11 +1413,11 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 发送上传结束符并等待服务器响应
      **************************************************************/
-    _awaitUploadFinishAck (stream, stepName) {
+    _awaitUploadFinishAck(stream, stepName) {
         return new Promise((resolve, reject) => {
             stream.write(Buffer.from([0]), async (err) => {
-                if (err) return reject(new Error(`发送${stepName}失败: ${err.message}`));
-
+                if (err)
+                    return reject(new Error(`发送${stepName}失败: ${err.message}`));
                 try {
                     await this._awaitScpServerAck(stream, `${stepName}确认`);
                     resolve();
