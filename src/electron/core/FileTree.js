@@ -1,13 +1,13 @@
-import { FileNodeType } from "./FileNodeType";
-import FileTreeNode from "./FileTreeNode";
+import { FileNodeType, SortField, SortDirection } from "./FileNodeType.js";
+import FileTreeNode from "./FileTreeNode.js";
+import Print from "./Print.js";
 
 class FileTree {
     /**
-     * @param {string} lsOutput - SSH2 ls -l 原始输出
      * @param {Object} [options] - 配置选项
      * @param {string} [options.initialRootPath='/'] - 初始根目录路径
      * @param {string} [options.rootName='.'] - 初始根节点显示名称
-     * @param {boolean} [options.showPermissions=false] - 是否显示权限
+     * @param {boolean} [options.showMode=false] - 是否显示权限
      * @param {boolean} [options.showSize=false] - 是否显示大小
      * @param {boolean} [options.showDate=false] - 是否显示日期
      * @param {Object} [options.sortConfig] - 排序配置
@@ -15,12 +15,12 @@ class FileTree {
      * @param {SortField} [options.sortConfig.field=SortField.TYPE] - 排序字段
      * @param {SortDirection} [options.sortConfig.direction=SortDirection.ASC] - 排序方向
      */
-    constructor(lsOutput, options = {}) {
+    constructor(options = {}) {
         // 基础配置
         this.config = {
             initialRootPath: options.initialRootPath || "/",
-            rootName: options.rootName || ".",
-            showPermissions: options.showPermissions || false,
+            rootName: options.rootName || "/",
+            showMode: options.showMode || false,
             showSize: options.showSize || false,
             showDate: options.showDate || false,
         };
@@ -32,259 +32,67 @@ class FileTree {
             direction: options.sortConfig?.direction ?? SortDirection.ASC,
         };
 
-        this.rawOutput = lsOutput;
-        this.globalRoot = this.createGlobalRootNode();
-        this.dirMap = { [this.globalRoot.getFullPath()]: this.globalRoot };
-        this.currentRoot = null;
-
-        // 初始化：解析输出 -> 构建树 -> 切换到初始根目录
-        this.parseLsOutput();
-        this.navigateTo(this.config.initialRootPath);
+        this.root = this.createGlobalRootNode();
+        this.currentRoot = this.root;
     }
 
     createGlobalRootNode() {
-        return new FileNode({
-            name: "",
+        return new FileTreeNode({
+            name: "/",
             type: FileNodeType.DIRECTORY,
-            permissions: "drwxr-xr-x",
+            fullPath: "/",
+            mode: "drwxr-xr-x",
             size: 0,
-            date: new Date().toLocaleString(),
+            mtime: new Date().toLocaleString(),
         });
-    }
-
-    // 构建完整的路径树
-    buildTree(dirs, files) {
-        const dirMap = new Map();
-        dirMap.set(this.root.fullPath, this.root);
-        // 先快速添加目录节点
-        for (const dirPath of dirs) {
-            if (dirMap.has(dirPath)) continue;
-            let dirParts = dirPath.split("/");
-            const parentPath = dirParts.slice(0, -1).join("/") || this.root.fullPath;
-            const dirName = dirParts.pop();
-
-            const parentNode = dirMap.get(parentPath);
-            if (parentNode) {
-                const dirNode = new FileTreeNode({
-                    name: dirName,
-                    fullPath: dirPath,
-                    type: FileNodeType.DIRECTORY,
-                });
-                parentNode.addChild(dirNode);
-                dirMap.set(dirPath, dirNode);
-            } else {
-                let fullPath = "";
-                for (let i = 0; i < dirParts.length; i++) {
-                    let dirName = dirParts[i];
-                    fullPath += "/" + dirName;
-                    const dirNode = new FileTreeNode({
-                        name: dirName,
-                        fullPath: fullPath,
-                        type: FileNodeType.DIRECTORY,
-                    });
-                    const parentNode = dirMap.get(parentPath) || this.root;
-                    parentNode.addChild(dirNode);
-                    dirMap.set(fullPath, dirNode);
-                }
-            }
-        }
-
-        // 先按路径排序，确保父目录在前
-        const sortedFiles = files.sort((a, b) => a.path.localeCompare(b.path));
-
-        for (const file of files) {
-            const parentNode = dirMap.get(parentPath);
-            if (parentNode) {
-                const fileNode = new FileTreeNode({
-                    name: dirName,
-                    fullPath: dirPath,
-                    type: FileNodeType.DIRECTORY,
-                    size: file.size,
-                    mode: file.mode,
-                    owner: file.owner,
-                    mode: file.group,
-                });
-            }
-        }
-        // 更新统计信息
-        this.totalBytes = this.root.totalSize;
-        this.totalFiles = this.root.fileCount;
-        this.totalDirs = this.root.dirCount;
-    }
-
-    // 添加文件到树中
-    _addFileToTree(fileInfo) {
-        const pathParts = fileInfo.relPath.split("/").filter((part) => part.trim());
-
-        if (pathParts.length === 0) return;
-
-        let currentNode = this.root;
-        let currentPath = this.root.fullPath;
-
-        // 构建目录路径
-        for (let i = 0; i < pathParts.length - 1; i++) {
-            const dirName = pathParts[i];
-            currentPath = `${currentPath}/${dirName}`;
-
-            let dirNode = currentNode.find(dirName);
-            if (!dirNode) {
-                // 创建目录节点
-                dirNode = new FileTreeNode({
-                    name: dirName,
-                    type: FileNodeType.DIRECTORY,
-                });
-                dirNode.fullPath = currentPath;
-                dirNode.relPath = currentPath
-                    .replace(this.root.fullPath, "")
-                    .replace(/^\//, "");
-                currentNode.addChild(dirNode);
-            }
-            currentNode = dirNode;
-        }
-
-        // 添加文件节点
-        const fileName = pathParts[pathParts.length - 1];
-        const fileNode = new FileTreeNode({
-            name: fileName,
-            type: FileNodeType.FILE,
-            size: fileInfo.size,
-            mtime: fileInfo.mtime,
-            mode: fileInfo.mode,
-            owner: fileInfo.owner,
-            group: fileInfo.group,
-        });
-        fileNode.fullPath = fileInfo.path;
-        fileNode.relPath = fileInfo.relPath;
-
-        currentNode.addChild(fileNode);
-    }
-
-    // 查找文件/目录
-    find(path) {
-        const pathParts = path
-            .replace(this.root.fullPath, "")
-            .split("/")
-            .filter((part) => part.trim());
-        let currentNode = this.root;
-
-        for (const part of pathParts) {
-            if (!currentNode.children) return null;
-            const nextNode = currentNode.find(part);
-            if (!nextNode) return null;
-            currentNode = nextNode;
-        }
-
-        return currentNode;
     }
 
     /**
-     * 解析 ls 输出，添加节点时按当前排序配置插入（插入排序）
+     * 构建文件目录树（目录优先，文件后补）
+     * @param {string[]} dirs - 所有目录的绝对路径数组
+     * @param {Object[]} files - 所有文件的详细信息数组（含fullPath/size/mode等）
      */
-    parseLsOutput() {
-        if (!this.rawOutput) return;
+    build(dirs, files) {
+        const dirMap = new Map([[this.root.fullPath, this.root]]); // 根节点初始化
 
-        const lines = this.rawOutput.split(/\r?\n/).filter((line) => line.trim());
-        lines.forEach((line) => {
-            if (line.startsWith("total")) return;
+        for (const dirPath of dirs) {
+            if (dirMap.has(dirPath)) continue; // 跳过已存在的目录
 
-            const lsRegex =
-                /^([d\-l]([rwx\-]{9}|[rwx\-]{3}){3})\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\w{3}\s+\d+\s+(?:\d{2}:\d{2}|\d{4}))\s+(.+)$/;
-            const match = line.match(lsRegex);
+            // 递归创建路径上的所有缺失目录（如 /a/b/c 不存在时，依次创建a、a/b、a/b/c）
+            const pathParts = dirPath.split("/").filter(part => part); // 分割并过滤空字符串（避免重复//）
+            let currentPath = "";
+            for (const part of pathParts) {
+                currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
+                if (dirMap.has(currentPath)) continue; // 跳过已存在的中间目录
 
-            if (match) {
-                const [, permissions, , , , size, date, name] = match;
-                this.createFileNode({ permissions, size, date, name });
-            }
-        });
-    }
-
-    createFileNode({ permissions, size, date, name }) {
-        const typeMap = {
-            d: FileNodeType.DIRECTORY,
-            "-": FileNodeType.FILE,
-            l: FileNodeType.SYMLINK,
-        };
-
-        const typeChar = permissions[0];
-        const nodeType = typeMap[typeChar];
-        if (!nodeType) {
-            console.warn(`Unsupported file type: ${typeChar} (skipped: ${name})`);
-            return;
-        }
-
-        // 处理符号链接和目录后缀
-        let nodeName = name;
-        let symlinkTarget = "";
-        if (nodeType === FileNodeType.SYMLINK) {
-            const [linkName, target] = name.split(" -> ");
-            nodeName = linkName;
-            symlinkTarget = target || "";
-        }
-        if (nodeType === FileNodeType.DIRECTORY && nodeName.endsWith("/")) {
-            nodeName = nodeName.slice(0, -1);
-        }
-
-        // 解析完整路径
-        const fullPath = nodeName.startsWith("/") ? nodeName : `/${nodeName}`;
-        const pathParts = fullPath.split("/").filter((part) => part);
-        const targetNodeName = pathParts.pop();
-        const parentFullPath = pathParts.length ? `/${pathParts.join("/")}` : "/";
-
-        // 确保父目录存在
-        const parentNode = this.ensureDirectoryExists(parentFullPath);
-
-        // 创建当前节点
-        const node = new FileNode({
-            name: targetNodeName,
-            type: nodeType,
-            permissions,
-            size: parseInt(size, 10),
-            date,
-            symlinkTarget,
-            parent: parentNode,
-        });
-
-        // 按排序配置插入子节点（核心优化：插入排序）
-        parentNode.addChild(node, this.sortConfig);
-
-        // 目录添加到映射表
-        if (node.isDirectory()) {
-            this.dirMap[node.getFullPath()] = node;
-        }
-    }
-
-    ensureDirectoryExists(fullPath) {
-        const normalizedPath =
-            fullPath.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
-        if (this.dirMap[normalizedPath]) {
-            return this.dirMap[normalizedPath];
-        }
-
-        const pathParts = normalizedPath.split("/").filter((part) => part);
-        let currentPath = "/";
-        let currentNode = this.globalRoot;
-
-        for (const dirName of pathParts) {
-            currentPath = `${currentPath}/${dirName}`.replace(/\/+/g, "/");
-
-            if (!this.dirMap[currentPath]) {
-                const newDirNode = new FileNode({
-                    name: dirName,
-                    type: FileNodeType.DIRECTORY,
-                    permissions: "drwxr-xr-x",
-                    size: 0,
-                    date: new Date().toLocaleString(),
-                    parent: currentNode,
+                const parentPath = currentPath.lastIndexOf("/") === 0 ? "/" : currentPath.slice(0, currentPath.lastIndexOf("/"));
+                const parentNode = dirMap.get(parentPath);
+                const dirNode = new FileTreeNode({
+                    name: part,
+                    fullPath: currentPath,
+                    type: FileNodeType.DIRECTORY
                 });
-                // 按排序配置插入目录节点
-                currentNode.addChild(newDirNode, this.sortConfig);
-                this.dirMap[currentPath] = newDirNode;
+                parentNode.addChild(dirNode);
+                dirMap.set(currentPath, dirNode);
             }
-
-            currentNode = this.dirMap[currentPath];
         }
 
-        return currentNode;
+        for (const file of files) {
+            const parentPath = file.fullPath.slice(0, file.fullPath.lastIndexOf("/")) || "/"; // 提取父目录路径
+            const parentNode = dirMap.get(parentPath);
+            if (!parentNode) continue; // 父目录不存在则跳过（理论上不会出现）
+
+            const fileNode = new FileTreeNode({
+                name: file.fullPath.split("/").pop(), // 从完整路径提取文件名
+                fullPath: file.fullPath,
+                type: FileNodeType.FILE,
+                size: file.size,
+                mode: file.mode,
+                owner: file.owner,
+                group: file.group
+            });
+            parentNode.addChild(fileNode);
+        }
     }
 
     // ------------------------------
@@ -303,12 +111,12 @@ class FileTree {
         }
 
         this.currentRoot = targetNode;
-        console.log(`Navigated to: ${this.currentRoot.getFullPath()}`);
+        console.log(`Navigated to: ${this.currentRoot.fullPath}`);
         return true;
     }
     // 返回上层目录
     navigateUp() {
-        if (this.currentRoot.getFullPath() === "/") {
+        if (this.currentRoot.fullPath === "/") {
             console.warn("Already at the root directory");
             return false;
         }
@@ -316,18 +124,18 @@ class FileTree {
         const parentNode = this.currentRoot.parent;
         if (parentNode && parentNode.isDirectory()) {
             this.currentRoot = parentNode;
-            console.log(`Navigated up to: ${this.currentRoot.getFullPath()}`);
+            console.log(`Navigated up to: ${this.currentRoot.fullPath}`);
             return true;
         }
 
         return false;
     }
 
-    getSiblingNodes() {
+    getSiblings() {
         const parentNode = this.currentRoot.parent;
         if (!parentNode) return [];
         return parentNode.children.filter(
-            (node) => node.getFullPath() !== this.currentRoot.getFullPath()
+            (node) => node.name !== this.currentRoot.name
         );
     }
 
@@ -365,86 +173,119 @@ class FileTree {
         console.log(`Sort direction toggled to: ${this.sortConfig.direction}`);
     }
 
-    // ------------------------------
-    // 格式化输出
-    // ------------------------------
+
+    /**
+     * 格式化文件树为 Linux tree 命令风格的字符串（无多余空格，完全对齐）
+     * @param {FileTreeNode} node - 要格式化的节点
+     * @param {string} prefix - 前缀（控制缩进和分支线）
+     * @param {boolean} isLast - 是否为最后一个子节点
+     * @param {boolean} isSibling - 是否为当前根节点的同级节点
+     * @returns {string} tree 风格的格式化字符串
+     */
     formatTree(node, prefix = "", isLast = true, isSibling = false) {
-        const iconMap = {
-            [FileNodeType.DIRECTORY]: "📁",
-            [FileNodeType.FILE]: "📄",
-            [FileNodeType.SYMLINK]: "🔗",
-        };
+        // 节点名称标识：目录末尾加 /，文件无后缀（完全对齐 tree）
+        const nodeName = node.isDirectory() ? `${node.name}` : node.name;
 
-        const branch = isLast ? "└── " : "├── ";
-        const icon = iconMap[node.type] || "❓";
-        const rootMarker =
-            !isSibling && node.getFullPath() === this.currentRoot.getFullPath()
-                ? "📌 "
-                : "";
-        let line = `${prefix}${branch}${rootMarker}${icon} ${node.name}`;
+        // 分支线：无多余空格（原代码多了空格，导致间隙）
+        const branch = isLast ? "└──" : "├──";
 
+        // 根节点标记（可选，不影响间距）
+        const rootMarker = !isSibling && node.fullPath === this.currentRoot.fullPath ? "" : "";
+        // 标记与名称间仅留1个空格（无标记则无空格）
+        const markerSpace = rootMarker ? " " : "";
+
+        // 核心行：前缀 + 分支线 + 标记（可选） + 名称（紧挨着线，无多余空格）
+        let line = `${prefix}${branch}${rootMarker}${markerSpace}${nodeName}`;
+
+        // 符号链接追加目标路径（tree 风格）
         if (node.isSymlink() && node.symlinkTarget) {
             line += ` -> ${node.symlinkTarget}`;
         }
 
+        // 额外信息：权限/大小/日期（居右显示，对齐 tree -pugs）
         const extraInfo = [];
-        if (this.config.showPermissions) extraInfo.push(node.permissions);
-        if (this.config.showSize) extraInfo.push(`${node.size}B`);
-        if (this.config.showDate) extraInfo.push(node.date);
+        if (this.config.showMode) extraInfo.push(node.mode.padEnd(10));
+        if (this.config.showSize) extraInfo.push(node.sizeFormatted.padStart(8));
+        if (this.config.showDate) {
+            const formattedDate = node.mtime.replace(/\s+/g, ' ').trim();
+            extraInfo.push(formattedDate.padEnd(12));
+        }
 
+        // 名称与额外信息间补空格（确保对齐，无多余间隙）
         if (extraInfo.length) {
-            line += ` [${extraInfo.join(" | ")}]`;
+            const minPad = 2; // 最小间距（tree 原生风格）
+            const requiredPad = Math.max(minPad, 40 - line.length); // 总长度不足40则补满
+            line += " ".repeat(requiredPad) + extraInfo.join(" ");
         }
 
         line += "\n";
 
-        if (node.isDirectory() && node.children.length) {
-            const shouldExpand =
-                !isSibling || node.getFullPath() === this.currentRoot.getFullPath();
+        // 递归处理子目录（分支线对齐，无多余空格）
+        if (node.isDirectory() && node.children?.length) {
+            const shouldExpand = !isSibling || node.fullPath === this.currentRoot.fullPath;
             if (shouldExpand) {
                 node.children.forEach((child, index) => {
                     const isChildLast = index === node.children.length - 1;
+                    // 前缀逻辑：保持分支线连续（无多余空格）
                     const newPrefix = prefix + (isLast ? "    " : "│   ");
                     line += this.formatTree(child, newPrefix, isChildLast);
                 });
             } else {
-                line += `${prefix}    └── ... (${node.children.length} items)\n`;
+                line += `${prefix}    └── ... (${node.children.length} entries)\n`;
             }
         }
 
         return line;
     }
 
+    /**
+     * 获取完整的格式化文件树字符串（含头部信息）
+     * @returns {string} 可直接打印的文件树字符串
+     */
     getFormattedTree() {
-        const currentPath = this.currentRoot.getFullPath();
+        const currentPath = this.currentRoot.fullPath;
+        // 排序信息格式化（将枚举值转为中文，更易读）
+        const sortFieldMap = {
+            [SortField.NAME]: "名称",
+            [SortField.SIZE]: "大小",
+            [SortField.DATE]: "日期",
+            [SortField.TYPE]: "类型"
+        };
+        const sortDirectionMap = {
+            [SortDirection.ASC]: "升序",
+            [SortDirection.DESC]: "降序"
+        };
         const sortInfo = this.sortConfig.enabled
-            ? ` | 排序：${this.sortConfig.field} ${this.sortConfig.direction}`
+            ? ` | 排序：${sortFieldMap[this.sortConfig.field]} ${sortDirectionMap[this.sortConfig.direction]}`
             : " | 排序：禁用";
-        let treeStr = `=== 当前目录：${currentPath}${sortInfo} ===\n`;
 
+        // 头部信息
+        let treeStr = `=== 当前目录：${currentPath}${sortInfo} ===\n`;
         const parentNode = this.currentRoot.parent;
 
         if (!parentNode) {
+            // 根目录（无父目录），直接格式化
             treeStr += this.formatTree(this.currentRoot);
         } else {
-            treeStr += `父目录：${parentNode.getFullPath()}\n`;
+            // 非根目录，显示父目录 + 同级节点
+            treeStr += `父目录：${parentNode.fullPath}\n`;
             treeStr += "--------------------------------\n";
 
             const siblings = this.getSiblingNodes();
             const allSameLevelNodes = [this.currentRoot, ...siblings];
-            // 确保同层级节点也按当前排序规则排序
+
+            // 按当前排序规则排序同层级节点
             if (this.sortConfig.enabled) {
                 allSameLevelNodes.sort((a, b) => {
-                    const compareResult = a.compareNodes(a, b, this.sortConfig.field);
-                    return this.sortConfig.direction === SortDirection.ASC
-                        ? compareResult
-                        : -compareResult;
+                    const compareResult = this.formatTree.compareNodes(a, b, this.sortConfig.field);
+                    return this.sortConfig.direction === SortDirection.ASC ? compareResult : -compareResult;
                 });
             }
 
+            // 格式化所有同层级节点
             allSameLevelNodes.forEach((node, index) => {
                 const isLast = index === allSameLevelNodes.length - 1;
-                const isSibling = node.getFullPath() !== this.currentRoot.getFullPath();
+                const isSibling = node.fullPath !== this.currentRoot.fullPath;
                 treeStr += this.formatTree(node, "", isLast, isSibling);
             });
         }

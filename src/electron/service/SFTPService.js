@@ -4,7 +4,7 @@ import { Client } from "ssh2";
 import fs from "fs"; // 核心修复：直接导入完整 fs 模块（含同步+异步）
 import path from "path";
 import Print from "../core/Print.js";
-import { debug } from "console";
+import FileTree from "../core/FileTree.js";
 // import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
@@ -675,6 +675,8 @@ class SFTPService extends EventEmitter {
                 dirs: remoteDirs,
                 totalBytes: totalBytes,
             } = await this.scanRemoteDir(conn, remoteDir);
+
+            return;
             const { files: localFiles, dirs: localDirs } = fs.existsSync(localDir)
                 ? await this.scanLocalDir(localDir)
                 : { files: [], totalBytes: 0 };
@@ -1170,6 +1172,51 @@ class SFTPService extends EventEmitter {
         });
     }
 
+
+    /**
+     * 将 ls 输出的日期格式（中文/英文月份 + 日期 + 时间）转换为标准 YYYY-MM-dd HH:MM
+     * 兼容场景：
+     * - 中文平台：month="11月"、day=30、time="21:52"
+     * - 英文平台：month="Nov"、day=30、time="21:52"
+     * @param {Object} dateInfo - ls 解析后的日期信息
+     * @param {string} dateInfo.month - 月份（中文："1月"-"12月" / 英文："Jan"-"Dec"）
+     * @param {number|string} dateInfo.day - 日期（如 30、"5"）
+     * @param {string} dateInfo.time - 时分（如 "21:52"）
+     * @returns {string} 标准格式日期字符串（YYYY-MM-dd HH:MM）
+     */
+    getStandardTime({ month, day, time }) {
+        // 1. 月份映射表：同时包含中文→数字、英文缩写→数字
+        const monthMap = {
+            // 中文月份映射
+            "1月": "01", "2月": "02", "3月": "03", "4月": "04",
+            "5月": "05", "6月": "06", "7月": "07", "8月": "08",
+            "9月": "09", "10月": "10", "11月": "11", "12月": "12",
+            // 英文月份缩写映射（大小写不敏感，后续统一转小写处理）
+            "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+            "may": "05", "jun": "06", "jul": "07", "aug": "08",
+            "sep": "09", "oct": "10", "nov": "11", "dec": "12"
+        };
+
+        // 2. 解析并标准化月份（兼容中英文、大小写）
+        const normalizedMonth = month.trim().toLowerCase(); // 转小写，避免大小写歧义
+        const numMonth = monthMap[normalizedMonth] || "01"; // 兜底默认 01 月
+
+        // 3. 解析年份（ls 未显示年份，取当前系统年份）
+        const year = new Date().getFullYear().toString();
+
+        // 4. 日期补零（如 5 → "05"，30 → "30"）
+        const numDay = String(day).padStart(2, "0");
+
+        // 5. 时分格式标准化（避免异常时间格式，如 "21" → "21:00"）
+        const timeParts = time.trim().split(":").slice(0, 2); // 只取时分部分
+        const hour = timeParts[0]?.padStart(2, "0") || "00";
+        const minute = timeParts[1]?.padStart(2, "0") || "00";
+        const hourMinute = `${hour}:${minute}`;
+
+        // 6. 拼接标准格式
+        return `${year}-${numMonth}-${numDay} ${hourMinute}`;
+    }
+
     /**************************************************************
      * @todo 扫描远程文件夹，获取文件列表、大小和相对路径（兼容 BusyBox 无find环境）
      * @param {import('ssh2').Client} conn - SSH连接实例
@@ -1218,21 +1265,20 @@ class SFTPService extends EventEmitter {
                 const fileMatch = line.match(fileLineRegex);
                 if (!fileMatch) continue;
 
-                const [mode, links, owner, group, _size_, month, day, time, fileName] =
-                    fileMatch;
-                debugPrint(`
-                    mode=${mode},
-                    links=${links},
-                    owner=${owner},
-                    group=${group},
-                    size=${_size_},
-                    month=${month},
-                    day=${day},
-                    time=${time},
-                    fileName=${fileName}`);
+                const [, mode, links, owner, group, _size_, month, day, time, fileName] = fileMatch;
+                // Print.debug(`
+                //     mode=${mode},
+                //     links=${links},
+                //     owner=${owner},
+                //     group=${group},
+                //     size=${_size_},
+                //     month=${month},
+                //     day=${day},
+                //     time=${time},
+                //     fileName=${fileName}`);
                 const size = parseInt(_size_, 10);
 
-                let mtime = `${month}-${day} ${time}`;
+                let mtime = this.getStandardTime(month, day, time);
 
                 // 过滤无效数据：
                 // - 目录的大小是4096（BusyBox默认），需排除
@@ -1256,7 +1302,7 @@ class SFTPService extends EventEmitter {
                 }
                 // 添加到文件列表
                 const fileInfo = {
-                    path: absPath,
+                    fullPath: absPath,
                     relPath,
                     name: actualFileName,
                     size,
@@ -1264,7 +1310,7 @@ class SFTPService extends EventEmitter {
                     links: parseInt(links, 10),
                     owner,
                     group,
-                    mtime: `${month}-${day} ${time}`,
+                    mtime: mtime,
                     symlinkTarget,
                 };
                 // 4. 添加到结果列表
@@ -1275,6 +1321,9 @@ class SFTPService extends EventEmitter {
             Print.debug(
                 `扫描完成，共找到 ${files.length} 个文件，总字节数 ${totalBytes}`
             );
+            // let fileTree = new FileTree();
+            // fileTree.build(dirs, files);
+            // fileTree.print();
             return { files, dirs, totalBytes };
         } catch (err) {
             Print.error(err.message);

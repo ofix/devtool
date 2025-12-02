@@ -1,38 +1,43 @@
-import { FileNodeType, SortDirection } from "./FileNodeType";
+import { FileNodeType, SortDirection } from "./FileNodeType.js";
 class FileTreeNode {
     /**
-     * @param {Object} options - 节点配置
+     * @param {Object} options - 节点
      * @param {string} options.name - 节点名称
+     * @param {string} options.fullPath - 节点绝对路径
      * @param {FileNodeType} options.type - 节点类型
-     * @param {number} [options.size=0] - 大小（字节）
-     * @param {string} [mtime=''] - 修改日期
-     * @param {string} [options.mode=''] - 权限字符串
-     * @param {string} [options.owner=''] - 权限字符串
-     * @param {string} [options.group=''] - 权限字符串
-     * @param {string} [options.parent] -父节点（格式：Mon DD YYYY 或 Mon DD HH:MM）
-     * @param {FileNode|null} [options.parent=null] - 父节点
+     * @param {number} [options.size=0] - 节点大小（字节）
+     * @param {string} [mtime=''] - 节点修改日期
+     * @param {string} [options.mode=''] - 节点权限
+     * @param {string} [options.owner=''] - 节点所属用户
+     * @param {string} [options.group=''] - 节点所属用户组
+     * @param {string} [options.symlinkTarget=''] - 节点软链接
+     * @param {FileTreeNode|null} [options.parent=null] - 父节点
      */
     constructor({
         name, // 名称
         type, // 目录或者文件
         size = 0, // 大小
+        fullPath = '', // 文件路径
         mtime = '', // 文件修改日期
-        mode = '', // 权限
-        owner, // 拥有者
-        group, // 所在组
+        mode = 'drwxr-xr-x', // 权限
+        owner = '', // 拥有者
+        group = '', // 所在组
+        symlinkTarget = null, // 软连接
         parent = null // 父节点
     }) {
         this.name = name;
         this.type = type;
         this.size = size;
-        this.sizeFormatted = formatSize(size);
+        this.fullPath = fullPath;
+        this.sizeFormatted = this.formatSize(size);
         this.mtime = mtime;
         this.mode = mode;
         this.owner = owner;
         this.group = group;
         this.parent = parent;
+        this.symlinkTarget = symlinkTarget;
         this.children = type === FileNodeType.DIRECTORY ? [] : null;
-        this.timestamp = this.parseDateToTimestamp(createdAt);
+        this.timestamp = this.parseDateToTimestamp(mtime);
         this.ignored = false; // 是否忽略当前文件或者目录
         this.visible = false; // 搜索文件的时候需要显示/隐藏
     }
@@ -72,7 +77,7 @@ class FileTreeNode {
 
     /**
      * 核心优化：按当前排序规则插入子节点（避免批量排序）
-     * @param {FileNode} childNode - 子节点
+     * @param {FileTreeNode} childNode - 子节点
      * @param {Object} sortConfig - 排序配置
      * @throws {Error} 如果当前节点不是目录
      */
@@ -80,14 +85,14 @@ class FileTreeNode {
         if (!this.isDirectory()) {
             throw new Error(`Cannot add child to non-directory node: ${this.name} (type: ${this.getTypeName()})`);
         }
-        if (!(childNode instanceof FileNode)) {
-            throw new Error('Child node must be an instance of FileNode');
+        if (!(childNode instanceof FileTreeNode)) {
+            throw new Error('Child node must be an instance of FileTreeNode');
         }
 
         childNode.parent = this;
 
         // 如果启用排序，找到插入位置并插入（插入排序）
-        if (sortConfig.enabled) {
+        if (sortConfig?.enabled) {
             const insertIndex = this.findInsertIndex(childNode, sortConfig);
             this.children.splice(insertIndex, 0, childNode);
         } else {
@@ -98,7 +103,7 @@ class FileTreeNode {
 
     /**
      * 查找子节点的插入位置（基于当前排序规则）
-     * @param {FileNode} newNode - 新节点
+     * @param {FileTreeNode} newNode - 新节点
      * @param {Object} sortConfig - 排序配置
      * @returns {number} 插入索引
      */
@@ -123,8 +128,8 @@ class FileTreeNode {
 
     /**
      * 按指定字段比较两个节点
-     * @param {FileNode} a - 节点A
-     * @param {FileNode} b - 节点B
+     * @param {FileTreeNode} a - 节点A
+     * @param {FileTreeNode} b - 节点B
      * @param {SortField} field - 排序字段
      * @returns {number} 比较结果（-1/0/1）
      */
