@@ -336,28 +336,28 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * 单个文件SCP下载（支持断点续传，修复协议交互流程）
      * @param {import('ssh2').Client} conn - SSH连接实例（已认证）
-     * @param {string} remoteFile - 远程文件绝对路径
-     * @param {string} localFile - 本地文件绝对路径
+     * @param {string} remoteFilePath - 远程文件绝对路径
+     * @param {string} localFilePath - 本地文件绝对路径
      * @param {number} fileSize - 文件总大小（字节）
      * @param {number} startOffset - 开始传输的偏移量（默认 0）
      * @param {Function} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadFile(conn, remoteFile, localFile, onProgress) {
+    async downloadFile(conn, remoteFilePath, localFilePath, onProgress) {
         return new Promise(async (resolve, reject) => {
-            conn.exec(`scp -f '${remoteFile}'`, async (err, stream) => {
-                // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
+            // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
+            conn.exec(`scp -f '${remoteFilePath}'`, async (err, stream) => {
                 if (err) {
                     return reject(new Error(`创建下载通道失败: ${err.message}`));
                 }
                 try {
                     await this._sendAckToScpServer(stream, "1.发送应答码给服务器");
 
-                    const result = await this._awaitScpServerFileInfo(
+                    const meta = await this._awaitScpServerFileInfo(
                         stream,
                         "等待服务器返回文件元信息"
                     );
-                    if (result.status == -1) {
+                    if (meta.status == -1) {
                         throw new Error(`无法解析文件元信息`);
                     }
 
@@ -367,8 +367,8 @@ class SFTPService extends EventEmitter {
                     // 下载文件数据
                     await this._downloadFileInChunk(
                         stream,
-                        localFile,
-                        result.fileInfo,
+                        localFilePath,
+                        meta.fileInfo,
                         onProgress
                     );
 
@@ -667,7 +667,7 @@ class SFTPService extends EventEmitter {
         let totalFiles = 0;
         let recvBytes = 0;
         let totalBytes = 0;
-        let currentFile = "";
+        let currentFileAbsolutePath = "";
         try {
             let conn = await this.getSSHClient(host);
             const {
@@ -676,7 +676,6 @@ class SFTPService extends EventEmitter {
                 totalBytes: totalBytes,
             } = await this.scanRemoteDir(conn, remoteDir);
 
-            return;
             const { files: localFiles, dirs: localDirs } = fs.existsSync(localDir)
                 ? await this.scanLocalDir(localDir)
                 : { files: [], totalBytes: 0 };
@@ -701,7 +700,7 @@ class SFTPService extends EventEmitter {
                 onProgress?.({
                     status: 0,
                     progress: 100,
-                    remoteFile: currentFile,
+                    remoteFile: currentFileAbsolutePath,
                     recvFiles: 0,
                     totalFiles: 0,
                     recvBytes: totalBytes,
@@ -711,14 +710,14 @@ class SFTPService extends EventEmitter {
                 return;
             }
             for (const file of needDownloadFiles) {
-                const { path: remoteFile, size: fileSize, relPath } = file;
-                const localFile = path.join(localDir, relPath); // 本地路径用系统格式
+                const { path: remoteFileAbsolutePath, size: fileSize, relPath } = file;
+                const localFileAbsolutePath = path.join(localDir, relPath); // 本地路径用系统格式
                 // 下载文件（带单文件进度回调）
-                await this.downloadFile(conn, remoteFile, localFile, (fileProgress) => {
+                await this.downloadFile(conn, remoteFileAbsolutePath, localFileAbsolutePath, (fileProgress) => {
                     onProgress?.({
                         status: 0,
                         progress: Math.round((recvBytes / totalBytes) * 100),
-                        remoteFile: remoteFile,
+                        remoteFile: remoteFileAbsolutePath,
                         recvFiles: recvFiles,
                         totalFiles: totalFiles,
                         recvBytes: recvBytes + fileProgress.recvBytes,
@@ -731,7 +730,7 @@ class SFTPService extends EventEmitter {
                 onProgress?.({
                     status: 0,
                     progress: Math.round((recvBytes / totalBytes) * 100),
-                    remoteFile: remoteFile,
+                    remoteFile: remoteFileAbsolutePath,
                     recvFiles: recvFiles,
                     totalFiles: totalFiles,
                     recvBytes: recvBytes + fileSize,
@@ -743,7 +742,7 @@ class SFTPService extends EventEmitter {
                 status: -1,
                 progress:
                     totalBytes == 0 ? 0 : Math.round((recvBytes / totalBytes) * 100),
-                remoteFile: currentFile,
+                remoteFile: currentFileAbsolutePath,
                 recvFiles: recvFiles,
                 totalFiles: totalFiles,
                 recvBytes: recvBytes,
@@ -889,10 +888,10 @@ class SFTPService extends EventEmitter {
             });
             // 6. 逐个上传文件
             for (const file of needTransferFiles) {
-                const { path: localFile, size: fileSize, relPath } = file;
+                const { fullPath: localFilePath, size: fileSize, relPath } = file;
                 const remoteFile = path.posix.join(remoteDir, relPath); // 远程路径用POSIX格式
                 // 上传文件（带单文件进度回调）
-                await this.uploadFile(conn, localFile, remoteFile, (fileProgress) => {
+                await this.uploadFile(conn, localFilePath, remoteFile, (fileProgress) => {
                     // 累计总传输字节数
                     const fileSendBytes = fileProgress.sendBytes;
                     const sendBytes = totalTransferredBytes + fileSendBytes;
@@ -900,7 +899,7 @@ class SFTPService extends EventEmitter {
                     onProgress?.({
                         status: 0,
                         progress: totalProgress,
-                        localFile: localFile,
+                        localFile: localFilePath,
                         sendFiles: transferredFiles,
                         totalFiles: totalFiles,
                         sendBytes: sendBytes,
@@ -976,98 +975,6 @@ class SFTPService extends EventEmitter {
         await traverse(localDir);
         dirs.push(...dirSet);
         return { files, dirs, totalBytes };
-    }
-
-    /**************************************************************
-     * @todo 非递归获取远程文件夹，获取直接子目录和文件（兼容 BusyBox 无find环境）
-     * @param {import('ssh2').Client} conn - SSH连接实例
-     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
-     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], dirs: string[], totalBytes: number}>}
-     * - files: 直接子文件列表（不含子目录内文件）
-     * - dirs: 直接子目录列表（不含嵌套子目录）
-     * - totalBytes: 直接子文件总大小
-     **************************************************************/
-    async listSubDir(conn, remoteDir) {
-        const files = [];
-        const dirs = [];
-        let totalBytes = 0;
-
-        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
-        const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
-
-        try {
-            // 关键修改：移除 -R（递归）参数，只扫描当前目录
-            // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
-            const lsCmd = `ls -lAp "${normalizedRemoteDir}" 2>/dev/null`;
-
-            let lsResult = await this.exec(conn, lsCmd);
-            if (!lsResult.code) {
-                return { files, dirs, totalBytes };
-            }
-
-            // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
-            const lines = lsResult.stdout.split("\n").filter((line) => line.trim());
-
-            // 正则解析：兼容英文/中文月份、带空格文件名、目录（结尾无/，通过权限位判断）
-            // 格式：权限 链接数 所有者 组 大小 月 日 时间 文件名/（目录）
-            const lineRegex =
-                /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
-
-            for (const line of lines) {
-                const match = line.match(lineRegex);
-                if (!match) continue;
-
-                const [
-                    ,
-                    perm,
-                    ,
-                    ,
-                    ,
-                    sizeStr,
-                    ,
-                    ,
-                    ,
-                    name, // 解构匹配结果：权限、大小、文件名
-                ] = match;
-
-                const size = parseInt(sizeStr, 10);
-                if (isNaN(size) || !name || name.trim() === "") continue;
-
-                // 拼接绝对路径（目标目录 + 子项名称）
-                const absPath = `${normalizedRemoteDir}/${name}`;
-
-                // 1. 判断是否为目录（权限位以 d 开头）
-                if (perm.startsWith("d")) {
-                    // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
-                    if (name === "." || name === "..") continue;
-                    dirs.push(absPath); // 直接子目录，添加绝对路径
-                    continue;
-                }
-
-                // 2. 处理文件（非目录、非链接，权限位以 - 开头）
-                if (perm.startsWith("-")) {
-                    // 相对路径：直接使用文件名（非递归，无嵌套目录）
-                    const relPath = name;
-
-                    files.push({
-                        path: absPath, // 远程文件绝对路径
-                        size: size, // 文件大小（字节）
-                        relPath: relPath, // 相对路径（相对于目标目录，直接是文件名）
-                    });
-                    totalBytes += size;
-                }
-
-                // 忽略链接文件（权限位以 l 开头），如需支持可自行扩展
-            }
-
-            console.debug(
-                `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`
-            );
-            return { files, dirs, totalBytes };
-        } catch (err) {
-            console.error("扫描远程文件夹失败:", err.message);
-            throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);
-        }
     }
 
     /**************************************************************
@@ -1218,6 +1125,98 @@ class SFTPService extends EventEmitter {
     }
 
     /**************************************************************
+    * @todo 非递归获取远程文件夹，获取直接子目录和文件（兼容 BusyBox 无find环境）
+    * @param {import('ssh2').Client} conn - SSH连接实例
+    * @param {string} remoteDir - 远程文件夹路径（绝对路径）
+    * @returns {Promise<{files: {path: string, size: number, relPath: string}[], dirs: string[], totalBytes: number}>}
+    * - files: 直接子文件列表（不含子目录内文件）
+    * - dirs: 直接子目录列表（不含嵌套子目录）
+    * - totalBytes: 直接子文件总大小
+    **************************************************************/
+    async listDir(conn, remoteDir) {
+        const files = [];
+        const dirs = [];
+        const all = [];
+        let totalBytes = 0;
+
+        // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
+        const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
+
+        try {
+            // 关键修改：移除 -R（递归）参数，只扫描当前目录
+            // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
+            const lsCmd = `ls -lAp '${normalizedRemoteDir}' 2>/dev/null`;
+
+            let lsResult = await this.exec(conn, lsCmd);
+            if (!lsResult.code) {
+                return { files, dirs, totalBytes };
+            }
+
+            // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
+            const lines = lsResult.stdout.split("\n").filter((line) => line.trim());
+
+            // 正则解析：兼容英文/中文月份、带空格文件名、目录（结尾无/，通过权限位判断）
+            // 格式：权限 链接数 所有者 组 大小 月 日 时间 文件名/（目录）
+            const lineRegex =
+                /^([-dlrwx@]+)\s+(\d+)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+([^\s:]+(?:\s+[^\s:]+)?)\s+(\d+)\s+([A-Za-z]{3}|\d{1,2}[月])\s+(\d{1,2})\s+(\d{2}:\d{2}|\d{4})\s+(.*)$/;
+
+            for (const line of lines) {
+                const match = line.match(lineRegex);
+                if (!match) continue;
+
+                const [
+                    , mode, links, owner, group, _size_, month, day, time, fileName
+                ] = match;
+
+                const size = parseInt(sizeStr, 10);
+                if (isNaN(size) || !fileName || fileName.trim() === "") continue;
+
+                // 拼接绝对路径（目标目录 + 子项名称）
+                const absPath = `${normalizedRemoteDir}/${fileName}`;
+
+                let mtime = this.getStandardTime(month, day, time);
+                let item = {
+                    name: fileName,
+                    fullPath: absPath,
+                    relPath: fileName,
+                    mode: mode,
+                    links: links,
+                    owner: owner,
+                    group: group,
+                    size: size,
+                    symlinkTarget: "",
+                    mtime: mtime
+                };
+
+                // 1. 判断是否为目录（权限位以 d 开头）
+                if (perm.startsWith("d")) {
+                    // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
+                    if (fileName === "." || fileName === "..") continue;
+                    dirs.push(item); // 直接子目录，添加绝对路径
+                } else if (mode.startsWith("-")) {  // 2. 处理文件（非目录、非链接，权限位以 - 开头）
+                    files.push(item);
+                    totalBytes += size;
+                } else if (mode.startsWith("l")) {
+                    const [linkName, target] = fileName.split(" -> ");
+                    actualFileName = linkName || fileName;
+                    symlinkTarget = target || "";
+                    item.symlinkTarget = symlinkTarget;
+                    item.name = actualFileName;
+                    files.push(item);
+                    totalBytes += size;
+                }
+            }
+            console.debug(
+                `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`
+            );
+            return { files, dirs, totalBytes };
+        } catch (err) {
+            console.error("扫描远程文件夹失败:", err.message);
+            throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);
+        }
+    }
+
+    /**************************************************************
      * @todo 扫描远程文件夹，获取文件列表、大小和相对路径（兼容 BusyBox 无find环境）
      * @param {import('ssh2').Client} conn - SSH连接实例
      * @param {string} remoteDir - 远程文件夹路径（绝对路径）
@@ -1266,16 +1265,6 @@ class SFTPService extends EventEmitter {
                 if (!fileMatch) continue;
 
                 const [, mode, links, owner, group, _size_, month, day, time, fileName] = fileMatch;
-                // Print.debug(`
-                //     mode=${mode},
-                //     links=${links},
-                //     owner=${owner},
-                //     group=${group},
-                //     size=${_size_},
-                //     month=${month},
-                //     day=${day},
-                //     time=${time},
-                //     fileName=${fileName}`);
                 const size = parseInt(_size_, 10);
 
                 let mtime = this.getStandardTime(month, day, time);
