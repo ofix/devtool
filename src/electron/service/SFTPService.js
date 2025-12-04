@@ -710,7 +710,7 @@ class SFTPService extends EventEmitter {
                 return;
             }
             for (const file of needDownloadFiles) {
-                const { path: remoteFileAbsolutePath, size: fileSize, relPath } = file;
+                const { fullPath: remoteFileAbsolutePath, size: fileSize, relPath } = file;
                 const localFileAbsolutePath = path.join(localDir, relPath); // 本地路径用系统格式
                 // 下载文件（带单文件进度回调）
                 await this.downloadFile(conn, remoteFileAbsolutePath, localFileAbsolutePath, (fileProgress) => {
@@ -958,7 +958,7 @@ class SFTPService extends EventEmitter {
                         await traverse(fullPath);
                     } else if (entry.isFile()) {
                         const stats = await fs.promises.stat(fullPath);
-                        files.push({ path: fullPath, size: stats.size, relPath });
+                        files.push({ fullPath: fullPath, size: stats.size, relPath });
                         totalBytes += stats.size;
                     }
                 }
@@ -992,7 +992,7 @@ class SFTPService extends EventEmitter {
      * @throws {Error} 当 SSH 连接异常、命令执行失败或非 0 退出码（且 throwOnNonZeroExit 为 true）时抛出
      **************************************************************/
     async exec(conn, command, options = {}) {
-        const { throwOnNonZeroExit = true, encoding = "utf8" } = options;
+        const { throwOnNonZeroExit = false, encoding = "utf8" } = options;
 
         if (typeof command !== "string" || command.trim() === "") {
             throw new Error("命令 command 不能为空字符串");
@@ -1174,7 +1174,7 @@ class SFTPService extends EventEmitter {
                 // 拼接绝对路径（目标目录 + 子项名称）
                 const absPath = `${normalizedRemoteDir}/${fileName}`;
 
-                let mtime = this.getStandardTime(month, day, time);
+                let mtime = this.getStandardTime({ month, day, time });
                 let item = {
                     name: fileName,
                     fullPath: absPath,
@@ -1239,7 +1239,6 @@ class SFTPService extends EventEmitter {
 
             const lines = lsResult.stdout.split("\n").filter((line) => line.trim());
             let currentAbsDir = normalizedRemoteDir; // 记录当前递归的绝对目录
-
             // BusyBox ls -l 输出格式示例:
             // /usr/share/www/fonts:  <--- 目录
             // 总计 140               <--- 统计行
@@ -1267,7 +1266,7 @@ class SFTPService extends EventEmitter {
                 const [, mode, links, owner, group, _size_, month, day, time, fileName] = fileMatch;
                 const size = parseInt(_size_, 10);
 
-                let mtime = this.getStandardTime(month, day, time);
+                let mtime = this.getStandardTime({ month, day, time });
 
                 // 过滤无效数据：
                 // - 目录的大小是4096（BusyBox默认），需排除
@@ -1315,7 +1314,7 @@ class SFTPService extends EventEmitter {
             // fileTree.print();
             return { files, dirs, totalBytes };
         } catch (err) {
-            Print.error(err.message);
+            Print.error(err);
             throw new Error(`扫描远程文件夹失败: ${err.message}`);
         }
     }

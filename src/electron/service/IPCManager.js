@@ -18,7 +18,7 @@ class IPCManager {
         })
         ipcMain.on('sftp-upload-dir', async (event, config) => {
             const sftp = await SFTPService.create();
-            config.localPath = Utils.sftpLocalDir(config.host);
+            config.localPath = await Utils.sftpLocalDir(config.host);
             sftp.setConfig(config);
             await sftp.uploadDir(config.host, config.localPath, config.remotePath, (dirProgress) => {
                 event.reply('upload-dir-progress', dirProgress);
