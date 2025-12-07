@@ -16,6 +16,7 @@ class SFTPService extends EventEmitter {
         this.transferSessions = new Map(); // sessionId -> transfer session
         this.activeTransfers = new Map(); // host -> active transfers
         this.stateDir = "";
+        this.fileTree = new FileTree();
         Print.level = 7;
     }
 
@@ -1124,32 +1125,34 @@ class SFTPService extends EventEmitter {
         return `${year}-${numMonth}-${numDay} ${hourMinute}`;
     }
 
+
+
     /**************************************************************
     * @todo 非递归获取远程文件夹，获取直接子目录和文件（兼容 BusyBox 无find环境）
-    * @param {import('ssh2').Client} conn - SSH连接实例
+    * @param {string} host - 文件服务器地址
     * @param {string} remoteDir - 远程文件夹路径（绝对路径）
     * @returns {Promise<{files: {path: string, size: number, relPath: string}[], dirs: string[], totalBytes: number}>}
     * - files: 直接子文件列表（不含子目录内文件）
     * - dirs: 直接子目录列表（不含嵌套子目录）
     * - totalBytes: 直接子文件总大小
     **************************************************************/
-    async listDir(conn, remoteDir) {
-        const files = [];
-        const dirs = [];
-        const all = [];
+    async listDir(host, remoteDir) {
+        const allItems = [];
+        let dirCount = 0;
+        let fileCount = 0;
         let totalBytes = 0;
 
         // 标准化远程目录（确保结尾无斜杠，避免路径拼接重复）
         const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
 
         try {
-            // 关键修改：移除 -R（递归）参数，只扫描当前目录
+            let conn = await this.getSSHClient(host);
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
             const lsCmd = `ls -lAp '${normalizedRemoteDir}' 2>/dev/null`;
 
             let lsResult = await this.exec(conn, lsCmd);
-            if (!lsResult.code) {
-                return { files, dirs, totalBytes };
+            if (lsResult.code) {
+                return { nodes: allItems, totalBytes };
             }
 
             // 分割行并过滤空行（BusyBox ls 无递归，无目录分隔行）
@@ -1164,12 +1167,13 @@ class SFTPService extends EventEmitter {
                 const match = line.match(lineRegex);
                 if (!match) continue;
 
-                const [
+                let [
                     , mode, links, owner, group, _size_, month, day, time, fileName
                 ] = match;
 
-                const size = parseInt(sizeStr, 10);
+                const size = parseInt(_size_, 10);
                 if (isNaN(size) || !fileName || fileName.trim() === "") continue;
+                fileName = Utils.removeLastChar(fileName, '/');
 
                 // 拼接绝对路径（目标目录 + 子项名称）
                 const absPath = `${normalizedRemoteDir}/${fileName}`;
@@ -1189,27 +1193,31 @@ class SFTPService extends EventEmitter {
                 };
 
                 // 1. 判断是否为目录（权限位以 d 开头）
-                if (perm.startsWith("d")) {
+                if (mode.startsWith("d")) {
                     // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
                     if (fileName === "." || fileName === "..") continue;
-                    dirs.push(item); // 直接子目录，添加绝对路径
+                    allItems.push(item); // 直接子目录，添加绝对路径
+                    dirCount++;
                 } else if (mode.startsWith("-")) {  // 2. 处理文件（非目录、非链接，权限位以 - 开头）
-                    files.push(item);
+                    allItems.push(item);
                     totalBytes += size;
+                    fileCount++;
                 } else if (mode.startsWith("l")) {
                     const [linkName, target] = fileName.split(" -> ");
                     actualFileName = linkName || fileName;
                     symlinkTarget = target || "";
                     item.symlinkTarget = symlinkTarget;
                     item.name = actualFileName;
-                    files.push(item);
+                    allItems.push(item);
                     totalBytes += size;
+                    fileCount++;
                 }
             }
             console.debug(
-                `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirs.length} 个子目录，${files.length} 个文件，总大小 ${totalBytes} 字节`
+                `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirCount} 个子目录，${fileCount} 个文件，总大小 ${totalBytes} 字节`
             );
-            return { files, dirs, totalBytes };
+            this.fileTree.addChildren(remoteDir, allItems);
+            return { nodes: allItems, totalBytes };
         } catch (err) {
             console.error("扫描远程文件夹失败:", err.message);
             throw new Error(`非递归扫描远程文件夹失败: ${err.message}`);

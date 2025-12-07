@@ -40,6 +40,9 @@ class FileTreeNode {
         this.timestamp = this.parseDateToTimestamp(mtime);
         this.ignored = false; // 是否忽略当前文件或者目录
         this.visible = false; // 搜索文件的时候需要显示/隐藏
+        this.isSynced = false; // 是否同步过远程数据（仅目录有效）
+        this.syncTime = null; // 最后同步时间（时间戳）
+        this.syncError = null; // 同步失败时的错误信息（可选）
     }
 
     formatSize(size) {
@@ -75,6 +78,14 @@ class FileTreeNode {
         return FileNodeType.getTypeName(this.type);
     }
 
+    // ========== 新增：同步状态设置方法 ==========
+    setSyncStatus(isSynced, syncTime = new Date().getTime(), syncError = null) {
+        if (!this.isDirectory()) return; // 仅目录可设置同步状态
+        this.isSynced = isSynced;
+        this.syncTime = syncTime;
+        this.syncError = syncError;
+    }
+
     /**
      * 核心优化：按当前排序规则插入子节点（避免批量排序）
      * @param {FileTreeNode} childNode - 子节点
@@ -99,6 +110,14 @@ class FileTreeNode {
             // 不排序，直接追加到末尾
             this.children.push(childNode);
         }
+    }
+
+    // ========== 新增：同步状态设置方法 ==========
+    setSyncStatus(isSynced, syncTime = new Date().getTime(), syncError = null) {
+        if (!this.isDirectory()) return; // 仅目录可设置同步状态
+        this.isSynced = isSynced;
+        this.syncTime = syncTime;
+        this.syncError = syncError;
     }
 
     /**
@@ -126,92 +145,66 @@ class FileTreeNode {
         return this.children.length;
     }
 
-    /**
-     * 按指定字段比较两个节点
-     * @param {FileTreeNode} a - 节点A
-     * @param {FileTreeNode} b - 节点B
-     * @param {SortField} field - 排序字段
-     * @returns {number} 比较结果（-1/0/1）
-     */
-    compareNodes(a, b, field) {
-        switch (field) {
-            case SortField.NAME:
-                // 名称按字母序比较
-                return a.name.localeCompare(b.name);
 
-            case SortField.SIZE:
-                // 大小按数值比较
-                return a.size - b.size;
 
-            case SortField.DATE:
-                // 日期按时间戳比较
-                return a.timestamp - b.timestamp;
 
-            case SortField.TYPE:
-            default:
-                // 类型排序：目录在前，然后是符号链接，最后是文件
-                const typePriority = (node) => {
-                    if (node.isDirectory()) return 0;
-                    if (node.isSymlink()) return 1;
-                    return 2;
-                };
-                return typePriority(a) - typePriority(b);
-        }
-    }
-
-    /**
-     * 递归排序当前节点及其所有子节点（用户手动触发时调用）
-     * @param {Object} sortConfig - 排序配置
-     */
-    sortRecursively(sortConfig) {
-        if (!this.isDirectory() || !sortConfig.enabled) return;
-
-        // 排序当前节点的子节点
+    // 子节点排序（适配原排序逻辑）
+    sortChildren(sortConfig) {
+        if (!sortConfig.enabled) return;
         this.children.sort((a, b) => {
-            const baseCompare = this.compareNodes(a, b, sortConfig.field);
-            return sortConfig.direction === SortDirection.ASC ? baseCompare : -baseCompare;
-        });
-
-        // 递归排序所有子目录
-        this.children.forEach(child => {
-            if (child.isDirectory()) {
-                child.sortRecursively(sortConfig);
+            let compareResult = 0;
+            switch (sortConfig.field) {
+                case SortField.NAME:
+                    compareResult = a.name.localeCompare(b.name);
+                    break;
+                case SortField.SIZE:
+                    compareResult = a.size - b.size;
+                    break;
+                case SortField.DATE:
+                    compareResult = new Date(a.mtime) - new Date(b.mtime);
+                    break;
+                case SortField.TYPE:
+                    const typeOrder = {
+                        [FileNodeType.DIRECTORY]: 0,
+                        [FileNodeType.FILE]: 1,
+                        [FileNodeType.SYMLINK]: 2
+                    };
+                    compareResult = typeOrder[a.type] - typeOrder[b.type];
+                    break;
             }
+            return sortConfig.direction === SortDirection.ASC ? compareResult : -compareResult;
         });
     }
 
-    getFullPath() {
-        const pathParts = [];
-        let currentNode = this;
-        while (currentNode) {
-            pathParts.unshift(currentNode.name);
-            currentNode = currentNode.parent;
-        }
-        const fullPath = pathParts.join('/');
-        return fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
+    // 递归排序（适配原逻辑）
+    sortRecursively(sortConfig) {
+        this.sortChildren(sortConfig);
+        this.children.forEach(child => {
+            if (child.isDirectory()) child.sortRecursively(sortConfig);
+        });
     }
-
+    // 序列化JSON（包含同步状态）
     toJSON() {
-        const data = {
+        return {
             name: this.name,
-            type: this.getTypeName(),
-            typeCode: this.type,
-            path: this.getFullPath(),
-            permissions: this.permissions,
+            fullPath: this.fullPath,
+            type: this.type,
+            mode: this.mode,
             size: this.size,
-            date: this.date,
-            timestamp: this.timestamp
+            mtime: this.mtime,
+            owner: this.owner,
+            group: this.group,
+            symlinkTarget: this.symlinkTarget,
+            isDirectory: this.isDirectory(),
+            isFile: this.isFile(),
+            isSymlink: this.isSymlink(),
+            // 同步状态
+            isSynced: this.isSynced,
+            syncTime: this.syncTime,
+            syncError: this.syncError,
+            // 子节点（递归序列化）
+            children: this.children.map(child => child.toJSON())
         };
-
-        if (this.isSymlink()) {
-            data.symlinkTarget = this.symlinkTarget;
-        }
-
-        if (this.isDirectory()) {
-            data.children = this.children.map(child => child.toJSON());
-        }
-
-        return data;
     }
 }
 

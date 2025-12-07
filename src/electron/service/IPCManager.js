@@ -6,7 +6,7 @@ class IPCManager {
     constructor(window) {
         this.window = window;
     }
-    startListen () {
+    startListen() {
         // SCP下载文件夹到本地
         ipcMain.on('sftp-download-dir', async (event, config) => {
             const sftp = await SFTPService.create();
@@ -15,6 +15,13 @@ class IPCManager {
             await sftp.downloadDir(config.host, config.remotePath, config.localPath, (dirProgress) => {
                 event.reply('download-dir-progress', dirProgress);
             });
+        })
+        ipcMain.on('sftp-list-dir', async (event, config) => {
+            const sftp = await SFTPService.create();
+            config.localPath = await Utils.sftpLocalDir(config.host);
+            sftp.setConfig(config);
+            await sftp.listDir(config.host, config.remotePath);
+            sftp.fileTree.print();
         })
         ipcMain.on('sftp-upload-dir', async (event, config) => {
             const sftp = await SFTPService.create();

@@ -103,6 +103,11 @@ class Utils {
         }
     }
 
+
+    static removeLastChar(str, slash = '/') {
+        return str && str.endsWith(slash) ? str.slice(0, -1) : str;
+    };
+
     /**************************************************************
      * @todo 获取不存在的文件夹（本地比远程多则返回远程缺失目录，反之返回本地缺失目录）
      * @param {String} localRootDir - 本地根目录路径
