@@ -18,22 +18,6 @@ import { ref, onMounted, onUnmounted, watchEffect, toValue } from "vue";
 import DebugLeftPanel from "./DebugLeftPanel.vue";
 
 onMounted(() => {
-  window.channel.send("sftp-download-dir", {
-    host: "172.26.7.6",
-    port: 22,
-    username: "root",
-    password: "0penBmc",
-    remotePath: "/usr/share/www",
-  });
-
-  // window.channel.send("sftp-upload-dir", {
-  //   host: "192.168.43.132",
-  //   port: 22,
-  //   username: "ofix",
-  //   password: "123",
-  //   remotePath: "/usr/share/www/upload",
-  // });
-
   window.channel.on("download-dir-progress", (data) => {
     console.log("接收消息 download-dir-progress", data);
   });

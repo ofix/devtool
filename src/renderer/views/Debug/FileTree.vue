@@ -1,5 +1,30 @@
 <template>
-  <div class="dt-file-tree-container">
+  <el-collapse-item name="2" class="dt-file-tree-container">
+    <template #title="title">
+      <div class="collapse-title-bar">
+        <span>CODE</span>
+        <div class="collapse-actions">
+          <!-- 添加文件 -->
+          <DocumentAdd
+            class="action-icon"
+            @click="handleAddFile()"
+            title="添加文件"
+          />
+          <!-- 添加目录 -->
+          <FolderAdd
+            class="action-icon"
+            @click="handleAddDir()"
+            title="添加目录"
+          />
+          <!-- 折叠所有目录 -->
+          <Fold
+            class="action-icon collapse-icon"
+            @click="handleCollapseDir()"
+            title="折叠所有目录"
+          />
+        </div>
+      </div>
+    </template>
     <!-- 高性能虚拟渲染树组件 -->
     <el-tree-v2
       ref="fileTreeRef"
@@ -65,25 +90,26 @@
         </div>
       </template>
     </el-tree-v2>
+  </el-collapse-item>
 
-    <!-- 引入独立右键菜单组件 -->
-    <DebugContextMenu
-      :show="showContextMenu"
-      :x="menuX"
-      :y="menuY"
-      :selected-node="selectedNode"
-      @close="closeMenu"
-      @new-folder="handleNewFolder"
-      @new-file="handleNewFile"
-      @rename="handleRename"
-      @copy-path="handleCopyPath"
-      @delete="handleDelete"
-    />
-  </div>
+  <!-- 引入独立右键菜单组件 -->
+  <DebugContextMenu
+    :show="showContextMenu"
+    :x="menuX"
+    :y="menuY"
+    :selected-node="selectedNode"
+    @close="closeMenu"
+    @new-folder="handleNewFolder"
+    @new-file="handleNewFile"
+    @rename="handleRename"
+    @copy-path="handleCopyPath"
+    @delete="handleDelete"
+  />
 </template>
 
 <script setup>
 import { ref, computed, reactive, nextTick } from "vue";
+import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
 import IconFileCss from "@/components/icons/IconFileCss.vue";
@@ -357,6 +383,42 @@ function handleNodeClick(data, node) {
   background-color: transparent;
   border-right: 1px solid var(--el-border-color-light);
   overflow-y: hidden;
+}
+
+.dt-file-tree-container:hover :deep(.action-icon) {
+  opacity: 1 !important;
+}
+
+.collapse-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.collapse-actions {
+  display: flex;
+  gap: 2px;
+  color: #666;
+}
+
+.action-icon {
+  font-size: 14px;
+  color: #fefefe;
+  width: 14px;
+  height: 14px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 2px;
+  cursor: pointer;
+  /* 初始隐藏（hover标题栏时显示） */
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+/* 标题栏容器hover时显示所有图标 */
+.collapse-title-bar:hover .action-icon {
+  opacity: 1;
 }
 
 .dt-file-tree {

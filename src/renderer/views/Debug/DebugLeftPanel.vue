@@ -1,10 +1,8 @@
 <template>
   <div class="debug-left-panel">
     <el-collapse expand-icon-position="left" class="dt-collapse">
-      <el-collapse-item title="SERVER LIST" name="1"> </el-collapse-item>
-      <el-collapse-item title="CODE" name="2">
-        <FileTree />
-      </el-collapse-item>
+      <ServerList />
+      <FileTree />
       <el-collapse-item title="OUTLINE" name="3"> </el-collapse-item>
     </el-collapse>
   </div>
@@ -13,6 +11,7 @@
 <script setup>
 import { ref } from "vue";
 import FileTree from "@/views/Debug/FileTree.vue";
+import ServerList from "@/views/Debug/ServerList.vue"; // 引入ServerList组件
 </script>
 <style scoped>
 .debug-left-panel {

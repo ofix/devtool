@@ -37,6 +37,8 @@
 :root.dark {
   /*背景色*/
   --dt-primary-bg-color: #1E1E1E;
+  /*背景高亮色*/
+  --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
   /*文字色*/
   --dt-primary-text-color: #ddd;
   /*边框色*/
@@ -61,6 +63,8 @@
 :root.light {
   /*背景色*/
   --dt-primary-bg-color: #ccc;
+  /*背景高亮色*/
+  --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
   /*文字色*/
   --dt-rimary-text-color: #000;
   /*边框色*/
