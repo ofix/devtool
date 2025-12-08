@@ -28,7 +28,7 @@
     <!-- 高性能虚拟渲染树组件 -->
     <el-tree-v2
       ref="fileTreeRef"
-      :data="fileTreeData"
+      :data="props.fileTreeData"
       :props="treeProps"
       :expand-on-click-node="false"
       :highlight-current="true"
@@ -93,7 +93,7 @@
   </el-collapse-item>
 
   <!-- 引入独立右键菜单组件 -->
-  <DebugContextMenu
+  <FileTreeContextMenu
     :show="showContextMenu"
     :x="menuX"
     :y="menuY"
@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, nextTick } from "vue";
+import { ref, defineProps, computed, reactive, nextTick } from "vue";
 import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
@@ -131,51 +131,27 @@ import IconFileC from "@/components/icons/IconFileC.vue";
 import IconImage from "@/components/icons/IconImage.vue";
 import IconFile from "@/components/icons/IconFile.vue";
 // 右键菜单
-import DebugContextMenu from "./DebugContextMenu.vue";
+import FileTreeContextMenu from "./FileTreeContextMenu.vue";
 // 消息通知组件
 import { ElMessage, ElNotification } from "element-plus";
 
 // 树组件核心状态
 const fileTreeRef = ref(null);
-const fileTreeData = ref([
-  {
-    id: "1",
-    name: "components",
-    type: "folder",
-    children: [
-      { id: "2", name: "Debug.vue", type: "file", ext: "vue" },
-      { id: "3", name: "FileCompare.html", type: "file", ext: "html" },
-    ],
+// 步骤 1：定义 props（推荐添加类型约束，增强健壮性）
+const props = defineProps({
+  // 接收父组件传递的 fileTree 数据
+  fileTreeData: {
+    type: Array, // 根据实际数据结构定（Array/Object）
+    default: () => [], // 初始值匹配父组件
+    required: true,
   },
-  {
-    id: "4",
-    name: "renderer",
-    type: "folder",
-    children: [
-      { id: "5", name: "Debug.java", type: "file", ext: "java" },
-      { id: "6", name: "FileCompare.c", type: "file", ext: "c" },
-      { id: "7", name: "Debug.cpp", type: "file", ext: "cpp" },
-      { id: "8", name: "Test.yaml", type: "file", ext: "yaml" },
-      { id: "9", name: "main.go", type: "file", ext: "go" },
-      { id: "10", name: "ProductService.php", type: "file", ext: "php" },
-      { id: "11", name: "search.sql", type: "file", ext: "sql" },
-      { id: "12", name: "BigData.scala", type: "file", ext: "scala" },
-      { id: "13", name: "ResponseData.json", type: "file", ext: "json" },
-      { id: "14", name: "FileCompare.css", type: "file", ext: "css" },
-      { id: "15", name: "Debug.h", type: "file", ext: "h" },
-      { id: "16", name: "FileCompare.py", type: "file", ext: "py" },
-      { id: "17", name: "Debug.sh", type: "file", ext: "sh" },
-      // 其他节点...
-    ],
-  },
-  { id: "17", name: "FileCompare.dart", type: "file", ext: "dart" },
-  { id: "18", name: "FileCompare.js", type: "file", ext: "js" },
-]);
+});
+
 const treeHeight = ref(window.innerHeight - 34);
 const treeProps = reactive({
   label: "name",
   children: "children",
-  isLeaf: (data) => data.type === "file",
+  isLeaf: (data) => data.type != 1,
 });
 
 // 右键菜单核心状态（仅保留数据，逻辑移到组件）
@@ -186,13 +162,15 @@ const selectedNode = ref(null); // 右键选中的节点
 const editingNodeId = ref("");
 const editName = ref("");
 
-// 默认展开/选中逻辑（保持不变）
+// 默认展开/选中逻辑（修复：移除 .value，改用 props.fileTreeData）
 const firstOpeneds = computed(() => {
-  const first = fileTreeData.value.find((i) => i.children?.length);
+  // 修复：访问 props 中的 fileTreeData，无 .value
+  const first = props.fileTreeData.find((i) => i.children?.length);
   return first ? [first.index] : [];
 });
 const firstActive = computed(() => {
-  return fileTreeData.value[0]?.index ?? "";
+  // 修复：访问 props 中的 fileTreeData，无 .value
+  return props.fileTreeData[0]?.index ?? "";
 });
 
 // 打开右键菜单（核心逻辑：仅设置状态，不渲染菜单）
@@ -207,7 +185,6 @@ function handleRightClick(event, data, node) {
   showContextMenu.value = true;
 
   // 监听 ESC 键关闭菜单
-
   document.addEventListener("click", closeOnClickOutside);
   document.addEventListener("keydown", closeOnEsc);
 }
@@ -236,7 +213,7 @@ function closeMenu() {
   document.removeEventListener("keydown", closeOnEsc);
 }
 
-// 菜单功能实现（原逻辑保留，接收子组件事件回调）
+// 菜单功能实现（原逻辑保留，修复 fileTreeData 访问方式）
 // 新建文件夹
 function handleNewFolder() {
   if (!selectedNode.value || selectedNode.value.type !== "folder") {
@@ -253,7 +230,13 @@ function handleNewFolder() {
   };
   if (!selectedNode.value.children) selectedNode.value.children = [];
   selectedNode.value.children.push(newFolder);
-  fileTreeData.value = [...fileTreeData.value];
+  // 修复：更新 props 数据时，需通过拷贝触发响应式（props 本身不可直接修改，建议通过 emit 通知父组件）
+  // 注意：props 是单向数据流，此处临时兼容，推荐改为 emit 通知父组件更新
+  const newFileTree = [...props.fileTreeData];
+  // 触发父组件更新（推荐方式：定义 emit）
+  emit("update:fileTreeData", newFileTree);
+  // 临时兼容：直接赋值（不推荐，仅用于修复报错）
+  // Object.assign(props, { fileTreeData: newFileTree });
   fileTreeRef.value.setExpanded(selectedNode.value, true);
   enterEditMode(newId, "新建文件夹");
   closeMenu();
@@ -270,7 +253,9 @@ function handleNewFile() {
   const newFile = { id: newId, name: "新建文件.txt", type: "file", ext: "txt" };
   if (!selectedNode.value.children) selectedNode.value.children = [];
   selectedNode.value.children.push(newFile);
-  fileTreeData.value = [...fileTreeData.value];
+  // 修复：同上，props 不可直接修改，推荐 emit
+  const newFileTree = [...props.fileTreeData];
+  emit("update:fileTreeData", newFileTree);
   fileTreeRef.value.setExpanded(selectedNode.value, true);
   enterEditMode(newId, "新建文件.txt");
   closeMenu();
@@ -314,16 +299,19 @@ function handleDelete() {
     }
     return false;
   };
-  const deleted = deleteNode(fileTreeData.value, selectedNode.value.id);
+  // 修复：访问 props.fileTreeData，无 .value
+  const deleted = deleteNode(props.fileTreeData, selectedNode.value.id);
   if (deleted) {
     ElMessage.success("删除成功");
-    fileTreeData.value = [...fileTreeData.value];
+    // 修复：props 不可直接修改，推荐 emit
+    const newFileTree = [...props.fileTreeData];
+    emit("update:fileTreeData", newFileTree);
     selectedNode.value = null;
   }
   closeMenu();
 }
 
-// 辅助函数（保持不变）
+// 辅助函数（保持不变，修复 fileTreeData 访问方式）
 function enterEditMode(nodeId, defaultName) {
   editingNodeId.value = nodeId;
   editName.value = defaultName;
@@ -347,15 +335,18 @@ function handleEditBlur(data) {
     data.name += ".txt";
     data.ext = "txt";
   }
-  fileTreeData.value = [...fileTreeData.value];
+  // 修复：props 不可直接修改，推荐 emit
+  const newFileTree = [...props.fileTreeData];
+  emit("update:fileTreeData", newFileTree);
   cancelEdit();
 }
 function getNodeFullPath(data) {
   let path = data.name;
-  let parent = findParentNode(fileTreeData.value, data.id);
+  // 修复：访问 props.fileTreeData，无 .value
+  let parent = findParentNode(props.fileTreeData, data.id);
   while (parent) {
     path = parent.name + "/" + path;
-    parent = findParentNode(fileTreeData.value, parent.id);
+    parent = findParentNode(props.fileTreeData, parent.id);
   }
   return `/${path}`;
 }
@@ -374,6 +365,9 @@ function findParentNode(tree, nodeId) {
 function handleNodeClick(data, node) {
   selectedNode.value = data;
 }
+
+// 定义 emit 用于通知父组件更新数据（Vue 单向数据流规范）
+const emit = defineEmits(["update:fileTreeData", "node-click"]);
 </script>
 
 <style scoped>

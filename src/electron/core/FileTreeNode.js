@@ -1,4 +1,5 @@
 import { FileNodeType, SortDirection } from "./FileNodeType.js";
+import path from 'path';
 class FileTreeNode {
     /**
      * @param {Object} options - 节点
@@ -47,6 +48,30 @@ class FileTreeNode {
 
     formatSize(size) {
         return size;
+    }
+
+
+
+    /**
+     * 增强版文件扩展名获取工具
+     * @param {string} filePath - 文件路径
+     * @param {object} options - 配置项
+     * @param {boolean} options.full - 是否返回完整多后缀（默认 false）
+     * @param {string} options.fallback - 无扩展名时的兜底值（默认 ''）
+     * @returns {string} 扩展名
+     */
+    extname(filePath, { full = true, fallback = '' } = {}) {
+        if (typeof filePath !== 'string') return fallback;
+
+        const basename = path.basename(filePath);
+        if (full) {
+            const firstDotIndex = basename.indexOf('.');
+            return firstDotIndex > 0 ? basename.slice(firstDotIndex + 1) : fallback;
+        }
+
+        // 普通模式（仅最后一个后缀）
+        const ext = path.extname(filePath);
+        return ext || fallback;
     }
 
     /**
@@ -185,6 +210,10 @@ class FileTreeNode {
     }
     // 序列化JSON（包含同步状态）
     toJSON() {
+        return this.toJSON_DFS();
+    }
+
+    toJSON_Recursive() {
         return {
             name: this.name,
             fullPath: this.fullPath,
@@ -203,8 +232,91 @@ class FileTreeNode {
             syncTime: this.syncTime,
             syncError: this.syncError,
             // 子节点（递归序列化）
-            children: this.children.map(child => child.toJSON())
+            children: this.children?.map(child => child.toJSON())
         };
+    }
+
+    // 非递归 toJSON（深度优先，栈实现）
+    toJSON_DFS() {
+        // 最终要返回的根节点副本
+        let id = 1;
+        const root = {
+            id: id,
+            name: this.name,
+            type: this.type,
+            path: this.fullPath,
+            ext: this.extname(this.fullPath),
+            children: []
+        };
+
+        // 栈元素：[当前节点的副本, 原始子节点列表]
+        const stack = [[root, this.children]];
+
+        while (stack.length > 0) {
+            // 弹出栈顶元素（后进先出 → 深度优先）
+            const [currentCopy, originalChildren] = stack.pop();
+
+            // 确保子节点列表是数组（核心：处理 null/undefined）
+            const safeChildren = Array.isArray(originalChildren) ? originalChildren : [];
+
+            // 遍历原始子节点，生成副本
+            for (let i = safeChildren.length - 1; i >= 0; i--) { // 倒序入栈，保证正序输出
+                const originalChild = safeChildren[i];
+                // 生成子节点副本
+                const childCopy = {
+                    id: id++,
+                    name: originalChild.name,
+                    type: originalChild.type,
+                    path: originalChild.fullPath,
+                    ext: this.extname(originalChild.fullPath),
+                    children: []
+                };
+                // 添加到当前节点的 children
+                currentCopy.children.push(childCopy);
+                // 子节点入栈，继续处理它的子节点
+                stack.push([childCopy, originalChild.children]);
+            }
+        }
+
+        return root;
+    }
+    // 非递归 toJSON（广度优先，队列实现）
+    toJSON_BFS() {
+        let id = 1;
+        const root = {
+            id: id,
+            name: this.name,
+            type: this.type,
+            path: this.fullPath,
+            ext:  this.extname(this.fullPath),
+            children: []
+        };
+
+        // 队列元素：[当前节点的副本, 原始子节点列表]
+        const queue = [[root, this.children]];
+
+        while (queue.length > 0) {
+            // 取出队首元素（先进先出 → 广度优先）
+            const [currentCopy, originalChildren] = queue.shift();
+            const safeChildren = Array.isArray(originalChildren) ? originalChildren : [];
+
+            // 遍历原始子节点
+            for (const originalChild of safeChildren) {
+                const childCopy = {
+                    id: originalChild.id,
+                    name: originalChild.name,
+                    type: originalChild.type,
+                    path: originalChild.fullPath,
+                    ext: this.extname(originalChild.fullPath),
+                    children: []
+                };
+                currentCopy.children.push(childCopy);
+                // 子节点入队
+                queue.push([childCopy, originalChild.children]);
+            }
+        }
+
+        return root;
     }
 }
 

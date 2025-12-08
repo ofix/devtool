@@ -3,150 +3,191 @@
 @import "SplitterBar.css";
 
 :root {
-  --dpr: 1;
-  /* 给一个默认 DPR，避免未执行 JS 时变量为空 */
-  --el-font-family:
-    "WenQuanYi Micro Hei",
-    "DejaVu Sans",
-    "PingFang SC",
-    Arial,
-    "Microsoft YaHei",
-    sans-serif,
-    "Microsoft YaHei",
-    "微软雅黑",
-    "Helvetica Neue",
-    Helvetica,
-    "PingFang SC",
-    "Hiragino Sans GB";
+    --dpr: 1;
+    /* 给一个默认 DPR，避免未执行 JS 时变量为空 */
+    --el-font-family:
+        "WenQuanYi Micro Hei",
+        "DejaVu Sans",
+        "PingFang SC",
+        Arial,
+        "Microsoft YaHei",
+        sans-serif,
+        "Microsoft YaHei",
+        "微软雅黑",
+        "Helvetica Neue",
+        Helvetica,
+        "PingFang SC",
+        "Hiragino Sans GB";
 }
 
 @media screen and (min-resolution: 1dppx) and (max-resolution: 1.999dppx) {
-  :root {
-    --el-aside-width: 48px;
-    --dt-titlebar-height: 34px;
-  }
+    :root {
+        --el-aside-width: 48px;
+        --dt-titlebar-height: 34px;
+    }
 }
 
 @media screen and (min-resolution: 2dppx) {
-  :root {
-    --el-aside-width: 32px;
-    --dt-titlebar-height: 34px;
-  }
+    :root {
+        --el-aside-width: 32px;
+        --dt-titlebar-height: 34px;
+    }
 }
 
 :root.dark {
-  /*背景色*/
-  --dt-primary-bg-color: #1E1E1E;
-  /*背景高亮色*/
-  --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
-  /*文字色*/
-  --dt-primary-text-color: #ddd;
-  /*边框色*/
-  --dt-border-color: #3c3c3c;
-  /*高亮色*/
-  --dt-hilight-bg-color: #599cf5;
-  --dt-hilight-text-color: #fefefe;
-  /*菜单高亮边框色*/
-  --dt-menu-hilight-border-color: #599cf5;
-  /*上下文菜单背景色*/
-  --dt-context-menu-bg-color: #fefefe;
-  /*上下文菜单文字色*/
-  --dt-context-menu-text-color: #000;
-  --dt-collapse-border-color: var(--dt-border-color);
-  --dt-collapse-background-color: var(--dt-primary-bg-color);
-  /*覆盖Element-Plus组件颜色*/
-  --el-fill-color-blank: var(--dt-primary-bg-color);
-  --el-collapse-header-bg-color: var(--dt-primary-bg-color);
+    /*背景色*/
+    --dt-primary-bg-color: #1E1E1E;
+    /*背景高亮色*/
+    --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
+    /*对话框背景色*/
+    --dt-dialog-bg-color: #090909;
+    /*对话框标题颜色*/
+    --dt-text-color-primary: #fff;
+    /*输入表单颜色*/
+    --dt-text-color-regular: #efefef; 
+    /*文字色*/
+    --dt-primary-text-color: #ddd;
+    /*边框色*/
+    --dt-border-color: #3c3c3c;
+    /*高亮色*/
+    --dt-hilight-bg-color: #599cf5;
+    --dt-hilight-text-color: #fefefe;
+    /*菜单高亮边框色*/
+    --dt-menu-hilight-border-color: #599cf5;
+    /*上下文菜单背景色*/
+    --dt-context-menu-bg-color: #fefefe;
+    /*上下文菜单文字色*/
+    --dt-context-menu-text-color: #000;
+    --dt-collapse-border-color: var(--dt-border-color);
+    --dt-collapse-background-color: var(--dt-primary-bg-color);
+    /*覆盖Element-Plus组件颜色*/
+    --el-fill-color-blank: var(--dt-primary-bg-color);
+    --el-collapse-header-bg-color: var(--dt-primary-bg-color);
 
 }
 
 :root.light {
-  /*背景色*/
-  --dt-primary-bg-color: #ccc;
-  /*背景高亮色*/
-  --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
-  /*文字色*/
-  --dt-rimary-text-color: #000;
-  /*边框色*/
-  --dt-border-color: #aaa;
-  /*高亮色*/
-  --dt-hilight-bg-color: #0078d4;
-  --dt-hilight-text-color: #ccc;
-  /*菜单高亮边框色*/
-  --dt-menu-hilight-border-color: #0078d4;
-  /*上下文菜单背景色*/
-  --dt-context-menu-bg-color: #333;
-  /*上下文菜单文字色*/
-  --dt-context-menu-text-color: #ddd;
-  --dt-collapse-border-color: var(--dt-border-color);
-  --dt-collapse-background-color: var(--dt-primary-bg-color);
-  --dt-hilight-color: #333;
-  /*覆盖Element-Plus组件颜色*/
-  --el-fill-color-blank: var(--dt-primary-bg-color);
-  --el-collapse-header-bg-color: var(--dt-primary-bg-color);
+    /*背景色*/
+    --dt-primary-bg-color: #ccc;
+    /*背景高亮色*/
+    --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
+    /*对话框背景色*/
+    --dt-dialog-bg-color: #090909;
+    /*对话框标题颜色*/
+    --dt-text-color-primary: #fff;
+    /*输入表单颜色*/
+    --dt-text-color-regular: #efefef; 
+    /*文字色*/
+    --dt-rimary-text-color: #000;
+    /*边框色*/
+    --dt-border-color: #aaa;
+    /*高亮色*/
+    --dt-hilight-bg-color: #0078d4;
+    --dt-hilight-text-color: #ccc;
+    /*菜单高亮边框色*/
+    --dt-menu-hilight-border-color: #0078d4;
+    /*上下文菜单背景色*/
+    --dt-context-menu-bg-color: #333;
+    /*上下文菜单文字色*/
+    --dt-context-menu-text-color: #ddd;
+    --dt-collapse-border-color: var(--dt-border-color);
+    --dt-collapse-background-color: var(--dt-primary-bg-color);
+    --dt-hilight-color: #333;
+    /*覆盖Element-Plus组件颜色*/
+    --el-fill-color-blank: var(--dt-primary-bg-color);
+    --el-collapse-header-bg-color: var(--dt-primary-bg-color);
 }
 
 .el-collapse {
-  border-top: none !important;
-  border-bottom: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
 }
 
 .el-collapse-item__header:hover {
-  color: var(--dt-hilight-color) !important;
-  /* hover 时文字变白 */
+    color: var(--dt-hilight-color) !important;
+    /* hover 时文字变白 */
 }
 
 .el-collapse-item__header {
-  color: var(--dt-hilight-color) !important;
-  border-bottom: 1px solid var(--dt-collapse-border-color) !important;
-  font-size: 12px !important;
-  /* 1. 设置标题栏高度（按需调整，如 48px） */
-  height: 32px !important;
-  min-height: 32px !important;
-  /* 2. 调整内边距（取消默认上下 padding，避免高度被撑开） */
-  padding: 0 2px !important;
-  /* 左右 16px 内边距，上下 0 */
-  /* 4. 可选：调整文字大小（配合高度优化视觉） */
-  font-size: 12px !important;
+    color: var(--dt-hilight-color) !important;
+    border-bottom: 1px solid var(--dt-collapse-border-color) !important;
+    font-size: 12px !important;
+    /* 1. 设置标题栏高度（按需调整，如 48px） */
+    height: 32px !important;
+    min-height: 32px !important;
+    /* 2. 调整内边距（取消默认上下 padding，避免高度被撑开） */
+    padding: 0 2px !important;
+    /* 左右 16px 内边距，上下 0 */
+    /* 4. 可选：调整文字大小（配合高度优化视觉） */
+    font-size: 12px !important;
 }
 
 .el-collapse-icon-position-left .el-collapse-item__header {
-  gap: 2px !important;
+    gap: 2px !important;
 }
 
 /* 覆盖展开/折叠图标颜色（如果需要同步修改） */
 .el-collapse-item__arrow {
-  color: var(--dt-primary-text-color) !important;
+    color: var(--dt-primary-text-color) !important;
 }
 
 .el-collapse-item__content {
-  color: var(--dt-primary-text-color) !important;
+    color: var(--dt-primary-text-color) !important;
 }
 
 .el-collapse-item__wrap {
-  border-bottom: 1px solid var(--dt-border-color) !important;
+    border-bottom: 1px solid var(--dt-border-color) !important;
 }
 
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+/*对话框*/
+.el-dialog {
+    background-color: var(--dt-dialog-bg-color) !important;
+    color:#fefefe !important;
+    /* 左上角内发光 + 渐变背景 */
+    background: 
+    linear-gradient(135deg, #33323b 0%, #232227 60%),
+    var(--dt-dialog-bg-color) !important;
+}
+
+.el-dialog__title{
+    color: var(--dt-text-color-primary);
+}
+
+.el-input{
+    border-color: var(--dt-border-color);
+}
+/*输入框*/
+.el-input__wrapper {
+    background-color: #283140;
+}
+
+.el-input__inner{
+    color:#efefef;
+}
+
+.el-form-item__label{
+    color: var(--dt-text-color-regular);
 }
 
 html,
 body {
-  width: 100%;
-  height: 100%;
-  /* 防止移动端出现意外滚动条或缩放 */
-  overflow-x: hidden;
-  font-family: var(--el-font-family);
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
+    width: 100%;
+    height: 100%;
+    /* 防止移动端出现意外滚动条或缩放 */
+    overflow-x: hidden;
+    font-family: var(--el-font-family);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
 }
 
 #app {
-  width: 100%;
-  height: 100%;
+    width: 100%;
+    height: 100%;
 }

@@ -21,14 +21,19 @@
         :key="server.id"
         @mouseenter="hoveredId = server.id"
         @mouseleave="hoveredId = ''"
+        @click="selectedServer = server"
+        @contextmenu="(e) => handleContextMenu(e, server)"
+        :class="{ active: selectedServer?.id === server.id }"
       >
-        (SSH2) {{ server.host }}
+        <span
+          class="link-status"
+          :style="{ backgroundColor: server.connected ? '#67c23a' : '#909399' }"
+        ></span
+        >{{ server.host }}
       </div>
     </div>
-
     <!-- 空列表提示 -->
     <div class="empty-tip" v-else>暂无SFTP服务器，点击 + 添加</div>
-    <!-- 引入 ServerList 组件（此时组件内无插槽，仅渲染内容） -->
   </el-collapse-item>
 
   <!-- SFTP服务器添加/编辑弹窗 -->
@@ -74,92 +79,46 @@
     </template>
   </el-dialog>
 
-  <!-- 添加文件/目录弹窗 -->
-  <el-dialog
-    v-model="fileDirDialogVisible"
-    :title="isAddFile ? '添加文件' : '添加目录'"
-    width="350px"
-    destroy-on-close
-  >
-    <el-form
-      ref="fileDirFormRef"
-      :model="fileDirForm"
-      :rules="fileDirFormRules"
-      label-width="70px"
-    >
-      <el-form-item label="路径" prop="path">
-        <el-input
-          v-model="fileDirForm.path"
-          placeholder="如 /usr/local/test.txt 或 /usr/local/testDir"
-          disabled
-          v-if="!fileDirForm.editablePath"
-        />
-        <el-input
-          v-model="fileDirForm.path"
-          placeholder="如 /usr/local/test.txt 或 /usr/local/testDir"
-          v-else
-        />
-      </el-form-item>
-      <el-form-item label="名称" prop="name" v-if="isAddFile">
-        <el-input
-          v-model="fileDirForm.name"
-          placeholder="请输入文件名（含后缀），如 test.txt"
-        />
-      </el-form-item>
-      <el-form-item label="名称" prop="name" v-else>
-        <el-input
-          v-model="fileDirForm.name"
-          placeholder="请输入目录名，如 testDir"
-        />
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="fileDirDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="submitFileDirForm">
-        确认添加
-      </el-button>
-    </template>
-  </el-dialog>
+  <!-- 服务器链接右键菜单组件 -->
+  <ServerListContextMenu
+    :show="showContextMenu"
+    :x="menuX"
+    :y="menuY"
+    :selected-node="selectedServer"
+    @close="closeMenu"
+    @open-connection="onCtxMenuOpenConnection"
+    @close-connection="onCtxMenuCloseConnection"
+    @rename-connection="onCtxMenuRenameConnection"
+    @edit-connection="onCtxMenuEditConnection"
+    @delete-connection="onCtxMenuDeleteConnection"
+  />
 </template>
 
 <script setup>
 // 导入需要的图标
-import { Plus, Edit, Delete } from "@element-plus/icons-vue";
+import { Plus } from "@element-plus/icons-vue";
 import { ref, onMounted, defineEmits, defineExpose } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-
-// 定义事件：向外暴露折叠目录、添加文件/目录的事件（供父组件对接FileTree）
-const emit = defineEmits(["collapseDir", "addFile", "addDir"]);
+// 右键菜单
+import ServerListContextMenu from "./ServerListContextMenu.vue";
 
 // ---------------------- 基础状态管理 ----------------------
-// 服务器列表（从localStorage加载）
-const serverList = ref([]);
-// 弹窗显隐
+const serverList = ref([]); // 服务器列表
+const selectedServer = ref(null); // 当前选中的服务器
 const dialogVisible = ref(false);
-const fileDirDialogVisible = ref(false);
-// 表单ref
-const serverFormRef = ref(null);
-const fileDirFormRef = ref(null);
-// 表单数据（新增/编辑服务器）
+const serverFormRef = ref(null); // 表单ref
 const serverForm = ref({
   id: "",
   host: "",
   port: 22,
   username: "",
   password: "",
+  connected: false,
+  remotePath: "/usr/share/www",
 });
-// 记录当前hover的服务器ID（控制按钮显示）
-const hoveredId = ref("");
-// 添加文件/目录相关状态
-const isAddFile = ref(true); // true=添加文件，false=添加目录
-const fileDirForm = ref({
-  path: "/", // 父路径
-  name: "", // 文件名/目录名
-  editablePath: false, // 路径是否可编辑
-});
+const hoveredId = ref(""); // 服务器ID
 
 // ---------------------- 表单校验规则 ----------------------
-// 服务器表单规则
 const formRules = ref({
   host: [{ required: true, message: "请输入服务器IP", trigger: "blur" }],
   port: [
@@ -176,21 +135,16 @@ const formRules = ref({
   password: [{ required: true, message: "请输入密码", trigger: "blur" }],
 });
 
-// 添加文件/目录表单规则
-const fileDirFormRules = ref({
-  path: [{ required: true, message: "请输入父路径", trigger: "blur" }],
-  name: [{ required: true, message: "请输入名称", trigger: "blur" }],
-});
-
 // ---------------------- 服务器管理核心方法 ----------------------
-/**
- * 从localStorage加载服务器列表
- */
 const loadServerList = () => {
   const stored = localStorage.getItem("sftp_server_list");
   if (stored) {
     try {
-      serverList.value = JSON.parse(stored);
+      let servers = JSON.parse(stored);
+      for (const server of servers) {
+        server.connected = false;
+      }
+      serverList.value = servers;
     } catch (e) {
       console.error("加载服务器列表失败", e);
       serverList.value = [];
@@ -207,8 +161,6 @@ function saveServerList() {
 
 // 1. 定义生成唯一 ID 的方法
 function nextServerId() {
-  // 时间戳 + 随机数（无需依赖，推荐）
-  // 取现有列表最大 ID + 1，无数据则从 1 开始
   const maxId =
     serverList.value.length > 0
       ? Math.max(...serverList.value.map((item) => parseInt(item.id || 0)))
@@ -217,24 +169,25 @@ function nextServerId() {
 }
 
 /**
- * 打开添加/编辑服务器弹窗
+ * @todo 打开添加/编辑服务器弹窗
  * @param {Object} server 编辑时传入服务器信息，新增时不传
  */
 const openServerForm = (server = null) => {
   if (serverFormRef.value) serverFormRef.value.clearValidate();
 
-  // 重置表单数据
   if (server) {
-    // 编辑场景：复用原有 ID
+    // 编辑服务器
     serverForm.value = { ...server };
   } else {
-    // 新增场景：自动生成 ID
+    // 新增服务器
     serverForm.value = {
       id: nextServerId(), // 核心：自动生成 ID
       host: "",
       port: 22,
       username: "",
       password: "",
+      connected: false,
+      remotePath: "/usr/share/www",
     };
   }
   dialogVisible.value = true;
@@ -268,108 +221,188 @@ const submitServerForm = () => {
   });
 };
 
+// --------------------- 右键菜单功能函数 ---------------------------
+const showContextMenu = ref(false); // 菜单显示状态
+const menuX = ref(0); // 菜单X坐标
+const menuY = ref(0); // 菜单Y坐标
+
+// 3. 右键菜单触发事件（核心：阻止默认右键、定位菜单、显示菜单）
+const handleContextMenu = (e, server) => {
+  // 阻止浏览器默认右键菜单
+  e.preventDefault();
+  e.stopPropagation();
+
+  // 选中当前右键的服务器
+  selectedServer.value = server;
+
+  // 设置菜单坐标（适配视口边界，避免菜单超出屏幕）
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+  const menuWidth = 220; // 菜单固定宽度（对应子组件样式）
+  const menuHeight = 200; // 菜单预估高度
+
+  // X轴：若超出右边界，向左偏移
+  menuX.value =
+    e.clientX + menuWidth > viewportWidth ? e.clientX - menuWidth : e.clientX;
+
+  // Y轴：若超出下边界，向上偏移
+  menuY.value =
+    e.clientY + menuHeight > viewportHeight
+      ? e.clientY - menuHeight
+      : e.clientY;
+
+  // 显示菜单
+  showContextMenu.value = true;
+
+  // 点击页面其他区域关闭菜单
+  document.addEventListener("click", closeMenu, { once: true });
+};
+
+// 4. 关闭菜单函数
+const closeMenu = () => {
+  showContextMenu.value = false;
+  // 清空坐标（可选）
+  menuX.value = 0;
+  menuY.value = 0;
+};
+
 /**
- * 删除服务器
- * @param {string} id 服务器ID
+ * 打开服务器连接
  */
-const deleteServer = (id) => {
-  ElMessageBox.confirm("确定要删除该服务器吗？", "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
-  })
-    .then(() => {
-      serverList.value = serverList.value.filter((item) => item.id !== id);
-      saveServerList();
-      ElMessage.success("删除成功");
+const onCtxMenuOpenConnection = async () => {
+  // 边界校验：无选中节点/已连接则返回
+  if (!selectedServer.value || selectedServer.value.connected) {
+    ElMessage.warning(
+      selectedServer.value ? "该服务器已处于连接状态" : "请选择服务器节点"
+    );
+    closeMenu();
+    return;
+  }
+  try {
+    const server = { ...selectedServer.value };
+    window.channel.send("sftp-connect-server", server);
+  } catch (error) {
+    console.error("打开连接失败：", error);
+  } finally {
+    closeMenu(); // 无论成功失败，关闭菜单
+  }
+};
+
+/**
+ * 断开服务器连接
+ */
+const onCtxMenuCloseConnection = async () => {
+  try {
+    if (!selectedServer || !selectedServer.connected) {
+      return;
+    }
+    const server = { ...selectedServer.value };
+    window.channel.send("sftp-disconnect-server", server);
+  } catch (error) {
+    console.error("断开连接失败：", error);
+  } finally {
+    closeMenu();
+  }
+};
+
+/**
+ * 重命名服务器链接
+ */
+const onCtxMenuRenameConnection = () => {
+  if (!selectedServer.value) {
+    ElMessage.warning("请选择服务器节点");
+    closeMenu();
+    return;
+  }
+
+  showRenameDialog(selectedServer.value)
+    .then((newName) => {
+      if (newName && newName !== selectedServer.value.name) {
+        const targetServer = serverList.value.find(
+          (server) => server.id === selectedServer.value.id
+        );
+        if (targetServer) targetServer.name = newName;
+      }
     })
     .catch(() => {
-      ElMessage.info("已取消删除");
+      ElMessage.info("已取消重命名");
+    })
+    .finally(() => {
+      closeMenu();
     });
 };
 
-// ---------------------- 文件/目录/折叠目录方法 ----------------------
 /**
- * 打开添加文件弹窗
+ * 编辑服务器链接
  */
-const handleAddFile = () => {
-  if (!checkHasSelectedServer()) return;
-  isAddFile.value = true;
-  resetFileDirForm();
-  fileDirDialogVisible.value = true;
-};
-
-/**
- * 打开添加目录弹窗
- */
-const handleAddDir = () => {
-  if (!checkHasSelectedServer()) return;
-  isAddFile.value = false;
-  resetFileDirForm();
-  fileDirDialogVisible.value = true;
-};
-
-/**
- * 折叠所有目录：触发父组件事件
- */
-const handleCollapseDir = () => {
-  emit("collapseDir");
-  ElMessage.success("所有目录已折叠");
-};
-
-/**
- * 重置添加文件/目录表单
- */
-const resetFileDirForm = () => {
-  if (fileDirFormRef.value) fileDirFormRef.value.clearValidate();
-  fileDirForm.value = {
-    path: "/",
-    name: "",
-    editablePath: false,
-  };
-};
-
-/**
- * 校验是否已选择服务器
- * @returns {boolean} 是否选中服务器
- */
-const checkHasSelectedServer = () => {
-  if (serverList.value.length === 0) {
-    ElMessage.warning("请先添加并选择SFTP服务器");
-    return false;
+const onCtxMenuEditConnection = () => {
+  if (!selectedServer.value) {
+    ElMessage.warning("请选择服务器节点");
+    closeMenu();
+    return;
   }
-  // 实际项目中补充：校验是否有选中的服务器
-  return true;
+  // 调用已有编辑弹窗
+  openServerForm(selectedServer.value);
+  closeMenu();
 };
 
 /**
- * 提交添加文件/目录表单：触发父组件事件
+ * 删除服务器链接
  */
-const submitFileDirForm = () => {
-  fileDirFormRef.value.validate((valid) => {
-    if (!valid) return;
+const onCtxMenuDeleteConnection = async () => {
+  if (!selectedServer.value) {
+    ElMessage.warning("请选择服务器节点");
+    closeMenu();
+    return;
+  }
 
-    // 拼接完整路径
-    const fullPath = fileDirForm.value.path.endsWith("/")
-      ? `${fileDirForm.value.path}${fileDirForm.value.name}`
-      : `${fileDirForm.value.path}/${fileDirForm.value.name}`;
-
-    // 触发父组件事件，传递添加的路径
-    if (isAddFile.value) {
-      emit("addFile", fullPath);
-      ElMessage.success(`文件 ${fullPath} 添加成功`);
-    } else {
-      emit("addDir", fullPath);
-      ElMessage.success(`目录 ${fullPath} 添加成功`);
+  try {
+    if (selectedServer.value.connected) {
+      const server = { ...selectedServer.value };
+      window.channel.send("sftp-disconnect-server", server);
     }
-
-    fileDirDialogVisible.value = false;
-  });
+    serverList.value = serverList.value.filter(
+      (server) => server.id !== selectedServer.value.id
+    );
+    saveServerList();
+    selectedServer.value = null;
+    ElMessage.success("删除成功");
+  } catch (error) {
+    // 取消删除时的提示
+    if (error.message !== "cancel") {
+      console.error("删除失败：", error);
+      ElMessage.error(`删除失败：${error.message || "未知错误"}`);
+    }
+  } finally {
+    closeMenu();
+  }
 };
 
 // ---------------------- 生命周期 & 暴露方法 ----------------------
 onMounted(() => {
   loadServerList();
+  window.channel.on("sftp-server-connected", (data) => {
+    const targetServer = serverList.value.find(
+      (server) => server.id === data.id
+    );
+    if (targetServer) {
+      targetServer.connected = true;
+      saveServerList();
+      const server = { ...targetServer }; // 获取远程目录
+      window.channel.send("sftp-list-dir", server);
+      ElMessage.success(`成功连接 ${data.host}`);
+    }
+  });
+  window.channel.on("sftp-server-disconnected", (data) => {
+    const targetServer = serverList.value.find(
+      (server) => server.id === data.id
+    );
+    if (targetServer) {
+      targetServer.connected = false;
+      saveServerList();
+      ElMessage.success(`成功断开连接 ${data.host}`);
+    }
+  });
 });
 
 // 向外暴露方法（可选，供父组件调用）
@@ -404,10 +437,7 @@ defineExpose({
 }
 
 .server-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px;
+  padding: 4px 12px 2px 12px;
   margin: 0 8px;
   border-radius: 4px;
   cursor: default;
@@ -415,6 +445,21 @@ defineExpose({
   font-size: 12px;
   transition: background-color 0.2s ease;
   cursor: pointer;
+}
+
+/* 选中的服务器样式 */
+.server-item.active {
+  background-color: var(--dt-primary-bg-hover-color);
+  color: var(--el-color-primary);
+}
+
+.link-status {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 10px;
+  margin-right: 6px;
+  background-color: #67c23a;
 }
 
 .server-item:hover {

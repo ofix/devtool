@@ -2,16 +2,36 @@
   <div class="debug-left-panel">
     <el-collapse expand-icon-position="left" class="dt-collapse">
       <ServerList />
-      <FileTree />
+      <FileTree
+        :file-tree-data="fileTreeData"
+        @update:fileTreeData="updateFileTree" 
+      />
       <el-collapse-item title="OUTLINE" name="3"> </el-collapse-item>
     </el-collapse>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import FileTree from "@/views/Debug/FileTree.vue";
 import ServerList from "@/views/Debug/ServerList.vue"; // 引入ServerList组件
+
+const fileTreeData = ref([]);
+// 接收子组件的更新通知
+const updateFileTree = (newData) => {
+  fileTreeData.value = newData;
+};
+
+const onSftpDirInfo = (fileTree) => {
+  fileTreeData.value = [fileTree];
+};
+onMounted(() => {
+  window.channel.on("sftp-dir-info", onSftpDirInfo);
+});
+
+onUnmounted(() => {
+  window.channel.off("sftp-dir-info", onSftpDirInfo);
+});
 </script>
 <style scoped>
 .debug-left-panel {

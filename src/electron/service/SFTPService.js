@@ -25,9 +25,10 @@ class SFTPService extends EventEmitter {
     }
 
     // 静态工厂方法（封装创建+初始化）
-    static async create() {
+    static async create(...config) {
         const service = new SFTPService();
         await service.init(); // 内部调用异步初始化
+        await service.setConfig(...config);
         return service;
     }
 
@@ -36,11 +37,13 @@ class SFTPService extends EventEmitter {
      * 方式 1：按顺序传参 → setConfig(host, username, password, port)
      * 方式 2：传入对象 → setConfig({ host, username, password, port })
      */
-    setConfig(...args) {
+    async setConfig(...args) {
         let host,
             username = "root",
             password = "0penBmc",
-            port = 22;
+            port = 22,
+            remotePath = "",
+            localPath = "";
         if (args.length === 1 && typeof args[0] === "object" && args[0] !== null) {
             const config = args[0];
             if (!config.host) {
@@ -50,11 +53,15 @@ class SFTPService extends EventEmitter {
             username = config.username || username;
             password = config.password || password;
             port = config.port || port;
+            localPath = await Utils.sftpLocalDir(config.host);
+            remotePath = config.remotePath;
         } else if (args.length >= 1) {
             host = args[0];
             username = args[1] || username;
             password = args[2] || password;
             port = args[3] || port;
+            localPath = await Utils.sftpLocalDir(config.host);
+            remotePath = config.remotePath;
         } else {
             throw new Error(
                 "传参错误！支持：1. 传入配置对象 {host, username, password, port}；2. 按顺序传参 (host, username?, password?, port?)"
@@ -62,9 +69,10 @@ class SFTPService extends EventEmitter {
         }
         port = Number(port) || 22;
 
-        // 保存配置到 connectionConfig（key 为 host）
-        this.connectionConfig.set(host, { host, username, password, port });
+        let config = { host, username, password, port, localPath, remotePath };
+        this.connectionConfig.set(host, config);
         console.log(`已保存 ${host} 的连接配置：`, { username, password, port });
+        return config;
     }
 
     /**
@@ -161,7 +169,9 @@ class SFTPService extends EventEmitter {
         host,
         username = "root",
         password = "0penBmc",
-        port = 22
+        port = 22,
+        localPath = "",
+        remotePath = "",
     ) {
         // 🔧 改进点5：参数验证
         if (!host || typeof host !== "string") {
@@ -190,7 +200,7 @@ class SFTPService extends EventEmitter {
 
             // 缓存新连接
             this.sshClients.set(host, sshClient);
-            this.connectionConfig.set(host, { username, password, port });
+            this.connectionConfig.set(host, { username, password, port, localPath, remotePath });
             this.connectionStatus.set(host, true);
             Print.debug(`缓存SSH连接: ${host}`);
             Print.debug(`SSH连接成功: ${host}`);
@@ -291,6 +301,10 @@ class SFTPService extends EventEmitter {
         return errorInfo;
     }
 
+    getConfig(host) {
+        return this.connectionConfig.get(host);
+    }
+
     // 获取缓存的已打开连接的SSH2客户端
     async getSSHClient(host) {
         const hasClient = this.sshClients.has(host);
@@ -300,9 +314,11 @@ class SFTPService extends EventEmitter {
                 username = "root",
                 password = "0penBmc",
                 port = 22,
+                localPath = "",
+                remotePath = "",
             } = this.connectionConfig.get(host) || {};
             // 复用缓存的参数重新连接，而非只传 host
-            const result = await this.connectServer(host, username, password, port);
+            const result = await this.connectServer(host, username, password, port, localPath, remotePath);
             if (!result.success) {
                 throw new Error(`Failed to connect to ${host}: ${result.message}`);
             }
