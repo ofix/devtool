@@ -4,7 +4,7 @@
       <ServerList />
       <FileTree
         :file-tree-data="fileTreeData"
-        @update:fileTreeData="updateFileTree" 
+        @update:fileTreeData="updateFileTree"
       />
       <el-collapse-item title="OUTLINE" name="3"> </el-collapse-item>
     </el-collapse>
@@ -23,6 +23,7 @@ const updateFileTree = (newData) => {
 };
 
 const onSftpDirInfo = (fileTree) => {
+  console.log("fileTree", fileTree);
   fileTreeData.value = [fileTree];
 };
 onMounted(() => {

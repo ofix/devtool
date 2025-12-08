@@ -5,6 +5,7 @@ import fs from "fs"; // 核心修复：直接导入完整 fs 模块（含同步+
 import path from "path";
 import Print from "../core/Print.js";
 import FileTree from "../core/FileTree.js";
+import { FileNodeType } from "../core/FileNodeType.js";
 // import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
@@ -1212,9 +1213,11 @@ class SFTPService extends EventEmitter {
                 if (mode.startsWith("d")) {
                     // 过滤 BusyBox 虚拟目录项（如 . 和 ..，但 -A 参数已排除，此处双重保险）
                     if (fileName === "." || fileName === "..") continue;
+                    item.type = FileNodeType.DIRECTORY;
                     allItems.push(item); // 直接子目录，添加绝对路径
                     dirCount++;
                 } else if (mode.startsWith("-")) {  // 2. 处理文件（非目录、非链接，权限位以 - 开头）
+                    item.type = FileNodeType.FILE;
                     allItems.push(item);
                     totalBytes += size;
                     fileCount++;
@@ -1224,6 +1227,7 @@ class SFTPService extends EventEmitter {
                     symlinkTarget = target || "";
                     item.symlinkTarget = symlinkTarget;
                     item.name = actualFileName;
+                    item.type = FileNodeType.SYMLINK;
                     allItems.push(item);
                     totalBytes += size;
                     fileCount++;

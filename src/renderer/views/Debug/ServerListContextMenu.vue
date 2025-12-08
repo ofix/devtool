@@ -41,22 +41,18 @@ import { defineProps, defineEmits } from "vue";
 
 // 定义接收的 Props：从父组件传递过来的数据
 const props = defineProps({
-  // 是否显示菜单
   show: {
     type: Boolean,
     default: false,
   },
-  // 菜单横坐标
   x: {
     type: Number,
     default: 0,
   },
-  // 菜单纵坐标
   y: {
     type: Number,
     default: 0,
   },
-  // 右键选中的节点
   selectedNode: {
     type: Object,
     default: null,

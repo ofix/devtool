@@ -60,18 +60,14 @@ class FileTreeNode {
      * @param {string} options.fallback - 无扩展名时的兜底值（默认 ''）
      * @returns {string} 扩展名
      */
-    extname(filePath, { full = true, fallback = '' } = {}) {
+    extname(filePath, { full = false, fallback = '' } = {}) {
         if (typeof filePath !== 'string') return fallback;
-
-        const basename = path.basename(filePath);
-        if (full) {
-            const firstDotIndex = basename.indexOf('.');
-            return firstDotIndex > 0 ? basename.slice(firstDotIndex + 1) : fallback;
+        if (!full) {
+            return path.extname(filePath).slice(1); // 仅最后一个后缀
         }
-
-        // 普通模式（仅最后一个后缀）
-        const ext = path.extname(filePath);
-        return ext || fallback;
+        const basename = path.basename(filePath); // 完整后缀
+        const firstDotIndex = basename.indexOf('.');
+        return firstDotIndex > 0 ? basename.slice(firstDotIndex + 1) : fallback;
     }
 
     /**
@@ -269,7 +265,7 @@ class FileTreeNode {
                     type: originalChild.type,
                     path: originalChild.fullPath,
                     ext: this.extname(originalChild.fullPath),
-                    children: []
+                    children: originalChild.type == FileNodeType.DIRECTORY && originalChild.children.length == 0 ? [''] : []
                 };
                 // 添加到当前节点的 children
                 currentCopy.children.push(childCopy);
@@ -288,7 +284,7 @@ class FileTreeNode {
             name: this.name,
             type: this.type,
             path: this.fullPath,
-            ext:  this.extname(this.fullPath),
+            ext: this.extname(this.fullPath),
             children: []
         };
 
@@ -308,7 +304,7 @@ class FileTreeNode {
                     type: originalChild.type,
                     path: originalChild.fullPath,
                     ext: this.extname(originalChild.fullPath),
-                    children: []
+                    children: originalChild.type == FileNodeType.DIRECTORY && originalChild.children.length == 0 ? [''] : []
                 };
                 currentCopy.children.push(childCopy);
                 // 子节点入队

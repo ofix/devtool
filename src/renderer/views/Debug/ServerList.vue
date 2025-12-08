@@ -293,7 +293,7 @@ const onCtxMenuOpenConnection = async () => {
  */
 const onCtxMenuCloseConnection = async () => {
   try {
-    if (!selectedServer || !selectedServer.connected) {
+    if (!selectedServer.value || !selectedServer.value.connected) {
       return;
     }
     const server = { ...selectedServer.value };

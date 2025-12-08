@@ -5,8 +5,8 @@
     viewBox="0 0 1024 1024"
     version="1.1"
     xmlns="http://www.w3.org/2000/svg"
-    width="8"
-    height="8"
+    width="16"
+    height="16"
   >
     <path
       d="M88.064 378.036706h847.872v278.768941H88.064z"

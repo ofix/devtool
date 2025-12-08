@@ -1,5 +1,4 @@
 <template>
-  <!-- VS Code 风格原生右键菜单 -->
   <div
     v-if="show"
     class="vscode-context-menu"
@@ -63,7 +62,6 @@ const props = defineProps({
   },
 });
 
-// 定义触发的 Events：向父组件传递操作指令
 const emit = defineEmits([
   "close", // 关闭菜单
   "new-folder", // 新建文件夹
@@ -73,7 +71,7 @@ const emit = defineEmits([
   "delete", // 删除
 ]);
 
-// 鼠标离开菜单时关闭（可选，保持原逻辑）
+// 鼠标离开菜单时关闭
 const handleMouseLeave = () => {
   emit("close");
 };

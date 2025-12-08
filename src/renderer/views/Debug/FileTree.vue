@@ -2,7 +2,7 @@
   <el-collapse-item name="2" class="dt-file-tree-container">
     <template #title="title">
       <div class="collapse-title-bar">
-        <span>CODE</span>
+        <span>REMOTE SERVER</span>
         <div class="collapse-actions">
           <!-- 添加文件 -->
           <DocumentAdd
@@ -28,11 +28,11 @@
     <!-- 高性能虚拟渲染树组件 -->
     <el-tree-v2
       ref="fileTreeRef"
-      :data="props.fileTreeData"
+      :data="vsCodeLikeFileTreeData"
       :props="treeProps"
-      :expand-on-click-node="false"
+      :expand-on-click-node="true"
       :highlight-current="true"
-      :default-expand-all="false"
+      :default-expand-all="true"
       :default-active="firstActive"
       :default-openeds="firstOpeneds"
       :height="treeHeight"
@@ -42,8 +42,43 @@
     >
       <!-- 自定义节点内容（仅文件显示图标 + 名称） -->
       <template #default="{ node, data }">
-        <div class="tree-node-content">
-          <el-icon v-if="data.type === 'file'" class="node-icon">
+        <div
+          class="tree-node-content"
+          :class="[
+            // 标记是否为叶子节点（leaf）：Element Plus 原生 node.isLeaf
+            node.isLeaf ? 'tree-node-leaf' : '',
+          ]"
+        >
+          <!-- 折叠目录节点（MULTI 类型） -->
+          <div v-if="data.type === FileNodeType.MULTI" class="multi-dir-node">
+            <!-- 折叠路径：用 › 分隔 -->
+            <span class="multi-path">
+              <span
+                v-for="(pathSegment, index) in data.multiPath"
+                :key="`${data.id}-segment-${index}`"
+                class="path-segment"
+                :class="{
+                  'current-segment': index === data.multiPath.length - 1,
+                }"
+                @click="onClickMultiPath(data, pathSegment, index)"
+                @contextmenu="(e) => onContextMenuMultiPath(e, data)"
+              >
+                <!-- 路径分隔符 -->
+                <span class="path-separator" :key="`sep-${data.id}-${index}`">
+                  /
+                </span>
+                <span> {{ pathSegment }}</span>
+              </span>
+            </span>
+          </div>
+
+          <el-icon
+            v-else-if="
+              data.type === FileNodeType.FILE ||
+              data.type === FileNodeType.SYMLINK
+            "
+            class="node-icon"
+          >
             <IconFileHtml v-if="data.ext === 'html' || data.ext === 'htm'" />
             <IconFileCss v-else-if="data.ext === 'css'" />
             <IconFileJson v-else-if="data.ext === 'json'" />
@@ -62,27 +97,52 @@
             <IconFileScala
               v-else-if="data.ext === 'scala' || data.ext === 'kt'"
             />
-
             <IconImage
               v-else-if="
                 data.ext === 'png' || data.ext === 'jpg' || data.ext === 'svg'
               "
             />
+            <IconZip
+              v-else-if="
+                data.ext === 'tar' ||
+                data.ext === 'tar.gz' ||
+                data.ext === 'zip' ||
+                data.ext === 'gz'
+              "
+            />
             <IconFile v-else />
           </el-icon>
           <span
-            v-if="!editingNodeId || editingNodeId !== data.id"
+            v-if="
+              (!editingNodeId || editingNodeId !== data.id) &&
+              data.type !== FileNodeType.MULTI
+            "
             class="node-name"
-            :style="{ marginLeft: data.type === 'file' ? '-4px' : '0' }"
+            :style="{
+              marginLeft:
+                data.type == FileNodeType.FILE ||
+                data.type == FileNodeType.SYMLINK
+                  ? '-4px'
+                  : '0',
+            }"
           >
             {{ data.name }}
           </span>
           <el-input
-            v-else
+            v-if="
+              (editingNodeId || editingNodeId == data.id) &&
+              data.type !== FileNodeType.MULTI
+            "
             v-model="editName"
             class="edit-input"
             size="mini"
-            :style="{ marginLeft: data.type === 'file' ? '-4px' : '0' }"
+            :style="{
+              marginLeft:
+                data.type == FileNodeType.FILE ||
+                data.type == FileNodeType.SYMLINK
+                  ? '-4px'
+                  : '0',
+            }"
             @blur="handleEditBlur(data)"
             @keyup.enter="handleEditBlur(data)"
             @keyup.esc="cancelEdit()"
@@ -108,8 +168,11 @@
 </template>
 
 <script setup>
-import { ref, defineProps, computed, reactive, nextTick } from "vue";
+import { ref, defineProps, readonly, computed, reactive, nextTick } from "vue";
 import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
+import { ElMessage, ElNotification } from "element-plus";
+import FileTreeContextMenu from "./FileTreeContextMenu.vue";
+import { FileNodeType } from "@/components/FileNodeType.js";
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
 import IconFileCss from "@/components/icons/IconFileCss.vue";
@@ -127,31 +190,93 @@ import IconFileYaml from "@/components/icons/IconFileYaml.vue";
 import IconFileScala from "@/components/icons/IconFileScala.vue";
 import IconFileCpp from "@/components/icons/IconFileCpp.vue";
 import IconFileC from "@/components/icons/IconFileC.vue";
-
 import IconImage from "@/components/icons/IconImage.vue";
 import IconFile from "@/components/icons/IconFile.vue";
-// 右键菜单
-import FileTreeContextMenu from "./FileTreeContextMenu.vue";
-// 消息通知组件
-import { ElMessage, ElNotification } from "element-plus";
+import IconZip from "@/components/icons/IconZip.vue";
 
-// 树组件核心状态
+// --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
-// 步骤 1：定义 props（推荐添加类型约束，增强健壮性）
 const props = defineProps({
-  // 接收父组件传递的 fileTree 数据
   fileTreeData: {
-    type: Array, // 根据实际数据结构定（Array/Object）
-    default: () => [], // 初始值匹配父组件
+    type: Array,
+    default: () => [],
     required: true,
   },
 });
-
-const treeHeight = ref(window.innerHeight - 34);
-const treeProps = reactive({
+const treeProps = readonly({
+  key: "id",
   label: "name",
   children: "children",
-  isLeaf: (data) => data.type != 1,
+  isLeaf: "isLeaf",
+});
+const treeHeight = ref(window.innerHeight - 34);
+
+// 核心：递归扁平化单子目录节点，生成折叠节点
+const flattenSingleChildDir = (node, parentPath = []) => {
+  // 深拷贝节点，避免修改原数据
+  const newNode = { ...node };
+  let currentPath = [...parentPath, newNode.name];
+  if (newNode.name === "/") {
+    currentPath = [...parentPath];
+  }
+
+  // 仅处理目录节点（type=DIRECTORY）
+  if (newNode.type === FileNodeType.DIRECTORY) {
+    // 过滤无效子节点（如 "" 占位符）
+    const validChildren = newNode.children || [];
+
+    // 1. 空目录（children = [""]）：直接保留占位，保证展开符号显示
+    if (validChildren.length === 1 && validChildren[0] === "") {
+      newNode.children = validChildren; // 保留原生 [""] 占位
+    }
+
+    // 情况1：只有一个子目录节点（继续递归折叠）
+    if (
+      validChildren.length === 1 &&
+      validChildren[0].type === FileNodeType.DIRECTORY &&
+      validChildren[0] != ""
+    ) {
+      return flattenSingleChildDir(validChildren[0], currentPath);
+    }
+
+    // 情况2：多个子节点/包含文件（终止折叠，标记为 MULTI 类型）
+    if (parentPath.length > 0) {
+      newNode.type = FileNodeType.MULTI; // 标记为折叠目录
+      newNode.multiPath = currentPath; // 保存折叠路径
+      newNode.originalId = newNode.id; // 保留原始ID
+      // 生成唯一ID（避免重复）
+      newNode.id = `multi-${currentPath.join("-")}-${newNode.id}`;
+    }
+
+    // 递归处理子节点
+    newNode.children = validChildren.map((child) =>
+      flattenSingleChildDir(child, [])
+    );
+  }
+
+  // 文件节点直接返回
+  if (newNode.type === FileNodeType.FILE) {
+    delete newNode.children; // 移除文件节点的children
+  }
+
+  return newNode;
+};
+
+// 预处理数据：折叠单目录 + 适配 el-tree-v2 规则
+const vsCodeLikeFileTreeData = computed(() => {
+  // 根节点处理
+  return props.fileTreeData.map((rootNode) => {
+    const flattenedNode = flattenSingleChildDir(rootNode);
+    if (
+      flattenedNode.type === FileNodeType.DIRECTORY ||
+      flattenedNode.type === FileNodeType.MULTI
+    ) {
+      flattenedNode.children = flattenedNode.children?.length
+        ? flattenedNode.children
+        : [{ id: `placeholder-${flattenedNode.id}`, type: 0, hidden: true }];
+    }
+    return flattenedNode;
+  });
 });
 
 // 右键菜单核心状态（仅保留数据，逻辑移到组件）
@@ -162,18 +287,23 @@ const selectedNode = ref(null); // 右键选中的节点
 const editingNodeId = ref("");
 const editName = ref("");
 
-// 默认展开/选中逻辑（修复：移除 .value，改用 props.fileTreeData）
 const firstOpeneds = computed(() => {
-  // 修复：访问 props 中的 fileTreeData，无 .value
   const first = props.fileTreeData.find((i) => i.children?.length);
   return first ? [first.index] : [];
 });
 const firstActive = computed(() => {
-  // 修复：访问 props 中的 fileTreeData，无 .value
   return props.fileTreeData[0]?.index ?? "";
 });
 
-// 打开右键菜单（核心逻辑：仅设置状态，不渲染菜单）
+function onClickMultiPath(data, pathSegment, index) {
+  console.log(data, pathSegment, index);
+}
+
+function onContextMenuMultiPath(e, data) {
+  console.log(e, data);
+}
+
+// 打开右键菜单
 function handleRightClick(event, data, node) {
   event.preventDefault(); // 阻止浏览器默认右键菜单
   event.stopPropagation(); // 阻止事件冒泡
@@ -196,7 +326,7 @@ function closeOnEsc(e) {
   }
 }
 
-// 点击页面任意位置关闭菜单（优化：修复事件监听移除问题）
+// 点击页面任意位置关闭菜单
 function closeOnClickOutside(e) {
   const menu = document.querySelector(".vscode-context-menu");
   if (menu && !menu.contains(e.target)) {
@@ -213,7 +343,6 @@ function closeMenu() {
   document.removeEventListener("keydown", closeOnEsc);
 }
 
-// 菜单功能实现（原逻辑保留，修复 fileTreeData 访问方式）
 // 新建文件夹
 function handleNewFolder() {
   if (!selectedNode.value || selectedNode.value.type !== "folder") {
@@ -231,7 +360,6 @@ function handleNewFolder() {
   if (!selectedNode.value.children) selectedNode.value.children = [];
   selectedNode.value.children.push(newFolder);
   // 修复：更新 props 数据时，需通过拷贝触发响应式（props 本身不可直接修改，建议通过 emit 通知父组件）
-  // 注意：props 是单向数据流，此处临时兼容，推荐改为 emit 通知父组件更新
   const newFileTree = [...props.fileTreeData];
   // 触发父组件更新（推荐方式：定义 emit）
   emit("update:fileTreeData", newFileTree);
@@ -253,7 +381,6 @@ function handleNewFile() {
   const newFile = { id: newId, name: "新建文件.txt", type: "file", ext: "txt" };
   if (!selectedNode.value.children) selectedNode.value.children = [];
   selectedNode.value.children.push(newFile);
-  // 修复：同上，props 不可直接修改，推荐 emit
   const newFileTree = [...props.fileTreeData];
   emit("update:fileTreeData", newFileTree);
   fileTreeRef.value.setExpanded(selectedNode.value, true);
@@ -299,11 +426,11 @@ function handleDelete() {
     }
     return false;
   };
-  // 修复：访问 props.fileTreeData，无 .value
+  // 访问 props.fileTreeData，无 .value
   const deleted = deleteNode(props.fileTreeData, selectedNode.value.id);
   if (deleted) {
     ElMessage.success("删除成功");
-    // 修复：props 不可直接修改，推荐 emit
+    // props 不可直接修改，推荐 emit
     const newFileTree = [...props.fileTreeData];
     emit("update:fileTreeData", newFileTree);
     selectedNode.value = null;
@@ -311,7 +438,7 @@ function handleDelete() {
   closeMenu();
 }
 
-// 辅助函数（保持不变，修复 fileTreeData 访问方式）
+// 辅助函数
 function enterEditMode(nodeId, defaultName) {
   editingNodeId.value = nodeId;
   editName.value = defaultName;
@@ -335,14 +462,12 @@ function handleEditBlur(data) {
     data.name += ".txt";
     data.ext = "txt";
   }
-  // 修复：props 不可直接修改，推荐 emit
   const newFileTree = [...props.fileTreeData];
   emit("update:fileTreeData", newFileTree);
   cancelEdit();
 }
 function getNodeFullPath(data) {
   let path = data.name;
-  // 修复：访问 props.fileTreeData，无 .value
   let parent = findParentNode(props.fileTreeData, data.id);
   while (parent) {
     path = parent.name + "/" + path;
@@ -431,6 +556,29 @@ const emit = defineEmits(["update:fileTreeData", "node-click"]);
   padding: 2px 0;
 }
 
+/* 折叠目录节点样式 */
+.multi-dir-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.multi-path {
+  font-size: 12px;
+  color: var(--dt-primary-text-color);
+  cursor: pointer;
+}
+
+.multi-path span {
+  color: var(--dt-primary-text-color); /* 分隔符颜色 */
+  margin: 0 2px;
+}
+
+.folder-icon {
+  color: #e6a86b;
+  font-size: 14px;
+}
+
 .node-icon {
   font-size: 16px;
   width: 16px;
@@ -468,5 +616,9 @@ const emit = defineEmits(["update:fileTreeData", "node-click"]);
   width: 140px !important;
   padding: 2px 4px !important;
   margin: 0 !important;
+}
+
+.tree-node-leaf {
+  margin-left: -20px !important;
 }
 </style>
