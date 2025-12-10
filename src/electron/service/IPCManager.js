@@ -8,6 +8,20 @@ class IPCManager {
     }
     startListen() {
         // 连接SFTP服务器
+        ipcMain.handle("ssh:connect", async (event, config) => {
+            const sftp = await SFTPService.create(config);
+            return await sftp.getSSHClient(config.host);
+        });
+        // 断开SFTP服务器连接
+        ipcMain.handle("ssh:disconnect", async (event, host) => {
+            return await SFTPService.destroy(host);
+        });
+        // 列出服务器文件列表
+        ipcMain.handle("ssh:listDir", async (event, host, path) => {
+            const sftp = await SFTPService.create(config);
+            await sftp.listDir(config.host, config.remotePath);
+            return sftp.fileTree.toJson();
+        });
         ipcMain.on('sftp-connect-server', async (event, config) => {
             const sftp = await SFTPService.create(config);
             await sftp.getSSHClient(config.host);

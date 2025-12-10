@@ -168,11 +168,22 @@
 </template>
 
 <script setup>
-import { ref, defineProps, readonly, computed, reactive, nextTick } from "vue";
+import {
+  ref,
+  defineProps,
+  readonly,
+  computed,
+  reactive,
+  watch,
+  nextTick,
+} from "vue";
 import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 import { ElMessage, ElNotification } from "element-plus";
 import FileTreeContextMenu from "./FileTreeContextMenu.vue";
 import { FileNodeType } from "@/components/FileNodeType.js";
+import { useSftpStore } from "@/stores/sftpStore";
+const { sshState, loading, listenSshState, listDir, unlisten } = sftpStore;
+
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
 import IconFileCss from "@/components/icons/IconFileCss.vue";
@@ -195,19 +206,44 @@ import IconFile from "@/components/icons/IconFile.vue";
 import IconZip from "@/components/icons/IconZip.vue";
 
 // --------------------- 树组件核心状态 ---------------------
-const fileTreeRef = ref(null);
 const props = defineProps({
-  fileTreeData: {
-    type: Array,
-    default: () => [],
-    required: true,
+  sftpConfig: {
+    type: Object,
+    required: false,
+    default: null,
+    validator: (val) => {
+      if (!val) return true; // 允许空值
+      return ["host", "port", "username", "password"].every((key) => val[key]);
+    },
   },
+  rootPath: { type: String, default: "/" },
 });
+
+// 对外暴露的事件
+const emit = defineEmits([
+  "node-click", // 文件/目录点击
+  "load-success", // 增量加载成功
+  "load-fail", // 增量加载失败
+  "connection-close", // SFTP 连接关闭
+]);
+
+const fileTreeRef = ref(null);
+const fileTreeData = reactive([]); // 树形数据源
 const treeProps = readonly({
   value: "path",
   label: "name",
   children: "children",
 });
+// 预处理数据：折叠单目录 + 适配 el-tree-v2 规则
+const vsCodeLikeFileTreeData = computed(() => {
+  // 根节点处理
+  return fileTreeData.map((rootNode) => {
+    const flatTree = flatFileTree(rootNode, [], true);
+    // console.log(JSON.stringify(flatTree, "", 3));
+    return flatTree;
+  });
+});
+
 const treeHeight = ref(window.innerHeight - 34);
 
 // 递归扁平化单子目录节点，生成折叠节点
@@ -226,14 +262,13 @@ const flatFileTree = (node, parentPath = [], isRoot = true) => {
 
   if (newNode.type === FileNodeType.DIRECTORY) {
     const children = newNode.children || []; // 兜底空数组
-
-    // 空目录（children = [""]）：直接保留占位，终止后续逻辑
+    // 空目录（children = [""]）：直接保留占位
     if (children.length === 1 && children[0] === "") {
       newNode.children = children;
       return newNode;
     }
 
-    // 2. 单子目录节点（需要折叠）
+    // 单子目录节点（需要折叠）
     if (
       children.length === 1 &&
       children[0] !== "" &&
@@ -253,27 +288,38 @@ const flatFileTree = (node, parentPath = [], isRoot = true) => {
     );
   }
 
-  if (
-    newNode.type === FileNodeType.FILE ||
-    newNode.type === FileNodeType.SYMLINK
-  ) {
-    return newNode;
-  }
-
   return newNode;
 };
 
-// 预处理数据：折叠单目录 + 适配 el-tree-v2 规则
-const vsCodeLikeFileTreeData = computed(() => {
-  // 根节点处理
-  return props.fileTreeData.map((rootNode) => {
-    const flatTree = flatFileTree(rootNode, [], true);
-    // console.log(JSON.stringify(flatTree, "", 3));
-    return flatTree;
-  });
+// 计算属性：判断 sftpConfig 是否有效
+const validSftpConfig = computed(() => {
+  return (
+    !!props.sftpConfig &&
+    ["host", "port", "username", "password"].every(
+      (key) => props.sftpConfig[key]
+    )
+  );
 });
 
-// 右键菜单核心状态（仅保留数据，逻辑移到组件）
+// -------------- SSH连接相关 -------------------
+// 监听 sftpConfig 变化，自动初始化/销毁连接
+watch(
+  () => props.sftpConfig,
+  async (newConfig, oldConfig) => {
+    if (!validSftpConfig.value) {
+      closeSftp();
+      fileTreeData = null;
+      return;
+    }
+
+    if (newConfig && JSON.stringify(newConfig) !== JSON.stringify(oldConfig)) {
+      window.channel.send("sftp-connect-server", server); // 重新连接服务器
+    }
+  },
+  { immediate: true, deep: true } // 立即执行 + 深度监听配置变化
+);
+
+// -------------- 右键菜单核心状态（仅保留数据，逻辑移到组件）----------------
 const showContextMenu = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
@@ -281,17 +327,12 @@ const selectedNode = ref(null); // 右键选中的节点
 const editingNodeId = ref("");
 const editName = ref("");
 
-const firstOpeneds = computed(() => {
-  return props.fileTreeData.map((node) => node.path);
-});
-const firstActive = computed(() => {
-  return props.fileTreeData[0]?.path ?? "";
-});
-
+// 单击折叠节点
 function onClickMultiPath(data, pathSegment, index) {
   console.log(data, pathSegment, index);
 }
 
+// 右键菜单点击折叠节点
 function onContextMenuMultiPath(e, data) {
   console.log(e, data);
 }
@@ -312,6 +353,7 @@ function handleRightClick(event, data, node) {
   document.addEventListener("keydown", closeOnEsc);
 }
 
+// 监听 ESC 键关闭菜单
 function closeOnEsc(e) {
   if (e.key === "Escape") {
     closeMenu();
@@ -328,7 +370,7 @@ function closeOnClickOutside(e) {
   }
 }
 
-// 关闭右键菜单（仅修改状态）
+// 关闭右键菜单
 function closeMenu() {
   showContextMenu.value = false;
   // 移除事件监听（优化后逻辑）
@@ -381,14 +423,14 @@ function handleNewFile() {
   closeMenu();
 }
 
-// 重命名
+// 文件或者文件夹重命名
 function handleRename() {
   if (!selectedNode.value) return;
   enterEditMode(selectedNode.value.id, selectedNode.value.name);
   closeMenu();
 }
 
-// 复制路径
+// 复制文件或者目录路径
 function handleCopyPath() {
   if (!selectedNode.value) return;
   const fullPath = getNodeFullPath(selectedNode.value);
@@ -403,7 +445,7 @@ function handleCopyPath() {
   closeMenu();
 }
 
-// 删除
+// 删除文件或者目录
 function handleDelete() {
   if (!selectedNode.value) return;
   const deleteNode = (tree, nodeId) => {
@@ -440,10 +482,12 @@ function enterEditMode(nodeId, defaultName) {
     if (input) input.focus();
   });
 }
+// 取消编辑
 function cancelEdit() {
   editingNodeId.value = "";
   editName.value = "";
 }
+// 保存编辑
 function handleEditBlur(data) {
   if (!editName.value.trim()) {
     ElMessage.warning("名称不能为空");
@@ -459,15 +503,8 @@ function handleEditBlur(data) {
   emit("update:fileTreeData", newFileTree);
   cancelEdit();
 }
-function getNodeFullPath(data) {
-  let path = data.name;
-  let parent = findParentNode(props.fileTreeData, data.path);
-  while (parent) {
-    path = parent.name + "/" + path;
-    parent = findParentNode(props.fileTreeData, parent.path);
-  }
-  return `/${path}`;
-}
+
+// 查找父节点
 function findParentNode(tree, path) {
   for (const node of tree) {
     if (node.children && node.children.some((child) => child.path === path)) {
@@ -480,10 +517,11 @@ function findParentNode(tree, path) {
   }
   return null;
 }
+// 文件树节点单击响应函数
 function handleNodeClick(data, node) {
   selectedNode.value = data;
 }
-
+// 文件树节点展开响应函数
 function onNodeExpand(data, node) {
   const stored = localStorage.getItem("sftp_server");
   if (stored) {
@@ -496,9 +534,6 @@ function onNodeExpand(data, node) {
     }
   }
 }
-
-// 定义 emit 用于通知父组件更新数据（Vue 单向数据流规范）
-const emit = defineEmits(["update:fileTreeData", "node-click"]);
 </script>
 
 <style scoped>
