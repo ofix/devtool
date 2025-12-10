@@ -32,11 +32,11 @@
       :props="treeProps"
       :expand-on-click-node="true"
       :highlight-current="true"
-      :default-expand-all="true"
-      :default-active="firstActive"
-      :default-openeds="firstOpeneds"
+      :default-expanded-keys="[]"
       :height="treeHeight"
+      node-key="path"
       @node-click="handleNodeClick"
+      @node-expand="onNodeExpand"
       @node-contextmenu="handleRightClick"
       class="dt-file-tree"
     >
@@ -55,7 +55,7 @@
             <span class="multi-path">
               <span
                 v-for="(pathSegment, index) in data.multiPath"
-                :key="`${data.id}-segment-${index}`"
+                :key="`${data.path}-segment-${index}`"
                 class="path-segment"
                 :class="{
                   'current-segment': index === data.multiPath.length - 1,
@@ -64,7 +64,7 @@
                 @contextmenu="(e) => onContextMenuMultiPath(e, data)"
               >
                 <!-- 路径分隔符 -->
-                <span class="path-separator" :key="`sep-${data.id}-${index}`">
+                <span class="path-separator" :key="`sep-${data.path}-${index}`">
                   /
                 </span>
                 <span> {{ pathSegment }}</span>
@@ -114,7 +114,7 @@
           </el-icon>
           <span
             v-if="
-              (!editingNodeId || editingNodeId !== data.id) &&
+              (!editingNodeId || editingNodeId !== data.path) &&
               data.type !== FileNodeType.MULTI
             "
             class="node-name"
@@ -130,7 +130,7 @@
           </span>
           <el-input
             v-if="
-              (editingNodeId || editingNodeId == data.id) &&
+              (editingNodeId || editingNodeId == data.path) &&
               data.type !== FileNodeType.MULTI
             "
             v-model="editName"
@@ -204,59 +204,60 @@ const props = defineProps({
   },
 });
 const treeProps = readonly({
-  key: "id",
+  value: "path",
   label: "name",
   children: "children",
-  isLeaf: "isLeaf",
 });
 const treeHeight = ref(window.innerHeight - 34);
 
-// 核心：递归扁平化单子目录节点，生成折叠节点
-const flattenSingleChildDir = (node, parentPath = []) => {
-  // 深拷贝节点，避免修改原数据
+// 递归扁平化单子目录节点，生成折叠节点
+const flatFileTree = (node, parentPath = [], isRoot = true) => {
+  if (typeof node === "string") {
+    return node;
+  }
+
   const newNode = { ...node };
   let currentPath = [...parentPath, newNode.name];
+
+  // 根路径处理优化
   if (newNode.name === "/") {
     currentPath = [...parentPath];
   }
 
-  // 仅处理目录节点（type=DIRECTORY）
   if (newNode.type === FileNodeType.DIRECTORY) {
-    // 过滤无效子节点（如 "" 占位符）
-    const validChildren = newNode.children || [];
+    const children = newNode.children || []; // 兜底空数组
 
-    // 1. 空目录（children = [""]）：直接保留占位，保证展开符号显示
-    if (validChildren.length === 1 && validChildren[0] === "") {
-      newNode.children = validChildren; // 保留原生 [""] 占位
+    // 空目录（children = [""]）：直接保留占位，终止后续逻辑
+    if (children.length === 1 && children[0] === "") {
+      newNode.children = children;
+      return newNode;
     }
 
-    // 情况1：只有一个子目录节点（继续递归折叠）
+    // 2. 单子目录节点（需要折叠）
     if (
-      validChildren.length === 1 &&
-      validChildren[0].type === FileNodeType.DIRECTORY &&
-      validChildren[0] != ""
+      children.length === 1 &&
+      children[0] !== "" &&
+      children[0].type === FileNodeType.DIRECTORY
     ) {
-      return flattenSingleChildDir(validChildren[0], currentPath);
+      return flatFileTree(children[0], currentPath, false); // 递归折叠
     }
 
-    // 情况2：多个子节点/包含文件（终止折叠，标记为 MULTI 类型）
-    if (parentPath.length > 0) {
-      newNode.type = FileNodeType.MULTI; // 标记为折叠目录
-      newNode.multiPath = currentPath; // 保存折叠路径
-      newNode.originalId = newNode.id; // 保留原始ID
-      // 生成唯一ID（避免重复）
-      newNode.id = `multi-${currentPath.join("-")}-${newNode.id}`;
+    // 多个子节点/包含文件（终止折叠，标记为 MULTI 类型）
+    if (parentPath.length > 0 && !isRoot) {
+      newNode.type = FileNodeType.MULTI;
+      newNode.multiPath = currentPath;
     }
 
-    // 递归处理子节点
-    newNode.children = validChildren.map((child) =>
-      flattenSingleChildDir(child, [])
+    newNode.children = children.map((child) =>
+      flatFileTree(child, currentPath, false)
     );
   }
 
-  // 文件节点直接返回
-  if (newNode.type === FileNodeType.FILE) {
-    delete newNode.children; // 移除文件节点的children
+  if (
+    newNode.type === FileNodeType.FILE ||
+    newNode.type === FileNodeType.SYMLINK
+  ) {
+    return newNode;
   }
 
   return newNode;
@@ -266,16 +267,9 @@ const flattenSingleChildDir = (node, parentPath = []) => {
 const vsCodeLikeFileTreeData = computed(() => {
   // 根节点处理
   return props.fileTreeData.map((rootNode) => {
-    const flattenedNode = flattenSingleChildDir(rootNode);
-    if (
-      flattenedNode.type === FileNodeType.DIRECTORY ||
-      flattenedNode.type === FileNodeType.MULTI
-    ) {
-      flattenedNode.children = flattenedNode.children?.length
-        ? flattenedNode.children
-        : [{ id: `placeholder-${flattenedNode.id}`, type: 0, hidden: true }];
-    }
-    return flattenedNode;
+    const flatTree = flatFileTree(rootNode, [], true);
+    // console.log(JSON.stringify(flatTree, "", 3));
+    return flatTree;
   });
 });
 
@@ -288,11 +282,10 @@ const editingNodeId = ref("");
 const editName = ref("");
 
 const firstOpeneds = computed(() => {
-  const first = props.fileTreeData.find((i) => i.children?.length);
-  return first ? [first.index] : [];
+  return props.fileTreeData.map((node) => node.path);
 });
 const firstActive = computed(() => {
-  return props.fileTreeData[0]?.index ?? "";
+  return props.fileTreeData[0]?.path ?? "";
 });
 
 function onClickMultiPath(data, pathSegment, index) {
@@ -468,20 +461,20 @@ function handleEditBlur(data) {
 }
 function getNodeFullPath(data) {
   let path = data.name;
-  let parent = findParentNode(props.fileTreeData, data.id);
+  let parent = findParentNode(props.fileTreeData, data.path);
   while (parent) {
     path = parent.name + "/" + path;
-    parent = findParentNode(props.fileTreeData, parent.id);
+    parent = findParentNode(props.fileTreeData, parent.path);
   }
   return `/${path}`;
 }
-function findParentNode(tree, nodeId) {
+function findParentNode(tree, path) {
   for (const node of tree) {
-    if (node.children && node.children.some((child) => child.id === nodeId)) {
+    if (node.children && node.children.some((child) => child.path === path)) {
       return node;
     }
     if (node.children) {
-      const parent = findParentNode(node.children, nodeId);
+      const parent = findParentNode(node.children, path);
       if (parent) return parent;
     }
   }
@@ -489,6 +482,19 @@ function findParentNode(tree, nodeId) {
 }
 function handleNodeClick(data, node) {
   selectedNode.value = data;
+}
+
+function onNodeExpand(data, node) {
+  const stored = localStorage.getItem("sftp_server");
+  if (stored) {
+    try {
+      let server = JSON.parse(stored);
+      server.remotePath = data.path;
+      window.channel.send("sftp-list-dir", server);
+    } catch (e) {
+      console.error("加载服务器失败", e);
+    }
+  }
 }
 
 // 定义 emit 用于通知父组件更新数据（Vue 单向数据流规范）

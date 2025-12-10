@@ -23,7 +23,8 @@ const updateFileTree = (newData) => {
 };
 
 const onSftpDirInfo = (fileTree) => {
-  console.log("fileTree", fileTree);
+  console.log("+++++ origin fileTree  +++++");
+  console.log(fileTree);
   fileTreeData.value = [fileTree];
 };
 onMounted(() => {

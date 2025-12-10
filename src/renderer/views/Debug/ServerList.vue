@@ -159,6 +159,10 @@ function saveServerList() {
   localStorage.setItem("sftp_server_list", JSON.stringify(serverList.value));
 }
 
+function saveServer(server){
+  localStorage.setItem("sftp_server", JSON.stringify(server));
+}
+
 // 1. 定义生成唯一 ID 的方法
 function nextServerId() {
   const maxId =
@@ -389,10 +393,12 @@ onMounted(() => {
       targetServer.connected = true;
       saveServerList();
       const server = { ...targetServer }; // 获取远程目录
+      saveServer(server);
       window.channel.send("sftp-list-dir", server);
       ElMessage.success(`成功连接 ${data.host}`);
     }
   });
+
   window.channel.on("sftp-server-disconnected", (data) => {
     const targetServer = serverList.value.find(
       (server) => server.id === data.id

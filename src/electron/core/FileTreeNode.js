@@ -204,115 +204,69 @@ class FileTreeNode {
             if (child.isDirectory()) child.sortRecursively(sortConfig);
         });
     }
-    // 序列化JSON（包含同步状态）
-    toJSON() {
-        return this.toJSON_DFS();
-    }
 
-    toJSON_Recursive() {
-        return {
-            name: this.name,
-            fullPath: this.fullPath,
-            type: this.type,
-            mode: this.mode,
-            size: this.size,
-            mtime: this.mtime,
-            owner: this.owner,
-            group: this.group,
-            symlinkTarget: this.symlinkTarget,
-            isDirectory: this.isDirectory(),
-            isFile: this.isFile(),
-            isSymlink: this.isSymlink(),
-            // 同步状态
-            isSynced: this.isSynced,
-            syncTime: this.syncTime,
-            syncError: this.syncError,
-            // 子节点（递归序列化）
-            children: this.children?.map(child => child.toJSON())
-        };
-    }
+    /**
+     * 序列化节点（修复所有核心问题）
+     * @param {boolean} recursive  - 是否递归序列化children（true=递归，false=仅当前节点）
+     * @param {boolean} simple     - 精简模式，只序列化部分字段，默认为true
+     * @returns {Object} 序列化结果
+     */
+    toJSON(recursive = true, simple = true) {
+        const nodeJson = this.getNodeJson(this, simple);
+        if (!recursive) return nodeJson;
 
-    // 非递归 toJSON（深度优先，栈实现）
-    toJSON_DFS() {
-        // 最终要返回的根节点副本
-        let id = 1;
-        const root = {
-            id: id,
-            name: this.name,
-            type: this.type,
-            path: this.fullPath,
-            ext: this.extname(this.fullPath),
-            children: []
-        };
-
-        // 栈元素：[当前节点的副本, 原始子节点列表]
-        const stack = [[root, this.children]];
-
+        // 深度优先遍历
+        const stack = [[nodeJson, this.children]];
         while (stack.length > 0) {
-            // 弹出栈顶元素（后进先出 → 深度优先）
-            const [currentCopy, originalChildren] = stack.pop();
+            const [current, children] = stack.pop();
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                const childJson = this.getNodeJson(child, simple);
+                current.children.push(childJson);
 
-            // 确保子节点列表是数组（核心：处理 null/undefined）
-            const safeChildren = Array.isArray(originalChildren) ? originalChildren : [];
-
-            // 遍历原始子节点，生成副本
-            for (let i = safeChildren.length - 1; i >= 0; i--) { // 倒序入栈，保证正序输出
-                const originalChild = safeChildren[i];
-                // 生成子节点副本
-                const childCopy = {
-                    id: id++,
-                    name: originalChild.name,
-                    type: originalChild.type,
-                    path: originalChild.fullPath,
-                    ext: this.extname(originalChild.fullPath),
-                    children: originalChild.type == FileNodeType.DIRECTORY && originalChild.children.length == 0 ? [''] : []
-                };
-                // 添加到当前节点的 children
-                currentCopy.children.push(childCopy);
-                // 子节点入栈，继续处理它的子节点
-                stack.push([childCopy, originalChild.children]);
+                if (child.type === FileNodeType.DIRECTORY) {
+                    stack.push([childJson, child.children]);
+                }
             }
         }
 
-        return root;
+        return nodeJson;
     }
-    // 非递归 toJSON（广度优先，队列实现）
-    toJSON_BFS() {
-        let id = 1;
-        const root = {
-            id: id,
-            name: this.name,
-            type: this.type,
-            path: this.fullPath,
-            ext: this.extname(this.fullPath),
-            children: []
-        };
 
-        // 队列元素：[当前节点的副本, 原始子节点列表]
-        const queue = [[root, this.children]];
+    /**
+     * 获取单个节点的序列化数据（修复所有边界问题）
+     * @param {FileTreeNode} node 要序列化的节点
+     * @param {boolean} simple  是否精简模式
+     * @returns {Object} 单个节点的序列化结果
+     */
+    getNodeJson(node, simple) {
+        const result = {};
 
-        while (queue.length > 0) {
-            // 取出队首元素（先进先出 → 广度优先）
-            const [currentCopy, originalChildren] = queue.shift();
-            const safeChildren = Array.isArray(originalChildren) ? originalChildren : [];
-
-            // 遍历原始子节点
-            for (const originalChild of safeChildren) {
-                const childCopy = {
-                    id: originalChild.id,
-                    name: originalChild.name,
-                    type: originalChild.type,
-                    path: originalChild.fullPath,
-                    ext: this.extname(originalChild.fullPath),
-                    children: originalChild.type == FileNodeType.DIRECTORY && originalChild.children.length == 0 ? [''] : []
-                };
-                currentCopy.children.push(childCopy);
-                // 子节点入队
-                queue.push([childCopy, originalChild.children]);
-            }
+        if (simple) {
+            result.name = node.name;
+            result.type = node.type;
+            result.path = node.fullPath;
+            result.ext = this.extname(node.fullPath);
+            // 区分目录/文件的children处理
+            result.children = node.type === FileNodeType.DIRECTORY
+                ? (node.children.length === 0 ? [''] : [])  // 空目录懒加载占位
+                : [];                                // 文件节点无children
+        } else {
+            result.name = node.name;
+            result.fullPath = node.fullPath;
+            result.type = node.type;
+            result.mtime = node.mtime;
+            result.mode = node.mode;
+            result.size = node.size;
+            result.owner = node.owner;
+            result.group = node.group;
+            result.symlinkTarget = node.symlinkTarget;
+            result.children = node.type === FileNodeType.DIRECTORY
+                ? (node.children.length === 0 ? [''] : [])  // 空目录懒加载占位
+                : [];                                // 文件节点无children
         }
 
-        return root;
+        return result;
     }
 }
 

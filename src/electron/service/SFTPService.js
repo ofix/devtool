@@ -9,7 +9,12 @@ import { FileNodeType } from "../core/FileNodeType.js";
 // import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
+    static instance = null;
+
     constructor() {
+        if (SFTPService.instance) {
+            throw new Error('请通过 SFTPService.create() 创建单例实例');
+        }
         super();
         this.sshClients = new Map(); // host -> SFTP client
         this.connectionConfig = new Map(); // 新增：host -> 连接参数（username/password/port）
@@ -25,12 +30,20 @@ class SFTPService extends EventEmitter {
         this.stateDir = await Utils.sftpDownloadMetaDir();
     }
 
-    // 静态工厂方法（封装创建+初始化）
     static async create(...config) {
+        if (SFTPService.instance) {
+            SFTPService.instance.setConfig(...config);
+            return SFTPService.instance;
+        }
         const service = new SFTPService();
-        await service.init(); // 内部调用异步初始化
+        await service.init();
         await service.setConfig(...config);
+        SFTPService.instance = service;
         return service;
+    }
+
+    static destroy() {
+        SFTPService.instance = null;
     }
 
     /**
