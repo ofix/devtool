@@ -34,7 +34,7 @@ class IPCManager {
         ipcMain.handle("ssh:listDir", async (event, config) => {
             const sftp = await SFTPService.create(config);
             await sftp.listDir(config.host, config.remotePath);
-            sftp.fileTree.changeDirectory(config.remotePath);
+            // sftp.fileTree.changeDirectory(config.remotePath);
             return sftp.fileTree.toJson();
         });
         // SCP下载文件夹到本地

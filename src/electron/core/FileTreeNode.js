@@ -253,7 +253,7 @@ class FileTreeNode {
                 : [];                                // 文件节点无children
         } else {
             result.name = node.name;
-            result.fullPath = node.fullPath;
+            result.path = node.fullPath;
             result.type = node.type;
             result.mtime = node.mtime;
             result.mode = node.mode;

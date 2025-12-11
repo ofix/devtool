@@ -28,7 +28,7 @@
     <!-- 高性能虚拟渲染树组件 -->
     <el-tree-v2
       ref="fileTreeRef"
-      :data="vsCodeLikeFileTreeData"
+      :data="fileTreeData"
       :props="treeProps"
       :expand-on-click-node="true"
       :highlight-current="true"
@@ -206,14 +206,16 @@ const serverListStore = useServerListStore();
 
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
-const fileTreeData = ref([]); // 修正：改为ref数组，保证响应式
+const fileTreeData = ref([]);
 
 // 折叠单目录
 const vsCodeLikeFileTreeData = computed(() => {
-  return fileTreeData.value.map((rootNode) => {
-    const flatTree = flatFileTree(rootNode, [], true);
-    return flatTree;
-  });
+  // return fileTreeData.map((rootNode) => {
+  //   const flatTree = flatFileTree(rootNode, [], true);
+  //   return flatTree;
+  // });
+  console.log(fileTreeData);
+  return fileTreeData.value;
 });
 
 const treeProps = readonly({
@@ -234,16 +236,6 @@ const emit = defineEmits([
 
 // 递归扁平化单子目录节点，生成折叠节点
 const flatFileTree = (node, parentPath = [], isRoot = true) => {
-  // 边界处理：字符串节点转为空目录（避免渲染报错）
-  if (typeof node === "string") {
-    return {
-      name: node,
-      path: parentPath.join("/") + (parentPath.length ? "/" : "") + node,
-      type: FileNodeType.DIRECTORY,
-      children: [],
-    };
-  }
-
   const newNode = { ...node };
   let currentPath = [...parentPath, newNode.name];
 
@@ -311,18 +303,69 @@ watch(
         console.log(
           `加载服务器 ${newServer.host} 目录 ${newServer.remotePath}`
         );
+        console.log(fileTreeData.value);
+        console.log("++++++++++++++++++++++++++");
       } catch (e) {
         console.error("加载目录失败", e);
         ElMessage.error(`加载目录失败：${e.message || "未知错误"}`);
-        fileTreeData.value = [];
+        fileTreeData.value.length = 0; // 清空数组
       }
     } else {
       // 断开连接，清空相关数据
-      fileTreeData.value = [];
+      fileTreeData.value.length = 0; // 清空数组
     }
   },
   { immediate: true }
 );
+
+// 文件树节点单击响应函数
+function handleNodeClick(data, node) {
+  selectedNode.value = data;
+  emit("node-click", data, node);
+}
+
+// 文件树节点展开响应函数
+async function onNodeExpand(data, node) {
+  if (
+    data.type == FileNodeType.FILE ||
+    data.type == FileNodeType.FILE_SYMLINK
+  ) {
+    console.log("请选择目录节点");
+    return;
+  }
+  const server = serverListStore.currentServer;
+  if (!server) {
+    ElMessage.warning("未连接到服务器");
+    return;
+  }
+
+  try {
+    // 加载子目录数据
+    let params = {
+      host: server.host,
+      port: server.port,
+      username: server.username,
+      password: server.password,
+      remotePath: data.path,
+    };
+    console.log(`增量加载 ${server.host} 目录 ${data.path}`);
+    const childData = await window.channel.sshListDir(params);
+    fileTreeRef.value.setData([childData]);
+  } catch (e) {
+    console.error("加载子目录失败", e);
+    if (!data.children) {
+      data.children = [""];
+    }
+    ElMessage.error(`加载子目录失败：${e.message || "未知错误"}`);
+  }
+}
+
+// 折叠所有目录
+function handleCollapseDir() {
+  if (fileTreeRef.value) {
+    fileTreeRef.value.collapseAll();
+  }
+}
 
 // -------------- 右键菜单核心状态 ----------------
 const showContextMenu = ref(false);
@@ -413,9 +456,6 @@ function handleNewFolder() {
 
   if (!selectedNode.value.children) selectedNode.value.children = [];
   selectedNode.value.children.push(newFolder);
-
-  // 刷新树数据（触发响应式更新）
-  fileTreeData.value = [...fileTreeData.value];
 
   nextTick(() => {
     if (fileTreeRef.value) {
@@ -530,7 +570,7 @@ function handleDelete() {
         return false;
       };
 
-      const deleted = deleteNode(fileTreeData.value, selectedNode.value.path);
+      const deleted = deleteNode(fileTreeData, selectedNode.value.path);
       if (deleted) {
         selectedNode.value = null;
       } else {
@@ -598,47 +638,6 @@ function handleEditBlur(data) {
 
   cancelEdit();
   ElMessage.success("重命名成功");
-}
-
-// 文件树节点单击响应函数
-function handleNodeClick(data, node) {
-  selectedNode.value = data;
-  emit("node-click", data, node);
-}
-
-// 文件树节点展开响应函数
-async function onNodeExpand(data, node) {
-  const server = serverListStore.currentServer;
-  if (!server) {
-    ElMessage.warning("未连接到服务器");
-    return;
-  }
-
-  try {
-    // 加载子目录数据
-    let params = {
-      host: server.host,
-      port: server.port,
-      username: server.username,
-      password: server.password,
-      remotePath: data.path,
-    };
-    console.log(`增量加载 ${server.host} 目录 ${data.path}`);
-    const childData = await window.channel.sshListDir(params);
-    console.log(childData);
-    data = reactive(childData);
-  } catch (e) {
-    console.error("加载子目录失败", e);
-    emit("load-fail", e);
-    ElMessage.error(`加载子目录失败：${e.message || "未知错误"}`);
-  }
-}
-
-// 折叠所有目录
-function handleCollapseDir() {
-  if (fileTreeRef.value) {
-    fileTreeRef.value.collapseAll();
-  }
 }
 
 // 顶部按钮：添加文件/目录（默认在根目录创建）
