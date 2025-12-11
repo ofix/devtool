@@ -4,7 +4,6 @@
       <div class="collapse-title-bar">
         <span>SERVER LIST</span>
         <div class="collapse-actions">
-          <!-- 添加SFTP服务器 -->
           <Plus
             class="action-icon"
             @click="openServerForm()"
@@ -14,16 +13,15 @@
       </div>
     </template>
     <!-- 服务器列表 -->
-    <div class="server-list" v-if="serverList.length">
+    <div class="server-list" v-if="serverListStore.serverList.length">
       <div
         class="server-item"
-        v-for="(server, index) in serverList"
+        v-for="(server, index) in serverListStore.serverList"
         :key="server.id"
         @mouseenter="hoveredId = server.id"
         @mouseleave="hoveredId = ''"
-        @click="selectedServer = server"
         @contextmenu="(e) => handleContextMenu(e, server)"
-        :class="{ active: selectedServer?.id === server.id }"
+        :class="{ active: serverListStore.currentServer?.id === server.id }"
       >
         <span
           class="link-status"
@@ -84,7 +82,7 @@
     :show="showContextMenu"
     :x="menuX"
     :y="menuY"
-    :selected-node="selectedServer"
+    :selected-node="serverListStore.currentServer"
     @close="closeMenu"
     @open-connection="onCtxMenuOpenConnection"
     @close-connection="onCtxMenuCloseConnection"
@@ -95,16 +93,13 @@
 </template>
 
 <script setup>
-// 导入需要的图标
 import { Plus } from "@element-plus/icons-vue";
-import { ref, onMounted, defineEmits, defineExpose } from "vue";
+import { ref, onMounted, defineExpose } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-// 右键菜单
+import { useServerListStore } from "@/stores/StoreServerList.js";
 import ServerListContextMenu from "./ServerListContextMenu.vue";
 
-// ---------------------- 基础状态管理 ----------------------
-const serverList = ref([]); // 服务器列表
-const selectedServer = ref(null); // 当前选中的服务器
+const serverListStore = useServerListStore();
 const dialogVisible = ref(false);
 const serverFormRef = ref(null); // 表单ref
 const serverForm = ref({
@@ -117,6 +112,7 @@ const serverForm = ref({
   remotePath: "/usr/share/www",
 });
 const hoveredId = ref(""); // 服务器ID
+const ctxSelectedServer = ref(null);
 
 // ---------------------- 表单校验规则 ----------------------
 const formRules = ref({
@@ -135,45 +131,20 @@ const formRules = ref({
   password: [{ required: true, message: "请输入密码", trigger: "blur" }],
 });
 
-// ---------------------- 服务器管理核心方法 ----------------------
-const loadServerList = () => {
-  const stored = localStorage.getItem("sftp_server_list");
-  if (stored) {
-    try {
-      let servers = JSON.parse(stored);
-      for (const server of servers) {
-        server.connected = false;
-      }
-      serverList.value = servers;
-    } catch (e) {
-      console.error("加载服务器列表失败", e);
-      serverList.value = [];
-    }
-  }
-};
-
-/**
- * 保存服务器列表到localStorage
- */
-function saveServerList() {
-  localStorage.setItem("sftp_server_list", JSON.stringify(serverList.value));
-}
-
-function saveServer(server){
-  localStorage.setItem("sftp_server", JSON.stringify(server));
-}
-
-// 1. 定义生成唯一 ID 的方法
+// 生成唯一 ID 的方法
 function nextServerId() {
   const maxId =
-    serverList.value.length > 0
-      ? Math.max(...serverList.value.map((item) => parseInt(item.id || 0)))
+    serverListStore.serverList.length > 0
+      ? Math.max(
+          ...serverListStore.serverList.map((item) => parseInt(item.id || 0))
+        )
       : 0;
   return maxId + 1;
 }
 
+// ---------------------- 服务器表单相关 ----------------------
 /**
- * @todo 打开添加/编辑服务器弹窗
+ * 打开添加/编辑服务器弹窗
  * @param {Object} server 编辑时传入服务器信息，新增时不传
  */
 const openServerForm = (server = null) => {
@@ -185,7 +156,7 @@ const openServerForm = (server = null) => {
   } else {
     // 新增服务器
     serverForm.value = {
-      id: nextServerId(), // 核心：自动生成 ID
+      id: nextServerId(), // 自动生成 ID
       host: "",
       port: 22,
       username: "",
@@ -207,88 +178,80 @@ const submitServerForm = () => {
       return;
     }
     // 查找是否为编辑场景（通过 ID 匹配）
-    const index = serverList.value.findIndex(
+    const index = serverListStore.serverList.findIndex(
       (item) => item.id === serverForm.value.id
     );
     if (index > -1) {
-      // 编辑：更新对应项
-      serverList.value.splice(index, 1, { ...serverForm.value });
+      serverListStore.updateServer({ ...serverForm.value });
       ElMessage.success("服务器信息编辑成功");
     } else {
-      // 新增：添加新项（ID 已自动生成）
-      serverList.value.push({ ...serverForm.value });
+      serverListStore.addServer({ ...serverForm.value });
       ElMessage.success("服务器添加成功");
     }
 
-    saveServerList();
     dialogVisible.value = false;
   });
 };
 
 // --------------------- 右键菜单功能函数 ---------------------------
-const showContextMenu = ref(false); // 菜单显示状态
-const menuX = ref(0); // 菜单X坐标
-const menuY = ref(0); // 菜单Y坐标
+const showContextMenu = ref(false);
+const menuX = ref(0);
+const menuY = ref(0);
 
-// 3. 右键菜单触发事件（核心：阻止默认右键、定位菜单、显示菜单）
 const handleContextMenu = (e, server) => {
-  // 阻止浏览器默认右键菜单
   e.preventDefault();
   e.stopPropagation();
 
-  // 选中当前右键的服务器
-  selectedServer.value = server;
+  ctxSelectedServer.value = server;
 
-  // 设置菜单坐标（适配视口边界，避免菜单超出屏幕）
   const viewportWidth = document.documentElement.clientWidth;
   const viewportHeight = document.documentElement.clientHeight;
-  const menuWidth = 220; // 菜单固定宽度（对应子组件样式）
-  const menuHeight = 200; // 菜单预估高度
+  const menuWidth = 220;
+  const menuHeight = 200;
 
-  // X轴：若超出右边界，向左偏移
   menuX.value =
     e.clientX + menuWidth > viewportWidth ? e.clientX - menuWidth : e.clientX;
-
-  // Y轴：若超出下边界，向上偏移
   menuY.value =
     e.clientY + menuHeight > viewportHeight
       ? e.clientY - menuHeight
       : e.clientY;
 
-  // 显示菜单
   showContextMenu.value = true;
 
-  // 点击页面其他区域关闭菜单
   document.addEventListener("click", closeMenu, { once: true });
 };
 
-// 4. 关闭菜单函数
 const closeMenu = () => {
   showContextMenu.value = false;
-  // 清空坐标（可选）
   menuX.value = 0;
   menuY.value = 0;
+  // ctxSelectedServer.value = null;
 };
 
 /**
  * 打开服务器连接
  */
 const onCtxMenuOpenConnection = async () => {
-  // 边界校验：无选中节点/已连接则返回
-  if (!selectedServer.value || selectedServer.value.connected) {
-    ElMessage.warning(
-      selectedServer.value ? "该服务器已处于连接状态" : "请选择服务器节点"
-    );
+  const selectedServer = ctxSelectedServer.value;
+  if (!selectedServer) {
+    ElMessage.warning("请选择服务器节点");
+    closeMenu();
+    return;
+  }
+  if (selectedServer.connected) {
     closeMenu();
     return;
   }
   try {
-    const server = { ...selectedServer.value };
-    window.channel.send("sftp-connect-server", server);
+    console.log(selectedServer);
+    let server = {...selectedServer};
+    console.log(server);
+    await serverListStore.connectServer(server);
   } catch (error) {
     console.error("打开连接失败：", error);
+    ElMessage.error("连接服务器失败");
   } finally {
-    closeMenu(); // 无论成功失败，关闭菜单
+    closeMenu();
   }
 };
 
@@ -296,14 +259,24 @@ const onCtxMenuOpenConnection = async () => {
  * 断开服务器连接
  */
 const onCtxMenuCloseConnection = async () => {
+  const selectedServer = serverListStore.currentServer;
   try {
-    if (!selectedServer.value || !selectedServer.value.connected) {
+    if (!selectedServer || !selectedServer.connected) {
+      closeMenu();
       return;
     }
-    const server = { ...selectedServer.value };
-    window.channel.send("sftp-disconnect-server", server);
+    await serverListStore.disconnectServer(selectedServer);
+    serverListStore.currentServer = null;
+    const target = serverListStore.serverList.find(
+      (item) => item.id === selectedServer.id
+    );
+    if (target) {
+      target.connected = false;
+      serverListStore.saveServerList();
+    }
   } catch (error) {
     console.error("断开连接失败：", error);
+    ElMessage.error("断开服务器连接失败");
   } finally {
     closeMenu();
   }
@@ -312,20 +285,39 @@ const onCtxMenuCloseConnection = async () => {
 /**
  * 重命名服务器链接
  */
+const showRenameDialog = async (server) => {
+  return new Promise((resolve, reject) => {
+    ElMessageBox.prompt("请输入新的服务器名称", "重命名服务器", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      inputValue: server.name || server.host, // 用host兜底
+      inputValidator: (value) => {
+        if (!value) return "名称不能为空";
+      },
+    })
+      .then(({ value }) => {
+        resolve(value);
+      })
+      .catch(() => {
+        reject(new Error("cancel"));
+      });
+  });
+};
+
 const onCtxMenuRenameConnection = () => {
-  if (!selectedServer.value) {
+  const selectedServer = ctxSelectedServer.value;
+  if (!selectedServer) {
     ElMessage.warning("请选择服务器节点");
     closeMenu();
     return;
   }
 
-  showRenameDialog(selectedServer.value)
+  showRenameDialog(selectedServer)
     .then((newName) => {
-      if (newName && newName !== selectedServer.value.name) {
-        const targetServer = serverList.value.find(
-          (server) => server.id === selectedServer.value.id
-        );
-        if (targetServer) targetServer.name = newName;
+      if (newName && newName !== (selectedServer.name || selectedServer.host)) {
+        const updatedServer = { ...selectedServer, name: newName };
+        serverListStore.updateServer(updatedServer);
+        ElMessage.success("重命名成功");
       }
     })
     .catch(() => {
@@ -333,6 +325,7 @@ const onCtxMenuRenameConnection = () => {
     })
     .finally(() => {
       closeMenu();
+      ctxSelectedServer.value = null;
     });
 };
 
@@ -340,81 +333,64 @@ const onCtxMenuRenameConnection = () => {
  * 编辑服务器链接
  */
 const onCtxMenuEditConnection = () => {
-  if (!selectedServer.value) {
+  const selectedServer = ctxSelectedServer.value;
+  if (!selectedServer) {
     ElMessage.warning("请选择服务器节点");
     closeMenu();
     return;
   }
-  // 调用已有编辑弹窗
-  openServerForm(selectedServer.value);
+  // 调用编辑弹窗
+  openServerForm(selectedServer);
   closeMenu();
+  ctxSelectedServer.value = null;
 };
 
 /**
  * 删除服务器链接
  */
 const onCtxMenuDeleteConnection = async () => {
-  if (!selectedServer.value) {
+  const selectedServer = ctxSelectedServer.value;
+  if (!selectedServer) {
     ElMessage.warning("请选择服务器节点");
     closeMenu();
     return;
   }
 
   try {
-    if (selectedServer.value.connected) {
-      const server = { ...selectedServer.value };
-      window.channel.send("sftp-disconnect-server", server);
+    await ElMessageBox.confirm("确定要删除该服务器吗？", "删除确认", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+
+    // 若已连接，先断开
+    if (selectedServer.connected) {
+      await serverListStore.disconnectServer(selectedServer);
+      // 断开后清空currentServer
+      if (serverListStore.currentServer?.id === selectedServer.id) {
+        serverListStore.currentServer = null;
+      }
     }
-    serverList.value = serverList.value.filter(
-      (server) => server.id !== selectedServer.value.id
-    );
-    saveServerList();
-    selectedServer.value = null;
+    serverListStore.deleteServer(selectedServer);
     ElMessage.success("删除成功");
   } catch (error) {
-    // 取消删除时的提示
     if (error.message !== "cancel") {
       console.error("删除失败：", error);
       ElMessage.error(`删除失败：${error.message || "未知错误"}`);
     }
   } finally {
     closeMenu();
+    ctxSelectedServer.value = null;
   }
 };
 
-// ---------------------- 生命周期 & 暴露方法 ----------------------
-onMounted(() => {
-  loadServerList();
-  window.channel.on("sftp-server-connected", (data) => {
-    const targetServer = serverList.value.find(
-      (server) => server.id === data.id
-    );
-    if (targetServer) {
-      targetServer.connected = true;
-      saveServerList();
-      const server = { ...targetServer }; // 获取远程目录
-      saveServer(server);
-      window.channel.send("sftp-list-dir", server);
-      ElMessage.success(`成功连接 ${data.host}`);
-    }
-  });
+// ---------------------- 生命周期 ----------------------
+onMounted(() => {});
 
-  window.channel.on("sftp-server-disconnected", (data) => {
-    const targetServer = serverList.value.find(
-      (server) => server.id === data.id
-    );
-    if (targetServer) {
-      targetServer.connected = false;
-      saveServerList();
-      ElMessage.success(`成功断开连接 ${data.host}`);
-    }
-  });
-});
-
-// 向外暴露方法（可选，供父组件调用）
+// 向外暴露方法（供父组件调用）
 defineExpose({
-  loadServerList,
   openServerForm,
+  loadServerList: serverListStore.loadServerList, // 暴露store的加载方法
 });
 </script>
 
@@ -424,7 +400,7 @@ defineExpose({
   border-radius: 4px;
 }
 
-/* 核心：父容器 hover 时，显示所有后代 .action-icon */
+/* 父容器 hover 时，显示所有后代 .action-icon */
 .collapse-server-list:hover :deep(.action-icon) {
   opacity: 1 !important;
 }

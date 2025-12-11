@@ -14,5 +14,5 @@ contextBridge.exposeInMainWorld('channel', {
     removeUnmaximized: (cb) => ipcRenderer.off('unmaximized', cb),
     sshConnect: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:connect', { host, port, username, password, remotePath }),
     sshDisconnect: (host) => ipcRenderer.invoke('ssh:disconnect', host),
-    sshListDir: (host, path) => ipcRenderer.invoke('ssh:list-dir', host, path),
+    sshListDir: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:listDir', { host, port, username, password, remotePath }),
 })
