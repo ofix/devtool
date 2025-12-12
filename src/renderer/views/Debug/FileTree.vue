@@ -50,15 +50,15 @@
           ]"
         >
           <!-- 折叠目录节点（MULTI 类型） -->
-          <div v-if="data.type === FileNodeType.MULTI" class="multi-dir-node">
+          <div v-if="data.type === FileNodeType.COLLAPSE_DIR" class="collapse-dir-node">
             <!-- 折叠路径：用 › 分隔 -->
-            <span class="multi-path">
+            <span class="collapse-path">
               <span
-                v-for="(pathSegment, index) in data.multiPath"
+                v-for="(pathSegment, index) in data.collapsePath"
                 :key="`${data.path}-segment-${index}`"
                 class="path-segment"
                 :class="{
-                  'current-segment': index === data.multiPath.length - 1,
+                  'current-segment': index === data.collapsePath.length - 1,
                 }"
                 @click="onClickMultiPath(data, pathSegment, index)"
                 @contextmenu="(e) => onContextMenuMultiPath(e, data)"
@@ -67,7 +67,7 @@
                 <span class="path-separator" :key="`sep-${data.path}-${index}`">
                   /
                 </span>
-                <span> {{ pathSegment }}</span>
+                <span> {{ pathSegment.name }}</span>
               </span>
             </span>
           </div>
@@ -737,24 +737,24 @@ function handleAddDir() {
 }
 
 /* 折叠目录节点样式 */
-.multi-dir-node {
+.collapse-dir-node {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.multi-path {
+.collapse-path {
   font-size: 12px;
   color: var(--dt-primary-text-color);
   cursor: pointer;
 }
 
-.multi-path span {
+.collapse-path span {
   color: var(--dt-primary-text-color); /* 分隔符颜色 */
   margin: 0 2px;
 }
 
-.multi-path .current-segment {
+.collapse-path .current-segment {
   color: var(--el-color-primary);
   font-weight: 500;
 }

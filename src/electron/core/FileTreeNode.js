@@ -209,9 +209,10 @@ class FileTreeNode {
      * 序列化节点（修复所有核心问题）
      * @param {boolean} recursive  - 是否递归序列化children（true=递归，false=仅当前节点）
      * @param {boolean} simple     - 精简模式，只序列化部分字段，默认为true
+     * @param {boolean} collapseDirectory - 是否折叠目录
      * @returns {Object} 序列化结果
      */
-    toJSON(recursive = true, simple = true) {
+    toJSON(recursive = true, simple = true, collapseDirectory = true) {
         const nodeJson = this.getNodeJson(this, simple);
         if (!recursive) return nodeJson;
 
@@ -219,13 +220,26 @@ class FileTreeNode {
         const stack = [[nodeJson, this.children]];
         while (stack.length > 0) {
             const [current, children] = stack.pop();
-            for (let i = 0; i < children.length; i++) {
-                const child = children[i];
+            if (collapseDirectory && children.length == 1 && children[0].type == FileNodeType.DIRECTORY) {
+                const child = children[0];
                 const childJson = this.getNodeJson(child, simple);
-                current.children.push(childJson);
+                current.type = FileNodeType.COLLAPSE_DIR;
+                current.path = child.fullPath;
+                (current.collapsePath ??= []).push({
+                    name: child.name,
+                    path: child.fullPath,
+                    type: child.type,
+                });
+                stack.push([current, child.children]);
+            } else {
+                for (let i = 0; i < children.length; i++) {
+                    const child = children[i];
+                    const childJson = this.getNodeJson(child, simple);
+                    current.children.push(childJson);
 
-                if (child.type === FileNodeType.DIRECTORY) {
-                    stack.push([childJson, child.children]);
+                    if (child.type === FileNodeType.DIRECTORY) {
+                        stack.push([childJson, child.children]);
+                    }
                 }
             }
         }

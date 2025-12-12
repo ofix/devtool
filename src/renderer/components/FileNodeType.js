@@ -5,7 +5,7 @@ export const FileNodeType = Object.freeze({
     DIRECTORY: 1 << 0, // 1
     FILE: 1 << 1,      // 2
     SYMLINK: 1 << 2,   // 4
-    MULTI: 1 << 3,     // 8
+    COLLAPSE_DIR: 1 << 3,     // 8
 
     // 反向映射：数值 -> 名称（用于序列化/显示）
     getTypeName: function (type) {
@@ -13,14 +13,14 @@ export const FileNodeType = Object.freeze({
             case this.DIRECTORY: return 'directory';
             case this.FILE: return 'file';
             case this.SYMLINK: return 'symlink';
-            case this.MULTI: return 'multi';
+            case this.COLLAPSE_DIR: return 'collapse';
             default: return 'unknown';
         }
     },
 
     // 验证是否为有效枚举值
     isValid: function (type) {
-        return [this.DIRECTORY, this.FILE, this.SYMLINK, this.MULTI].includes(type);
+        return [this.DIRECTORY, this.FILE, this.SYMLINK, this.COLLAPSE_DIR].includes(type);
     }
 });
 
