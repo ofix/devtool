@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import IPCManager from "./service/IPCManager.js"
+import memoryFileManager from './core/MemoryFileManager.js';
 
 // 创建ES模块的__dirname
 const __filename = fileURLToPath(import.meta.url)
@@ -77,6 +78,11 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform != 'darwin') app.quit()
 })
+
+// 应用退出时清理资源
+app.on('will-quit', async () => {
+    await memoryFileManager.cleanup();
+});
 
 
 

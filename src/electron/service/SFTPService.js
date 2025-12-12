@@ -364,6 +364,43 @@ class SFTPService extends EventEmitter {
             .replace(/[^a-zA-Z0-9]/g, "");
     }
 
+
+    /**
+     * 直接写入内存映射文件
+     * @param {import('ssh2').Client} conn
+     * @param {string} remoteFilePath
+     * @param {Object} mmfHandle - { fd: number, map: mmap.Map } 内存映射文件对象
+     * @param {number} startOffset - 文件偏移位置，始终为0
+     * @param {Function} onProgress
+     * @returns {Promise<{ success: boolean, fileSize: number }>}
+     */
+    async downloadToMMF(conn, remoteFilePath, mmfHandle, startOffset = 0, onProgress) {
+        return new Promise(async (resolve, reject) => {
+            conn.exec(`scp -f '${remoteFilePath}'`, async (err, stream) => {
+                if (err) return reject(new Error(`创建通道失败: ${err.message}`));
+
+                try {
+                    // SCP协议交互
+                    await this._sendAckToScpServer(stream, "初始ACK");
+                    const meta = await this._awaitScpServerFileInfo(stream, "获取元信息");
+                    if (meta.status === -1) throw new Error("解析元信息失败");
+                    const fileSize = meta.fileInfo.size;
+                    await this._sendAckToScpServer(stream, "确认元信息");
+
+                    // 直接写入MMF
+                    await this._writeToMMF(stream, mmfHandle.map, fileSize, startOffset, onProgress);
+
+                    await this._sendAckToScpServer(stream, "关闭会话");
+                    resolve({ success: true, fileSize });
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    stream?.close();
+                }
+            });
+        });
+    }
+
     /**************************************************************
      * 单个文件SCP下载（支持断点续传，修复协议交互流程）
      * @param {import('ssh2').Client} conn - SSH连接实例（已认证）
@@ -682,6 +719,206 @@ class SFTPService extends EventEmitter {
             stream.on("timeout", onTimeout);
             stream.on("error", onStreamError);
             stream.on("close", onStreamClose);
+        });
+    }
+
+
+    /**
+     * SCP数据流->内存映射文件
+     * @private
+     * @param {Object} stream - SCP命令流（ssh2的exec stream，已完成元信息交互）
+     * @param {Object} map - MMF内存映射对象（mmap.js的Map实例）
+     * @param {number} totalSize - 文件总大小（从元信息获取）
+     * @param {number} startOffset - 开始写入的偏移量（断点续传用）
+     * @param {Function} onProgress - 进度回调（{ status, progress, recvBytes, totalBytes, filename }）
+     * @returns {Promise<void>}
+     */
+    async _writeToMMF(stream, map, totalSize, startOffset, onProgress) {
+        return new Promise((resolve, reject) => {
+            let recvFileBytes = startOffset; // 已写入MMF的字节数
+            let isFinished = false; // 标记传输完成
+            let isClosed = false; // 标记流已关闭
+            const filename = `MMF_${startOffset}_${totalSize}`;
+
+            // 进度回调兜底
+            const progressCallback = (opts) => {
+                if (typeof onProgress === "function") {
+                    try { onProgress(opts); } catch (e) { Print.error(`进度回调异常: ${e.message}`); }
+                }
+            };
+
+            // -------------------------- 辅助函数 --------------------------
+            /**
+             * 核心：直接写入数据到MMF（零拷贝）
+             * @param {Buffer} chunk - 待写入的纯文件数据
+             */
+            const writeToMMF = (chunk) => {
+                // 计算可写入的字节数（防越界，避免写入结束标记）
+                const remainingSize = totalSize - recvFileBytes;
+                if (remainingSize <= 0) return 0;
+
+                const writeSize = Math.min(data.length, remainingSize);
+                if (writeSize <= 0) return 0;
+
+                // MMF动态扩容（按需，仅当写入偏移量超出当前映射大小）
+                if (recvFileBytes + writeSize > map.length) {
+                    Print.debug(`[SCP-MMF] MMF扩容: ${map.length} → ${recvFileBytes + writeSize} 字节`);
+                    map.resize(recvFileBytes + writeSize);
+                }
+
+                // 零拷贝写入：直接将数据写入MM
+                map.write(chunk, recvFileBytes);
+
+                // 更新已接收字节数
+                recvFileBytes += writeSize;
+
+                // 进度回调
+                const progress = Math.min((recvFileBytes / totalSize) * 100, 100).toFixed(1);
+                progressCallback({
+                    status: 0,
+                    progress: `${progress}%`,
+                    recvBytes: recvFileBytes,
+                    totalBytes: totalSize,
+                    filename
+                });
+
+                return writeSize;
+            };
+
+            /**
+             * 校验结束标记并完成传输
+             * @param {Buffer} chunk - 待校验的chunk
+             * @returns {boolean} - 是否是结束标记
+             */
+            const checkEndMarker = (chunk) => {
+                if (recvFileBytes >= totalSize) {
+                    if (chunk.length === 1 && chunk[0] === 0x00) {
+                        Print.log(`[SCP-MMF] 收到SCP结束标记（0x00），传输完成（总接收: ${recvFileBytes}/${totalSize} 字节）`);
+                        isFinished = true;
+                        resolve();
+                        cleanup();
+                        return true;
+                    } else {
+                        reject(new Error(`[SCP-MMF] 数据传输异常：已接收完数据但收到非结束标记（长度: ${chunk.length}, 首字节: 0x${chunk[0]?.toString(16) || '空'}）`));
+                        cleanup();
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            /**
+             * 清理所有资源（防内存泄漏/句柄残留）
+             */
+            const cleanup = () => {
+                if (isClosed) return;
+                Print.debug("[SCP-MMF] 执行资源清理");
+                stream.off("data", onData);
+                stream.off("error", onStreamError);
+                stream.off("close", onStreamClose);
+                stream.off("drain", onStreamDrain);
+                stream.off("timeout", onTimeout);
+                isClosed = true;
+                isFinished = true;
+            };
+
+            // 流错误处理
+            const onStreamError = (err) => {
+                if (isFinished) return;
+                reject(new Error(`[SCP-MMF] SCP数据流异常: ${err.message}（已接收: ${recvFileBytes}/${totalSize} 字节）`));
+                cleanup();
+            };
+
+            // 流关闭处理（异常关闭）
+            const onStreamClose = (code) => {
+                if (isFinished || isClosed) return;
+
+                // 校验是否传输完成
+                if (recvFileBytes === totalSize) {
+                    Print.log(`[SCP-MMF] SCP流正常关闭（已接收: ${recvFileBytes}/${totalSize} 字节，退出码: ${code}）`);
+                    isFinished = true;
+                    resolve();
+                } else {
+                    reject(new Error(`[SCP-MMF] SCP流异常关闭：数据未传输完成（已接收: ${recvFileBytes}/${totalSize} 字节，退出码: ${code}）`));
+                }
+                cleanup();
+            };
+
+            // 流drain事件（恢复数据接收，流控核心）
+            const onStreamDrain = () => {
+                Print.debug("[SCP-MMF] 流缓冲区清空，恢复接收服务器数据");
+                stream.resume();
+            };
+
+            // 流超时处理
+            const onTimeout = () => {
+                if (isFinished) return;
+                reject(new Error(`[SCP-MMF] SCP数据传输超时（已接收: ${recvFileBytes}/${totalSize} 字节，超时时间: 30s）`));
+                cleanup();
+            };
+
+            // 数据块写入内存映射文件
+            const onData = (chunk) => {
+                if (isFinished || isClosed) return;
+
+                try {
+                    // 优先校验结束标记（已接收完数据时）
+                    if (checkEndMarker(chunk)) return;
+
+                    // 直接写入MMF
+                    const writeSize = writeToMMF(chunk);
+
+                    // 处理可能的剩余数据（仅当chunk包含结束标记时，极罕见）
+                    if (writeSize < chunk.length) {
+                        const remainingChunk = chunk.slice(writeSize);
+                        Print.debug(`[SCP-MMF] 处理剩余数据（已达文件大小上限）: ${remainingChunk.length} 字节`);
+                        // 校验剩余数据是否是结束标记
+                        checkEndMarker(remainingChunk);
+                    }
+
+                    // 流控：如果MMF写入后流缓冲区满，暂停接收
+                    if (!stream.writable) {
+                        Print.debug("[SCP-MMF] 流不可写，暂停接收数据");
+                        stream.pause();
+                    }
+
+                    // 发送ACK确认（SCP协议要求：接收完每个数据块后发0x00）
+                    const ackSent = stream.write(Buffer.alloc(1, 0x00), (err) => {
+                        if (err) {
+                            Print.error(`[SCP-MMF] 发送ACK失败: ${err.message}`);
+                            reject(new Error(`发送SCP ACK失败: ${err.message}`));
+                            cleanup();
+                        }
+                    });
+
+                    // 流控：ACK发送缓冲区满时暂停接收
+                    if (!ackSent) {
+                        Print.debug("[SCP-MMF] ACK发送缓冲区满，暂停接收数据");
+                        stream.pause();
+                    }
+
+                } catch (e) {
+                    Print.error(`[SCP-MMF] 数据写入MMF异常: ${e.message}`, e.stack);
+                    reject(new Error(`SCP数据写入MMF失败: ${e.message}（已接收: ${recvFileBytes}/${totalSize} 字节）`));
+                    cleanup();
+                }
+            };
+
+            stream.on("data", onData);
+            stream.on("error", onStreamError);
+            stream.on("close", onStreamClose);
+            stream.on("drain", onStreamDrain);
+            stream.on("timeout", onTimeout);
+            // 设置30s超时（可根据业务调整）
+            stream.setTimeout(30000);
+            // 初始进度回调（0%）
+            progressCallback({
+                status: 0,
+                progress: "0.0%",
+                recvBytes: recvFileBytes,
+                totalBytes: totalSize,
+                filename
+            });
         });
     }
 
