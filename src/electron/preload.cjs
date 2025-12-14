@@ -20,11 +20,11 @@ contextBridge.exposeInMainWorld('channel', {
     // 下载单个文件到内存映射文件，避免文件拷贝
     sshDownloadToMMF: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:downloadToMMF', { host, port, username, password, remotePath }),
     // 压缩文件读写
-    extractFile: (archivePath, archiveId) => ipcRenderer.invoke('mmf:extract', archivePath, archiveId),
-    readFile: (cacheKey, offset, length) => ipcRenderer.invoke('mmf:read', cacheKey, offset, length),
+    extractFile: (archivePath) => ipcRenderer.invoke('mmf:extract', archivePath),
+    loadFileContents: (fileMeta) => ipcRenderer.invoke('mmf:loadFileContents', fileMeta),
     writeFile: (cacheKey, offset, data) => ipcRenderer.invoke('mmf:write', cacheKey, offset, data),
     saveFile: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:save', cacheKey, outputPath),
     compressGZ: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:compress-gz', cacheKey, outputPath),
-    decompressGZ: (gzPath, archiveId) => ipcRenderer.invoke('mmf:decompress-gz', gzPath, archiveId),
-    clear: (archiveId) => ipcRenderer.invoke('mmf:clear', archiveId)
+    decompressGZ: (gzPath) => ipcRenderer.invoke('mmf:decompress-gz', gzPath),
+    clear: () => ipcRenderer.invoke('mmf:clear')
 })

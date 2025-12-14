@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron';
 import SFTPService from './SFTPService.js';
-import memoryFileManager from '../core/MemoryFileManager.js';
 
 class IPCManager {
     constructor(window) {
@@ -37,30 +36,6 @@ class IPCManager {
             await sftp.listDir(config.host, config.remotePath);
             // sftp.fileTree.changeDirectory(config.remotePath);
             return sftp.fileTree.toJson();
-        });
-        // 下载服务器文件到本地内存映射文件
-        ipcMain.handle("ssh:downloadToMMF", async (event, config) => {
-            const sftp = await SFTPService.create(config);
-            // 创建空MMF
-            let cacheKey = config.host + ":" + config.remoteFile;
-            const mmfHandle = await memoryFileManager.createEmptyMMF(cacheKey, config.remoteFileSize);
-
-            // 下载直接写入MMF
-            await SFTPService.downloadToMMF(
-                config.host,
-                config.remoteFile,
-                mmfHandle, // 仅传fd和map，无MM类依赖
-                0,
-                (progress) => console.log(`进度：${progress}%`)
-            );
-
-            // 标记MMF为已写入
-            memoryFileManager.fileMeta.set(cacheKey, {
-                archivePath: 'scp_downloads',
-                isEdited: false,
-                isEmpty: false
-            });
-
         });
         // SCP下载文件夹到本地
         ipcMain.on('sftp-download-dir', async (event, config) => {

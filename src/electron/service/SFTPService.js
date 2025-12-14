@@ -6,6 +6,7 @@ import path from "path";
 import Print from "../core/Print.js";
 import FileTree from "../core/FileTree.js";
 import { FileNodeType } from "../core/FileNodeType.js";
+import mmap from 'mmap-io';
 // import Client from 'ssh2-sftp-client';
 
 class SFTPService extends EventEmitter {
@@ -367,15 +368,16 @@ class SFTPService extends EventEmitter {
 
     /**
      * 直接写入内存映射文件
-     * @param {import('ssh2').Client} conn
+     * @param {string} host 远程文件服务器IP
      * @param {string} remoteFilePath
      * @param {Object} mmfHandle - { fd: number, map: mmap.Map } 内存映射文件对象
      * @param {number} startOffset - 文件偏移位置，始终为0
      * @param {Function} onProgress
      * @returns {Promise<{ success: boolean, fileSize: number }>}
      */
-    async downloadToMMF(conn, remoteFilePath, mmfHandle, startOffset = 0, onProgress) {
+    async downloadToMMF(host, remoteFilePath, mmfHandle, startOffset = 0, onProgress) {
         return new Promise(async (resolve, reject) => {
+            let conn = await this.getSSHClient(host);
             conn.exec(`scp -f '${remoteFilePath}'`, async (err, stream) => {
                 if (err) return reject(new Error(`创建通道失败: ${err.message}`));
 
@@ -386,10 +388,8 @@ class SFTPService extends EventEmitter {
                     if (meta.status === -1) throw new Error("解析元信息失败");
                     const fileSize = meta.fileInfo.size;
                     await this._sendAckToScpServer(stream, "确认元信息");
-
                     // 直接写入MMF
-                    await this._writeToMMF(stream, mmfHandle.map, fileSize, startOffset, onProgress);
-
+                    await this.#writeToMMF(stream, mmfHandle.map, fileSize, startOffset, onProgress);
                     await this._sendAckToScpServer(stream, "关闭会话");
                     resolve({ success: true, fileSize });
                 } catch (error) {
@@ -727,18 +727,19 @@ class SFTPService extends EventEmitter {
      * SCP数据流->内存映射文件
      * @private
      * @param {Object} stream - SCP命令流（ssh2的exec stream，已完成元信息交互）
-     * @param {Object} map - MMF内存映射对象（mmap.js的Map实例）
+     * @param {Object} mmfHandle -  mmap-io内存映射句柄（来自MMFManager的缓存，包含buffer/size等）
      * @param {number} totalSize - 文件总大小（从元信息获取）
      * @param {number} startOffset - 开始写入的偏移量（断点续传用）
      * @param {Function} onProgress - 进度回调（{ status, progress, recvBytes, totalBytes, filename }）
      * @returns {Promise<void>}
      */
-    async _writeToMMF(stream, map, totalSize, startOffset, onProgress) {
+    async #writeToMMF(stream, mmfHandle, totalSize, startOffset = 0, onProgress) {
         return new Promise((resolve, reject) => {
             let recvFileBytes = startOffset; // 已写入MMF的字节数
             let isFinished = false; // 标记传输完成
             let isClosed = false; // 标记流已关闭
             const filename = `MMF_${startOffset}_${totalSize}`;
+            const view = new Uint8Array(mmfHandle.buffer);
 
             // 进度回调兜底
             const progressCallback = (opts) => {
@@ -747,27 +748,36 @@ class SFTPService extends EventEmitter {
                 }
             };
 
-            // -------------------------- 辅助函数 --------------------------
             /**
-             * 核心：直接写入数据到MMF（零拷贝）
+             * 核心：直接写入数据到MMF（零拷贝，适配mmap-io）
              * @param {Buffer} chunk - 待写入的纯文件数据
+             * @returns {number} 实际写入的字节数
              */
             const writeToMMF = (chunk) => {
                 // 计算可写入的字节数（防越界，避免写入结束标记）
                 const remainingSize = totalSize - recvFileBytes;
                 if (remainingSize <= 0) return 0;
 
-                const writeSize = Math.min(data.length, remainingSize);
+                const writeSize = Math.min(chunk.length, remainingSize);
                 if (writeSize <= 0) return 0;
 
-                // MMF动态扩容（按需，仅当写入偏移量超出当前映射大小）
-                if (recvFileBytes + writeSize > map.length) {
-                    Print.debug(`[SCP-MMF] MMF扩容: ${map.length} → ${recvFileBytes + writeSize} 字节`);
-                    map.resize(recvFileBytes + writeSize);
+                // mmap-io不支持动态扩容，提前校验是否超出预分配大小（必须预分配≥totalSize）
+                if (recvFileBytes + writeSize > mmfHandle.size) {
+                    throw new Error(`[SCP-MMF] MMF预分配大小不足（${mmfHandle.size} 字节），无法写入 ${recvFileBytes + writeSize} 字节`);
                 }
 
-                // 零拷贝写入：直接将数据写入MM
-                map.write(chunk, recvFileBytes);
+                // 零拷贝写入：Buffer → Uint8Array（直接操作映射区）
+                view.set(chunk.subarray(0, writeSize), recvFileBytes);
+
+                // 可选：每写入一定量数据刷盘（避免脏页过多，按需开启）
+                if (recvFileBytes % (8192 * 4) === 0) { // 每32KB刷一次
+                    try {
+                        mmap.flush(mmfHandle.buffer);
+                        Print.debug(`[SCP-MMF] 刷盘偏移 ${recvFileBytes} 字节成功`);
+                    } catch (flushErr) {
+                        Print.warn(`[SCP-MMF] 刷盘偏移 ${recvFileBytes} 字节失败: ${flushErr.message}`);
+                    }
+                }
 
                 // 更新已接收字节数
                 recvFileBytes += writeSize;
@@ -795,6 +805,21 @@ class SFTPService extends EventEmitter {
                     if (chunk.length === 1 && chunk[0] === 0x00) {
                         Print.log(`[SCP-MMF] 收到SCP结束标记（0x00），传输完成（总接收: ${recvFileBytes}/${totalSize} 字节）`);
                         isFinished = true;
+                        // 发送ACK确认（SCP协议要求：接收完每个数据块后发0x00）
+                        stream.write(Buffer.alloc(1, 0x00), (err) => {
+                            if (err) {
+                                Print.error(`[SCP-MMF] 发送ACK失败: ${err.message}`);
+                                reject(new Error(`发送SCP ACK失败: ${err.message}`));
+                                cleanup();
+                            }
+                        });
+                        // 最终刷盘：确保所有数据落盘
+                        try {
+                            mmap.flush(mmfHandle.buffer);
+                            Print.debug(`[SCP-MMF] 传输完成，最终刷盘成功`);
+                        } catch (flushErr) {
+                            Print.error(`[SCP-MMF] 最终刷盘失败: ${flushErr.message}`);
+                        }
                         resolve();
                         cleanup();
                         return true;
@@ -835,6 +860,12 @@ class SFTPService extends EventEmitter {
 
                 // 校验是否传输完成
                 if (recvFileBytes === totalSize) {
+                    // 最终刷盘
+                    try {
+                        mmap.flush(mmfHandle.buffer);
+                    } catch (flushErr) {
+                        Print.error(`[SCP-MMF] 流关闭时刷盘失败: ${flushErr.message}`);
+                    }
                     Print.log(`[SCP-MMF] SCP流正常关闭（已接收: ${recvFileBytes}/${totalSize} 字节，退出码: ${code}）`);
                     isFinished = true;
                     resolve();
@@ -865,7 +896,7 @@ class SFTPService extends EventEmitter {
                     // 优先校验结束标记（已接收完数据时）
                     if (checkEndMarker(chunk)) return;
 
-                    // 直接写入MMF
+                    // 直接写入MMF（适配mmap-io）
                     const writeSize = writeToMMF(chunk);
 
                     // 处理可能的剩余数据（仅当chunk包含结束标记时，极罕见）
@@ -904,6 +935,7 @@ class SFTPService extends EventEmitter {
                 }
             };
 
+            // 绑定流事件
             stream.on("data", onData);
             stream.on("error", onStreamError);
             stream.on("close", onStreamClose);
