@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 
 const IMAGE_SIGNATURES = [
   { signature: 'FFD8FF', ext: 'jpg', desc: 'JPEG 图片' },
@@ -120,7 +120,8 @@ class FileTypeDetector {
 
       // 分配16字节Buffer（覆盖所有签名最大长度）
       const buffer = Buffer.alloc(16);
-      const { bytesRead } = await fs.read(fd, buffer, 0, buffer.length, 0);
+
+      const { bytesRead } = await fd.read(buffer, 0, buffer.length, 0);
 
       if (bytesRead === 0) return null;
 
@@ -129,7 +130,7 @@ class FileTypeDetector {
       console.error(`[文件检测失败] ${filePath}:`, err.message);
       return null;
     } finally {
-      if (fd) await fs.close(fd);
+      if (fd) await fd.close(); // 注意：fs/promises 的 fd.close() 也是实例方法
     }
   }
 

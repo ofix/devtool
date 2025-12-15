@@ -1,13 +1,16 @@
 import { ipcMain } from 'electron';
 import sevenBin from '7zip-bin';
-import { SevenZip } from 'node-7z';
-import mmap from 'mmap-io';
+import node7z from 'node-7z';
+const { extract, list } = node7z;
+// import mmap from 'mmap-io';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import os from 'os';
-import SFTPService from '../service/SFTPService';
-import { fileTypeDetector } from './FileTypeDetector';
+import Utils from './Utils.js';
+import SFTPService from '../service/SFTPService.js';
+import { fileTypeDetector } from './FileTypeDetector.js';
 
 // 内存映射文件管理器
 class MMFileManager {
@@ -15,10 +18,12 @@ class MMFileManager {
     constructor(options = {}) {
         this.threadCount = options.threadCount || os.cpus().length;
         this.tempDir = options.tempDir || path.join(os.tmpdir(), 'devtools');
-        console.log("创建内存映射文件管理器：", this.tempDir, "线程数：", this.threadCount);
-
         // 7-Zip初始化
-        this.sevenZip = new SevenZip(sevenBin.path7za);
+        if (!fsSync.existsSync(sevenBin.path7za)) {
+            throw new Error(`7-Zip 二进制文件不存在：${sevenBin.path7za} `);
+        }
+
+        console.log("sevenBin.path7za = ", sevenBin.path7za);
 
         // 核心缓存
         this.mmfHandles = new Map(); // 完整路径 → MMF句柄
@@ -47,7 +52,7 @@ class MMFileManager {
     /** 注册极简IPC */
     _registerIPC() {
         ipcMain.handle('mmf:extract', (_, archivePath) => this.extract(archivePath));
-        ipcMain.handle('mmf:loadFileContents', (_, fileMeta) => this.loadFileContents(fileMeta));
+        ipcMain.handle('mmf:loadFileContents', (_, remoteFile) => this.loadFileContents(remoteFile));
         ipcMain.handle('mmf:write', (_, fullPath, offset = 0, data) => this.write(fullPath, offset, data));
         ipcMain.handle('mmf:save', (_, fullPath, outputPath) => this.save(fullPath, outputPath));
         ipcMain.handle('mmf:compress-gz', (_, fullPath, outputPath) => this.compressGZ(fullPath, outputPath));
@@ -56,540 +61,268 @@ class MMFileManager {
         ipcMain.handle('mmf:clear-single', (_, fullPath) => this.clearSingle(fullPath));
     }
 
-    async loadFileContents(fileMeta) {
-        // 检查cache是否存在
-        let cacheKey = fileMeta.host + ':' + fileMeta.path;
-        if (this.mmfHandles.has(cacheKey)) {
-            const handle = this.mmfHandles.get(cacheKey);
-            return handle.map;
+    async loadFileContents(remoteFile) {
+        // 映射远程文件到本地路径
+        let localFilePath = await Utils.ensureRemoteFilePath(remoteFile.host, remoteFile.path);
+        // SCP 下载远程服务器文件到本地
+        const sftp = await SFTPService.create(remoteFile);
+        let conn = await sftp.getSSHClient(remoteFile.host);
+        await sftp.downloadFile(conn, remoteFile.path, localFilePath, null);
+
+        // 检查文件是否是压缩文件
+        if (fileTypeDetector.isArchiveFile(localFilePath)) {
+            // 4. 解压文件（核心逻辑：区分单/多文件）
+            let extractResult = await this.extractFile(localFilePath);
+            if (!extractResult.success) {
+                console.warn(`解压失败：${extractResult.error} `);
+                return "";
+            }
+
+            // 根据解压结果读取内容（单文件直接读，多文件默认读第一个）
+            let content = "";
+            if (extractResult.fileCount > 0) {
+                // 优先读第一个有效文件
+                const targetFile = extractResult.isSingleFile
+                    ? extractResult.path
+                    : extractResult.filePaths[0];
+                content = await fs.readFile(targetFile, 'utf-8');
+            }
+            return { success: true, data: content };
         }
 
-        // 创建内存映射（零拷贝）
-        const mmfHandle = await this.createEmptyMMF(cacheKey, fileMeta.size);
-
-        // SCP下载直接写入MMF
-        await SFTPService.downloadToMMF(
-            fileMeta.host,
-            fileMeta.remoteFile,
-            mmfHandle, // 仅传fd和buffer
-            0,
-            null,
-        );
-
-        // 标记MMF为已写入
-        this.fileMeta.set(cacheKey, {
-            archivePath: fileMeta.remoteFile,
-            isEdited: false,
-            isEmpty: false
-        });
-
-        // 文件下载完成后检查是否是压缩文件
-        if (fileTypeDetector.isArchiveFile(mmfHandle.buffer)) {
-            // 解压到MMF
-            let uncompassFileName = fileTypeDetector.removeArchiveSuffix(fileMeta.remoteFile);
-            await this.extractFileToMMF(fileMeta.remoteFile, uncompassFileName);
-        }
-
-        return mmfHandle.buffer;  // 返回 ArrayBuffer
+        // 非压缩文件，直接读取
+        content = await fs.readFile(localFilePath, 'utf-8');
+        return { success: true, data: content };
     }
 
-    // 解压单个文件到MMF
-    async extractFileToMMF(archivePath, filePath) {
-        // 缓存键
-        const fullPath = path.isAbsolute(filePath) ? filePath : path.join(path.dirname(archivePath), filePath);
-        if (this.mmfHandles.has(fullPath)) return fullPath;
 
-        // 创建临时文件（基于完整路径哈希）
-        const tempName = Buffer.from(fullPath).toString('hex');
-        const tempPath = path.join(this.tempDir, tempName);
-
-        // 7-Zip解压到临时文件
-        await this.sevenZip.extract(archivePath, filePath, {
-            $bin: sevenBin.path7za,
-            args: [`-so`, `-mmt=${this.threadCount}`]
-        }).pipe(fsSync.createWriteStream(tempPath));
-
-        // 等待文件写入完成
-        await new Promise((resolve, reject) => {
-            const writeStream = fsSync.createWriteStream(tempPath);
-            this.sevenZip.extract(archivePath, filePath, {
-                $bin: sevenBin.path7za,
-                args: [`-so`, `-mmt=${this.threadCount}`]
-            })
-                .pipe(writeStream)
-                .on('finish', resolve)
-                .on('error', reject);
-        });
-
-        // 内存映射
-        const stats = await fs.stat(tempPath);
-        const fd = fsSync.openSync(tempPath, 'r+');
-
-        const buffer = mmap.map(
-            fd,
-            stats.size,
-            mmap.PROT_READ | mmap.PROT_WRITE,
-            mmap.MAP_SHARED,
-            0
-        );
-
-        // 缓存状态
-        this.mmfHandles.set(fullPath, {
-            fd: fd,
-            fileHandle: { fd: fd },  // 保持接口兼容
-            buffer: buffer,          // mmap-io 返回的是 ArrayBuffer
-            fileSize: fileMeta.size,
-            size: stats.size,
-            tempPath
-        });
-
-        this.fileMeta.set(fullPath, {
-            archivePath, // 关联所属压缩包
-            isEdited: false
-        });
-
-        // 维护压缩包→文件的映射（用于批量操作）
-        if (!this.archiveMap.has(archivePath)) {
-            this.archiveMap.set(archivePath, []);
-        }
-        this.archiveMap.get(archivePath).push(fullPath);
-
-        return fullPath;
-    }
-
-    /** 调整MMF大小 */
-    async resizeMMF(fullPath, newSize) {
-        const handle = this.mmfHandles.get(fullPath);
-        if (!handle) throw new Error(`文件不存在: ${fullPath}`);
-
-        // 取消映射
-        mmap.unmap(handle.buffer);
-
-        // 调整文件大小
-        await fs.truncate(handle.tempPath, newSize);
-
-        // 重新映射
-        const newBuffer = mmap.map(
-            handle.fd,
-            newSize,
-            mmap.PROT_READ | mmap.PROT_WRITE,
-            mmap.MAP_SHARED,
-            0
-        );
-
-        this.mmfHandles.set(fullPath, {
-            ...handle,
-            buffer: newBuffer,
-            size: newSize
-        });
-    }
-
-    // -------------------------- 公开接口 --------------------------
     /**
-     * 解压压缩包到内存（缓存键=文件完整路径）
-     * @param {string} archivePath 压缩包完整路径
-     * @returns {Object} { success, fullPaths, count }
+  * 辅助方法：列出压缩包内的所有文件（不解压，用于判断单/多文件）
+  * 适配 node-7z@3.0 + 修复单文件解析问题
+  * @param {string} archiveFilePath 压缩文件路径
+  * @returns {Promise<string[]>} 压缩包内的文件路径列表（相对路径）
+  */
+    async #listArchiveFiles(archiveFilePath) {
+        // 前置校验：压缩文件存在性
+        if (!fsSync.existsSync(archiveFilePath)) {
+            return Promise.reject(new Error(`压缩文件不存在：${archiveFilePath}`));
+        }
+
+        return new Promise((resolve, reject) => {
+            const fileList = [];
+            // node-7z@3.0 调用 list 方法（核心：指定 bin 路径，移除 $ 前缀）
+            const listStream = list(archiveFilePath);
+
+            // 场景1：v3.0 新版本解析（返回结构化对象）
+            let isStructuredData = false;
+            listStream
+                .on('data', (chunk) => {
+                    console.log(chunk);
+                    // 分支1：node-7z@3.0 结构化输出（{ type: 'file', name: 'xxx' }）
+                    if (typeof chunk === 'object' && chunk !== null) {
+                        isStructuredData = true;
+                        // 只保留文件，过滤目录
+                        if (chunk.type === 'file' && chunk.name) {
+                            console.log(chunk);
+                            const entryPath = chunk.name.trim();
+                            // 过滤空路径 + 确保是文件（排除目录）
+                            if (entryPath) {
+                                fileList.push(entryPath);
+                            }
+                        }
+                    }
+                    // 分支2：兼容旧版纯文本输出（兜底逻辑）
+                    else {
+                        const lines = chunk.toString().split(os.EOL);
+                        lines.forEach(line => {
+                            console.log(line);
+                            const pathMatch = line.match(/^Path = (.*)$/);
+                            if (pathMatch && pathMatch[1]) {
+                                const entryPath = pathMatch[1].trim();
+                                // 过滤目录：有扩展名 + 不以 /\ 结尾
+                                if (entryPath && path.extname(entryPath) && !entryPath.endsWith('/') && !entryPath.endsWith('\\')) {
+                                    fileList.push(entryPath);
+                                }
+                            }
+                        });
+                    }
+                })
+                // 流结束：去重 + 去空 + 返回结果
+                .on('end', () => {
+                    // 去重 + 过滤空字符串（避免单文件场景下的空项）
+                    const uniqueFiles = [...new Set(fileList)].filter(file => !!file);
+                    // 修复单文件场景：确保至少返回1项
+                    resolve(uniqueFiles);
+                })
+                // 错误处理：捕获流错误 + 超时
+                .on('error', (err) => {
+                    reject(new Error(`读取压缩包列表失败：${err.message}（文件：${archiveFilePath}）`));
+                });
+
+            // 超时兜底：防止流卡死（5秒超时）
+            setTimeout(() => {
+                if (!listStream.destroyed) {
+                    listStream.destroy();
+                    reject(new Error(`读取压缩包列表超时：${archiveFilePath}`));
+                }
+            }, 5000);
+        });
+    }
+
+    // ---------------- 以下是依赖的辅助方法/核心方法（确保逻辑闭环） ----------------
+    /**
+     * 辅助方法：递归获取目录下的所有文件
+     * @param {string} dir 目录路径
+     * @returns {string[]} 文件路径列表
      */
-    async extract(archivePath) {
+    #getAllFilesInDir(dir) {
+        let files = [];
+        if (!fsSync.existsSync(dir)) return files;
+
+        const entries = fsSync.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isFile()) {
+                files.push(fullPath);
+            } else if (entry.isDirectory()) {
+                files = files.concat(this.#getAllFilesInDir(fullPath));
+            }
+        }
+        return files;
+    }
+
+    /**
+  * 简化版：直接解压 .gz 文件（跳过列表检测，单文件直接解压）
+  * @param {string} archiveFilePath 压缩文件路径
+  * @returns {Promise<{success: boolean, path?: string, error?: string}>}
+  */
+    async #extractGzFile(archiveFilePath) {
         try {
-            const { files } = await this.sevenZip.list(archivePath, {
-                $bin: sevenBin.path7za,
-                args: [`-mmt=${this.threadCount}`]
+            // .gz 解压后文件名（去掉 .gz 后缀）
+            const targetFileName = path.basename(archiveFilePath, '.gz');
+            const targetFilePath = path.join(path.dirname(archiveFilePath), targetFileName);
+
+            // 7za 解压 .gz 命令（直接指定输出文件）
+            const args = [
+                'e', // e = 提取文件（忽略目录结构，适合单文件）
+                archiveFilePath.includes(' ') ? `"${archiveFilePath}"` : archiveFilePath,
+                `-o${path.dirname(archiveFilePath)}`, // 输出目录
+                '-y', // 覆盖已有文件
+                '-aoa', // 强制覆盖
+                '-scsUTF-8' // 中文编码
+            ];
+
+            return new Promise((resolve, reject) => {
+                // 关键：shell=true + 固定路径
+                const child = spawn(sevenBin.path7za, args, {
+                    shell: true,
+                    stdio: 'ignore', // 忽略输出，提升速度
+                    cwd: path.dirname(archiveFilePath) // 切换工作目录
+                });
+
+                child.on('close', (code) => {
+                    if (code === 0 && fsSync.existsSync(targetFilePath)) {
+                        resolve({ success: true, path: targetFilePath });
+                    } else {
+                        reject(new Error(`.gz 解压失败，退出码：${code}`));
+                    }
+                });
+
+                child.on('error', (err) => {
+                    reject(new Error(`解压 .gz 失败：${err.message}`));
+                });
+
+                // 超时兜底
+                setTimeout(() => {
+                    if (!child.killed) {
+                        child.kill();
+                        reject(new Error(`.gz 解压超时`));
+                    }
+                }, 8000);
+            });
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    }
+
+    /**
+     * 核心解压方法（调用 #listArchiveFiles）
+     * @param {string} archiveFilePath 压缩文件路径
+     * @returns {Promise<{success: boolean, fileCount: number, isSingleFile: boolean, path?: string, dirPath?: string, filePaths?: string[], error?: string}>}
+     */
+    async extractFile(archiveFilePath) {
+        try {
+            // 场景1：.gz 文件（单文件压缩，直接解压）
+            if (archiveFilePath.endsWith('.gz')) {
+                const gzResult = await this.#extractGzFile(archiveFilePath);
+                if (gzResult.success) {
+                    return {
+                        success: true,
+                        fileCount: 1,
+                        isSingleFile: true,
+                        path: gzResult.path
+                    };
+                } else {
+                    return { success: false, fileCount: 0, isSingleFile: false, error: gzResult.error };
+                }
+            }
+
+            // 1. 获取压缩包内文件列表（核心调用修复后的 #listArchiveFiles）
+            const archiveFiles = await this.#listArchiveFiles(archiveFilePath);
+            if (archiveFiles.length === 0) {
+                return {
+                    success: false,
+                    fileCount: 0,
+                    isSingleFile: false,
+                    error: `压缩包内无有效文件：${archiveFilePath}`
+                };
+            }
+
+            // 2. 判断单/多文件
+            const isSingleFile = archiveFiles.length === 1;
+            const archiveDir = path.dirname(archiveFilePath);
+            const archiveName = path.basename(archiveFilePath, path.extname(archiveFilePath));
+            const extractDirForMulti = path.join(archiveDir, `${archiveName}_extracted`);
+            const extractTarget = isSingleFile ? archiveDir : extractDirForMulti;
+
+            // 3. 确保解压目录存在
+            if (!isSingleFile && !fsSync.existsSync(extractTarget)) {
+                fsSync.mkdirSync(extractTarget, { recursive: true });
+            }
+
+            // 4. 执行解压
+            await new Promise((resolve, reject) => {
+                extract(archiveFilePath, extractTarget, {
+                    $bin: sevenBin.path7za,
+                    args: ['-y', `-mmt=${os.cpus().length}`, '-aoa', '-bsp1', '-r', '-scsUTF-8']
+                })
+                    .on('end', resolve)
+                    .on('error', (err) => reject(new Error(`解压失败：${err.message}`)));
             });
 
-            // 并行解压所有文件
-            const fullPaths = await Promise.all(
-                files
-                    .filter(file => file.type === 'file')
-                    .map(file => this.extractFileToMMF(archivePath, file.name))
-            );
+            // 5. 获取解压后的文件列表
+            const extractedFiles = isSingleFile
+                ? [path.join(archiveDir, path.basename(archiveFiles[0]))]
+                : this.#getAllFilesInDir(extractTarget);
 
             return {
                 success: true,
-                fullPaths, // 返回解压后的所有文件完整路径（缓存键）
-                count: fullPaths.length
+                fileCount: extractedFiles.length,
+                isSingleFile: isSingleFile,
+                path: isSingleFile ? extractedFiles[0] : undefined,
+                dirPath: isSingleFile ? undefined : extractTarget,
+                filePaths: extractedFiles
             };
         } catch (err) {
-            console.error('Extract error:', err);
-            return { success: false, error: err.message };
-        }
-    }
-
-    /**
-   * 创建空的内存映射（用于SCP直接写入）
-   * @param {string} cacheKey 缓存键（唯一标识映射）
-   * @param {number} fileSize 预分配大小（需≥0，建议对齐内存页）
-   * @returns {Promise<{ fd: number, buffer: ArrayBuffer, tempPath: string }>}
-   */
-    async createEmptyMMF(cacheKey, fileSize) {
-        if (this.mmfHandles.has(cacheKey)) {
-            throw new Error(`缓存键 ${cacheKey} 已存在，请勿重复创建`);
-        }
-        if (fileSize < 0) {
-            throw new Error(`预分配大小 ${fileSize} 无效，必须≥0`);
-        }
-        // 内存页对齐（默认4096字节，跨平台兼容）
-        const pageSize = 4096;
-        const alignedSize = Math.ceil(fileSize / pageSize) * pageSize;
-
-        let fd = null;
-        let buffer = null;
-        const tempName = Buffer.from(cacheKey).toString('hex');
-        const tempPath = path.join(this.tempDir, tempName);
-
-        try {
-            // 创建并打开临时文件（w+：创建+读写，不存在则新建，存在则清空）
-            fd = fsSyncSync.openSync(tempPath, 'w+', 0o600); // 显式设置权限（跨平台）
-
-            // 预分配文件大小（截断到对齐后的大小）
-            // 空文件（fileSize=0）也需截断，避免映射区大小异常
-            fsSyncSync.ftruncateSync(fd, alignedSize);
-
-            // 创建内存映射
-            // PROT_READ|PROT_WRITE：可读写；MAP_SHARED：修改同步到文件
-            // Windows下MAP_SHARED需文件可写，Linux/macOS无特殊限制
-            buffer = mmap.map(
-                fd,
-                alignedSize,
-                mmap.PROT_READ | mmap.PROT_WRITE,
-                mmap.MAP_SHARED,
-                0 // 映射起始偏移（必须对齐内存页）
-            );
-
-            // 缓存句柄（包含清理所需的所有信息）
-            this.mmfHandles.set(cacheKey, {
-                fd,
-                fileHandle: fsSyncSync.openAsFileHandle(fd), // 标准Node.js文件句柄
-                buffer,
-                size: alignedSize,
-                tempPath,
-                isEmpty: true,
-                createdTime: Date.now()
-            });
-
-            // 返回结果（fd需保留，后续关闭映射时需用到）
             return {
-                fd,
-                buffer,
-                tempPath
+                success: false,
+                fileCount: 0,
+                isSingleFile: false,
+                error: err.message
             };
-        } catch (err) {
-            // 异常时清理资源：关闭fd + 删除临时文件
-            if (fd !== null) {
-                try {
-                    fsSyncSync.closeSync(fd);
-                } catch (closeErr) {
-                    console.error(`关闭fd失败：${closeErr.message}`);
-                }
-            }
-            if (fsSyncSync.existsSync(tempPath)) {
-                try {
-                    fsSyncSync.unlinkSync(tempPath);
-                } catch (unlinkErr) {
-                    console.error(`删除临时文件失败：${unlinkErr.message}`);
-                }
-            }
-            throw new Error(`创建空MMF失败：${err.message}`);
         }
     }
 
-    /**
-     * 释放内存映射（必须调用，否则内存泄漏）
-     * @param {string} cacheKey 缓存键
-     * @returns {Promise<void>}
-     */
-    async releaseMMF(cacheKey) {
-        const handle = this.mmfHandles.get(cacheKey);
-        if (!handle) return;
-
-        try {
-            // 1. 解除内存映射（核心：避免内存泄漏）
-            if (handle.buffer) {
-                mmap.unmap(handle.buffer);
-            }
-            // 2. 关闭文件句柄（同步关闭，确保fd释放）
-            if (handle.fileHandle) {
-                await handle.fileHandle.close();
-            } else if (handle.fd !== null) {
-                fsSyncSync.closeSync(handle.fd);
-            }
-            // 3. 删除临时文件（可选：根据业务是否保留文件）
-            if (fsSyncSync.existsSync(handle.tempPath)) {
-                fsSyncSync.unlinkSync(handle.tempPath);
-            }
-        } catch (err) {
-            console.error(`释放MMF失败 ${cacheKey}：${err.message}`);
-        } finally {
-            // 4. 移除缓存（无论是否失败，都移除无效句柄）
-            this.mmfHandles.delete(cacheKey);
-        }
-    }
-
-    /**
-     * 强制刷盘（确保映射区数据写入磁盘）
-     * @param {string} cacheKey 缓存键
-     * @returns {boolean} 刷盘是否成功
-     */
-    flushMMF(cacheKey) {
-        const handle = this.mmfHandles.get(cacheKey);
-        if (!handle || !handle.buffer) return false;
-
-        try {
-            // mmap-io的flush方法：强制将脏页刷到磁盘
-            return mmap.flush(handle.buffer);
-        } catch (err) {
-            console.error(`刷盘MMF失败 ${cacheKey}：${err.message}`);
-            return false;
-        }
-    }
-
-    /**
-     * 读取内存文件
-     * @param {string} fullPath 文件完整路径（缓存键）
-     * @param {number} offset 偏移量
-     * @param {number} length 读取长度
-     * @returns {Buffer|null}
-     */
-    async read(fullPath, offset = 0, length) {
-        const handle = this.mmfHandles.get(fullPath);
-        if (!handle) return null;
-
-        const actualLength = length || (handle.size - offset);
-        if (offset + actualLength > handle.size) {
-            throw new Error(`读取越界: ${offset}+${actualLength} > ${handle.size}`);
-        }
-
-        // 从 ArrayBuffer 创建 Buffer
-        return Buffer.from(handle.buffer.slice(offset, offset + actualLength));
-    }
-
-    /**
-     * 写入内存文件
-     * @param {string} fullPath 文件完整路径（缓存键）
-     * @param {number} offset 偏移量
-     * @param {string|Buffer} data 写入数据
-     * @returns {boolean}
-     */
-    async write(fullPath, offset = 0, data) {
-        const handle = this.mmfHandles.get(fullPath);
-        const meta = this.fileMeta.get(fullPath);
-        if (!handle || !meta) return false;
-
-        const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-        const needResize = offset + buffer.length > handle.size;
-
-        if (needResize) {
-            await this.resizeMMF(fullPath, offset + buffer.length);
-        }
-
-        // 写入到 ArrayBuffer
-        const targetBuffer = new Uint8Array(handle.buffer);
-        const sourceBuffer = new Uint8Array(buffer.buffer || buffer);
-        targetBuffer.set(sourceBuffer, offset);
-
-        // 同步到磁盘
-        mmap.sync(handle.buffer, false);  // 异步同步
-
-        meta.isEdited = true;
-        this.fileMeta.set(fullPath, meta);
-
-        return true;
-    }
-
-    /**
-     * 保存文件（支持GZ自动压缩）
-     * @param {string} fullPath 文件完整路径（缓存键）
-     * @param {string} outputPath 输出路径（.gz结尾自动压缩）
-     * @returns {Object} { success, outputPath }
-     */
-    async save(fullPath, outputPath) {
-        try {
-            const content = await this.read(fullPath);
-            if (!content) return { success: false, error: '文件不存在' };
-
-            if (outputPath.endsWith('.gz')) {
-                await this.sevenZip.add(outputPath, '-', {
-                    $bin: sevenBin.path7za,
-                    args: [`-tgz`, `-mx=9`, `-mmt=${this.threadCount}`, `-si`]
-                }).end(content);
-            } else {
-                await fs.writeFile(outputPath, content);
-            }
-
-            this.fileMeta.set(fullPath, { ...this.fileMeta.get(fullPath), isEdited: false });
-            return { success: true, outputPath };
-        } catch (err) {
-            console.error('Save error:', err);
-            return { success: false, error: err.message };
-        }
-    }
-
-    /**
-     * GZ压缩内存文件
-     * @param {string} fullPath 文件完整路径（缓存键）
-     * @param {string} outputPath 输出GZ路径
-     * @returns {Object} { success, outputPath }
-     */
-    async compressGZ(fullPath, outputPath) {
-        return this.save(fullPath, outputPath.endsWith('.gz') ? outputPath : `${outputPath}.gz`);
-    }
-
-    /**
-     * 解压GZ文件到内存
-     * @param {string} gzPath GZ文件完整路径
-     * @returns {Object} { success, fullPath }
-     */
-    async decompressGZ(gzPath) {
-        try {
-            const { files } = await this.sevenZip.list(gzPath, { $bin: sevenBin.path7za });
-            const file = files.find(f => f.type === 'file');
-            if (!file) return { success: false, error: 'GZ内无有效文件' };
-
-            const fullPath = await this.extractFileToMMF(gzPath, file.name);
-            return { success: true, fullPath };
-        } catch (err) {
-            console.error('Decompress GZ error:', err);
-            return { success: false, error: err.message };
-        }
-    }
-
-    /**
-     * 批量清理指定压缩包的所有文件
-     * @param {string} archivePath 压缩包完整路径
-     * @returns {Object} { success, count }
-     */
-    async clearByArchive(archivePath) {
-        const fullPaths = this.archiveMap.get(archivePath) || [];
-        let count = 0;
-
-        for (const fullPath of fullPaths) {
-            const success = await this._cleanupSingleFile(fullPath);
-            if (success) count++;
-        }
-
-        this.archiveMap.delete(archivePath);
-        return { success: true, count };
-    }
-
-    /**
-     * 清理单个文件的内存缓存
-     * @param {string} fullPath 文件完整路径（缓存键）
-     * @returns {Object} { success }
-     */
-    async clearSingle(fullPath) {
-        const success = await this._cleanupSingleFile(fullPath);
-        return { success, error: success ? null : '文件不存在' };
-    }
-
-    /** 内部清理单个文件的辅助方法 */
-    async _cleanupSingleFile(fullPath) {
-        const handle = this.mmfHandles.get(fullPath);
-        if (!handle) return false;
-
-        try {
-            // 清理MMF
-            mmap.unmap(handle.buffer);
-            fsSync.closeSync(handle.fd);
-            await fs.unlink(handle.tempPath).catch(() => { });
-        } catch (err) {
-            console.error(`Cleanup error for ${fullPath}:`, err);
-        }
-
-        // 清理元信息
-        const meta = this.fileMeta.get(fullPath);
-        if (meta) {
-            // 从压缩包映射中移除
-            const fullPaths = this.archiveMap.get(meta.archivePath) || [];
-            this.archiveMap.set(meta.archivePath, fullPaths.filter(p => p !== fullPath));
-            this.fileMeta.delete(fullPath);
-        }
-
-        this.mmfHandles.delete(fullPath);
-        return true;
-    }
-
-    /**
-     * 全局清理
-     * @returns {Object} { success }
-     */
-    async cleanup() {
-        for (const handle of this.mmfHandles.values()) {
-            try {
-                mmap.unmap(handle.buffer);
-                fsSync.closeSync(handle.fd);
-                await fs.unlink(handle.tempPath).catch(() => { });
-            } catch (err) {
-                console.error('Global cleanup error:', err);
-            }
-        }
-
-        this.mmfHandles.clear();
-        this.fileMeta.clear();
-        this.archiveMap.clear();
-
-        try {
-            await fs.rm(this.tempDir, { recursive: true, force: true });
-        } catch (err) {
-            console.error('Temp dir removal error:', err);
-        }
-
-        return { success: true };
-    }
-
-    // -------------------------- 新增辅助方法 --------------------------
-
-    /**
-     * 获取文件映射统计信息
-     * @returns {Object} 统计信息
-     */
-    getStats() {
-        return {
-            totalMappedFiles: this.mmfHandles.size,
-            totalArchives: this.archiveMap.size,
-            tempDir: this.tempDir,
-            platform: process.platform,
-            architecture: process.arch
-        };
-    }
-
-    /**
-     * 手动同步映射文件到磁盘
-     * @param {string} fullPath 文件完整路径
-     * @param {boolean} async 是否异步同步
-     * @returns {boolean}
-     */
-    syncToDisk(fullPath, async = true) {
-        const handle = this.mmfHandles.get(fullPath);
-        if (!handle) return false;
-
-        try {
-            mmap.sync(handle.buffer, !async);  // mmap-io: false=异步, true=同步
-            return true;
-        } catch (err) {
-            console.error('Sync to disk error:', err);
-            return false;
-        }
-    }
-
-    /**
-     * 获取文件映射的ArrayBuffer
-     * @param {string} fullPath 文件完整路径
-     * @returns {ArrayBuffer|null}
-     */
-    getArrayBuffer(fullPath) {
-        const handle = this.mmfHandles.get(fullPath);
-        return handle ? handle.buffer : null;
-    }
-
-    /**
-     * 检查文件是否被修改
-     * @param {string} fullPath 文件完整路径
-     * @returns {boolean}
-     */
-    isFileModified(fullPath) {
-        const meta = this.fileMeta.get(fullPath);
-        return meta ? meta.isEdited : false;
-    }
 }
 
 const mmFileManager = MMFileManager.getInstance();

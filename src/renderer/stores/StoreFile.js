@@ -10,7 +10,7 @@ export const useFileStore = defineStore('compressFile', () => {
      *     port: 22, 
      *     username: 'root',
      *     password: 'password',
-     *     remoteFile: '/root/test.txt',
+     *     path: '/root/test.txt',
      *     size:1024,
      *     path:"/usr/share/nginx/html/test.txt"
      * }

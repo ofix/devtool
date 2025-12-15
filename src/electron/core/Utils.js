@@ -36,6 +36,13 @@ class Utils {
         return dir;
     }
 
+    static async ensureRemoteFilePath(host, remoteFilePath) {
+        let localPath = join(Utils.sysDocumentDir, "devtool", `sftp.${host}`, remoteFilePath);
+        let absolutePath = path.resolve(localPath);
+        this.ensureDir(absolutePath, true);
+        return absolutePath;
+    }
+
 
     /**************************************************************
      * 同步确保文件夹存在，若不存在则递归创建（支持嵌套目录）

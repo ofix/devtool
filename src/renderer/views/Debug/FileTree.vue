@@ -35,7 +35,7 @@
       :default-expanded-keys="[]"
       :height="treeHeight"
       node-key="path"
-      @node-click="handleNodeClick"
+      @node-click="onTreeNodeClick"
       @node-expand="onNodeExpand"
       @node-contextmenu="handleRightClick"
       class="dt-file-tree"
@@ -50,7 +50,10 @@
           ]"
         >
           <!-- 折叠目录节点（MULTI 类型） -->
-          <div v-if="data.type === FileNodeType.COLLAPSE_DIR" class="collapse-dir-node">
+          <div
+            v-if="data.type === FileNodeType.COLLAPSE_DIR"
+            class="collapse-dir-node"
+          >
             <!-- 折叠路径：用 › 分隔 -->
             <span class="collapse-path">
               <span
@@ -180,6 +183,7 @@ import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "./FileTreeContextMenu.vue";
 import { FileNodeType } from "@/components/FileNodeType.js";
 import { useServerListStore } from "@/stores/StoreServerList.js";
+import { useFileStore } from "@/stores/StoreFile.js";
 
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
@@ -203,6 +207,7 @@ import IconFile from "@/components/icons/IconFile.vue";
 import IconZip from "@/components/icons/IconZip.vue";
 
 const serverListStore = useServerListStore();
+const fileStore = useFileStore();
 
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
@@ -319,9 +324,30 @@ watch(
 );
 
 // 文件树节点单击响应函数
-function handleNodeClick(data, node) {
-  selectedNode.value = data;
-  emit("node-click", data, node);
+async function onTreeNodeClick(data, node) {
+  if (
+    data.type == FileNodeType.FILE ||
+    data.type == FileNodeType.FILE_SYMLINK
+  ) {
+    selectedNode.value = data;
+    const server = serverListStore.currentServer;
+    if (!server) {
+      ElMessage.warning("未连接到服务器");
+      return;
+    }
+
+    let params = {
+      host: server.host,
+      port: server.port,
+      username: server.username,
+      password: server.password,
+      path: data.path,
+      size: data.size,
+    };
+    const fileContent = await fileStore.getRemoteFileContents(params);
+    console.log(`+++++++++++   ${server.host} - ${server.path} ++++++++++++++`);
+    console.log(fileContent);
+  }
 }
 
 // 文件树节点展开响应函数
