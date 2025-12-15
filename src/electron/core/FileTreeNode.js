@@ -259,6 +259,7 @@ class FileTreeNode {
         if (simple) {
             result.name = node.name;
             result.type = node.type;
+            result.size = node.size;
             result.path = node.fullPath;
             result.ext = this.extname(node.fullPath);
             // 区分目录/文件的children处理
