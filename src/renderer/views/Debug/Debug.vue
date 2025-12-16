@@ -7,7 +7,9 @@
         </div>
       </el-splitter-panel>
       <el-splitter-panel>
-        <div class="panel-right"></div>
+        <div class="panel-right">
+            <CodeEditorView/>
+        </div>
       </el-splitter-panel>
     </el-splitter>
   </div>
@@ -16,6 +18,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watchEffect, toValue } from "vue";
 import DebugLeftPanel from "./DebugLeftPanel.vue";
+import CodeEditorView from "@/components/CodeEditorView.vue";
 
 onMounted(() => {
   window.channel.on("download-dir-progress", (data) => {

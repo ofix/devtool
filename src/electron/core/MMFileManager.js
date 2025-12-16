@@ -8,9 +8,13 @@ import fsSync from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import os from 'os';
+// 代码格式化
+import prettier from 'prettier';
+
 import Utils from './Utils.js';
 import SFTPService from '../service/SFTPService.js';
 import { fileTypeDetector } from './FileTypeDetector.js';
+
 
 // 内存映射文件管理器
 class MMFileManager {
@@ -61,6 +65,173 @@ class MMFileManager {
         ipcMain.handle('mmf:clear-single', (_, fullPath) => this.clearSingle(fullPath));
     }
 
+
+    /**
+     * 代码格式化函数（支持20+主流语言）
+     * @param {string} code - 待格式化代码
+     * @param {string} lang - 语言类型（如 js/ts/vue/python/md 等）
+     * @param {Object} customOptions - 自定义Prettier配置（覆盖默认）
+     * @returns {Promise<string>} 格式化后的代码（失败返回原代码）
+     */
+    async formatCode(code, lang = 'js', customOptions = {}) {
+        const parserMap = {
+            // 基础前端
+            js: 'babel',
+            javascript: 'babel',
+            ts: 'typescript',
+            typescript: 'typescript',
+            jsx: 'babel',
+            tsx: 'typescript',
+            html: 'html',
+            css: 'css',
+            scss: 'scss',
+            sass: 'sass',
+            less: 'less',
+            json: 'json',
+            json5: 'json5',
+            jsonc: 'jsonc',
+            // 后端/脚本
+            python: 'python',
+            py: 'python',
+            php: 'php',
+            ruby: 'ruby',
+            rb: 'ruby',
+            go: 'go',
+            golang: 'go',
+            java: 'java',
+            c: 'c',
+            cpp: 'cpp',
+            // 配置/标记语言
+            yaml: 'yaml',
+            yml: 'yaml',
+            markdown: 'markdown',
+            md: 'markdown',
+            xml: 'xml',
+            toml: 'toml',
+            graphql: 'graphql',
+            gql: 'graphql',
+            // 框架/特殊格式
+            vue: 'vue',
+            angular: 'angular',
+            handlebars: 'handlebars',
+            hbs: 'handlebars',
+            sql: 'sql'
+        };
+
+        // 统一语言标识（小写 + 去空格），提升容错
+        const normalizedLang = lang.trim().toLowerCase();
+        const parser = parserMap[normalizedLang];
+
+        // 未支持的语言：尝试通用解析器降级，而非直接报错
+        if (!parser) {
+            console.warn(`[格式化] 未找到${lang}的专属解析器，使用通用解析器降级处理`);
+            // 通用解析器（兼容大部分文本格式）
+            return prettier.format(code, {
+                parser: 'babel', // 兜底解析器
+                ...defaultOptions,
+                ...customOptions
+            });
+        }
+
+        // 动态加载对应语言的插件（避免冗余加载）
+        const pluginMap = {
+            scss: () => import('prettier-plugin-sass'),
+            sass: () => import('prettier-plugin-sass'),
+            less: () => import('prettier-plugin-less'),
+            vue: () => import('prettier-plugin-vue'),
+            python: () => import('@prettier/plugin-python'),
+            php: () => import('@prettier/plugin-php'),
+            ruby: () => import('@prettier/plugin-ruby'),
+            go: () => import('@prettier/plugin-go'),
+            java: () => import('@prettier/plugin-java'),
+            c: () => import('@prettier/plugin-c'),
+            cpp: () => import('@prettier/plugin-c'),
+            yaml: () => import('@prettier/plugin-yaml'),
+            yml: () => import('@prettier/plugin-yaml'),
+            xml: () => import('@prettier/plugin-xml'),
+            toml: () => import('@prettier/plugin-toml'),
+            graphql: () => import('@prettier/plugin-graphql'),
+            gql: () => import('@prettier/plugin-graphql'),
+            sql: () => import('@prettier/plugin-sql'),
+            handlebars: () => import('prettier-plugin-handlebars'),
+            hbs: () => import('prettier-plugin-handlebars')
+        };
+
+        // 构建Prettier配置（默认 + 自定义）
+        const defaultOptions = {
+            parser,
+            tabWidth: 4,
+            useTabs: false,
+            singleQuote: true,
+            trailingComma: 'es5',
+            printWidth: 80,
+            plugins: [], // 动态填充插件
+            // 多语言通用配置
+            bracketSpacing: true,
+            arrowParens: 'avoid',
+            proseWrap: 'preserve', // markdown换行保留
+            htmlWhitespaceSensitivity: 'css', // html空格敏感度
+            endOfLine: 'lf' // 统一换行符（跨平台兼容）
+        };
+
+        // 加载当前语言的插件（若有）
+        if (pluginMap[normalizedLang]) {
+            try {
+                const pluginModule = await pluginMap[normalizedLang]();
+                defaultOptions.plugins.push(pluginModule.default || pluginModule);
+            } catch (e) {
+                console.warn(`[格式化] 加载${lang}插件失败，跳过插件使用：`, e.message);
+            }
+        }
+
+        // 执行格式化（增强容错）
+        try {
+            return await prettier.format(code, {
+                ...defaultOptions,
+                ...customOptions
+            });
+        } catch (error) {
+            console.error(`[格式化] ${lang}代码格式化失败：`, error.message);
+            // 二次降级：移除插件后重试（避免插件导致的失败）
+            try {
+                return await prettier.format(code, {
+                    ...defaultOptions,
+                    plugins: [], // 清空插件
+                    ...customOptions
+                });
+            } catch (secondError) {
+                console.error(`[格式化] 降级重试仍失败，返回原代码：`, secondError.message);
+                return code;
+            }
+        }
+    }
+
+    /**
+     * 去除文件名的压缩包后缀
+     * @param {string} fileName - 带压缩后缀的文件名（如 "test.txt.zip"）
+     * @param {string[]} zipExts - 需去除的压缩后缀数组
+     * @returns {string} 去除压缩后缀后的文件名
+     */
+    removeArchiveExt(fileName, zipExts = ['.zip', '.rar', '.7z', '.gz', '.tar.gz']) {
+        const parsed = path.parse(fileName);
+        const ext = parsed.ext.toLowerCase();
+
+        if (zipExts.includes(ext)) {
+            // 处理.tar.gz这类双后缀压缩包
+            if (ext === '.gz' && parsed.name.endsWith('.tar')) {
+                const rawName = parsed.name.slice(0, -4);
+                return rawName + path.extname(rawName);
+            }
+            return parsed.name;
+        }
+        return fileName;
+    }
+
+    originExt(filePath) {
+        let filename = this.removeArchiveExt(path.basename(filePath));
+        return path.extname(filename)?.substr(1);
+    }
+
     async loadFileContents(remoteFile) {
         // 映射远程文件到本地路径
         let localFilePath = await Utils.ensureRemoteFilePath(remoteFile.host, remoteFile.path);
@@ -71,7 +242,6 @@ class MMFileManager {
 
         // 检查文件是否是压缩文件
         if (fileTypeDetector.isArchiveFile(localFilePath)) {
-            // 4. 解压文件（核心逻辑：区分单/多文件）
             let extractResult = await this.extractFile(localFilePath);
             if (!extractResult.success) {
                 console.warn(`解压失败：${extractResult.error} `);
@@ -81,18 +251,22 @@ class MMFileManager {
             // 根据解压结果读取内容（单文件直接读，多文件默认读第一个）
             let content = "";
             if (extractResult.fileCount > 0) {
-                // 优先读第一个有效文件
                 const targetFile = extractResult.isSingleFile
                     ? extractResult.path
                     : extractResult.filePaths[0];
                 content = await fs.readFile(targetFile, 'utf-8');
             }
-            return { success: true, data: content };
+            // 获取原始文件文件后缀名
+            let originFileExt = this.originExt(remoteFile.path);
+            let formattedContent = await this.formatCode(content, originFileExt);
+            return { success: true, data: formattedContent };
         }
 
         // 非压缩文件，直接读取
         content = await fs.readFile(localFilePath, 'utf-8');
-        return { success: true, data: content };
+        let originFileExt = this.originExt(remoteFile.path);
+        let formattedContent = await this.formatCode(content, originFileExt);
+        return { success: true, data: formattedContent };
     }
 
 
@@ -200,16 +374,26 @@ class MMFileManager {
         try {
             // .gz 解压后文件名（去掉 .gz 后缀）
             const targetFileName = path.basename(archiveFilePath, '.gz');
+            const targetDir = path.dirname(archiveFilePath); // 输出目录
             const targetFilePath = path.join(path.dirname(archiveFilePath), targetFileName);
 
             // 7za 解压 .gz 命令（直接指定输出文件）
+            // const args = [
+            //     'e', // e = 提取文件（忽略目录结构，适合单文件）
+            //     archiveFilePath.includes(' ') ? `"${archiveFilePath}"` : archiveFilePath,
+            //     `-o${path.dirname(archiveFilePath)}`, // 输出目录
+            //     '-y', // 覆盖已有文件
+            //     '-aoa', // 强制覆盖
+            //     '-scsUTF-8' // 中文编码
+            // ];
             const args = [
-                'e', // e = 提取文件（忽略目录结构，适合单文件）
-                archiveFilePath.includes(' ') ? `"${archiveFilePath}"` : archiveFilePath,
-                `-o${path.dirname(archiveFilePath)}`, // 输出目录
+                'e', // 提取文件
+                '-tgzip', // 强制指定压缩格式为 gzip（7za 识别 .gz 必须加这个）
+                archiveFilePath.includes(' ') ? `"${archiveFilePath}"` : archiveFilePath, // 源文件（无需手动加引号，spawn 会自动处理空格）
+                `-o${targetDir}`, // 输出目录（无空格，7za 要求 -o 和路径之间无空格）
                 '-y', // 覆盖已有文件
                 '-aoa', // 强制覆盖
-                '-scsUTF-8' // 中文编码
+                '-scsUTF-8' // 编码
             ];
 
             return new Promise((resolve, reject) => {
@@ -217,7 +401,10 @@ class MMFileManager {
                 const child = spawn(sevenBin.path7za, args, {
                     shell: true,
                     stdio: 'ignore', // 忽略输出，提升速度
-                    cwd: path.dirname(archiveFilePath) // 切换工作目录
+                    cwd: targetDir,// 切换工作目录
+                    // 补充：Linux 下避免权限继承问题
+                    uid: process.getuid ? process.getuid() : undefined,
+                    gid: process.getgid ? process.getgid() : undefined
                 });
 
                 child.on('close', (code) => {
