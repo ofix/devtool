@@ -250,8 +250,9 @@ class MMFileManager {
 
             // 根据解压结果读取内容（单文件直接读，多文件默认读第一个）
             let content = "";
+            let targetFile = "";
             if (extractResult.fileCount > 0) {
-                const targetFile = extractResult.isSingleFile
+                targetFile = extractResult.isSingleFile
                     ? extractResult.path
                     : extractResult.filePaths[0];
                 content = await fs.readFile(targetFile, 'utf-8');
@@ -259,14 +260,30 @@ class MMFileManager {
             // 获取原始文件文件后缀名
             let originFileExt = this.originExt(remoteFile.path);
             let formattedContent = await this.formatCode(content, originFileExt);
-            return { success: true, data: formattedContent };
+            const fileInfo = {
+                originFileName: path.basename(remoteFile.path), // 原始文件名（如test.js.gz）
+                extractFileName: path.basename(targetFile), // 解压后的文件名（如test.js）
+                remoteFilePath: remoteFile.path, // 服务器路径
+                host: remoteFile.host, // 主机IP
+                localFilePath: targetFile, // 本地路径
+                content: formattedContent, // 文件内容
+            };
+            return { success: true, data: fileInfo };
         }
 
         // 非压缩文件，直接读取
         content = await fs.readFile(localFilePath, 'utf-8');
         let originFileExt = this.originExt(remoteFile.path);
         let formattedContent = await this.formatCode(content, originFileExt);
-        return { success: true, data: formattedContent };
+        const fileInfo = {
+            originFileName: path.basename(remoteFile.path), // 原始文件名（如test.js.gz）
+            extractFileName: path.basename(localFilePath), // 解压后的文件名（如test.js）
+            remoteFilePath: remoteFile.path, // 服务器路径
+            host: remoteFile.host, // 主机IP
+            localFilePath: localFilePath, // 本地路径
+            content: formattedContent, // 文件内容
+        };
+        return { success: true, data: fileInfo };
     }
 
 

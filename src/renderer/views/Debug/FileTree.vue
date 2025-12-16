@@ -184,6 +184,7 @@ import FileTreeContextMenu from "./FileTreeContextMenu.vue";
 import { FileNodeType } from "@/components/FileNodeType.js";
 import { useServerListStore } from "@/stores/StoreServerList.js";
 import { useFileStore } from "@/stores/StoreFile.js";
+import { useEditorStore } from "@/stores/StoreEditor.js";
 
 // 自定义树节点图标
 import IconFileHtml from "@/components/icons/IconFileHtml.vue";
@@ -208,7 +209,10 @@ import IconZip from "@/components/icons/IconZip.vue";
 
 const serverListStore = useServerListStore();
 const fileStore = useFileStore();
+const editorStore = useEditorStore();
 
+// --------------------- 编辑器方法 ---------------------
+const { openFile, isFileOpened } = editorStore;
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
 const fileTreeData = ref([]);
@@ -237,6 +241,7 @@ const emit = defineEmits([
   "load-success", // 增量加载成功
   "load-fail", // 增量加载失败
   "connection-close", // SFTP 连接关闭
+  "fileOpened", // 文件打开事件
 ]);
 
 // 递归扁平化单子目录节点，生成折叠节点
@@ -344,9 +349,10 @@ async function onTreeNodeClick(data, node) {
       path: data.path,
       size: data.size,
     };
-    const fileContent = await fileStore.getRemoteFileContents(params);
-    console.log(`+++++++++++   ${server.host} - ${server.path} ++++++++++++++`);
-    console.log(fileContent);
+    const fileInfo = await fileStore.getRemoteFileContents(params);
+    console.log("++++++   fileInfo   ++++++++");
+    console.log(fileInfo);
+    openFile(fileInfo);
   }
 }
 
