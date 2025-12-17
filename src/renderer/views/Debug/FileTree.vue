@@ -313,8 +313,6 @@ watch(
         console.log(
           `加载服务器 ${newServer.host} 目录 ${newServer.remotePath}`
         );
-        console.log(fileTreeData.value);
-        console.log("++++++++++++++++++++++++++");
       } catch (e) {
         console.error("加载目录失败", e);
         ElMessage.error(`加载目录失败：${e.message || "未知错误"}`);
@@ -350,8 +348,6 @@ async function onTreeNodeClick(data, node) {
       size: data.size,
     };
     const fileInfo = await fileStore.getRemoteFileContents(params);
-    console.log("++++++   fileInfo   ++++++++");
-    console.log(fileInfo);
     openFile(fileInfo);
   }
 }
@@ -362,7 +358,6 @@ async function onNodeExpand(data, node) {
     data.type == FileNodeType.FILE ||
     data.type == FileNodeType.FILE_SYMLINK
   ) {
-    console.log("请选择目录节点");
     return;
   }
   const server = serverListStore.currentServer;
@@ -412,9 +407,7 @@ const clickOutsideHandler = (e) => closeOnClickOutside(e);
 const escHandler = (e) => closeOnEsc(e);
 
 // 单击折叠节点
-function onClickMultiPath(data, pathSegment, index) {
-  console.log(data, pathSegment, index);
-}
+function onClickMultiPath(data, pathSegment, index) {}
 
 // 右键菜单点击折叠节点
 function onContextMenuMultiPath(e, data) {
@@ -758,7 +751,7 @@ function handleAddDir() {
   --el-tree-node-current-color: #37373d;
   height: calc(100vh - 156px);
   max-height: calc(100vh - 156px);
-  overflow-y: auto; /* 修正：改为auto，避免内容溢出 */
+  overflow-y: hidden;
 }
 
 .tree-node-content {

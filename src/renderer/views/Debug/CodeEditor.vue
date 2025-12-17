@@ -32,104 +32,103 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick, markRaw } from "vue";
 import { useEditorStore } from "@/stores/StoreEditor.js";
-// 延迟导入Monaco，避免首屏卡顿
 import * as monaco from "monaco-editor";
 
-// 初始化Store
+// 防抖函数
+const debounce = (fn, delay) => {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+};
+
+// 节流触发布局
+const throttle = (fn, delay) => {
+  let lastCall = 0;
+  return (...args) => {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      fn(...args);
+      lastCall = now;
+    }
+  };
+};
+
 const editorStore = useEditorStore();
 // 标记Monaco为原始对象，避免Vue响应式劫持导致卡顿
 editorStore.setMonacoInstance(markRaw(monaco));
 
-// 编辑器相关引用
 const editorContainer = ref(null);
 let editor = null;
-const isLoading = ref(false); // 加载状态
+const isLoading = ref(false);
 
-// 监听激活文件变化，按需创建/更新编辑器
+// 异步切换Model的防抖方法
+const switchEditorModel = debounce(async (newFileId) => {
+  if (!newFileId || !editorStore.activeFile) {
+    if (editor) {
+      editor.dispose();
+      editor = null;
+    }
+    isLoading.value = false;
+    return;
+  }
+
+  isLoading.value = true;
+  await nextTick();
+  if (!editorContainer.value) {
+    isLoading.value = false;
+    return;
+  }
+
+  try {
+    if (!editor) {
+      editor = monaco.editor.create(editorContainer.value, {
+        theme: "vs-dark",
+        minimap: { enabled: false },
+        fontSize: 14,
+        automaticLayout: false, // 关闭自动布局，手动触发
+        scrollBeyondLastLine: false,
+        readOnly: true,
+        scrollbar: { vertical: "visible", horizontal: "auto" },
+        hover: { enabled: false },
+        suggest: { enabled: false },
+        // 禁用所有语言服务，彻底避免Worker阻塞
+        disableLayerHinting: true,
+        hideCursorInOverviewRuler: true,
+        overviewRulerLanes: 0,
+      });
+    }
+
+    // 异步创建Model（避免同步阻塞）
+    const model = await editorStore.createModelAsync(newFileId);
+    if (model && !model.isDisposed()) {
+      editor.setModel(model);
+      editor.updateOptions({ readOnly: false });
+      // 手动触发布局（仅一次）
+      editor.layout();
+    }
+    isLoading.value = false;
+  } catch (error) {
+    console.error("编辑器操作失败:", error);
+    isLoading.value = false;
+  }
+}, 100); // 100ms防抖，避免快速切换
+
+// 改造监听逻辑
 const unwatchActiveFile = watch(
   () => editorStore.activeFileId,
-  async (newFileId) => {
-    // 1. 无激活文件：销毁编辑器
-    if (!newFileId || !editorStore.activeFile) {
-      if (editor) {
-        editor.dispose();
-        editor = null;
-      }
-      isLoading.value = false;
-      return;
-    }
-
-    isLoading.value = true;
-    // 2. 容器不存在：等待DOM渲染完成
-    if (!editorContainer.value) {
-      await nextTick();
-      if (!editorContainer.value) {
-        isLoading.value = false;
-        return;
-      }
-    }
-
-    try {
-      // 3. 首次创建：初始化编辑器实例（优化配置）
-      if (!editor) {
-        // 禁用Monaco不必要的功能，减少卡顿
-        monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-          noSemanticValidation: true,
-          noSyntaxValidation: true,
-        });
-        monaco.languages.javascript.javascriptDefaults.setDiagnosticsOptions({
-          noSemanticValidation: true,
-          noSyntaxValidation: true,
-        });
-
-        editor = monaco.editor.create(editorContainer.value, {
-          theme: "vs-dark",
-          minimap: { enabled: false },
-          fontSize: 14,
-          automaticLayout: true,
-          scrollBeyondLastLine: false,
-          readOnly: true, // 先设为只读，避免编辑卡顿
-          scrollbar: {
-            vertical: "visible",
-            horizontal: "auto",
-          },
-          // 禁用冗余功能
-          hover: { enabled: false },
-          suggest: { enabled: false },
-        });
-        // 强制触发编辑器布局
-        editor.layout();
-      }
-
-      // 4. 异步更新Model，避免阻塞UI
-      await nextTick();
-      if (editorStore.activeFile?.model) {
-        console.log("显示文本内容...", editorStore.openFiles.length);
-        // 标记Model为原始对象，避免Vue劫持
-        const model = markRaw(editorStore.activeFile.model);
-        editor.setModel(model);
-        // 强制刷新布局
-        editor.layout();
-        // 恢复可编辑（可选）
-        editor.updateOptions({ readOnly: false });
-      }
-      isLoading.value = false;
-    } catch (error) {
-      console.error("编辑器操作失败:", error);
-      isLoading.value = false;
-    }
-  },
-  {
-    immediate: true,
-    flush: "post", // 延迟到DOM更新后执行，避免卡顿
-    deep: false, // 关闭深度监听，提升性能
-  }
+  (newFileId) => switchEditorModel(newFileId), // 调用防抖方法
+  { immediate: true, flush: "post", deep: false }
 );
 
-// 切换标签页（防抖处理）
+const handleResize = throttle(() => {
+  if (editor) editor.layout();
+}, 200); // 200ms节流
+
+// 切换标签页,防抖处理
 const handleTabClick = (fileId) => {
   if (!fileId) return;
-  // 防抖：避免快速点击导致卡顿
   clearTimeout(window.tabClickTimer);
   window.tabClickTimer = setTimeout(() => {
     editorStore.switchActiveFile(fileId);
@@ -147,11 +146,6 @@ const handleCloseFile = (fileId) => {
     editor.dispose();
     editor = null;
   }
-};
-
-// 窗口大小变化时强制更新布局
-const handleResize = () => {
-  if (editor) editor.layout();
 };
 
 onMounted(() => {

@@ -32,7 +32,8 @@ const createWindow = () => {
             nodeIntegration: true,
             contextIsolation: true,
             sandbox: false,
-            webSecurity: false
+            webSecurity: false,
+            backgroundThrottling: false, // 禁止后台节流，避免编辑器卡顿
         },
     })
 
@@ -81,7 +82,7 @@ app.on('window-all-closed', () => {
 
 // 应用退出时清理资源
 app.on('will-quit', async () => {
-    await mmFileManager.cleanup();
+
 });
 
 

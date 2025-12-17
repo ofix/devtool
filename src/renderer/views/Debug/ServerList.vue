@@ -94,7 +94,7 @@
 
 <script setup>
 import { Plus } from "@element-plus/icons-vue";
-import { ref, onMounted, defineExpose } from "vue";
+import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useServerListStore } from "@/stores/StoreServerList.js";
 import ServerListContextMenu from "./ServerListContextMenu.vue";
@@ -243,9 +243,7 @@ const onCtxMenuOpenConnection = async () => {
     return;
   }
   try {
-    console.log(selectedServer);
-    let server = {...selectedServer};
-    console.log(server);
+    let server = { ...selectedServer }; // 将Pinia引用对象转换成普通对象
     await serverListStore.connectServer(server);
   } catch (error) {
     console.error("打开连接失败：", error);
@@ -457,7 +455,7 @@ defineExpose({
 }
 
 /* 修复Element折叠面板标题padding */
-::v-deep .el-collapse-item__header {
+:deep(.el-collapse-item__header) {
   padding-right: 16px !important;
 }
 

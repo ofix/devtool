@@ -21,16 +21,14 @@ import DebugLeftPanel from "./DebugLeftPanel.vue";
 import CodeEditor from "./CodeEditor.vue";
 
 onMounted(() => {
-  window.channel.on("download-dir-progress", (data) => {
-    console.log("接收消息 download-dir-progress", data);
-  });
-  window.channel.on("upload-dir-progress", (data) => {
-    console.log("接收消息 upload-dir-progress", data);
-  });
+//   window.channel.on("download-dir-progress", (data) => {
+//     console.log("接收消息 download-dir-progress", data);
+//   });
+//   window.channel.on("upload-dir-progress", (data) => {
+//     console.log("接收消息 upload-dir-progress", data);
+//   });
 });
 onUnmounted(() => {
-  window.channel.removeAllListeners("download-dir-progress");
-  window.channel.removeAllListeners("upload-dir-progress");
 });
 </script>
 

@@ -3,12 +3,23 @@ import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 
 import { defineConfig } from 'vite'
+import monacoEditorPlugin from 'vite-plugin-monaco-editor'
+
 import VueDevTools from 'vite-plugin-vue-devtools'
 import { StartElectronPlugin } from './vite.start.electron.js'
+
 export default defineConfig({
     plugins: [
         vue(),
         StartElectronPlugin(),
+        monacoEditorPlugin.default({
+            languageWorkers: ['css', 'html', 'json', 'typescript'],
+            globalAPI: true,
+            customDistPath: (root, buildOutDir, base) => {
+                return `${root}/${buildOutDir}/monaco`;
+            },
+            // publicPath: '../dist/monaco'
+        }),
         VueDevTools({ apply: 'serve' }), // 仅开发环境启用（apply: 'serve'）
     ],
 
@@ -22,6 +33,6 @@ export default defineConfig({
     },
     // 解决原生模块问题
     optimizeDeps: {
-        exclude: ['ssh2'] // 排除ssh2从预构建
+        exclude: ['ssh2'], // 排除ssh2从预构建
     },
 })

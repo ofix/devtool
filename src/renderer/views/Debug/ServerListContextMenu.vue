@@ -37,8 +37,6 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from "vue";
-
 // 定义接收的 Props：从父组件传递过来的数据
 const props = defineProps({
   show: {

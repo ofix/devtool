@@ -42,5 +42,6 @@ import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
   background-color: var(--dt-primary-bg-color);
   color: var(--dt-primary-text-color);
   padding: 0;
+  overflow-y: hidden;
 }
 </style>
