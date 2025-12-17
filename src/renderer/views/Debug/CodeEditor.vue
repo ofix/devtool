@@ -85,7 +85,15 @@ const switchEditorModel = debounce(async (newFileId) => {
     if (!editor) {
       editor = monaco.editor.create(editorContainer.value, {
         theme: "vs-dark",
-        minimap: { enabled: false },
+        minimap: {
+          enabled: true, // 启用迷你地图
+          position: "right", // 位置（right/bottom）
+          side: "right", // 侧边（匹配VS Code）
+          size: "proportional", // 大小（proportional/fill）
+          scale: 1, // 缩放比例
+          showSlider: "always", // 滑块显示时机
+          maxColumn: 80, // 迷你地图最大列数
+        },
         fontSize: 14,
         automaticLayout: false, // 关闭自动布局，手动触发
         scrollBeyondLastLine: false,
