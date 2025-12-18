@@ -180,7 +180,7 @@ import {
 } from "vue";
 import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
-import FileTreeContextMenu from "./FileTreeContextMenu.vue";
+import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
 import { FileNodeType } from "@/components/FileNodeType.js";
 import { useServerListStore } from "@/stores/StoreServerList.js";
 import { useFileStore } from "@/stores/StoreFile.js";
@@ -298,7 +298,9 @@ onUnmounted(() => {
 watch(
   () => serverListStore.currentServer,
   async (newServer, oldServer) => {
-    if (newServer) {
+    console.log(newServer);
+    console.log(oldServer);
+    if (newServer != oldServer && newServer) {
       try {
         // 连接成功，加载目录
         let params = {

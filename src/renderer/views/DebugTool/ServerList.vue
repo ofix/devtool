@@ -97,7 +97,7 @@ import { Plus } from "@element-plus/icons-vue";
 import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useServerListStore } from "@/stores/StoreServerList.js";
-import ServerListContextMenu from "./ServerListContextMenu.vue";
+import ServerListContextMenu from "@/views/DebugTool/ServerListContextMenu.vue";
 
 const serverListStore = useServerListStore();
 const dialogVisible = ref(false);

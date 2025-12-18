@@ -3,12 +3,26 @@
   <div class="vscode-content">
     <el-container>
       <el-aside>
-        <!-- VSCode 风格菜单，支持路由跳转 -->
         <VSCodeMenu :default-menu-path="'/'" />
       </el-aside>
       <el-container>
         <el-main>
-          <router-view />
+          <el-splitter direction="horizontal" class="debug-splitter">
+            <el-splitter-panel :min="100" :size="300">
+              <div class="panel-left">
+                <router-view v-slot="{ Component }">
+                  <KeepAlive>
+                    <component :is="Component" />
+                  </KeepAlive>
+                </router-view>
+              </div>
+            </el-splitter-panel>
+            <el-splitter-panel>
+              <div class="panel-right">
+                <CodeEditor />
+              </div>
+            </el-splitter-panel>
+          </el-splitter>
         </el-main>
       </el-container>
     </el-container>
@@ -16,9 +30,9 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
 import VSCodeMenu from "@/components/VSCodeMenu.vue";
 import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
+import CodeEditor from "@/views/DebugTool/CodeEditor.vue";
 </script>
 
 <style type="scss" scoped>
@@ -43,5 +57,30 @@ import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
   color: var(--dt-primary-text-color);
   padding: 0;
   overflow-y: hidden;
+}
+
+.page-debug {
+  height: 100vh; /* 改为vh确保占满视口，或100%但需父级也有高度 */
+  width: 100%;
+}
+.debug-splitter {
+  height: 100%; /* 必须给splitter设置高度，否则子面板无法渲染 */
+  width: 100%;
+}
+
+.panel-left {
+  height: 100%;
+}
+
+.panel-right {
+  height: 100%;
+  width: 100%; /* 补充宽度，避免横向留白 */
+  /* 兜底：确保内容溢出时可滚动 */
+  overflow: hidden;
+}
+/* 穿透设置CodeEditor的根容器高度（如果样式隔离） */
+:deep(.code-editor-container) {
+  height: 100%;
+  width: 100%;
 }
 </style>

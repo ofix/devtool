@@ -9,7 +9,7 @@ const MenuRoutes = [
     path: '/',
     name: 'Root',
     component: VSCodeLayout,
-    redirect: '/debug',
+    redirect: '/debug-tool/ssh',
     meta: {
       icon: SSHIcon,
       title: '界面调试',
@@ -17,9 +17,9 @@ const MenuRoutes = [
     },
     children: [
       {
-        path: '/debug',
-        name: 'Debug',
-        component: () => import('@/views/Debug/Debug.vue'),
+        path: '/debug-tool/ssh',
+        name: 'SSH',
+        component: () => import('@/views/DebugTool/SSHPanel.vue'),
         meta: {
           icon: SSHIcon,
           title: '界面调试',
@@ -27,9 +27,9 @@ const MenuRoutes = [
         }
       },
       {
-        path: '/search-replace',
+        path: '/debug-tool/search-replace',
         name: 'SearchReplace',
-        component: () => import('@/views/SearchReplace/SearchReplace.vue'),
+        component: () => import('@/views/DebugTool/SearchReplacePanel.vue'),
         meta: {
           icon: SearchIcon,
           title: '查找替换',
@@ -37,9 +37,9 @@ const MenuRoutes = [
         }
       },
       {
-        path: '/file-compare',
+        path: '/debug-tool/file-compare',
         name: 'FileCompare',
-        component: () => import('@/views/FileCompare/FileCompare.vue'),
+        component: () => import('@/views/DebugTool/FileComparePanel.vue'),
         meta: {
           icon: FileCompareIcon,
           title: '文件对比',

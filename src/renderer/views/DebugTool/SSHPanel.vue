@@ -1,6 +1,10 @@
 <template>
   <div class="debug-left-panel">
-    <el-collapse expand-icon-position="left" class="dt-collapse" v-model="activeNames">
+    <el-collapse
+      expand-icon-position="left"
+      class="dt-collapse"
+      v-model="activeNames"
+    >
       <ServerList />
       <FileTree />
       <el-collapse-item title="OUTLINE" name="3"> </el-collapse-item>
@@ -9,12 +13,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
-import FileTree from "@/views/Debug/FileTree.vue";
-import ServerList from "@/views/Debug/ServerList.vue";
+import { ref } from "vue";
+import FileTree from "@/views/DebugTool/FileTree.vue";
+import ServerList from "@/views/DebugTool/ServerList.vue";
 
-const activeNames = ref(['1', '2']);
-
+const activeNames = ref(["1", "2"]);
 </script>
 <style scoped>
 .debug-left-panel {
