@@ -26,5 +26,14 @@ contextBridge.exposeInMainWorld('channel', {
     saveFile: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:save', cacheKey, outputPath),
     compressGZ: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:compress-gz', cacheKey, outputPath),
     decompressGZ: (gzPath) => ipcRenderer.invoke('mmf:decompress-gz', gzPath),
-    clear: () => ipcRenderer.invoke('mmf:clear')
+    clear: () => ipcRenderer.invoke('mmf:clear'),
+    // 快捷键相关操作
+    registerShortcut: (accelerator, handlerName) => ipcRenderer.invoke('shortcut:register', accelerator, handlerName),
+    unregisterShortcut: (accelerator) => ipcRenderer.invoke('shortcut:unregister', accelerator),
+    getAllShortcuts: () => ipcRenderer.invoke('shortcut:getAll'),
+    isShortcutRegistered: (accelerator) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
+    onShortcut: (handlerName, callback) => {
+        const channel = `shortcut:${handlerName}`
+        ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    }
 })
