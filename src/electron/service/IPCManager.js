@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import SFTPService from './SFTPService.js';
+import { httpsClient } from '../core/HTTPSClient.js';
 
 class IPCManager {
     constructor(window) {
@@ -52,6 +53,22 @@ class IPCManager {
                 event.reply('upload-dir-progress', dirProgress);
             });
         })
+        // 网络请求
+        ipcMain.handle("https:get", async (event, options) => {
+            return await httpsClient.get(options);
+        });
+        ipcMain.handle("https:post", async (event, options) => {
+            return await httpsClient.post(options);
+        });
+        ipcMain.handle("https:put", async (event, options) => {
+            return await httpsClient.put(options);
+        });
+        ipcMain.handle("https:patch", async (event, options) => {
+            return await httpsClient.patch(options);
+        });
+        ipcMain.handle("https:delete", async (event, options) => {
+            return await httpsClient.delete(options);
+        });
         ipcMain.on("full-screen", (enent, flag) => {
             if (flag == 0) {
                 if (this.window.isMinimized()) {

@@ -3,7 +3,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import IPCManager from "./service/IPCManager.js"
 import mmFileManager from './core/MMFileManager.js';
-import shortcutService from './services/ShortcutService'
+import shortcutService from './service/ShortcutService.js'
 
 // 创建ES模块的__dirname
 const __filename = fileURLToPath(import.meta.url)
@@ -65,7 +65,7 @@ const createWindow = () => {
     ipcManager.startListen();
 
     // 初始化快捷键服务
-    shortcutService.initialize(mainWindow)
+    shortcutService.initialize(window)
 
     // 可以动态注册额外的快捷键
     shortcutService.register('CommandOrControl+Shift+F', () => {

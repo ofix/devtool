@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('channel', {
     isShortcutRegistered: (accelerator) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
     onShortcut: (handlerName, callback) => {
         const channel = `shortcut:${handlerName}`
-        ipcRenderer.on(channel, (event, ...args) => callback(...args))
-    }
+        ipcRenderer.on(channel, (event, ...args) => callback(...args));
+    },
+    // 发送网络请求
+    doPost: (options) => ipcRenderer.invoke('https:post', options),
+    doGet: (options) => ipcRenderer.invoke("https:get", options),
+    doDelete: (options) => ipcRenderer.invoke("https:delete", options),
+    doPatch: (options) => ipcRenderer.invoke("https:patch", options),
+    doPut: (options) => ipcRenderer.invoke("https:put", options),
 })
