@@ -44,7 +44,7 @@
     /*对话框标题颜色*/
     --dt-text-color-primary: #fff;
     /*输入表单颜色*/
-    --dt-text-color-regular: #efefef; 
+    --dt-text-color-regular: #efefef;
     /*文字色*/
     --dt-primary-text-color: #ddd;
     /*边框色*/
@@ -67,35 +67,49 @@
 }
 
 :root.light {
-    /*背景色*/
-    --dt-primary-bg-color: #ccc;
-    /*背景高亮色*/
-    --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
-    /*对话框背景色*/
-    --dt-dialog-bg-color: #090909;
-    /*对话框标题颜色*/
-    --dt-text-color-primary: #fff;
-    /*输入表单颜色*/
-    --dt-text-color-regular: #efefef; 
-    /*文字色*/
-    --dt-rimary-text-color: #000;
-    /*边框色*/
-    --dt-border-color: #aaa;
-    /*高亮色*/
+    /*背景色：改为纯白色/浅灰色，符合浅色主题视觉*/
+    --dt-primary-bg-color: #ffffff;
+    /*背景高亮色：调整为浅色下的悬浮效果*/
+    --dt-primary-bg-hover-color: rgba(0, 0, 0, 0.05);
+    /*对话框背景色：浅色主题对话框改为白色/浅灰*/
+    --dt-dialog-bg-color: #f8f9fa;
+    /*对话框标题颜色：浅色主题标题改为深黑色*/
+    --dt-text-color-primary: #333333;
+    /*输入表单颜色：输入框标签等改为深灰色*/
+    --dt-text-color-regular: #555555;
+    /*文字色：修正拼写错误（原dt-rimary-text-color），改为深黑*/
+    --dt-primary-text-color: #222222;
+    /*边框色：浅色主题边框改为浅灰色*/
+    --dt-border-color: #e5e7eb;
+    /*高亮色：保留原有蓝色，调整文字为白色*/
     --dt-hilight-bg-color: #0078d4;
-    --dt-hilight-text-color: #ccc;
+    --dt-hilight-text-color: #ffffff;
     /*菜单高亮边框色*/
     --dt-menu-hilight-border-color: #0078d4;
-    /*上下文菜单背景色*/
-    --dt-context-menu-bg-color: #333;
-    /*上下文菜单文字色*/
-    --dt-context-menu-text-color: #ddd;
+    /*上下文菜单背景色：浅色主题菜单改为白色*/
+    --dt-context-menu-bg-color: #ffffff;
+    /*上下文菜单文字色：浅色主题菜单文字改为深黑*/
+    --dt-context-menu-text-color: #222222;
     --dt-collapse-border-color: var(--dt-border-color);
     --dt-collapse-background-color: var(--dt-primary-bg-color);
-    --dt-hilight-color: #333;
-    /*覆盖Element-Plus组件颜色*/
+    --dt-hilight-color: #0078d4;
+    /* 折叠面板高亮文字色 */
+    /*覆盖Element-Plus组件颜色：浅色主题适配*/
     --el-fill-color-blank: var(--dt-primary-bg-color);
     --el-collapse-header-bg-color: var(--dt-primary-bg-color);
+    /* 新增：Element Plus输入框/下拉列表核心变量覆盖 */
+    --el-input-bg-color: #ffffff;
+    /* 输入框背景 */
+    --el-input-text-color: #222222;
+    /* 输入框文字 */
+    --el-input-border-color: var(--dt-border-color);
+    /* 输入框边框 */
+    --el-select-dropdown-bg-color: #ffffff;
+    /* 下拉列表背景 */
+    --el-select-text-color: #222222;
+    /* 下拉列表文字 */
+    --el-option-hover-bg-color: #f3f4f6;
+    /* 下拉选项悬浮背景 */
 }
 
 .el-collapse {
@@ -105,20 +119,15 @@
 
 .el-collapse-item__header:hover {
     color: var(--dt-hilight-color) !important;
-    /* hover 时文字变白 */
 }
 
 .el-collapse-item__header {
     color: var(--dt-hilight-color) !important;
     border-bottom: 1px solid var(--dt-collapse-border-color) !important;
     font-size: 12px !important;
-    /* 1. 设置标题栏高度（按需调整，如 48px） */
     height: 32px !important;
     min-height: 32px !important;
-    /* 2. 调整内边距（取消默认上下 padding，避免高度被撑开） */
     padding: 0 2px !important;
-    /* 左右 16px 内边距，上下 0 */
-    /* 4. 可选：调整文字大小（配合高度优化视觉） */
     font-size: 12px !important;
 }
 
@@ -146,45 +155,84 @@
     margin: 0;
     padding: 0;
 }
-/*对话框*/
+
+/*对话框：按主题动态切换，不再固定深色*/
 .el-dialog {
     background-color: var(--dt-dialog-bg-color) !important;
-    color:#fefefe !important;
-    /* 左上角内发光 + 渐变背景 */
-    background: 
-    linear-gradient(135deg, #33323b 0%, #232227 60%),
-    var(--dt-dialog-bg-color) !important;
+    color: var(--dt-text-color-primary) !important;
+    /* 浅色主题下移除深色渐变，保留主题背景 */
+    background: var(--dt-dialog-bg-color) !important;
 }
 
-.el-dialog__title{
-    color: var(--dt-text-color-primary);
+/* 仅dark主题保留对话框渐变 */
+:root.dark .el-dialog {
+    background:
+        linear-gradient(135deg, #33323b 0%, #232227 60%),
+        var(--dt-dialog-bg-color) !important;
 }
 
-.el-input{
-    border-color: var(--dt-border-color);
+.el-dialog__title {
+    color: var(--dt-text-color-primary) !important;
 }
-/*输入框*/
+
+/* ========== 输入框样式优化：按主题动态适配 ========== */
+.el-input {
+    border-color: var(--dt-border-color) !important;
+}
+
 .el-input__wrapper {
-    background-color: #283140;
+    /* 不再固定深色背景，按主题切换 */
+    background-color: var(--el-input-bg-color) !important;
+    border-color: var(--el-input-border-color) !important;
 }
 
-.el-input__inner{
-    color:#efefef;
+.el-input__inner {
+    /* 输入框文字按主题切换 */
+    color: var(--el-input-text-color) !important;
 }
 
-.el-form-item__label{
-    color: var(--dt-text-color-regular);
+.el-form-item__label {
+    color: var(--dt-text-color-regular) !important;
+}
+
+/* ========== 下拉列表样式优化：按主题动态适配 ========== */
+.el-select {
+    border-color: var(--dt-border-color) !important;
+}
+
+.el-select .el-input__wrapper {
+    background-color: var(--el-input-bg-color) !important;
+}
+
+.el-select-dropdown {
+    background-color: var(--el-select-dropdown-bg-color) !important;
+    border-color: var(--dt-border-color) !important;
+}
+
+.el-select-dropdown__item {
+    color: var(--el-select-text-color) !important;
+}
+
+.el-select-dropdown__item:hover {
+    background-color: var(--el-option-hover-bg-color) !important;
+    color: var(--el-select-text-color) !important;
+}
+
+.el-select .el-input__inner {
+    color: var(--el-input-text-color) !important;
 }
 
 html,
 body {
     width: 100%;
     height: 100%;
-    /* 防止移动端出现意外滚动条或缩放 */
     overflow-x: hidden;
     font-family: var(--el-font-family);
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
+    /* 页面背景按主题切换 */
+    background-color: var(--dt-primary-bg-color) !important;
+    color: var(--dt-primary-text-color) !important;
 }
 
 #app {

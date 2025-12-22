@@ -3,7 +3,7 @@ import { globalShortcut, BrowserWindow, ipcMain } from 'electron'
 class ShortcutService {
   // 私有静态实例
   static #instance = null
-  
+
   // 私有字段
   #mainWindow = null
   #shortcuts = new Map()
@@ -66,7 +66,7 @@ class ShortcutService {
     this.#registerAllShortcuts()
     this.#setupIpcHandlers()
     this.#isInitialized = true
-    
+
     console.log('🚀 ShortcutService 初始化完成')
   }
 
@@ -133,7 +133,7 @@ class ShortcutService {
     this.unregister(accelerator)
 
     const ret = globalShortcut.register(accelerator, callback)
-    
+
     if (ret) {
       this.#shortcuts.set(accelerator, {
         callback,
@@ -143,7 +143,7 @@ class ShortcutService {
     } else {
       console.error(`❌ 快捷键注册失败: ${accelerator}`)
     }
-    
+
     return ret
   }
 
@@ -172,7 +172,7 @@ class ShortcutService {
   getShortcutInfo(accelerator) {
     const shortcut = this.#shortcuts.get(accelerator)
     if (!shortcut) return null
-    
+
     return {
       accelerator,
       registeredAt: new Date(shortcut.registeredAt).toISOString(),

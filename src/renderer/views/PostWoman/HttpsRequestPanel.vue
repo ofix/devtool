@@ -1,7 +1,7 @@
 <template>
   <div class="postwoman-container">
     <div class="request-header">
-      <el-select v-model="requestConfig.method" class="method-select">
+      <el-select v-model="requestBuilder.method" class="method-select">
         <el-option label="GET" value="GET" />
         <el-option label="POST" value="POST" />
         <el-option label="PUT" value="PUT" />
@@ -10,7 +10,7 @@
       </el-select>
 
       <el-input
-        v-model="requestConfig.url"
+        v-model="requestBuilder.url"
         placeholder="请输入请求URL（如 https://api.example.com/path）"
         class="url-input"
         @keyup.enter="sendRequest"
@@ -24,8 +24,103 @@
       </el-button>
     </div>
 
-    <!-- 中部配置标签页 -->
     <el-tabs v-model="activeTab" type="border-card" class="config-tabs">
+      <!-- Params 配置面板 -->
+      <el-tab-pane label="Params" name="params">
+        <div v-if="!isHeaderBatchEdit" class="dynamic-items">
+          <el-table
+            ref="tableRef"
+            :data="requestBuilder.headers"
+            border
+            @row-mouse-enter="handleRowMouseEnter"
+            @row-mouse-leave="handleRowMouseLeave"
+            style="width: 100%"
+          >
+            <!-- 复选框列 -->
+            <el-table-column type="selection" width="55" align="center" />
+
+            <!-- Key 列 -->
+            <el-table-column label="Key" prop="key" min-width="150">
+              <template #default="scope">
+                <div
+                  class="cell-content"
+                  @click="handleEdit(scope.row, 'key', scope.$index)"
+                >
+                  <span v-if="!scope.row.editKey" class="text-content">
+                    {{ scope.row.key || "" }}
+                  </span>
+                  <el-input
+                    v-else
+                    v-model="scope.row.key"
+                    class="edit-input"
+                    :ref="(el) => (inputRefs.key[scope.$index] = el)"
+                    @blur="handleInputBlur(scope.row, 'editKey')"
+                    @change="onParamKeyChange(scope.row, scope.$index)"
+                    @keyup.enter="handleInputBlur(scope.row, 'editKey')"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- Value 列 -->
+            <el-table-column label="Value" prop="value" min-width="150">
+              <template #default="scope">
+                <div
+                  class="cell-content"
+                  @click="handleEdit(scope.row, 'value', scope.$index)"
+                >
+                  <span v-if="!scope.row.editValue" class="text-content">
+                    {{ scope.row.value || "" }}
+                  </span>
+                  <el-input
+                    v-else
+                    v-model="scope.row.value"
+                    class="edit-input"
+                    :ref="(el) => (inputRefs.value[scope.$index] = el)"
+                    @blur="handleInputBlur(scope.row, 'editValue')"
+                    @change="onParamValChange(scope.row, scope.$index)"
+                    @keyup.enter="handleInputBlur(scope.row, 'editValue')"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- Description 列 -->
+            <el-table-column label="Description" prop="desc" min-width="200">
+              <template #default="scope">
+                <div
+                  class="cell-content"
+                  @click="handleEdit(scope.row, 'desc', scope.$index)"
+                >
+                  <span v-if="!scope.row.editDesc" class="text-content">
+                    {{ scope.row.desc || "" }}
+                  </span>
+                  <el-input
+                    v-else
+                    v-model="scope.row.desc"
+                    class="edit-input"
+                    :ref="(el) => (inputRefs.desc[scope.$index] = el)"
+                    @blur="handleInputBlur(scope.row, 'editDesc')"
+                    @change="onParamDescChange(scope.row, scope.$index)"
+                    @keyup.enter="handleInputBlur(scope.row, 'editDesc')"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- 操作列 -->
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="scope">
+                <Delete
+                  class="delete-btn"
+                  :class="{ show: hoveredRowIndex === scope.$index }"
+                  @click="removeParam(scope.$index)"
+                />
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
       <!-- Header 配置面板 -->
       <el-tab-pane label="Headers" name="headers">
         <div class="header-config">
@@ -40,7 +135,7 @@
           <div v-if="!isHeaderBatchEdit" class="dynamic-items">
             <div
               class="item-row"
-              v-for="(item, index) in requestConfig.headers"
+              v-for="(item, index) in requestBuilder.headers"
               :key="index"
             >
               <el-input
@@ -54,7 +149,7 @@
                 class="item-value"
               />
               <el-button
-                size="mini"
+                size="small"
                 icon="el-icon-delete"
                 @click="removeHeader(index)"
               />
@@ -66,10 +161,10 @@
 
           <!-- Header 批量编辑模式 -->
           <div v-else class="batch-edit">
-            <monaco-editor
+            <JsonEditor
               v-model="headerBatchContent"
               language="json"
-              :options="{ minimap: { enabled: false }, wordWrap: 'on' }"
+              :options="{ smallmap: { enabled: false }, wordWrap: 'on' }"
               height="200px"
             />
             <el-button size="small" type="primary" @click="saveHeaderBatchEdit">
@@ -95,7 +190,7 @@
           <div v-if="bodyType !== 'raw'" class="dynamic-items">
             <div
               class="item-row"
-              v-for="(item, index) in requestConfig.body.formData"
+              v-for="(item, index) in requestBuilder.body.formData"
               :key="index"
             >
               <el-input v-model="item.key" placeholder="Key" class="item-key" />
@@ -105,7 +200,7 @@
                 class="item-value"
               />
               <el-button
-                size="mini"
+                size="small"
                 icon="el-icon-delete"
                 @click="removeBodyItem(index)"
               />
@@ -118,11 +213,10 @@
           <!-- Raw JSON 模式 -->
           <div v-else class="raw-body">
             <JsonEditor
-              v-model="requestConfig.body.raw"
+              v-model="requestBuilder.body.raw"
               :read-only="false"
               theme="vs-dark"
               :indent="4"
-              @change="handleJsonChange"
               style="width: 100%; height: 80vh; margin-top: 20px"
             />
           </div>
@@ -142,7 +236,6 @@
         :read-only="false"
         theme="vs-dark"
         :indent="4"
-        @change="handleJsonChange"
         style="width: 100%; height: 80vh; margin-top: 20px"
       />
     </div>
@@ -150,26 +243,118 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, nextTick } from "vue";
 import { ElMessage } from "element-plus";
+import { ElTable, ElTableColumn, ElInput, ElButton } from "element-plus";
 import JsonEditor from "./JsonEditor.vue";
 
 // 响应式状态
-const activeTab = ref("headers");
+const activeTab = ref("params");
 const bodyType = ref("raw");
 const isHeaderBatchEdit = ref(false);
 const responseContent = ref("");
 
 // 请求配置（与 postwoman 结构对齐）
-const requestConfig = reactive({
+const requestBuilder = reactive({
   method: "GET",
   url: "",
-  headers: [{ key: "", value: "" }],
+  params: [
+    {
+      key: "",
+      value: "",
+      desc: "",
+      editKey: false,
+      editValue: false,
+      editDesc: false,
+    },
+  ],
+  headers: [
+    {
+      key: "",
+      value: "",
+      desc: "",
+      editKey: false,
+      editValue: false,
+      editDesc: false,
+    },
+  ],
   body: {
     formData: [{ key: "", value: "" }],
     raw: '{\n  "key": "value"\n}',
   },
 });
+
+// 存储当前悬浮的行索引
+const hoveredRowIndex = ref(-1);
+// 输入框 refs（用于聚焦）
+const inputRefs = ref({
+  key: [], // key 列输入框 Ref 数组
+  value: [], // value 列输入框 Ref 数组
+  desc: [], // desc 列输入框 Ref 数组
+});
+
+/**
+ * 核心编辑方法：直接使用模板传递的可靠索引，无需 findIndex
+ * @param {Object} row - 当前行数据（代理对象不影响状态修改）
+ * @param {String} prop - 列标识（key/value/desc）
+ * @param {Number} rowIndex - 行索引（来自 scope.$index，绝对可靠，永不返回 -1）
+ */
+const handleEdit = async (row, prop, rowIndex) => {
+  // 重置当前行所有编辑状态
+  row.editKey = false;
+  row.editValue = false;
+  row.editDesc = false;
+
+  // 激活对应列编辑状态
+  switch (prop) {
+    case "key":
+      row.editKey = true;
+      break;
+    case "value":
+      row.editValue = true;
+      break;
+    case "desc":
+      row.editDesc = true;
+      break;
+    default:
+      return;
+  }
+
+  // 等待输入框渲染完成后聚焦
+  await nextTick();
+  switch (prop) {
+    case "key":
+      console.log(
+        "Key 列索引：",
+        rowIndex,
+        "输入框Ref：",
+        inputRefs.value.key[rowIndex]
+      );
+      inputRefs.value.key[rowIndex]?.focus();
+      break;
+    case "value":
+      inputRefs.value.value[rowIndex]?.focus();
+      break;
+    case "desc":
+      inputRefs.value.desc[rowIndex]?.focus();
+      break;
+  }
+};
+
+// 输入框失焦事件：关闭编辑状态
+const handleInputBlur = (row, editProp) => {
+  // row[editProp] = false;
+};
+
+// 行鼠标进入事件：记录悬浮行索引
+const handleRowMouseEnter = (row, column, event) => {
+  hoveredRowIndex.value = row._index;
+};
+
+// 行鼠标离开事件：重置悬浮行索引
+const handleRowMouseLeave = () => {
+  hoveredRowIndex.value = -1;
+};
 
 // Header 批量编辑内容（JSON 格式）
 const headerBatchContent = ref("");
@@ -179,22 +364,43 @@ watch(isHeaderBatchEdit, (val) => {
   if (val) {
     // 进入批量编辑：将 Header 数组转为 JSON 字符串
     const headerObj = {};
-    requestConfig.headers.forEach((item) => {
+    requestBuilder.headers.forEach((item) => {
       if (item.key) headerObj[item.key] = item.value;
     });
     headerBatchContent.value = JSON.stringify(headerObj, null, 2);
   }
 });
 
+// 检查最后一行是否为空
+function onParamKeyChange(event, item, index) {
+  checkLastParamEmpty();
+}
+function onParamValChange(event, item, index) {
+  checkLastParamEmpty();
+}
+function onParamDescChange(event, item, index) {
+  checkLastParamEmpty();
+}
+function checkLastParamEmpty() {
+  const lastParam = requestBuilder.params[requestBuilder.params.length - 1];
+  if (lastParam.key || lastParam.value || lastParam.desc) {
+    return;
+  }
+  requestBuilder.params.push({ key: "", value: "", desc: "" });
+}
+
 // Header 操作方法
-const addHeader = () => requestConfig.headers.push({ key: "", value: "" });
-const removeHeader = (index) => requestConfig.headers.splice(index, 1);
+const addHeader = () => requestBuilder.headers.push({ key: "", value: "" });
+const removeHeader = (index) => requestBuilder.headers.splice(index, 1);
+
+const addParam = () => requestBuilder.params.push({ key: "", value: "" });
+const removeParam = (index) => requestBuilder.params.splice(index, 1);
 const toggleHeaderBatchEdit = () =>
   (isHeaderBatchEdit.value = !isHeaderBatchEdit.value);
 const saveHeaderBatchEdit = () => {
   try {
     const headerObj = JSON.parse(headerBatchContent.value);
-    requestConfig.headers = Object.entries(headerObj).map(([key, value]) => ({
+    requestBuilder.headers = Object.entries(headerObj).map(([key, value]) => ({
       key,
       value,
     }));
@@ -207,8 +413,8 @@ const saveHeaderBatchEdit = () => {
 
 // Body 操作方法
 const addBodyItem = () =>
-  requestConfig.body.formData.push({ key: "", value: "" });
-const removeBodyItem = (index) => requestConfig.body.formData.splice(index, 1);
+  requestBuilder.body.formData.push({ key: "", value: "" });
+const removeBodyItem = (index) => requestBuilder.body.formData.splice(index, 1);
 
 // 响应操作方法
 const formatResponse = () => {
@@ -221,43 +427,44 @@ const formatResponse = () => {
 };
 const clearResponse = () => (responseContent.value = "");
 const clearRequest = () => {
-  requestConfig.method = "GET";
-  requestConfig.url = "";
-  requestConfig.headers = [{ key: "", value: "" }];
-  requestConfig.body.formData = [{ key: "", value: "" }];
-  requestConfig.body.raw = '{\n  "key": "value"\n}';
+  requestBuilder.method = "GET";
+  requestBuilder.url = "";
+  requestBuilder.params = [{ key: "", value: "", desc: "" }];
+  requestBuilder.headers = [{ key: "", value: "", desc: "" }];
+  requestBuilder.body.formData = [{ key: "", value: "" }];
+  requestBuilder.body.raw = '{\n  "key": "value"\n}';
   responseContent.value = "";
 };
 
 // 核心：发送请求方法
 const sendRequest = async () => {
-  if (!requestConfig.url) {
+  if (!requestBuilder.url) {
     ElMessage.error("请输入请求 URL");
     return;
   }
 
   try {
     // 解析 URL（提取 host 和 path）
-    const urlObj = new URL(requestConfig.url);
+    const urlObj = new URL(requestBuilder.url);
     const host = urlObj.hostname;
     const path = urlObj.pathname + urlObj.search;
 
     // 构造请求头
     const headers = {};
-    requestConfig.headers.forEach((item) => {
+    requestBuilder.headers.forEach((item) => {
       if (item.key) headers[item.key] = item.value;
     });
 
     // 构造请求体
     let data = null;
     let contentType = headers["Content-Type"] || "";
-    if (["POST", "PUT", "PATCH"].includes(requestConfig.method)) {
+    if (["POST", "PUT", "PATCH"].includes(requestBuilder.method)) {
       if (bodyType.value === "raw") {
-        data = JSON.parse(requestConfig.body.raw);
+        data = JSON.parse(requestBuilder.body.raw);
         contentType = "application/json";
       } else {
         const formObj = {};
-        requestConfig.body.formData.forEach((item) => {
+        requestBuilder.body.formData.forEach((item) => {
           if (item.key) formObj[item.key] = item.value;
         });
         data = formObj;
@@ -269,7 +476,7 @@ const sendRequest = async () => {
     }
 
     // 调用 httpsClient 发送请求
-    let method = requestConfig.method.toLowerCase();
+    let method = requestBuilder.method.toLowerCase();
     let response = "";
     let options = {
       host,
@@ -350,6 +557,73 @@ const sendRequest = async () => {
   flex-direction: column;
   gap: 8px;
 }
+
+/* 表格单元格内容容器：保证文字和输入框尺寸一致 */
+.cell-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* 纯文字显示样式 */
+.text-content {
+  display: block;
+  width: 100%;
+  height: 38px; /* 与 Element Plus 输入框高度一致 */
+  line-height: 38px;
+  padding: 0 15px; /* 与输入框内边距一致 */
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* 编辑输入框：与单元格完全贴合 */
+.edit-input {
+  top: 1px;
+  left: 1px;
+  width: calc(100% - 2px);
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* 消除输入框聚焦时的默认边框（可选，根据需求调整） */
+.edit-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  border: none;
+  padding: 0 15px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* 删除按钮：默认隐藏，悬浮时显示 */
+.delete-btn {
+  color: #f56c6c;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none; /* 隐藏时不触发点击 */
+}
+
+.delete-btn.show {
+  opacity: 1;
+  pointer-events: auto; /* 显示时允许点击 */
+}
+
+/* 表格行高度：与输入框匹配 */
+:deep(.el-table__row) {
+  height: 38px;
+}
+
+:deep(.el-table__cell) {
+  padding: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+
 .item-row {
   display: flex;
   align-items: center;
@@ -359,6 +633,9 @@ const sendRequest = async () => {
   width: 200px;
 }
 .item-value {
+  width: 300px;
+}
+.item-desc {
   flex: 1;
 }
 .batch-edit {

@@ -4,18 +4,8 @@
     <div class="panel-header">
       <span class="panel-title">请求列表</span>
       <div class="header-actions">
-        <el-button
-          size="small"
-          icon="el-icon-folder-add"
-          @click="handleAddGroup"
-        >
-          新建分组
-        </el-button>
-        <el-button
-          size="small"
-          icon="el-icon-plus"
-          @click="handleAddEmptyRequest"
-        >
+        <el-button size="small" @click="handleAddGroup"> 新建分组 </el-button>
+        <el-button size="small" @click="handleAddEmptyRequest">
           新建请求
         </el-button>
       </div>
@@ -30,21 +20,19 @@
       >
         <!-- 分组头部 -->
         <div class="group-header" @click="handleToggleGroupExpand(group.id)">
-          <el-icon :class="{ 'group-collapsed': !group.expand }">
-            <el-icon-folder-opened v-if="group.expand" />
-            <el-icon-folder v-else />
-          </el-icon>
+          <!-- <el-icon :class="{ 'group-collapsed': !group.expand }">
+             <el-icon-folder-opened v-if="group.expand" />
+            <el-icon-folder v-else /> 
+          </el-icon> -->
           <span class="group-name" @click.stop>{{ group.name }}</span>
           <!-- 分组操作按钮（hover显示） -->
           <div class="group-actions" @click.stop>
             <el-button
-              size="mini"
-              icon="el-icon-edit"
+              size="small"
               @click="handleEditGroupName(group.id, group.name)"
             />
             <el-button
-              size="mini"
-              icon="el-icon-delete"
+              size="small"
               type="danger"
               @click="handleDeleteGroup(group.id)"
             />
@@ -72,13 +60,11 @@
             <!-- 请求操作按钮（hover显示） -->
             <div class="request-actions" @click.stop>
               <el-button
-                size="mini"
-                icon="el-icon-edit"
+                size="small"
                 @click="handleEditRequestAlias(request.id, request.alias)"
               />
               <el-button
-                size="mini"
-                icon="el-icon-delete"
+                size="small"
                 type="danger"
                 @click="handleDeleteRequest(request.id)"
               />
@@ -175,14 +161,6 @@
 <script setup>
 import { ref, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import {
-  FolderOpened,
-  Folder,
-  FolderAdd,
-  Plus,
-  Edit,
-  Delete,
-} from "@element-plus/icons-vue";
 import {
   useRequestStore,
   REQUEST_METHOD_COLOR_MAP,
