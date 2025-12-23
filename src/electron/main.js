@@ -31,7 +31,7 @@ const createWindow = () => {
         webPreferences: {
             preload: join(__dirname, 'preload.cjs'),
             nodeIntegration: true,
-            contextIsolation: true,
+            contextIsolation: true,// 必须开启，避免 monaco-editor Worker 路径冲突
             sandbox: false,
             webSecurity: false,
             backgroundThrottling: false, // 禁止后台节流，避免编辑器卡顿

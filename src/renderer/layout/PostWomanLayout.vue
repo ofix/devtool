@@ -11,7 +11,7 @@
           </el-splitter-panel>
           <el-splitter-panel>
             <div class="panel-right">
-              <HttpsRequestPanel />
+              <HttpsRequestBuildPanel />
             </div>
           </el-splitter-panel>
         </el-splitter>
@@ -23,7 +23,7 @@
 <script setup>
 import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
 import HttpsRequestListPanel from "../views/PostWoman/HttpsRequestListPanel.vue";
-import HttpsRequestPanel from "@/views/PostWoman/HttpsRequestPanel.vue";
+import HttpsRequestBuildPanel from "@/views/PostWoman/HttpsRequestBuildPanel.vue";
 </script>
 
 <style type="scss" scoped>

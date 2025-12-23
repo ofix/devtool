@@ -10,12 +10,15 @@ export default defineConfig({
         emptyOutDir: true, // 关键：编译前清空 outDir（默认 dist）
         rollupOptions: {
             output: {
-                manualChunks: {
-                    'monaco-core': ['monaco-editor/esm/vs/editor/editor.api'],
-                    'monaco-languages': ['monaco-editor/esm/vs/basic-languages']
-                }
+                // 分离 Worker 脚本到独立目录，避免与主代码混淆
+                assetFileNames: 'assets/[name].[hash].[ext]',
+                chunkFileNames: 'chunks/[name].[hash].js',
+                entryFileNames: 'entry/[name].[hash].js'
             }
         },
+        // 关闭代码压缩对 Worker 脚本的影响
+        minify: 'esbuild',
+        sourcemap: false,
         chunkSizeWarningLimit: 2000
     }
 })

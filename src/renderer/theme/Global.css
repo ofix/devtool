@@ -239,3 +239,60 @@ body {
     width: 100%;
     height: 100%;
 }
+
+
+
+/* 在全局样式文件中添加 */
+.global-table-styles {
+    /* 优化表格行高 */
+    .el-table {
+      --el-table-row-hover-bg-color: #f5f7fa;
+      --el-table-border-color: #e4e7ed;
+    }
+    
+    .el-table__body tr,
+    .el-table__body td {
+      height: 40px;
+      line-height: 40px;
+    }
+    
+    .el-table__cell {
+      padding: 0;
+    }
+    
+    /* 编辑行高亮 */
+    .el-table__row.is-editing {
+      background-color: #f5f7fa;
+      
+      td {
+        background-color: #f5f7fa;
+      }
+    }
+    
+    /* 聚焦单元格 */
+    .el-table__cell.is-focused {
+      outline: 2px solid #409eff;
+      outline-offset: -1px;
+      z-index: 1;
+      position: relative;
+    }
+    
+    /* 输入控件样式 */
+    .el-input,
+    .el-textarea,
+    .el-select,
+    .el-input-number {
+      .el-input__wrapper,
+      .el-textarea__inner,
+      .el-select__wrapper {
+        border-radius: 2px;
+        transition: all 0.2s ease;
+      }
+      
+      .el-input__wrapper.is-focus,
+      .el-textarea__inner:focus,
+      .el-select__wrapper.is-focus {
+        box-shadow: 0 0 0 1px #409eff inset;
+      }
+    }
+  }

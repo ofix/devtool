@@ -4,105 +4,81 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from "vue";
-import Delete from "@/components/icons/IconDelete.vue";
+import * as monaco from "monaco-editor";
 
-// 定义组件 Props
 const props = defineProps({
-  // 绑定的 JSON 数据
   modelValue: {
     type: [Object, Array, String],
     default: () => "",
   },
-  // 是否只读
   readOnly: {
     type: Boolean,
     default: false,
   },
-  // JSON 缩进数
   indent: {
     type: Number,
-    default: 2,
+    default: 4,
   },
-  // 主题（vs-light/vs-dark）
-  validator: (val) => ["vs-light", "vs-dark"].includes(val),
   theme: {
     type: String,
+    validator: (val) => ["vs-light", "vs-dark"].includes(val),
     default: "vs-light",
   },
-  // 是否显示行号
   showLineNumbers: {
     type: Boolean,
     default: true,
   },
-  // 是否隐藏小地图
   disableMinimap: {
     type: Boolean,
     default: true,
   },
-  // 是否自动换行
   autoWrap: {
     type: Boolean,
     default: true,
   },
-  // 是否启用 JSON 校验
   enableValidation: {
     type: Boolean,
     default: true,
   },
 });
 
-// 定义组件 Emits
 const emit = defineEmits(["update:modelValue", "change"]);
-
-// 编辑器容器 Ref
 const editorContainer = ref(null);
-// 编辑器实例 Ref（使用 shallowRef 避免深度响应式开销）
 const editor = shallowRef(null);
-// 格式化锁：避免初始化期间重复触发更新
 const initLock = ref(false);
-// Monaco 实例（无需提前赋值，异步导入后赋值）
-let monaco = null;
+const editorReady = ref(false);
 
-// 格式化 JSON 数据
 const formatJson = (jsonData) => {
   try {
-    // 空值处理优化
     if (!jsonData || (typeof jsonData === "string" && jsonData.trim() === "")) {
       return "{}";
     }
-    // 兼容字符串类型的 JSON
     const parsedData =
       typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
     return JSON.stringify(parsedData, null, props.indent);
   } catch (error) {
     console.error("JSON 格式化失败：", error);
-    return "{}";
+    return jsonData;
   }
 };
 
-// 初始化 Monaco Editor（异步非阻塞优化，修正导入问题）
+// 初始化使用 requestIdleCallback 确保不阻塞 UI
 const initEditor = async () => {
-  if (initLock.value || editor.value) return;
+  if (initLock.value || editor.value || !editorContainer.value) return;
   initLock.value = true;
 
   try {
-    // 修正：动态导入 Monaco（具名导出，无需 .default）
-    const monacoModule = await import("monaco-editor");
-    monaco = monacoModule; // 直接赋值模块对象，保留所有具名导出
-    await nextTick(); // 确保容器已挂载并渲染完成
-
-    // 使用 requestIdleCallback 或 setTimeout 让浏览器先完成UI渲染
+    // 等待浏览器空闲时初始化，优先保证 UI 渲染
     await new Promise((resolve) => {
       if (window.requestIdleCallback) {
-        requestIdleCallback(resolve, { timeout: 100 });
+        requestIdleCallback(resolve, { timeout: 200 });
       } else {
-        setTimeout(resolve, 0); // 降级兼容
+        // 降级为微任务，避免阻塞
+        queueMicrotask(resolve);
       }
     });
-
-    if (!editorContainer.value) return;
-
-    // 创建编辑器实例（此时 monaco 已存在，可正常访问 monaco.editor）
+    await nextTick();
+    // 创建编辑器实例
     editor.value = monaco.editor.create(editorContainer.value, {
       value: formatJson(props.modelValue),
       language: "json",
@@ -116,41 +92,26 @@ const initEditor = async () => {
       json: {
         validate: props.enableValidation,
       },
-      // 关闭不必要的功能，减少初始化压力
       scrollbar: {
         verticalScrollbarSize: 8,
         horizontalScrollbarSize: 8,
       },
       renderLineHighlight: "none",
-      automaticLayout: false,
+      automaticLayout: true, // 开启自动布局，无需手动监听 resize
     });
 
-    // 给容器添加初始化完成类，显示编辑器
     editorContainer.value.classList.add("initialized");
-
-    // 延迟绑定事件，避免初始化期间的额外开销
-    setTimeout(() => {
-      if (!editor.value) return;
-      editor.value.onDidChangeModelContent(() => {
-        if (props.readOnly || initLock.value) return;
-        try {
-          const jsonStr = editor.value.getValue();
-          const jsonData = JSON.parse(jsonStr);
-          emit("update:modelValue", jsonData);
-          emit("change", jsonData);
-        } catch (error) {
-          console.error("JSON 解析失败：", error);
-        }
-      });
-    }, 0);
+    // 实例创建完成后，标记为就绪
+    editorReady.value = true;
   } catch (error) {
+    editorReady.value = false;
     console.error("编辑器初始化失败：", error);
   } finally {
     initLock.value = false;
   }
 };
 
-// 窗口 resize 自适应（防抖优化）
+//  移除手动 resize 监听，使用 automaticLayout: true 替代
 let resizeTimer = null;
 const handleResize = () => {
   clearTimeout(resizeTimer);
@@ -161,39 +122,70 @@ const handleResize = () => {
   }, 100);
 };
 
-// 监听 Props 变化，更新编辑器
+// 监听 Props 变化
 watch(
-  () => [props.modelValue, props.indent, props.theme],
-  async ([newModelValue, newIndent, newTheme]) => {
-    if (!editor.value || initLock.value || !monaco) return;
+  () => [
+    editorReady, // 依赖实例就绪标识
+    props.modelValue,
+    props.indent,
+    props.theme,
+  ],
+  async ([isReady, newModelValue, newIndent, newTheme]) => {
+    if (
+      !isReady ||
+      !editor.value ||
+      initLock.value ||
+      typeof editor.value.getTheme !== "function"
+    )
+      return;
 
-    // 主题变化时更新主题
     if (editor.value.getTheme() !== newTheme) {
       monaco.editor.setTheme(newTheme);
     }
 
-    // 数据或缩进变化时更新内容（仅只读模式下更新）
     if (!props.readOnly) return;
 
     await nextTick();
     const formattedJson = formatJson(newModelValue);
     if (editor.value.getValue().trim() !== formattedJson.trim()) {
-      setTimeout(() => {
+      queueMicrotask(() => {
         if (editor.value) {
           editor.value.setValue(formattedJson);
         }
-      }, 0);
+      });
     }
   },
-  { deep: true, flush: "post" }
+  {
+    deep: true,
+    flush: "post",
+    immediate: false, // 显式声明不立即执行回调，避免组件初始化时触发
+  }
 );
 
-// 组件挂载时初始化
 onMounted(() => {
-  // 延迟初始化，优先渲染页面其他内容
+  // 手动配置 Monaco 环境，指定 Worker 加载路径（带 .js 后缀）
+  self.MonacoEnvironment = {
+    getWorkerUrl: (moduleId, label) => {
+      // 明确指定 Worker 脚本的完整路径（带 .js 后缀）
+      switch (label) {
+        case "json":
+          return new URL(
+            "monaco-editor/esm/vs/language/json/json.worker.js",
+            import.meta.url
+          ).href;
+        default:
+          return new URL(
+            "monaco-editor/esm/vs/editor/editor.worker.js",
+            import.meta.url
+          ).href;
+      }
+    },
+  };
+  // 延迟初始化，优先渲染其他组件
   setTimeout(() => {
     initEditor();
   }, 100);
+  // 仅在 automaticLayout 失效时保留 resize 监听
   window.addEventListener("resize", handleResize);
 });
 
@@ -204,30 +196,27 @@ onUnmounted(() => {
     editor.value.dispose();
     editor.value = null;
   }
-  monaco = null;
   window.removeEventListener("resize", handleResize);
 });
 
-// 暴露组件方法
 defineExpose({
   updateJson: async (newData) => {
-    if (!editor.value || initLock.value || !monaco) return;
+    if (!editor.value || initLock.value) return;
     await nextTick();
     const formattedJson = formatJson(newData);
-    setTimeout(() => {
+    queueMicrotask(() => {
       if (editor.value) {
         editor.value.setValue(formattedJson);
       }
-    }, 0);
+    });
   },
-  getJsonData: () => {
+  getJson: () => {
     if (!editor.value) return null;
     try {
-      const jsonStr = editor.value.getValue();
-      return JSON.parse(jsonStr);
+      return editor.value.getValue();
     } catch (error) {
-      console.error("JSON 解析失败：", error);
-      return null;
+      console.log("getJson error: ", error);
+      return "";
     }
   },
   destroy: () => {
@@ -236,7 +225,6 @@ defineExpose({
       editor.value.dispose();
       editor.value = null;
     }
-    monaco = null;
   },
 });
 </script>
@@ -248,13 +236,11 @@ defineExpose({
   min-height: 400px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  /* 初始化前隐藏，避免闪烁 */
   visibility: hidden;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-/* 初始化完成后显示 */
 .json-editor-container.initialized {
   visibility: visible;
   opacity: 1;
