@@ -225,14 +225,6 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits([
-  "row-edit-start",
-  "row-edit-save",
-  "row-edit-cancel",
-  "row-delete",
-  "selection-change",
-]);
-
 // 计算表格样式对象
 const tableStyleObject = computed(() => {
   if (
@@ -394,8 +386,6 @@ const isRowEditing = (row) => {
 const startRowEdit = async (row, field) => {
   if (!row || !field) return;
 
-  emit("row-edit-start", { row, field });
-
   // 强制取消当前行所有单元格的焦点（彻底释放旧焦点）
   Object.keys(cellRefs.value).forEach((key) => {
     if (key.startsWith(row._id)) {
@@ -437,7 +427,6 @@ const saveRowEdit = (payload) => {
   if (rowIndex === undefined || !field || !tableData.value[rowIndex]) return;
 
   tableData.value[rowIndex][field] = value;
-  emit("row-edit-save", { ...payload, row: tableData.value[rowIndex] });
 
   const now = Date.now();
   const timeDiff = now - lastEditTime.value;
@@ -471,7 +460,6 @@ const cancelRowEdit = (row) => {
 
   row._editing = false;
   row._editingField = null;
-  emit("row-edit-cancel", { row });
 };
 
 // 删除行
@@ -486,7 +474,6 @@ const deleteRow = (index) => {
   });
 
   tableData.value.splice(index, 1);
-  emit("row-delete", { index, row: deletedRow });
 
   if (tableData.value.length === 0 && props.autoAddEmptyRow) {
     setTimeout(() => {
@@ -510,7 +497,6 @@ const handleRowMouseLeave = () => {
 
 const handleSelectionChange = (selectedRowsData) => {
   selectedRows.value = [...selectedRowsData];
-  emit("selection-change", selectedRows.value);
 };
 
 // 设置单元格引用
