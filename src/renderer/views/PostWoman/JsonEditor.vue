@@ -7,13 +7,17 @@ import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from "vue";
 import * as monaco from "monaco-editor";
 
 const props = defineProps({
-  modelValue: {
+  data: {
     type: [Object, Array, String],
     default: () => "",
   },
   readOnly: {
     type: Boolean,
     default: false,
+  },
+  language: {
+    type: String,
+    default: "json",
   },
   indent: {
     type: Number,
@@ -42,7 +46,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["update:modelValue", "change"]);
+const emit = defineEmits(["update:data", "change"]);
 const editorContainer = ref(null);
 const editor = shallowRef(null);
 const initLock = ref(false);
@@ -51,7 +55,7 @@ const editorReady = ref(false);
 const formatJson = (jsonData) => {
   try {
     if (!jsonData || (typeof jsonData === "string" && jsonData.trim() === "")) {
-      return "{}";
+      return "";
     }
     const parsedData =
       typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
@@ -80,8 +84,8 @@ const initEditor = async () => {
     await nextTick();
     // 创建编辑器实例
     editor.value = monaco.editor.create(editorContainer.value, {
-      value: formatJson(props.modelValue),
-      language: "json",
+      value: props.data,
+      language: props.language,
       readOnly: props.readOnly,
       lineNumbers: props.showLineNumbers ? "on" : "off",
       minimap: { enabled: !props.disableMinimap },
@@ -126,31 +130,25 @@ const handleResize = () => {
 watch(
   () => [
     editorReady, // 依赖实例就绪标识
-    props.modelValue,
+    props.data,
     props.indent,
     props.theme,
   ],
-  async ([isReady, newModelValue, newIndent, newTheme]) => {
-    if (
-      !isReady ||
-      !editor.value ||
-      initLock.value ||
-      typeof editor.value.getTheme !== "function"
-    )
-      return;
+  async ([isReady, newData, newIndent, newTheme]) => {
+    if (!isReady || !editor.value || initLock.value) return;
 
-    if (editor.value.getTheme() !== newTheme) {
+    if (
+      typeof editor.value.getTheme === "function" &&
+      editor.value.getTheme() !== newTheme
+    ) {
       monaco.editor.setTheme(newTheme);
     }
-
-    if (!props.readOnly) return;
-
     await nextTick();
-    const formattedJson = formatJson(newModelValue);
-    if (editor.value.getValue().trim() !== formattedJson.trim()) {
+    if (editor.value.getValue() !== newData) {
       queueMicrotask(() => {
         if (editor.value) {
-          editor.value.setValue(formattedJson);
+          console.log("newData: ", newData);
+          editor.value.setValue(newData);
         }
       });
     }

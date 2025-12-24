@@ -1,6 +1,18 @@
 <template>
   <div class="postwoman-container">
     <div class="request-header">
+      <el-input
+        v-model="requestBuilder.name"
+        placeholder="Untitled Request"
+        class="url-input"
+        clearable
+      />
+      <el-button type="primary" @click="saveRequest">
+        <template #icon><IconLink /></template>
+        保存
+      </el-button>
+    </div>
+    <div class="request-header">
       <el-select v-model="requestBuilder.method" class="method-select">
         <el-option label="GET" value="GET" />
         <el-option label="POST" value="POST" />
@@ -8,19 +20,16 @@
         <el-option label="PATCH" value="PATCH" />
         <el-option label="DELETE" value="DELETE" />
       </el-select>
-
       <el-input
         v-model="requestBuilder.url"
         placeholder="请输入请求URL（如 https://api.example.com/path）"
         class="url-input"
         @keyup.enter="sendRequest"
+        clearable
       />
-
-      <el-button type="primary" @click="sendRequest" icon="el-icon-send">
+      <el-button type="primary" @click="sendRequest">
+        <template #icon><IconSend /></template>
         发送
-      </el-button>
-      <el-button @click="clearRequest" icon="el-icon-refresh-left">
-        清空
       </el-button>
     </div>
 
@@ -52,10 +61,7 @@
 
           <!-- Header 批量编辑模式 -->
           <div v-else class="batch-edit">
-            <JsonEditor
-              v-model="headerBatchContent"
-              height="200px"
-            />
+            <JsonEditor :data="headerBatchContent" height="200px" />
             <el-button size="small" type="primary" @click="saveHeaderBatchEdit">
               保存批量编辑
             </el-button>
@@ -86,7 +92,7 @@
           <!-- Raw JSON 模式 -->
           <div v-else class="raw-body">
             <JsonEditor
-              v-model="requestBuilder.body.raw"
+              :data="requestBuilder.body.raw"
               style="width: 100%; height: 80vh; margin-top: 20px"
             />
           </div>
@@ -102,7 +108,8 @@
         <el-button size="small" @click="clearResponse">清空响应</el-button>
       </div>
       <JsonEditor
-        v-model="responseContent"
+        :data="requestBuilder.response"
+        :read-only="true"
         style="width: 100%; height: 80vh; margin-top: 20px"
       />
     </div>
@@ -115,9 +122,11 @@ import { ElMessage } from "element-plus";
 import { ElTable, ElTableColumn, ElInput, ElButton } from "element-plus";
 import JsonEditor from "./JsonEditor.vue";
 import DynamicEditTable from "@/components/DynamicEditTable.vue";
-
+import IconSend from "@/components/icons/IconSend.vue";
+import IconLink from "@/components/icons/IconLink.vue";
 // 响应式状态
 const requestBuilder = reactive({
+  name: "Untitled Request",
   method: "GET",
   url: "",
   params: [
@@ -135,13 +144,13 @@ const requestBuilder = reactive({
     { field: "Value", label: "Value", type: "string", required: true },
     { field: "Desc", label: "Description", type: "string", required: true },
   ],
+  response: "",
 });
 const activeTab = ref("params");
 const bodyType = ref("raw");
 const inParamBatchEdit = ref(false);
 const inHeaderBatchEdit = ref(false);
-const inBodyBatchEdit=ref(false);
-const responseContent = ref("");
+const inBodyBatchEdit = ref(false);
 
 // Header 批量编辑内容（JSON 格式）
 const headerBatchContent = ref("");
@@ -158,51 +167,21 @@ watch(inHeaderBatchEdit, (val) => {
   }
 });
 
-const toggleHeaderBatchEdit = () =>
-  (inHeaderBatchEdit.value = !inHeaderBatchEdit.value);
-const saveHeaderBatchEdit = () => {
-  try {
-    const headerObj = JSON.parse(headerBatchContent.value);
-    requestBuilder.headers = Object.entries(headerObj).map(([key, value]) => ({
-      key,
-      value,
-    }));
-    inHeaderBatchEdit.value = false;
-    ElMessage.success("Header 批量编辑保存成功");
-  } catch (e) {
-    ElMessage.error("JSON 格式错误，请检查");
-  }
-};
+// ------------------------  事件响应  ------------------------
+// 保存请求
+function saveRequest() {
+  // 此处可实现保存请求逻辑，如保存到本地文件或数据库
+  ElMessage.success("请求已保存（功能待实现）");
+}
 
-// 响应操作方法
-const formatResponse = () => {
-  try {
-    const parsed = JSON.parse(responseContent.value);
-    responseContent.value = JSON.stringify(parsed, null, 2);
-  } catch (e) {
-    ElMessage.warning("非 JSON 格式，无法格式化");
-  }
-};
-const clearResponse = () => (responseContent.value = "");
-const clearRequest = () => {
-  requestBuilder.method = "GET";
-  requestBuilder.url = "";
-  requestBuilder.params = [{ key: "", value: "", desc: "" }];
-  requestBuilder.headers = [{ key: "", value: "", desc: "" }];
-  requestBuilder.body.formData = [{ key: "", value: "" }];
-  requestBuilder.body.raw = '{\n  "key": "value"\n}';
-  responseContent.value = "";
-};
-
-// 核心：发送请求方法
-const sendRequest = async () => {
+// 发送请求
+async function sendRequest() {
   if (!requestBuilder.url) {
     ElMessage.error("请输入请求 URL");
     return;
   }
 
   try {
-    // 解析 URL（提取 host 和 path）
     const urlObj = new URL(requestBuilder.url);
     const host = urlObj.hostname;
     const path = urlObj.pathname + urlObj.search;
@@ -215,7 +194,7 @@ const sendRequest = async () => {
 
     // 构造请求体
     let data = null;
-    let contentType = headers["Content-Type"] || "";
+    let contentType = headers["Content-Type"] || "application/json";
     if (["POST", "PUT", "PATCH"].includes(requestBuilder.method)) {
       if (bodyType.value === "raw") {
         data = JSON.parse(requestBuilder.body.raw);
@@ -235,7 +214,7 @@ const sendRequest = async () => {
 
     // 调用 httpsClient 发送请求
     let method = requestBuilder.method.toLowerCase();
-    let response = "";
+    let result = {};
     let options = {
       host,
       path,
@@ -245,33 +224,62 @@ const sendRequest = async () => {
       ignoreSslError: true,
     };
     if (method == "get") {
-      response = await window.channel.doGet(options);
+      result = await window.channel.doGet(options);
     } else if (method == "post") {
-      response = await window.channel.doPost(options);
+      result = await window.channel.doPost(options);
     } else if (method == "patch") {
-      response = await window.channel.doPatch(options);
+      result = await window.channel.doPatch(options);
     } else if (method == "put") {
-      response = await window.channel.doPut(options);
+      result = await window.channel.doPut(options);
     } else if (method == "delete") {
-      response = await window.channel.doDelete(options);
+      result = await window.channel.doDelete(options);
     }
-
-    // 展示响应结果
-    responseContent.value = JSON.stringify(
-      {
-        status: response.status,
-        statusMessage: response.statusMessage,
-        headers: response.headers,
-        data: response.data,
-        redirectCount: response.redirectCount,
-      },
-      null,
-      2
-    );
+    console.log(result);
+    requestBuilder.response = result.responseText;
+    console.log("Response:", result.responseText);
   } catch (e) {
-    responseContent.value = `请求失败: ${e.message}`;
+    requestBuilder.response = `请求失败: ${e.message}`;
   }
-};
+}
+
+function toggleHeaderBatchEdit() {
+  return (inHeaderBatchEdit.value = !inHeaderBatchEdit.value);
+}
+function saveHeaderBatchEdit() {
+  try {
+    const headerObj = JSON.parse(headerBatchContent.value);
+    requestBuilder.headers = Object.entries(headerObj).map(([key, value]) => ({
+      key,
+      value,
+    }));
+    inHeaderBatchEdit.value = false;
+    ElMessage.success("Header 批量编辑保存成功");
+  } catch (e) {
+    ElMessage.error("JSON 格式错误，请检查");
+  }
+}
+
+// 响应操作方法
+function formatResponse() {
+  try {
+    const parsed = JSON.parse(requestBuilder.response);
+    requestBuilder.response = JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    ElMessage.warning("非 JSON 格式，无法格式化");
+  }
+}
+function clearResponse() {
+  requestBuilder.response = "";
+}
+function clearRequest() {
+  requestBuilder.method = "GET";
+  requestBuilder.url = "";
+  requestBuilder.params = [{ key: "", value: "", desc: "" }];
+  requestBuilder.headers = [{ key: "", value: "", desc: "" }];
+  requestBuilder.body.formData = [{ key: "", value: "" }];
+  requestBuilder.body.raw = '{\n  "key": "value"\n}';
+  requestBuilder.response = "";
+}
 </script>
 
 <style scoped>

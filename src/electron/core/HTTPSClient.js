@@ -37,7 +37,7 @@ export class HttpsRequestClient {
     }
 
     return new Promise((resolve, reject) => {
-      // 1. 处理请求体序列化（仅非GET/DELETE等无请求体方法需要）
+      // 处理请求体序列化（仅非GET/DELETE等无请求体方法需要）
       let requestData = null;
       try {
         if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
@@ -54,7 +54,7 @@ export class HttpsRequestClient {
         return;
       }
 
-      // 2. 构造基础请求配置
+      // 构造基础请求配置
       const requestOptions = {
         hostname: host,
         path: path,
@@ -74,7 +74,7 @@ export class HttpsRequestClient {
         }
       };
 
-      // 3. 处理请求体长度（仅当有请求体时添加）
+      // 处理请求体长度（仅当有请求体时添加）
       if (requestData) {
         requestOptions.headers['Content-Length'] = Buffer.byteLength(requestData);
       } else {
@@ -82,12 +82,12 @@ export class HttpsRequestClient {
         delete requestOptions.headers['Content-Length'];
       }
 
-      // 4. 发送请求
+      // 发送请求
       const req = https.request(requestOptions, (res) => {
-        // 5. 处理301/302重定向
+        // 处理301/302重定向
         if (followRedirect && [301, 302].includes(res.statusCode) && res.headers.location) {
           console.log(`检测到${res.statusCode}重定向，目标地址: ${res.headers.location}`);
-          
+
           // 解析重定向地址（支持相对路径和绝对路径）
           const redirectUrl = new url.URL(res.headers.location, `https://${host}${path}`);
           const newHost = redirectUrl.hostname;
@@ -109,46 +109,41 @@ export class HttpsRequestClient {
           return; // 终止当前请求的后续处理
         }
 
-        // 6. 非重定向场景：处理响应
+        // 非重定向场景：处理响应
         // 先解析并存储响应中的Set-Cookie
         if (res.headers['set-cookie']) {
           cookieManager.parseAndStoreCookie(host, res.headers['set-cookie']);
         }
 
         // 接收响应数据
-        let responseData = '';
+        let responseText = '';
         res.on('data', (chunk) => {
-          responseData += chunk;
+          responseText += chunk;
         });
 
         // 响应接收完成
         res.on('end', () => {
           try {
-            // 解析响应体（兼容JSON和普通文本）
-            const parsedData = requestOptions.headers['Accept'].includes('json')
-              ? (responseData ? JSON.parse(responseData) : {})
-              : responseData;
-
             // 返回标准化响应结果
             resolve({
               status: res.statusCode,
               statusMessage: res.statusMessage,
               headers: res.headers,
-              data: parsedData,
+              responseText: responseText,
               redirectCount: redirectCount // 返回实际跳转次数
             });
           } catch (error) {
-            reject(new Error(`响应体解析失败: ${error.message}，原始数据: ${responseData}`));
+            reject(new Error(`响应体解析失败: ${error.message}，原始数据: ${responseText}`));
           }
         });
       });
 
-      // 7. 错误处理（网络错误、SSL错误等）
+      // 错误处理（网络错误、SSL错误等）
       req.on('error', (error) => {
         reject(new Error(`${method}请求失败: ${error.message}`));
       });
 
-      // 8. 写入请求体并结束请求（仅当有请求体时）
+      // 写入请求体并结束请求（仅当有请求体时）
       if (requestData) {
         req.write(requestData);
       }
