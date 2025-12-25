@@ -1,47 +1,39 @@
-<!-- HttpsRequestPanel.vue（保持原界面布局和交互，功能不变） -->
 <template>
-  <el-tabs v-model="activeTab" type="border-card" class="config-tabs">
-    <!-- Params 配置面板 -->
-    <el-tab-pane label="Params" name="params">
+  <!-- Header 配置面板 -->
+  <div class="request-panel">
+    <div v-if="activeTab == '1'">
       <DynamicEditTable
-        v-if="!inParamBatchEdit"
         :columns="paramTableColumns"
         :data="activeRequest.params"
       />
-    </el-tab-pane>
+    </div>
+
     <!-- Header 配置面板 -->
-    <el-tab-pane label="Headers" name="headers">
+    <div v-if="activeTab == '2'">
       <div class="header-config">
-        <!-- 批量编辑按钮 -->
         <div class="header-actions">
           <el-button size="small" @click="toggleHeaderBatchEdit">
             {{ inHeaderBatchEdit ? "退出批量编辑" : "批量编辑" }}
           </el-button>
         </div>
-
-        <!-- 动态 Header 条目（仅显示 Key/Value） -->
         <div v-if="!inHeaderBatchEdit" class="dynamic-items">
           <DynamicEditTable
-            v-if="!inHeaderBatchEdit"
             :columns="headerTableColumns"
             :data="activeRequest.headers"
           />
         </div>
-
-        <!-- Header 批量编辑模式 -->
         <div v-else class="batch-edit">
-          <JsonEditor :data="headerBatchContent" height="200px" />
+          <JsonEditor v-model="headerBatchContent" height="200px" />
           <el-button size="small" type="primary" @click="saveHeaderBatchEdit">
             保存批量编辑
           </el-button>
         </div>
       </div>
-    </el-tab-pane>
+    </div>
 
     <!-- Body 配置面板 -->
-    <el-tab-pane label="Body" name="body">
+    <div v-if="activeTab == '3'">
       <div class="body-config">
-        <!-- Body 类型切换 -->
         <el-radio-group v-model="bodyType" class="body-type-group">
           <el-radio label="form-data">form-data</el-radio>
           <el-radio label="x-www-form-urlencoded"
@@ -49,8 +41,6 @@
           >
           <el-radio label="raw">raw (JSON)</el-radio>
         </el-radio-group>
-
-        <!-- form-data / x-www-form-urlencoded 模式 -->
         <div v-if="bodyType !== 'raw'" class="dynamic-items">
           <DynamicEditTable
             v-if="!inBodyBatchEdit"
@@ -58,40 +48,46 @@
             :data="activeRequest.body.form"
           />
         </div>
-
-        <!-- Raw JSON 模式 -->
         <div v-else class="raw-body">
           <JsonEditor
-            :data="activeRequest.body.raw"
+            :model-value="activeRequest.body.raw"
+            @input="handleRawChange"
             style="width: 100%; height: 80vh; margin-top: 20px"
           />
         </div>
       </div>
-    </el-tab-pane>
-  </el-tabs>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { computed,ref } from "vue";
+import { computed, ref, watch, nextTick } from "vue";
 import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests";
+import { ElMessage } from "element-plus";
 import JsonEditor from "./JsonEditor.vue";
 import DynamicEditTable from "@/components/DynamicEditTable.vue";
 
-// 获取Pinia仓库
 const requestStore = useHttpsRequestStore();
 const activeRequestId = computed(() => requestStore.activeRequestId);
 const activeRequest = computed(() => requestStore.activeRequest);
 
-// ==================== 表格列配置（请求配置区） ====================
-const headerTableColumns = ref([
-  { label: "Key", field: "key", required: true },
-  { label: "Value", field: "value", required: true },
-]);
-
+const props = defineProps({
+  activeTab: {
+    type: String,
+    required: true,
+    default: "1",
+  },
+});
+// 表格列配置（保持不变，改为 const 更规范）
 const paramTableColumns = ref([
   { label: "Key", field: "key", required: true },
   { label: "Value", field: "value", required: true },
   { label: "Desc", field: "desc" },
+]);
+
+const headerTableColumns = ref([
+  { label: "Key", field: "key", required: true },
+  { label: "Value", field: "value", required: true },
 ]);
 
 const bodyTableColumns = ref([
@@ -100,97 +96,117 @@ const bodyTableColumns = ref([
   { label: "Desc", field: "desc" },
 ]);
 
-const activeTab = ref("params");
+// 响应式状态（改为 const 更规范）
 const bodyType = ref("raw");
 const inParamBatchEdit = ref(false);
 const inHeaderBatchEdit = ref(false);
 const inBodyBatchEdit = ref(false);
+const headerBatchContent = ref("");
 
-
-// ==================== 请求头操作（完全还原原有逻辑） ====================
-function handleAddHeader() {
-  const newHeaders = [...activeRequest.value.headers, { key: "", value: "" }];
-  requestStore.updateRequest(activeRequestId.value, { headers: newHeaders });
-}
-
-function handleRemoveHeader(index) {
-  const newHeaders = activeRequest.value.headers.filter((_, i) => i !== index);
-  requestStore.updateRequest(activeRequestId.value, { headers: newHeaders });
-}
-
-function handleHeaderChange() {
-  requestStore.updateRequest(activeRequestId.value, {
-    headers: [...activeRequest.value.headers],
-  });
-}
-
-
-
+// 监听Header批量编辑模式切换，初始化/清空批量编辑内容（完善空值保护）
+watch(inHeaderBatchEdit, (newVal) => {
+  if (newVal && activeRequest.value) {
+    // 增加 activeRequest.value 存在性判断
+    // 进入批量编辑：将headers数组转换为JSON对象字符串
+    const headerObj = {};
+    // 兜底：若 headers 不是数组，默认赋值为空数组
+    const headers = Array.isArray(activeRequest.value.headers)
+      ? activeRequest.value.headers
+      : [];
+    headers.forEach((item) => {
+      if (item?.key) {
+        // 增加 item 空值判断
+        headerObj[item.key] = item.value || "";
+      }
+    });
+    headerBatchContent.value = JSON.stringify(headerObj, null, 2);
+  } else {
+    // 退出批量编辑：清空内容
+    headerBatchContent.value = "";
+  }
+});
 // 切换Header批量编辑模式
-const toggleHeaderBatchEdit = () => {
+function toggleHeaderBatchEdit() {
   inHeaderBatchEdit.value = !inHeaderBatchEdit.value;
-  return inHeaderBatchEdit.value;
-};
+}
 
-// 保存Header批量编辑
-const saveHeaderBatchEdit = () => {
+// 保存Header批量编辑（逻辑优化，增加 activeRequest 判空）
+function saveHeaderBatchEdit() {
+  if (!headerBatchContent.value) {
+    ElMessage.warning("请输入Header JSON内容");
+    return;
+  }
+
   try {
     const headerObj = JSON.parse(headerBatchContent.value);
-    requestBuilder.headers = Object.entries(headerObj).map(([key, value]) => ({
+    // 转换为数组格式，并更新到仓库
+    const newHeaders = Object.entries(headerObj).map(([key, value]) => ({
       key,
-      value,
+      value: value || "",
     }));
-    inHeaderBatchEdit.value = false;
-    ElMessage.success("Header 批量编辑保存成功");
+
+    const currentRequestId = activeRequestId.value;
+    if (currentRequestId && activeRequest.value) {
+      requestStore.updateRequest(currentRequestId, {
+        headers: newHeaders,
+      });
+      inHeaderBatchEdit.value = false;
+      ElMessage.success("Header 批量编辑保存成功");
+    } else {
+      ElMessage.warning("当前无有效请求，无法保存");
+    }
   } catch (e) {
     ElMessage.error("JSON 格式错误，请检查");
+    console.error("Header批量编辑解析错误：", e);
   }
-};
-
-// ==================== 表单数据操作（完全还原原有逻辑） ====================
-function handleAddFormData() {
-  const newFormData = [
-    ...activeRequest.value.body.formData,
-    { key: "", value: "" },
-  ];
-  requestStore.updateRequest(activeRequestId.value, {
-    body: { ...activeRequest.value.body, formData: newFormData },
-  });
 }
 
-function handleRemoveFormData(index) {
-  const newFormData = activeRequest.value.body.formData.filter(
-    (_, i) => i !== index
-  );
-  requestStore.updateRequest(activeRequestId.value, {
-    body: { ...activeRequest.value.body, formData: newFormData },
-  });
-}
+// 优化Raw模式更新逻辑（确保参数有效）
+function handleRawChange(newRawValue) {
+  const currentRequestId = activeRequestId.value;
+  if (!currentRequestId || !activeRequest.value) {
+    ElMessage.warning("当前无有效请求，无法更新Raw内容");
+    return;
+  }
 
-function handleFormDataChange() {
-  requestStore.updateRequest(activeRequestId.value, {
+  requestStore.updateRequest(currentRequestId, {
     body: {
       ...activeRequest.value.body,
-      formData: [...activeRequest.value.body.formData],
+      raw: newRawValue, // 使用传入的新值，同步到仓库
     },
-  });
-}
-
-// ==================== Raw JSON操作（完全还原原有逻辑） ====================
-function handleRawChange() {
-  requestStore.updateRequest(activeRequestId.value, {
-    body: { ...activeRequest.value.body, raw: activeRequest.value.body.raw },
   });
 }
 </script>
 
 <style scoped>
-/* 保持原有样式，不破坏界面 */
 :deep(.el-tabs--border-card) {
   height: 100%;
 }
 :deep(.el-textarea__inner) {
   height: 100%;
   resize: none;
+}
+
+.config-tabs {
+  padding: 0 10px;
+}
+
+.header-config,
+.body-config {
+  padding: 10px 0;
+}
+
+.header-actions {
+  margin-bottom: 10px;
+}
+
+.body-type-group {
+  margin-bottom: 15px;
+}
+
+.batch-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 </style>

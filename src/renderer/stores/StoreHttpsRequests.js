@@ -5,26 +5,23 @@ let requestId = 0;
 function nanoid() {
     return requestId++;
 }
-// 请求默认结构
-const getDefaultRequest = () => {
+// 新建请求
+const getNewRequest = () => {
     return reactive({
         id: nanoid(),
         alias: "未命名请求",
         method: "GET",
         url: "",
-        params: reactive([{ key: "", value: "", desc: "" }]),
-        headers: reactive([{ key: "", value: "" }]),
-        body: reactive({
-            form: reactive([{ key: "", value: "", desc: "" }]),
-            raw: "{}",
-        }),
-        response: reactive({
+        params: [{ key: "", value: "", desc: "" }],
+        headers: [{ key: "", value: "" }],
+        body: [{ key: "", value: "", desc: "" }],
+        response: {
             status: null,
             statusText: "",
             data: null,
             headers: [],
             cookies: []
-        })
+        }
     })
 };
 
@@ -36,23 +33,21 @@ const getDefaultGroup = (name) => ({
     requestList: []
 })
 
-// 采用Pinia setup语法定义仓库
-export const useHttpsRequestStore = defineStore('httpsRequest', () => {
-    // ==================== 状态定义（对应原state） ====================
-    // 所有请求（包含分组信息）
+export const useHttpsRequestStore = defineStore('httpsRequests', () => {
+    // 所有请求
     const groupedRequests = ref([
         getDefaultGroup("默认分组") // 默认分组
     ])
 
-    // 所有标签页请求（用于标签页管理，与分组请求关联）
+    // 所有标签页请求
     const allRequests = ref([
-        getDefaultRequest() // 默认一个请求标签页
+        getNewRequest()
     ])
+    console.log("初始化请求仓库", allRequests.value);
 
     // 当前活动的请求ID
-    const activeRequestId = ref("")
+    const activeRequestId = ref(0)
 
-    // ==================== 计算属性定义（对应原getters） ====================
     // 获取当前活动请求
     const activeRequest = computed(() => {
         return allRequests.value.find(req => req.id === activeRequestId.value) || allRequests.value[0]
@@ -63,11 +58,9 @@ export const useHttpsRequestStore = defineStore('httpsRequest', () => {
         return (requestId) => allRequests.value.find(req => req.id === requestId)
     })
 
-    // ==================== 方法定义（对应原actions，全部用function声明） ====================
-    // ==================== 标签页相关操作 ====================
     // 新增请求标签页
     function addRequestTab() {
-        const newRequest = getDefaultRequest()
+        const newRequest = getNewRequest()
         allRequests.value.push(newRequest)
         setActiveRequest(newRequest.id)
         return newRequest
@@ -94,7 +87,6 @@ export const useHttpsRequestStore = defineStore('httpsRequest', () => {
         deleteRequest(requestId)
     }
 
-    // ==================== 请求内容编辑相关 ====================
     // 更新请求信息（url、method、headers等）
     function updateRequest(requestId, updateData) {
         const request = getRequestById.value(requestId)
@@ -111,7 +103,6 @@ export const useHttpsRequestStore = defineStore('httpsRequest', () => {
         }
     }
 
-    // ==================== 分组相关操作 ====================
     // 新增分组
     function addGroup(groupName) {
         groupedRequests.value.push(getDefaultGroup(groupName))
@@ -148,10 +139,9 @@ export const useHttpsRequestStore = defineStore('httpsRequest', () => {
         }
     }
 
-    // ==================== 分组内请求操作 ====================
     // 新增请求到分组
     function addRequest(requestData, groupId) {
-        const newRequest = { ...getDefaultRequest(), ...requestData }
+        const newRequest = { ...getNewRequest(), ...requestData }
         // 添加到标签页列表
         if (!allRequests.value.find(req => req.id === newRequest.id)) {
             allRequests.value.push(newRequest)
@@ -191,7 +181,6 @@ export const useHttpsRequestStore = defineStore('httpsRequest', () => {
         })
     }
 
-    // 暴露状态、计算属性和方法（必须显式暴露才能在组件中使用）
     return {
         // 状态
         groupedRequests,

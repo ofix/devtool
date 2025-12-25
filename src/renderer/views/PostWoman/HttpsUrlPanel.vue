@@ -150,7 +150,8 @@ async function handleSendRequest() {
 .request-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .method-select {
   width: 100px;

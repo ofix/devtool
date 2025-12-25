@@ -7,9 +7,9 @@
     :max-height="maxHeight"
     :height="height"
     :stripe="stripe"
-    @row-mouseenter="handleRowMouseEnter"
-    @row-mouseleave="handleRowMouseLeave"
-    @selection-change="handleSelectionChange"
+    @cell-mouse-enter="onCellMouseEnter"
+    @cell-mouse-leave="onCellMouseLeave"
+    @selection-change="onSelectionChange"
     :style="tableStyleObject"
     class="styled-edit-table"
     :cell-class-name="setCellClassName"
@@ -43,21 +43,7 @@
       :align="column.align || 'left'"
     >
       <template #default="scope">
-        <!-- 自定义列渲染 -->
-        <template v-if="$slots[column.field]">
-          <slot
-            :name="column.field"
-            :row="scope.row"
-            :index="scope.$index"
-            :editing="isRowEditing(scope.row)"
-            :focused="scope.row._editingField === column.field"
-            :rowData="scope.row"
-            :field="column.field"
-          />
-        </template>
-        <!-- 默认可编辑单元格 -->
         <DynamicEditCell
-          v-else
           :ref="
             (el) =>
               setCellRef(
@@ -68,7 +54,7 @@
           :value="scope.row[column.field]"
           :field="column.field"
           :row-index="scope.$index"
-          :editing="isRowEditing(scope.row)"
+          :editing="isCellEditing(scope.row, scope.column)"
           :focused="scope.row._editingField === column.field"
           :config="column"
           :placeholder="column.placeholder || column.label"
@@ -91,14 +77,14 @@
           <Delete
             v-if="showDelete"
             class="action-btn-delete"
-            :class="{ 'action-visible': hoveredRowIndex === scope.$index }"
+            :class="{ 'action-visible': hoveredRowId === scope.row._id }"
             @click.stop="deleteRow(scope.$index)"
           />
           <slot
             name="actions"
             :row="scope.row"
             :index="scope.$index"
-            :isEditing="isRowEditing(scope.row)"
+            :isEditing="isCellEditing(scope.row)"
             :rowData="scope.row"
             :firstField="columns[0]?.field"
           />
@@ -130,14 +116,14 @@ const props = defineProps({
       Array.isArray(cols) && cols.every((col) => col?.field && col?.label),
   },
   // 初始数据（可选）
-  initialData: {
+  data: {
     type: Array,
     default: () => [],
   },
   // 默认行数
   defaultRowCount: {
     type: Number,
-    default: 1,
+    default: 2,
     validator: (v) => v >= 0 && Number.isInteger(v),
   },
   // 表格样式
@@ -200,11 +186,7 @@ const props = defineProps({
   },
   // 自动添加空行
   autoAddEmptyRow: { type: Boolean, default: true },
-  // 自动添加检查字段
-  autoAddCheckFields: {
-    type: Array,
-    default: () => [],
-  },
+
   // 获取数据时是否只返回勾选的行
   onlyChecked: {
     type: Boolean,
@@ -264,54 +246,41 @@ const tableStyleObject = computed(() => {
 // 响应式数据
 const tableRef = ref(null);
 const tableData = ref([]);
-const hoveredRowIndex = ref(-1);
+const hoveredRowId = ref(-1);
 const selectedRows = ref([]);
 const isAddingRow = ref(false);
 const lastEditTime = ref(0);
 const cellRefs = ref({});
-
-// 计算属性
-const checkFields = computed(() => {
-  if (
-    Array.isArray(props.autoAddCheckFields) &&
-    props.autoAddCheckFields.length > 0
-  ) {
-    return [...props.autoAddCheckFields];
-  }
-  return props.columns.length > 0 ? [props.columns[0].field] : [];
-});
 
 const selectableFn = computed(() => {
   return (row, index) => props.selectable(row, index);
 });
 
 // 设置单元格类名，用于样式控制
-const setCellClassName = ({ row, column }) => {
-  if (isRowEditing(row) && row._editingField === column.prop) {
+function setCellClassName({ row, column }) {
+  if (isCellEditing(row, column) && row._editingField === column.field) {
     return "edit-cell-focused";
   }
   return "edit-cell";
-};
+}
 
 // 创建空行
-const createEmptyRow = () => {
-  const row = reactive({
+function createEmptyRow() {
+  const row = {
     _id: `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     _editing: true,
-    _editingField: props.columns.length > 0 ? props.columns[0].field : null  // 默认聚焦第一列字段
-  });
-
+    _editingField: props.columns.length > 0 ? props.columns[0].field : null,
+  };
   props.columns.forEach((col) => {
     row[col.field] = col.defaultValue !== undefined ? col.defaultValue : "";
   });
-
   return row;
-};
+}
 
 // 初始化表格
-const initTableData = () => {
-  if (Array.isArray(props.initialData) && props.initialData.length > 0) {
-    tableData.value = props.initialData.map((row) => {
+function initTableData() {
+  if (Array.isArray(props.data) && props.data.length > 0) {
+    tableData.value = props.data.map((row) => {
       const reactiveRow = reactive({
         ...row,
         _id:
@@ -322,16 +291,17 @@ const initTableData = () => {
       });
       return reactiveRow;
     });
+    tableData.value.push(createEmptyRow());
   } else {
     const defaultCount = Math.max(0, props.defaultRowCount);
     tableData.value = Array.from({ length: defaultCount }, () =>
       createEmptyRow()
     );
   }
-};
+}
 
 // 获取表格数据
-const getTableData = (options = {}) => {
+function getTableData(options = {}) {
   const {
     onlyChecked = props.onlyChecked,
     includeEmpty = false,
@@ -374,16 +344,17 @@ const getTableData = (options = {}) => {
     });
 
   return result;
-};
+}
 
-// 检查行是否在编辑状态
-const isRowEditing = (row) => {
+///////////////////////////////////  交互逻辑  ///////////////////////////////////
+// 检查单元格是否在编辑状态
+function isCellEditing(row, column) {
   if (!row) return false;
   return !!row._editing;
-};
+}
 
 // 开始行编辑,子组件触发编辑逻辑
-const startRowEdit = async (row, field) => {
+async function startRowEdit(row, field) {
   if (!row || !field) return;
 
   // 强制取消当前行所有单元格的焦点（彻底释放旧焦点）
@@ -419,15 +390,29 @@ const startRowEdit = async (row, field) => {
       cellRef.focus();
     }, 50); // 50ms 延迟兼容 DOM 更新时序问题
   }
-};
+}
+
+// 核心：滚动到底部的通用函数
+function scrollToBottom() {
+  // 确保滚动容器已获取到DOM元素
+  if (!tableRef.value) return;
+
+  const container = tableRef.value;
+  // 瞬间滚动（兼容性最好，推荐）
+  // container.scrollTop = container.scrollHeight - container.clientHeight;
+
+  // 平滑滚动（现代浏览器支持，el-splitter-panel中可按需使用）
+  container.scrollTo({
+    top: container.scrollHeight - container.clientHeight,
+    behavior: "smooth",
+  });
+}
 
 // 保存行编辑
-const saveRowEdit = (payload) => {
+async function saveRowEdit(payload) {
   const { rowIndex, field, value } = payload;
   if (rowIndex === undefined || !field || !tableData.value[rowIndex]) return;
-
   tableData.value[rowIndex][field] = value;
-
   const now = Date.now();
   const timeDiff = now - lastEditTime.value;
   lastEditTime.value = now;
@@ -446,24 +431,35 @@ const saveRowEdit = (payload) => {
 
     if (hasContent) {
       isAddingRow.value = true;
-      setTimeout(() => {
+      setTimeout(async () => {
         tableData.value.push(createEmptyRow());
         isAddingRow.value = false;
-      }, 300);
+        await nextTick();
+        scrollToBottom();
+      }, 100);
     }
   }
-};
+}
+
+// 行悬停事件处理
+function onCellMouseEnter(row) {
+  hoveredRowId.value = row._id;
+}
+
+function onCellMouseLeave() {
+  hoveredRowId.value = -1;
+}
 
 // 取消行编辑
-const cancelRowEdit = (row) => {
+function cancelRowEdit(row) {
   if (!row) return;
 
   row._editing = false;
   row._editingField = null;
-};
+}
 
 // 删除行
-const deleteRow = (index) => {
+function deleteRow(index) {
   if (index < 0 || index >= tableData.value.length) return;
 
   const deletedRow = tableData.value[index];
@@ -480,48 +476,35 @@ const deleteRow = (index) => {
       tableData.value.push(createEmptyRow());
     }, 0);
   }
-};
+}
 
-// 事件处理
-const handleRowMouseEnter = (row, column, event) => {
-  if (row && row._index !== undefined) {
-    hoveredRowIndex.value = row._index;
-  } else if (column && column.$index !== undefined) {
-    hoveredRowIndex.value = column.$index;
-  }
-};
-
-const handleRowMouseLeave = () => {
-  hoveredRowIndex.value = -1;
-};
-
-const handleSelectionChange = (selectedRowsData) => {
+function onSelectionChange(selectedRowsData) {
   selectedRows.value = [...selectedRowsData];
-};
+}
 
 // 设置单元格引用
-const setCellRef = (key, ref) => {
+function setCellRef(key, ref) {
   if (!key) return;
   if (ref) {
     cellRefs.value[key] = ref;
   } else {
     delete cellRefs.value[key];
   }
-};
+}
 
 // 点击外部取消编辑
-const handleClickOutside = (event) => {
+function handleClickOutside(event) {
   if (tableRef.value && !tableRef.value.$el.contains(event.target)) {
     tableData.value.forEach((row) => {
       row._editing = false;
       row._editingField = null;
     });
   }
-};
+}
 
-// 监听与生命周期
+/////////////////////////////////// 监听与生命周期 ///////////////////////////////////
 watch(
-  () => [...props.initialData],
+  () => [...props.data],
   () => {
     initTableData();
   },
@@ -540,7 +523,7 @@ onUnmounted(() => {
   selectedRows.value = [];
 });
 
-// 组件对外方法
+///////////////////////////////////  对外接口  ///////////////////////////////////
 defineExpose({
   getTableData: (options = {}) => getTableData(options),
   getSelectedData: (options = {}) =>
@@ -666,13 +649,14 @@ defineExpose({
   height: 100%;
 }
 
-.action-btn-delete{
-    opacity:0;
-    color:#FF0000;
+.action-btn-delete {
+  opacity: 0;
+  color: #ff0000;
+  cursor: pointer;
 }
 
 .action-visible {
-  opacity: 1 !important;
+  opacity: 1;
 }
 
 :deep(.el-table__row) .el-button.is-link {

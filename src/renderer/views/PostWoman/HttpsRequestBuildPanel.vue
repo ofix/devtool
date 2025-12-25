@@ -1,4 +1,3 @@
-<!-- HttpsRequestBuildPanel.vue（核心面板：标签页+原有编辑布局，功能完全兼容） -->
 <template>
   <div
     class="request-build-panel"
@@ -9,7 +8,7 @@
       background-color: #fff;
     "
   >
-    <!-- 新增标签页（不影响原有功能，+号新增请求，保持原有编辑区域不变） -->
+    <!-- 新增标签页 -->
     <el-tabs
       v-model="activeRequestId"
       type="card"
@@ -24,7 +23,7 @@
         :key="request.id"
         :label="request.alias || '未命名请求'"
       />
-      <!-- 新增标签页按钮（+号，保持Postman样式） -->
+      <!-- 新增标签页按钮 -->
       <template #append>
         <el-button
           icon="Plus"
@@ -41,13 +40,22 @@
         />
       </template>
     </el-tabs>
-
-    <!-- 原有编辑区域（拆分为子组件，但布局和功能与原一致） -->
+    <!-- 请求编辑面板 -->
     <div class="postwoman-container">
       <HttpsUrlPanel />
+      <el-menu
+        :default-active="activeIndex"
+        class="el-menu-demo"
+        mode="horizontal"
+        @select="handleSelect"
+      >
+        <el-menu-item index="1">Params</el-menu-item>
+        <el-menu-item index="2">Headers</el-menu-item>
+        <el-menu-item index="3">Body</el-menu-item>
+      </el-menu>
       <el-splitter layout="vertical">
         <el-splitter-panel :min="160" :size="160">
-          <HttpsRequestPanel />
+          <HttpsRequestPanel :activeTab="activeIndex" />
         </el-splitter-panel>
         <el-splitter-panel>
           <HttpsResponsePanel />
@@ -58,35 +66,39 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests";
 import HttpsUrlPanel from "./HttpsUrlPanel.vue";
 import HttpsRequestPanel from "./HttpsRequestPanel.vue";
 import HttpsResponsePanel from "./HttpsResponsePanel.vue";
 
-// 获取Pinia仓库
 const requestStore = useHttpsRequestStore();
 
-// 当前活动请求ID（双向绑定标签页，保持与原有功能联动）
+// 当前活动请求ID
 const activeRequestId = computed({
   get: () => requestStore.activeRequestId || requestStore.allRequests[0]?.id,
   set: (val) => requestStore.setActiveRequest(val),
 });
 
-// 新增标签页（创建与原有请求结构一致的空请求，保持功能兼容）
-const handleAddTab = () => {
+const activeIndex = ref("1");
+function handleSelect(key, keyPath) {
+  activeIndex.value = key;
+}
+
+// 新增标签页
+function handleAddTab() {
   requestStore.addRequestTab();
-};
+}
 
-// 关闭标签页（同时删除分组中的请求，保持数据一致性）
-const handleRemoveTab = (requestId) => {
+// 关闭标签页
+function handleRemoveTab(requestId) {
   requestStore.closeRequestTab(requestId);
-};
+}
 
-// 切换标签页（同步更新当前活动请求，保持与左侧列表联动）
-const handleTabChange = (requestId) => {
+// 切换标签页
+function handleTabChange(requestId) {
   requestStore.setActiveRequest(requestId);
-};
+}
 </script>
 
 <style scoped>
@@ -94,9 +106,8 @@ const handleTabChange = (requestId) => {
   width: 100%;
   height: 100vh;
   display: flex;
-  background-color: #f5f5f5;
+  background-color: #fff;
   flex-direction: column;
-  gap: 12px;
   padding: 16px;
   box-sizing: border-box;
   overflow: hidden;
