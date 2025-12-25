@@ -161,13 +161,10 @@
 <script setup>
 import { ref, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import {
-  useRequestStore,
-  REQUEST_METHOD_COLOR_MAP,
-} from "@/stores/StoreRequest";
+import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests"; // 替换原有仓库引用
 
 // 引入Pinia仓库
-const requestStore = useRequestStore();
+const requestStore = useHttpsRequestStore();
 // 响应式状态
 const activeRequestId = ref(""); // 当前选中的请求ID
 // 弹窗状态
@@ -311,11 +308,11 @@ const handleDeleteRequest = async (requestId) => {
   }
 };
 
-// 选择请求（用于联动请求编辑界面）
+// 选择请求（联动标签页）
 const handleSelectRequest = (requestId) => {
   activeRequestId.value = requestId;
-  // 可通过 emit 向父组件传递选中的请求数据
-  // emit('requestSelect', requestStore.getRequestById(requestId));
+  // 切换到对应的标签页
+  requestStore.setActiveRequest(requestId);
 };
 
 // 暴露方法（供父组件调用，如发送请求后添加到列表）
