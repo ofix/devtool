@@ -45,7 +45,7 @@
       <HttpsUrlPanel />
       <el-menu
         :default-active="activeIndex"
-        class="el-menu-demo"
+        class="request-tabs"
         mode="horizontal"
         @select="handleSelect"
       >
@@ -116,7 +116,10 @@ function handleTabChange(requestId) {
   height: 100%;
   background-color: #fff;
 }
-/* 保持原有标签页样式，不破坏界面 */
+.request-tabs {
+  margin-bottom: 20px;
+  height: 46px;
+}
 :deep(.el-tabs--card > .el-tabs__header .el-tabs__nav-wrap) {
   margin: 0;
 }

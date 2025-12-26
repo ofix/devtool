@@ -1,9 +1,9 @@
 <template>
-  <div class="styled-table-cell" @click.stop="handleClick" @mousedown.prevent>
+  <div class="dynamic-edit-cell" @click.stop="onClick" @mousedown.prevent>
     <!-- 显示模式 -->
     <div
       v-if="!editing"
-      class="cell-display"
+      class="cell-readonly"
       :style="displayStyle"
       :title="displayValue"
     >
@@ -16,11 +16,11 @@
         :is="getComponent()"
         v-model="editValue"
         v-bind="getComponentProps()"
-        @blur="handleBlur"
-        @keyup.enter="handleSave"
-        @keydown.esc="handleCancel"
-        @keydown.tab="handleTab"
-        @change="handleChange"
+        @blur="onBlur"
+        @keyup.enter="onSave"
+        @keydown.esc="onCancel"
+        @keydown.tab="onTab"
+        @change="onChange"
         ref="inputRef"
         class="cell-input"
       />
@@ -82,7 +82,7 @@ focusWatch.value = watch(
   { immediate: false, deep: true } // 开启 deep，确保监听对象属性变更
 );
 
-// 计算属性：保持原有逻辑，无冗余优化
+//////////////////////  计算属性  //////////////////////
 const isEmpty = computed(() => {
   return (
     props.value === null || props.value === undefined || props.value === ""
@@ -187,20 +187,18 @@ function getComponentProps() {
   return baseProps;
 }
 
-// 处理方法：优化点击逻辑，防重复触发
-async function handleClick() {
+//////////////////////  交互事件响应 //////////////////////
+async function onClick() {
   isClicking.value = true;
-  // 立即触发开始编辑事件，不等待异步
   emit("startEdit");
 
-  // 短暂延迟后释放标识，避免完全屏蔽快速操作
   setTimeout(() => {
     isClicking.value = false;
   }, 300);
 }
 
 // 保存逻辑：保持原有
-function handleSave() {
+function onSave() {
   emit("save", {
     rowIndex: props.rowIndex,
     field: props.field,
@@ -209,33 +207,33 @@ function handleSave() {
 }
 
 // 失焦逻辑：优化判断，避免误触发
-function handleBlur(event) {
+function onBlur(event) {
   if (
     !event.relatedTarget ||
-    !event.relatedTarget.closest(".styled-table-cell")
+    !event.relatedTarget.closest(".dynamic-edit-cell")
   ) {
-    handleSave();
+    onSave();
   }
 }
 
 // 取消逻辑：保持原有
-function handleCancel() {
+function onCancel() {
   editValue.value = props.value;
   emit("cancel");
 }
 
 // Tab键逻辑：保持原有
-function handleTab(event) {
+function onTab(event) {
   event.preventDefault();
-  handleSave();
+  onSave();
   emit("nextField");
 }
 
 // 变化逻辑：保持原有
-const handleChange = (value) => {
+const onChange = (value) => {
   if (props.config.type === "select" || props.config.type === "boolean") {
     editValue.value = value;
-    handleSave();
+    onSave();
   }
 };
 
@@ -335,7 +333,7 @@ defineExpose({
 
 <style scoped>
 /* 单元格基础样式：确保盒模型统一，无额外间距 */
-.styled-table-cell {
+.dynamic-edit-cell {
   width: 100%;
   height: 100%;
   min-height: 40px;
@@ -347,34 +345,34 @@ defineExpose({
   box-sizing: border-box;
 }
 
-.styled-table-cell:hover {
+.dynamic-edit-cell:hover {
   background-color: #f5f7fa;
 }
 
-.styled-table-cell.is-editing {
+.dynamic-edit-cell.is-editing {
   padding: 0;
   cursor: default;
   background-color: #f5f7fa;
 }
 
-.styled-table-cell.is-focused {
+.dynamic-edit-cell.is-focused {
   outline: 2px solid #409eff;
   outline-offset: -1px;
   z-index: 1;
   position: relative;
 }
 
-.styled-table-cell.is-empty .cell-display {
+.dynamic-edit-cell.is-empty .cell-readonly {
   color: #909399;
   font-style: italic;
   opacity: 0.7;
 }
 
-.styled-table-cell.is-required .cell-display {
+.dynamic-edit-cell.is-required .cell-readonly {
   position: relative;
 }
 
-.cell-display {
+.cell-readonly {
   width: 100%;
   height: 100%;
   min-height: 40px;

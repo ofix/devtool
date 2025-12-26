@@ -47,20 +47,20 @@
           :ref="
             (el) =>
               setCellRef(
-                `${scope.row._id || `row-${scope.$index}`}_${column.field}`,
+                `${scope.row.$id || `row-${scope.$index}`}_${column.field}`,
                 el
               )
           "
           :value="scope.row[column.field]"
           :field="column.field"
           :row-index="scope.$index"
-          :editing="isCellEditing(scope.row, scope.column)"
-          :focused="scope.row._editingField === column.field"
+          :editing="scope.row[`${column.field}$edit`]"
+          :focused="scope.row[`${column.field}$edit`]"
           :config="column"
           :placeholder="column.placeholder || column.label"
-          @start-edit="() => startRowEdit(scope.row, column.field)"
-          @save="saveRowEdit"
-          @cancel="() => cancelRowEdit(scope.row)"
+          @start-edit="() => startCellEdit(scope.row, column, column.field)"
+          @save="saveCellVallue"
+          @cancel="() => cancelCellEdit(scope.row)"
         />
       </template>
     </el-table-column>
@@ -77,7 +77,7 @@
           <Delete
             v-if="showDelete"
             class="action-btn-delete"
-            :class="{ 'action-visible': hoveredRowId === scope.row._id }"
+            :class="{ 'action-visible': hoveredRowId === scope.row.$id }"
             @click.stop="deleteRow(scope.$index)"
           />
           <slot
@@ -251,6 +251,7 @@ const selectedRows = ref([]);
 const isAddingRow = ref(false);
 const lastEditTime = ref(0);
 const cellRefs = ref({});
+const activeEditCell = ref(null);
 
 const selectableFn = computed(() => {
   return (row, index) => props.selectable(row, index);
@@ -258,21 +259,17 @@ const selectableFn = computed(() => {
 
 // 设置单元格类名，用于样式控制
 function setCellClassName({ row, column }) {
-  if (isCellEditing(row, column) && row._editingField === column.field) {
-    return "edit-cell-focused";
-  }
-  return "edit-cell";
+  return row[`$${column.field}_inEDit`] ? "edit-cell-focused" : "edit-cell";
 }
 
 // 创建空行
 function createEmptyRow() {
   const row = {
-    _id: `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    _editing: true,
-    _editingField: props.columns.length > 0 ? props.columns[0].field : null,
+    $id: `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
   };
   props.columns.forEach((col) => {
     row[col.field] = col.defaultValue !== undefined ? col.defaultValue : "";
+    row[`${col.field}$edit`] = false;
   });
   return row;
 }
@@ -283,14 +280,18 @@ function initTableData() {
     tableData.value = props.data.map((row) => {
       const reactiveRow = reactive({
         ...row,
-        _id:
-          row._id ||
+        $id:
+          row.$id ||
           `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-        _editing: false,
-        _editingField: null,
+      });
+      props.columns.forEach((col) => {
+        if (reactiveRow[`${col.field}$edit`] === undefined) {
+          reactiveRow[`${col.field}$edit`] = false;
+        }
       });
       return reactiveRow;
     });
+
     tableData.value.push(createEmptyRow());
   } else {
     const defaultCount = Math.max(0, props.defaultRowCount);
@@ -354,35 +355,35 @@ function isCellEditing(row, column) {
 }
 
 // 开始行编辑,子组件触发编辑逻辑
-async function startRowEdit(row, field) {
+async function startCellEdit(row, column, field) {
   if (!row || !field) return;
 
-  // 强制取消当前行所有单元格的焦点（彻底释放旧焦点）
-  Object.keys(cellRefs.value).forEach((key) => {
-    if (key.startsWith(row._id)) {
-      // 只匹配当前行的单元格
-      const cellRef = cellRefs.value[key];
-      if (cellRef && typeof cellRef.blur === "function") {
-        cellRef.blur();
+  const cellKey = `${row.$id}_${field}`;
+  // 取消上一个编辑单元格的状态（性能最优：直接操作已知的上一个单元格，无需遍历）
+  if (activeEditCell.value) {
+    const { rowId, field: oldField } = activeEditCell.value;
+    const oldRow = tableData.value.find((r) => r.$id === rowId);
+    if (oldRow) {
+      oldRow[`${oldField}$edit`] = false;
+      // 取消上一个单元格的焦点
+      const oldCellRef = cellRefs.value[`${rowId}_${oldField}`];
+      if (oldCellRef && typeof oldCellRef.blur === "function") {
+        oldCellRef.blur();
       }
     }
-  });
-
-  // 更新编辑状态（此时 _editingField 是响应式的，变更会即时同步）
-  row._editing = true;
-  // 先置空再赋值，强制触发响应式更新
-  row._editingField = null;
-  await nextTick();
-  row._editingField = field;
+  }
+  // 激活当前单元格编辑状态
+  row[`${field}$edit`] = true;
+  // 更新当前编辑单元格状态
+  activeEditCell.value = { rowId: row.$id, field };
 
   // 确保行ID存在
-  if (!row._id) {
-    row._id = `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  if (!row.$id) {
+    row.$id = `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   }
 
   // 精准聚焦目标单元格（增加微小延迟，确保 DOM 完全更新）
   await nextTick();
-  const cellKey = `${row._id}_${field}`;
   // 强制刷新引用，避免缓存失效
   const cellRef = cellRefs.value[cellKey];
   if (cellRef && typeof cellRef.focus === "function") {
@@ -408,10 +409,11 @@ function scrollToBottom() {
   });
 }
 
-// 保存行编辑
-async function saveRowEdit(payload) {
+// 保存单元格编辑
+async function saveCellVallue(payload) {
   const { rowIndex, field, value } = payload;
   if (rowIndex === undefined || !field || !tableData.value[rowIndex]) return;
+  // 更新单元格值
   tableData.value[rowIndex][field] = value;
   const now = Date.now();
   const timeDiff = now - lastEditTime.value;
@@ -441,9 +443,39 @@ async function saveRowEdit(payload) {
   }
 }
 
+// 取消单元格编辑
+function cancelCellEdit(row, field) {
+  if (row && field) {
+    row[`${field}$edit`] = false;
+    // 如果当前取消的是正在编辑的单元格，清空当前编辑状态
+    if (
+      activeEditCell.value &&
+      activeEditCell.value.rowId === row.$id &&
+      activeEditCell.value.field === field
+    ) {
+      activeEditCell.value = null;
+    }
+    return;
+  }
+
+  // 批量取消所有单元格编辑（兼容原有点击外部取消逻辑）
+  tableData.value.forEach((row) => {
+    props.columns.forEach((col) => {
+      row[`${col.field}$edit`] = false;
+    });
+  });
+  activeEditCell.value = null;
+}
+
+function onClickOutside(event) {
+  if (tableRef.value && !tableRef.value.$el.contains(event.target)) {
+    cancelCellEdit(); // 调用批量取消方法
+  }
+}
+
 // 行悬停事件处理
 function onCellMouseEnter(row) {
-  hoveredRowId.value = row._id;
+  hoveredRowId.value = row.$id;
 }
 
 function onCellMouseLeave() {
@@ -451,7 +483,7 @@ function onCellMouseLeave() {
 }
 
 // 取消行编辑
-function cancelRowEdit(row) {
+function saveCellEdit(row) {
   if (!row) return;
 
   row._editing = false;
@@ -492,16 +524,6 @@ function setCellRef(key, ref) {
   }
 }
 
-// 点击外部取消编辑
-function handleClickOutside(event) {
-  if (tableRef.value && !tableRef.value.$el.contains(event.target)) {
-    tableData.value.forEach((row) => {
-      row._editing = false;
-      row._editingField = null;
-    });
-  }
-}
-
 /////////////////////////////////// 监听与生命周期 ///////////////////////////////////
 watch(
   () => [...props.data],
@@ -513,11 +535,11 @@ watch(
 
 onMounted(() => {
   initTableData();
-  document.addEventListener("click", handleClickOutside);
+  document.addEventListener("click", onClickOutside);
 });
 
 onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
+  document.removeEventListener("click", onClickOutside);
   cellRefs.value = {};
   tableData.value = [];
   selectedRows.value = [];
@@ -546,8 +568,8 @@ defineExpose({
     if (Array.isArray(data)) {
       tableData.value = data.map((row) => ({
         ...row,
-        _id:
-          row._id ||
+        $id:
+          row.$id ||
           `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         _editing: false,
         _editingField: null,
@@ -624,8 +646,9 @@ defineExpose({
     }
     return emptyRowIndexes.reverse();
   },
-  startRowEdit,
-  cancelRowEdit,
+  startCellEdit,
+  saveCellEdit,
+  cancelCellEdit,
 });
 </script>
 

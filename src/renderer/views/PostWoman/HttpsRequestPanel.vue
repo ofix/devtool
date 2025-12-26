@@ -1,8 +1,9 @@
 <template>
-  <!-- Header 配置面板 -->
   <div class="request-panel">
+    <!-- Params 配置面板 -->
     <div v-if="activeTab == '1'">
       <DynamicEditTable
+        class="dynamic-edit-table"
         :columns="paramTableColumns"
         :data="activeRequest.params"
       />
@@ -18,6 +19,7 @@
         </div>
         <div v-if="!inHeaderBatchEdit" class="dynamic-items">
           <DynamicEditTable
+            class="dynamic-edit-table"
             :columns="headerTableColumns"
             :data="activeRequest.headers"
           />
@@ -43,6 +45,7 @@
         </el-radio-group>
         <div v-if="bodyType !== 'raw'" class="dynamic-items">
           <DynamicEditTable
+            class="dynamic-edit-table"
             v-if="!inBodyBatchEdit"
             :columns="bodyTableColumns"
             :data="activeRequest.body.form"
@@ -185,6 +188,11 @@ function handleRawChange(newRawValue) {
 :deep(.el-textarea__inner) {
   height: 100%;
   resize: none;
+}
+
+:deep(.el-table__header-wrapper .el-table__header th) {
+  height: 36px;
+  line-height: 40px;
 }
 
 .config-tabs {
