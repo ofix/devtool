@@ -2,6 +2,10 @@
   <div class="request-panel">
     <!-- Params 配置面板 -->
     <div v-if="activeTab == '1'">
+      <div class="request-sub-bar">
+        <div>Params</div>
+        <ToggleButton :values="batchEditButton" @click="toggleParamBatchEdit" />
+      </div>
       <DynamicEditTable
         class="dynamic-edit-table"
         :columns="paramTableColumns"
@@ -12,10 +16,12 @@
     <!-- Header 配置面板 -->
     <div v-if="activeTab == '2'">
       <div class="header-config">
-        <div class="header-actions">
-          <el-button size="small" @click="toggleHeaderBatchEdit">
-            {{ inHeaderBatchEdit ? "退出批量编辑" : "批量编辑" }}
-          </el-button>
+        <div class="request-sub-bar">
+          <div>Headers</div>
+          <ToggleButton
+            :values="batchEditButton"
+            @click="toggleHeaderBatchEdit"
+          />
         </div>
         <div v-if="!inHeaderBatchEdit" class="dynamic-items">
           <DynamicEditTable
@@ -35,7 +41,7 @@
 
     <!-- Body 配置面板 -->
     <div v-if="activeTab == '3'">
-      <div class="body-config">
+      <div class="request-sub-bar">
         <el-radio-group v-model="bodyType" class="body-type-group">
           <el-radio label="form-data">form-data</el-radio>
           <el-radio label="x-www-form-urlencoded"
@@ -43,6 +49,10 @@
           >
           <el-radio label="raw">raw (JSON)</el-radio>
         </el-radio-group>
+        <ToggleButton :values="batchEditButton" @click="toggleBodyBatchEdit" />
+      </div>
+
+      <div class="body-config">
         <div v-if="bodyType !== 'raw'" class="dynamic-items">
           <DynamicEditTable
             class="dynamic-edit-table"
@@ -51,6 +61,7 @@
             :data="activeRequest.body.form"
           />
         </div>
+
         <div v-else class="raw-body">
           <JsonEditor
             :model-value="activeRequest.body.raw"
@@ -69,6 +80,7 @@ import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests";
 import { ElMessage } from "element-plus";
 import JsonEditor from "./JsonEditor.vue";
 import DynamicEditTable from "@/components/DynamicEditTable.vue";
+import ToggleButton from "@/components/ToggleButton.vue";
 
 const requestStore = useHttpsRequestStore();
 const activeRequestId = computed(() => requestStore.activeRequestId);
@@ -98,6 +110,8 @@ const bodyTableColumns = ref([
   { label: "Value", field: "value", required: true },
   { label: "Desc", field: "desc" },
 ]);
+
+const batchEditButton = ref(["批量编辑", "单个编辑"]);
 
 // 响应式状态（改为 const 更规范）
 const bodyType = ref("raw");
@@ -129,7 +143,13 @@ watch(inHeaderBatchEdit, (newVal) => {
   }
 });
 // 切换Header批量编辑模式
+function toggleParamBatchEdit() {
+  inHeaderBatchEdit.value = !inHeaderBatchEdit.value;
+}
 function toggleHeaderBatchEdit() {
+  inHeaderBatchEdit.value = !inHeaderBatchEdit.value;
+}
+function toggleBodyBatchEdit() {
   inHeaderBatchEdit.value = !inHeaderBatchEdit.value;
 }
 
@@ -181,31 +201,33 @@ function handleRawChange(newRawValue) {
 }
 </script>
 
-<style scoped>
+<style type="scss" scoped>
+.request-panel {
+  padding-left: 15px;
+  padding-right:10px;
+}
+.request-sub-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  margin-bottom: 10px;
+  &div {
+    font-size:8px;
+  }
+}
 :deep(.el-tabs--border-card) {
-  height: 100%;
+  height: 60%;
 }
 :deep(.el-textarea__inner) {
-  height: 100%;
+  height: 60%;
   resize: none;
 }
 
 :deep(.el-table__header-wrapper .el-table__header th) {
   height: 36px;
   line-height: 40px;
-}
-
-.config-tabs {
-  padding: 0 10px;
-}
-
-.header-config,
-.body-config {
-  padding: 10px 0;
-}
-
-.header-actions {
-  margin-bottom: 10px;
 }
 
 .body-type-group {
