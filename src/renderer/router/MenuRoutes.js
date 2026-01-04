@@ -4,6 +4,8 @@ import SearchIcon from "@/components/icons/IconSearch.vue";
 import FileCompareIcon from "@/components/icons/IconFileCompare.vue";
 import VSCodeLayout from '@/layout/VSCodeLayout.vue'
 import PostWomanLayout from "@/layout/PostWomanLayout.vue";
+import ScreenshotLayout from "@/layout/ScreenshotLayout.vue";
+import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
 
 const MenuRoutes = [
     {
@@ -66,11 +68,57 @@ const MenuRoutes = [
         children: [
             {
                 path: '/postwoman/request',
-                name: 'main',
+                name: 'request',
                 component: PostWomanLayout,
                 meta: {
                     icon: SSHIcon,
                     title: 'https请求',
+                    desc: ''
+                }
+            },
+        ]
+    },
+    {
+        path: '/screenshot',
+        name: 'screenshot',
+        component: ScreenshotLayout,
+        redirect: '/screenshot/screenshot',
+        meta: {
+            icon: SSHIcon,
+            title: '桌面截图',
+            desc: ''
+        },
+        children: [
+            {
+                path: '/screenshot/screenshot',
+                name: 'screenshot-main',
+                component: ScreenshotLayout,
+                meta: {
+                    icon: SSHIcon,
+                    title: '桌面截图',
+                    desc: ''
+                }
+            },
+        ]
+    },
+    {
+        path: '/videorecord',
+        name: 'videorecord',
+        component: VideoRecordLayout,
+        redirect: '/videorecord/videorecord',
+        meta: {
+            icon: SSHIcon,
+            title: '视频录像',
+            desc: ''
+        },
+        children: [
+            {
+                path: '/videorecord/videorecord',
+                name: 'videorecord-main',
+                component: VideoRecordLayout,
+                meta: {
+                    icon: SSHIcon,
+                    title: '视频录像',
                     desc: ''
                 }
             },

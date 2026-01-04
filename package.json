@@ -33,6 +33,7 @@
     "node-ssh": "^13.2.1",
     "pinia": "^2.2.6",
     "prettier": "^3.7.4",
+    "screenshot-desktop": "^1.15.3",
     "ssh2": "^1.17.0",
     "vue": "^3.5.12",
     "vue-json-pretty": "^2.6.0",
