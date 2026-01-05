@@ -42,4 +42,10 @@ contextBridge.exposeInMainWorld('channel', {
     doDelete: (options) => ipcRenderer.invoke("https:delete", options),
     doPatch: (options) => ipcRenderer.invoke("https:patch", options),
     doPut: (options) => ipcRenderer.invoke("https:put", options),
+    // 屏幕截图
+    getDesktopScreenshot: () => ipcRenderer.invoke('get-desktop-screenshot'),
+    enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
+    saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
+    finishScrollScreenshot: () => ipcRenderer.invoke('finish-scroll-screenshot'),
+    closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window')
 })

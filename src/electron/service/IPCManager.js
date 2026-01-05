@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
+import screenshot from 'screenshot-desktop';
 
 class IPCManager {
     constructor(window) {
@@ -68,6 +69,18 @@ class IPCManager {
         });
         ipcMain.handle("https:delete", async (event, options) => {
             return await httpsClient.delete(options);
+        });
+        // 获取桌面截图
+        ipcMain.handle('get-desktop-screenshot', async () => {
+        });
+        // 枚举所有窗口列表（EnumWindowList）
+        ipcMain.handle('enum-window-list', async () => {
+        });
+        // 暂存滚动截图
+        ipcMain.on('save-scroll-screenshot', (event, screenshotBase64) => {
+        });
+        // 完成滚动截图拼接
+        ipcMain.handle('finish-scroll-screenshot', async () => {
         });
         ipcMain.on("full-screen", (enent, flag) => {
             if (flag == 0) {
