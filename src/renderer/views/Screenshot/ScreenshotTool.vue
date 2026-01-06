@@ -76,13 +76,13 @@
   <script setup>
   // 导入 SVG 图标组件（来自 @/components/icons）
   import DefaultScreenshot from '@/components/icons/DefaultScreenshot.vue';
-  import Line from '@/components/icons/Line.vue';
-  import Text from '@/components/icons/Text.vue';
-  import Select from '@/components/icons/Select.vue';
-  import Record from '@/components/icons/Record.vue';
-  import Setting from '@/components/icons/Setting.vue';
-  import Cancel from '@/components/icons/Cancel.vue';
-  import Finish from '@/components/icons/Finish.vue';
+  import Line from '@/components/icons/IconLine.vue';
+  import Text from '@/components/icons/IconText.vue';
+  import Select from '@/components/icons/IconSelect.vue';
+  import Record from '@/components/icons/IconRecordVideo.vue';
+  import Setting from '@/components/icons/IconSettings.vue';
+  import Cancel from '@/components/icons/IconDelete.vue';
+  import Finish from '@/components/icons/IconOk.vue';
   // 导入 MarkManager 类（标注管理）和各类图形类
   import MarkManager from '@/utils/MarkManager';
   import LineShape from '@/utils/shapes/LineShape';

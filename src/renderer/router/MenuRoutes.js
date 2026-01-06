@@ -4,8 +4,9 @@ import SearchIcon from "@/components/icons/IconSearch.vue";
 import FileCompareIcon from "@/components/icons/IconFileCompare.vue";
 import VSCodeLayout from '@/layout/VSCodeLayout.vue'
 import PostWomanLayout from "@/layout/PostWomanLayout.vue";
-import ScreenshotLayout from "@/layout/ScreenshotLayout.vue";
 import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
+import ScreenshotTool from "@/views/Screenshot/ScreenshotTool.vue";
+import Capture from "@/views/Screenshot/Capture.vue";
 
 const MenuRoutes = [
     {
@@ -82,7 +83,7 @@ const MenuRoutes = [
         path: '/screenshot',
         name: 'screenshot',
         component: ScreenshotLayout,
-        redirect: '/screenshot/screenshot',
+        redirect: '/screenshot/toolbar',
         meta: {
             icon: SSHIcon,
             title: '桌面截图',
@@ -90,12 +91,42 @@ const MenuRoutes = [
         },
         children: [
             {
-                path: '/screenshot/screenshot',
-                name: 'screenshot-main',
-                component: ScreenshotLayout,
+                path: '/screenshot/toolbar',
+                name: 'screenshot-toolbar',
+                component: ScreenshotTool,
                 meta: {
                     icon: SSHIcon,
-                    title: '桌面截图',
+                    title: '可移动截图工具',
+                    desc: ''
+                }
+            },
+            {
+                path: '/screenshot/capture-full',
+                name: 'capture-full',
+                component: Capture,
+                meta: {
+                    icon: SSHIcon,
+                    title: '全屏截图',
+                    desc: ''
+                }
+            },
+            {
+                path: '/screenshot/capture-window',
+                name: 'capture-window',
+                component: Capture,
+                meta: {
+                    icon: SSHIcon,
+                    title: '窗口截图',
+                    desc: ''
+                }
+            },
+            {
+                path: '/screenshot/capture-scroll',
+                name: 'capture-scroll',
+                component: Capture,
+                meta: {
+                    icon: SSHIcon,
+                    title: '滚动截图',
                     desc: ''
                 }
             },

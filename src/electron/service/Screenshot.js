@@ -9,61 +9,97 @@ import { createCanvas, loadImage } from 'canvas'; // 用于滚动截图拼接
 class Screenshot {
     constructor() {
         // 保存截图工具窗口实例，防止重复创建
-        this.screenshotToolWindow = null;
+        this.screenshotWindow = null;
         // 滚动截图暂存列表
         this.scrollScreenshotList = [];
     }
+    // 创建全屏透明截图窗口
+    createScreenshotWindow() {
+        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+        screenshotWindow = new BrowserWindow({
+            width,
+            height,
+            x: 0,
+            y: 0,
+            frame: false, // 无边框
+            alwaysOnTop: true, // 置顶
+            transparent: true, // 透明背景
+            skipTaskbar: true, // 隐藏任务栏图标
+            webPreferences: { nodeIntegration: true }
+        });
+        // 加载截图路由
+        if (process.env.VITE_DEV_SERVER_URL) {
+            this.screenshotWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/screenshot/screenshot`);
+        } else {
+            this.screenshotWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+                hash: '/screenshot/screenshot'
+            });
+        }
+    }
     // 创建截图工具窗口
     createScreenshotToolWindow() {
-        // 创建ES模块的__dirname
-        const __filename = fileURLToPath(import.meta.url)
-        const __dirname = dirname(__filename)
-        // 获取屏幕尺寸
-        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+        // 若窗口已存在且显示，则不重复创建
+        if (this.screenshotWindow && !this.screenshotWindow.isDestroyed() && this.screenshotWindow.isVisible()) {
+            return;
+        }
 
-        // 创建独立置顶窗口
-        this.screenshotToolWindow = new BrowserWindow({
-            width: width,
-            height: height,
+        const display = screen.getPrimaryDisplay();
+        const { width, height } = display.workAreaSize;
+
+        this.screenshotWindow = new BrowserWindow({
+            width: 64 * 8, // 8个按钮，每个父容器64px
+            height: 64,
+            x: (width - (64 * 8)) / 2, // 水平居中
+            y: height - 80, // 底部显示
             frame: false, // 无边框
             alwaysOnTop: true, // 置顶
             transparent: true, // 透明背景
             webPreferences: {
                 nodeIntegration: true,
-                contextIsolation: false,
-                enableRemoteModule: true,
-                preload: path.join(__dirname, 'preload.js')
+                contextIsolation: false
             }
         });
 
-        // 加载路由（对应渲染进程截图工具页面）
-        const entryPath = join(__dirname, '../../dist/renderer/index.html');
-        this.screenshotToolWindow.loadURL(`file://${entryPath}#/screenshot/screenshot`);
-
-        // 窗口关闭时重置实例
-        this.screenshotToolWindow.on('closed', () => {
-            this.screenshotToolWindow = null;
-            this.scrollScreenshotList = []; // 清空滚动截图暂存
-        });
-
+        // 加载截图路由
+        if (process.env.VITE_DEV_SERVER_URL) {
+            this.screenshotWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/screenshot/screenshot`);
+        } else {
+            this.screenshotWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+                hash: '/screenshot/screenshot'
+            });
+        }
         // 隐藏菜单栏
-        this.screenshotToolWindow.setMenu(null);
+        this.screenshotWindow.setMenu(null);
+        // 窗口关闭后重置实例
+        this.screenshotWindow.on('closed', () => {
+            this.screenshotWindow = null;
+        });
     }
     // 注册全局快捷键 Ctrl+Shift+A
     registerGlobalShortcut() {
         // 注册快捷键，注意：是 Ctrl+Shift+A（你原文的 Ctrl+Shirt+A 是笔误）
         const ret = globalShortcut.register('Ctrl+Shift+A', () => {
             // 如果窗口已存在，不重复创建
-            if (!this.screenshotToolWindow) {
-                createScreenshotToolWindow();
+            if (!this.screenshotWindow) {
+                this.createScreenshotWindow();
             } else {
                 // 窗口已存在，显示到前台
-                this.screenshotToolWindow.show();
+                this.screenshotWindow.show();
             }
         });
 
         if (!ret) {
             console.error('全局快捷键注册失败！');
+        }
+    }
+    // 获取桌面截图
+    async getDesktopScreenshot() {
+        try {
+            const imgBuffer = await screenshot();
+            return imgBuffer.toString('base64');
+        } catch (err) {
+            console.error('获取桌面截图失败：', err);
+            return null;
         }
     }
     // 枚举所有窗口列表（EnumWindowList）
@@ -196,7 +232,3 @@ class Screenshot {
 }
 
 export default Screenshot;
-
-
-
-
