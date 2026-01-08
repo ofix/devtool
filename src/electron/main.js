@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import IPCManager from "./service/IPCManager.js"
+import WndManager from "./service/WndManager.js"
 import mmFileManager from './core/MMFileManager.js';
 // import shortcutService from './service/ShortcutService.js'
 
@@ -56,6 +57,8 @@ const createWindow = () => {
     const appPath = app.getAppPath()
     // window.fullScreen = true;
     Menu.setApplicationMenu(null);
+
+    WndManager.mainWnd = window;
 
     globalShortcut.register('ESC', () => {
         window.fullScreen = false;

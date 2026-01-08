@@ -2,10 +2,17 @@ import { ipcMain } from 'electron';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
+import WndManager from './WndManager.js';
+const { desktopCapturer } = require('electron');
 
 class IPCManager {
     constructor(window) {
         this.window = window;
+        // 存储截图状态
+        this.screenshotState = {
+            mode: 'rectangle', // rectangle, window, scroll, etc.
+            isActive: false
+        };
     }
     startListen() {
         // 连接SFTP服务器
@@ -73,14 +80,83 @@ class IPCManager {
         // 获取桌面截图
         ipcMain.handle('get-desktop-screenshot', async () => {
         });
+        // 显示窗口
+        ipcMain.handle("show-window", (event, name) => {
+            switch (name) {
+                case 'screenshot-window': {
+                    break;
+                }
+                case 'capture-edit-window': {
+                    break;
+                }
+                default:
+                    console.log("[show window] unknown window name: ", name);
+                    break;
+            }
+        });
+        ipcMain.handle("hide-window", (event, name) => {
+            switch (name) {
+                case 'screenshot-window': {
+                    break;
+                }
+                case 'capture-edit-window': {
+                    break;
+                }
+                default:
+                    console.log("[hide window] unknown window name: ", name);
+                    break;
+            }
+        });
         // 枚举所有窗口列表（EnumWindowList）
         ipcMain.handle('enum-window-list', async () => {
+            try {
+                const sources = await desktopCapturer.getSources({
+                    types: ['window']
+                });
+
+                return sources.map(source => ({
+                    id: source.id,
+                    name: source.name,
+                    thumbnail: source.thumbnail.toDataURL(),
+                    display_id: source.display_id
+                }));
+            } catch (error) {
+                console.error('枚举窗口失败:', error);
+                return [];
+            }
+        });
+        // 当用户点击截图按钮时
+        ipcMain.handle('start-screenshot', (event, mode) => {
+            WndManager.showCaptureEditWindow();
+        });
+        // 当需要开始选区时
+        ipcMain.handle('start-selection', () => {
+            WndManager.enableCaptureWindowMouseEvents();
+            return true;
+        });
+        // 完成滚动截图拼接
+        ipcMain.handle('finish-screenshot', async () => {
+            WndManager.closeCaptureEditWindow();
+            return true;
         });
         // 暂存滚动截图
         ipcMain.on('save-scroll-screenshot', (event, screenshotBase64) => {
         });
-        // 完成滚动截图拼接
-        ipcMain.handle('finish-scroll-screenshot', async () => {
+        // 各种工具命令
+        ipcMain.handle('tool-cmd', (event, command, data) => {
+            switch (command) {
+                case 'record-video':   // 视频录制
+                    console.log('开始录制视频:', data);
+                    break;
+                case 'screen-ruler':   // 屏幕标尺
+                    console.log('打开屏幕标尺:', data);
+                    break;
+                case 'color-picker': // 拾色器
+                    console.log('打开拾色器:', data);
+                    break;
+                default:
+                    console.log('未知工具命令:', command);
+            }
         });
         ipcMain.on("full-screen", (enent, flag) => {
             if (flag == 0) {
