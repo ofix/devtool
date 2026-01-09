@@ -82,7 +82,7 @@ const MenuRoutes = [
     {
         path: '/screenshot',
         name: 'screenshot',
-        component: ScreenshotLayout,
+        component: ScreenshotTool,
         redirect: '/screenshot/toolbar',
         meta: {
             icon: SSHIcon,

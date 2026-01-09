@@ -92,9 +92,9 @@
 
 <script setup>
 // 截图功能按钮
-import CaptureWindow from "@components/icons/IconCaptureWindow.vue";
-import CaptureRect from "@components/icons/IconCaptureRect.vue";
-import CaptureScroll from "@components/icons/IconCaptureScroll.vue";
+import CaptureWindow from "@/components/icons/IconCaptureWindow.vue";
+import CaptureRect from "@/components/icons/IconCaptureRect.vue";
+import CaptureScroll from "@/components/icons/IconCaptureScroll.vue";
 import RecordVideo from "@/components/icons/IconRecordVideo.vue";
 import ScreenRuler from "@/components/icons/IconScreenRuler.vue";
 import ColorPicker from "@/components/icons/IconColorPicker.vue";

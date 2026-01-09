@@ -1,12 +1,13 @@
-import { ipcMain } from 'electron';
+import { ipcMain, desktopCapturer } from 'electron';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
 import WndManager from './WndManager.js';
-const { desktopCapturer } = require('electron');
+import Singleton from "./Singleton.js";
 
-class IPCManager {
+class IPCManager extends Singleton {
     constructor(window) {
+        super();
         this.window = window;
         // 存储截图状态
         this.screenshotState = {
@@ -127,16 +128,16 @@ class IPCManager {
         });
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', (event, mode) => {
-            WndManager.showCaptureEditWindow();
+            WndManager.getInstance().showCaptureEditWindow();
         });
         // 当需要开始选区时
         ipcMain.handle('start-selection', () => {
-            WndManager.enableCaptureWindowMouseEvents();
+            WndManager.getInstance().enableCaptureWindowMouseEvents();
             return true;
         });
         // 完成滚动截图拼接
         ipcMain.handle('finish-screenshot', async () => {
-            WndManager.closeCaptureEditWindow();
+            WndManager.getInstance().closeCaptureEditWindow();
             return true;
         });
         // 暂存滚动截图

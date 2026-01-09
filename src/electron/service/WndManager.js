@@ -1,43 +1,37 @@
 import { BrowserWindow, screen } from 'electron';
-import path from 'path';
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import path from "path"
+import Singleton from './Singleton.js';
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
-class WndManager {
-    static instance = null;
-    static mainWnd = null;
-    static screenshotToolWnd = null;  // 控制工具栏窗口（小窗口，固定在左侧）
-    static captureEditWnd = null;     // 截图编辑窗口（全屏透明窗口）
-
+class WndManager extends Singleton {
     constructor() {
-        if (WndManager.instance) {
-            throw new Error('请通过 WndManager.getInstance() 获取单例实例');
-        }
-    }
-
-    static getInstance() {
-        if (!WndManager.instance) {
-            WndManager.instance = new WndManager();
-        }
-        return WndManager.instance;
+        super();
+        this.mainWnd = null;
+        this.screenshotToolWnd = null;  // 控制工具栏窗口（小窗口，固定在左侧）
+        this.captureEditWnd = null;     // 截图编辑窗口（全屏透明窗口）
     }
 
     /**
      * 创建截图控制工具栏窗口（小窗口，在屏幕左侧）
      */
-    static createScreenshotToolWindow() {
-        if (WndManager.screenshotToolWnd && !WndManager.screenshotToolWnd.isDestroyed()) {
-            return WndManager.screenshotToolWnd;
+    createScreenshotToolWindow() {
+        if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            return this.screenshotToolWnd;
         }
 
         // 控制工具栏是小窗口，不需要全屏
         const toolbarWidth = 60;     // 工具栏宽度
         const toolbarHeight = 400;   // 工具栏高度
         const screenSize = screen.getPrimaryDisplay().workAreaSize;
-        
+
         // 计算位置：屏幕左侧居中
         const x = 0;
         const y = (screenSize.height - toolbarHeight) / 2;
 
-        WndManager.screenshotToolWnd = new BrowserWindow({
+        this.screenshotToolWnd = new BrowserWindow({
             width: toolbarWidth,
             height: toolbarHeight,
             x: Math.floor(x),
@@ -62,32 +56,33 @@ class WndManager {
         });
 
         // 加载控制工具栏页面
-        WndManager.screenshotToolWnd.loadURL(process.env.NODE_ENV === 'development'
-            ? 'http://localhost:5173/#/control'  // 注意是 control 路由
-            : `file://${path.join(__dirname, '../dist/index.html#/control')}`
+        let listenUrl = process.argv[2];
+        this.screenshotToolWnd.loadURL(process.env.NODE_ENV === 'development'
+            ? `${listenUrl}/#/screenshot`
+            : `file://${path.join(__dirname, '../dist/index.html#/screenshot')}`
         );
 
         // 窗口事件处理
-        WndManager.screenshotToolWnd.on('closed', () => {
-            WndManager.screenshotToolWnd = null;
+        this.screenshotToolWnd.on('closed', () => {
+            this.screenshotToolWnd = null;
         });
 
         // 窗口失焦时自动隐藏（可选）
-        WndManager.screenshotToolWnd.on('blur', () => {
+        this.screenshotToolWnd.on('blur', () => {
             // 如果需要自动隐藏功能，可以在这里实现
         });
 
-        return WndManager.screenshotToolWnd;
+        return this.screenshotToolWnd;
     }
 
     /**
      * 创建截图编辑窗口（全屏透明窗口）
      */
-    static createCaptureEditWindow() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.show();
-            WndManager.captureEditWnd.focus();
-            return WndManager.captureEditWnd;
+    createCaptureEditWindow() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.show();
+            this.captureEditWnd.focus();
+            return this.captureEditWnd;
         }
 
         // 获取所有显示器的工作区，处理多显示器情况
@@ -112,7 +107,7 @@ class WndManager {
         const totalWidth = bounds.width - bounds.x;
         const totalHeight = bounds.height - bounds.y;
 
-        WndManager.captureEditWnd = new BrowserWindow({
+        this.captureEditWnd = new BrowserWindow({
             width: totalWidth,
             height: totalHeight,
             x: bounds.x,
@@ -141,117 +136,117 @@ class WndManager {
         });
 
         // 加载截图编辑页面
-        WndManager.captureEditWnd.loadURL(process.env.NODE_ENV === 'development'
+        this.captureEditWnd.loadURL(process.env.NODE_ENV === 'development'
             ? 'http://localhost:5173/#/screenshot'  // 注意是 screenshot 路由
             : `file://${path.join(__dirname, '../dist/index.html#/screenshot')}`
         );
 
         // 初始设置鼠标事件穿透
-        WndManager.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
+        this.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
 
         // 窗口事件处理
-        WndManager.captureEditWnd.on('closed', () => {
-            WndManager.captureEditWnd = null;
+        this.captureEditWnd.on('closed', () => {
+            this.captureEditWnd = null;
         });
 
-        WndManager.captureEditWnd.on('ready-to-show', () => {
+        this.captureEditWnd.on('ready-to-show', () => {
             // 页面加载完成后，确保窗口在所有屏幕的最上层
-            WndManager.captureEditWnd.setAlwaysOnTop(true, 'screen-saver');
-            WndManager.captureEditWnd.show();
+            this.captureEditWnd.setAlwaysOnTop(true, 'screen-saver');
+            this.captureEditWnd.show();
         });
 
-        return WndManager.captureEditWnd;
+        return this.captureEditWnd;
     }
 
     /**
      * 显示截图控制工具栏
      */
-    static showScreenshotToolWindow() {
-        if (WndManager.screenshotToolWnd && !WndManager.screenshotToolWnd.isDestroyed()) {
-            WndManager.screenshotToolWnd.show();
-            WndManager.screenshotToolWnd.focus();
+    showScreenshotToolWindow() {
+        if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            this.screenshotToolWnd.show();
+            this.screenshotToolWnd.focus();
         } else {
-            WndManager.createScreenshotToolWindow();
+            this.createScreenshotToolWindow();
         }
     }
 
     /**
      * 隐藏截图控制工具栏
      */
-    static hideScreenshotToolWindow() {
-        if (WndManager.screenshotToolWnd && !WndManager.screenshotToolWnd.isDestroyed()) {
-            WndManager.screenshotToolWnd.hide();
+    hideScreenshotToolWindow() {
+        if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            this.screenshotToolWnd.hide();
         }
     }
 
     /**
      * 显示截图编辑窗口
      */
-    static showCaptureEditWindow() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.show();
-            WndManager.captureEditWnd.focus();
+    showCaptureEditWindow() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.show();
+            this.captureEditWnd.focus();
         } else {
-            WndManager.createCaptureEditWindow();
+            this.createCaptureEditWindow();
         }
-        
+
         // 隐藏控制工具栏
-        WndManager.hideScreenshotToolWindow();
+        this.hideScreenshotToolWindow();
     }
 
     /**
      * 隐藏截图编辑窗口
      */
-    static hideCaptureEditWindow() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.hide();
+    hideCaptureEditWindow() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.hide();
         }
-        
+
         // 显示控制工具栏
-        WndManager.showScreenshotToolWindow();
+        this.showScreenshotToolWindow();
     }
 
     /**
      * 关闭截图编辑窗口
      */
-    static closeCaptureEditWindow() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.close();
-            WndManager.captureEditWnd = null;
+    closeCaptureEditWindow() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.close();
+            this.captureEditWnd = null;
         }
-        
-        WndManager.showScreenshotToolWindow();
+
+        this.showScreenshotToolWindow();
     }
 
     /**
      * 启用截图窗口的鼠标事件
      */
-    static enableCaptureWindowMouseEvents() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.setIgnoreMouseEvents(false);
+    enableCaptureWindowMouseEvents() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.setIgnoreMouseEvents(false);
         }
     }
 
     /**
      * 禁用截图窗口的鼠标事件（穿透）
      */
-    static disableCaptureWindowMouseEvents() {
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
+    disableCaptureWindowMouseEvents() {
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
         }
     }
 
     /**
      * 获取窗口实例
      */
-    static getWindow(type) {
+    getWindow(type) {
         switch (type) {
             case 'tool':
-                return WndManager.screenshotToolWnd;
+                return this.screenshotToolWnd;
             case 'capture':
-                return WndManager.captureEditWnd;
+                return this.captureEditWnd;
             case 'main':
-                return WndManager.mainWnd;
+                return this.mainWnd;
             default:
                 return null;
         }
@@ -260,16 +255,15 @@ class WndManager {
     /**
      * 清理所有窗口
      */
-    static cleanup() {
-        if (WndManager.screenshotToolWnd && !WndManager.screenshotToolWnd.isDestroyed()) {
-            WndManager.screenshotToolWnd.close();
+    cleanup() {
+        if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            this.screenshotToolWnd.close();
         }
-        if (WndManager.captureEditWnd && !WndManager.captureEditWnd.isDestroyed()) {
-            WndManager.captureEditWnd.close();
+        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
+            this.captureEditWnd.close();
         }
-        WndManager.screenshotToolWnd = null;
-        WndManager.captureEditWnd = null;
-        WndManager.instance = null;
+        this.screenshotToolWnd = null;
+        this.captureEditWnd = null;
     }
 }
 
