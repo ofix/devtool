@@ -5,6 +5,7 @@
     version="1.1"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentColor"
+    stroke="currentColor"
     width="16"
     height="16"
   >

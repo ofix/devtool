@@ -23,7 +23,7 @@
       style="
         fill: none;
         fill-opacity: 1;
-        stroke: #000000;
+        stroke: currentColor;
         stroke-width: 40.24832;
         stroke-linecap: round;
         stroke-miterlimit: 4;

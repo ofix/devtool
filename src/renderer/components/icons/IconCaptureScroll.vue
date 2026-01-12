@@ -27,7 +27,7 @@
             fill-rule: evenodd;
             stroke-width: 0.625;
             stroke-linejoin: round;
-            stroke: #000000;
+            stroke: currentColor;
             stroke-opacity: 1;
             fill: #000000;
             fill-opacity: 1;
@@ -49,7 +49,7 @@
       style="
         fill: none;
         fill-opacity: 1;
-        stroke: #000000;
+        stroke: currentColor;
         stroke-width: 36.25460815;
         stroke-linecap: round;
         stroke-linejoin: round;
@@ -67,7 +67,7 @@
       style="
         fill: none;
         fill-opacity: 1;
-        stroke: #000000;
+        stroke: currentColor;
         stroke-width: 36.25460815;
         stroke-linecap: round;
         stroke-linejoin: round;

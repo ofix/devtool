@@ -23,14 +23,16 @@ class WndManager extends Singleton {
         }
 
         // 控制工具栏是小窗口，不需要全屏
-        const toolbarWidth = 60;     // 工具栏宽度
-        const toolbarHeight = 400;   // 工具栏高度
+        const icons = 8;
+        const iconSize = 32;
+        const iconGap = 12;
+        const toolbarWidth = icons * iconSize + (icons - 1) * iconGap;     // 工具栏宽度
+        const toolbarHeight = iconSize + 16+ 60;   // 工具栏高度
         const screenSize = screen.getPrimaryDisplay().workAreaSize;
 
         // 计算位置：屏幕左侧居中
         const x = 0;
         const y = (screenSize.height - toolbarHeight) / 2;
-
         this.screenshotToolWnd = new BrowserWindow({
             width: toolbarWidth,
             height: toolbarHeight,
@@ -39,7 +41,7 @@ class WndManager extends Singleton {
             frame: false,
             transparent: true,
             hasShadow: true,         // 小窗口可以有阴影
-            show: false,             // 初始隐藏
+            show: true,
             alwaysOnTop: true,
             skipTaskbar: true,
             movable: true,           // 工具栏应该可以移动
@@ -51,7 +53,8 @@ class WndManager extends Singleton {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'preload.js')
+                devTools: false,
+                preload: path.join(__dirname, '../preload.cjs')
             }
         });
 
@@ -71,7 +74,6 @@ class WndManager extends Singleton {
         this.screenshotToolWnd.on('blur', () => {
             // 如果需要自动隐藏功能，可以在这里实现
         });
-
         return this.screenshotToolWnd;
     }
 
@@ -128,7 +130,7 @@ class WndManager extends Singleton {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'preload.js'),
+                preload: path.join(__dirname, '../preload.cjs'),
                 // 截图窗口需要额外的权限
                 webSecurity: false,
                 allowRunningInsecureContent: true
@@ -136,9 +138,10 @@ class WndManager extends Singleton {
         });
 
         // 加载截图编辑页面
+        let listenUrl = process.argv[2];
         this.captureEditWnd.loadURL(process.env.NODE_ENV === 'development'
-            ? 'http://localhost:5173/#/screenshot'  // 注意是 screenshot 路由
-            : `file://${path.join(__dirname, '../dist/index.html#/screenshot')}`
+            ? `${listenUrl}/#/screenshot/capture-rect`  // 注意是 screenshot 路由
+            : `file://${path.join(__dirname, '../dist/index.html#/screenshot/capture-rect')}`
         );
 
         // 初始设置鼠标事件穿透
