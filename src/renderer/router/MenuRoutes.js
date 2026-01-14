@@ -100,37 +100,17 @@ const MenuRoutes = [
                     desc: ''
                 }
             },
-            {
-                path: '/screenshot/capture-rect',
-                name: 'capture-rect',
-                component: Capture,
-                meta: {
-                    icon: SSHIcon,
-                    title: '矩形截图',
-                    desc: ''
-                }
-            },
-            {
-                path: '/screenshot/capture-window',
-                name: 'capture-window',
-                component: Capture,
-                meta: {
-                    icon: SSHIcon,
-                    title: '窗口截图',
-                    desc: ''
-                }
-            },
-            {
-                path: '/screenshot/capture-scroll',
-                name: 'capture-scroll',
-                component: Capture,
-                meta: {
-                    icon: SSHIcon,
-                    title: '滚动截图',
-                    desc: ''
-                }
-            },
         ]
+    },
+    {
+        path: '/screenshot/capture-rect',
+        name: 'capture-rect',
+        component: Capture,
+        meta: {
+            icon: SSHIcon,
+            title: '矩形截图',
+            desc: ''
+        }
     },
     {
         path: '/videorecord',

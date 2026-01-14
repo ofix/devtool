@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('channel', {
     hideWindow: (window) => ipcRenderer.invoke("hide-window", window),
     // 屏幕截图
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
+    cancelScreenshot:()=>ipcRenderer.invoke("cancel-screenshot"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
     sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
     openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),

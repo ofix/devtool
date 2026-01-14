@@ -1,7 +1,9 @@
-import { ipcMain, desktopCapturer } from 'electron';
+import { ipcMain, desktopCapturer, screen } from 'electron';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
+// 引入 Node.js 内置模块（处理图片编码）
+import { Buffer } from 'buffer';
 import WndManager from './WndManager.js';
 import Singleton from "./Singleton.js";
 
@@ -14,7 +16,30 @@ class IPCManager extends Singleton {
             mode: 'rectangle', // rectangle, window, scroll, etc.
             isActive: false
         };
+        this.cachedScreenshot = null; // 预加载的截图数据（base64）
+        this.cacheScreenshotExpireTime = 0; // 缓存过期时间
     }
+    // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
+    async preloadScreenshot() {
+        // 缓存未过期，直接返回
+        if (this.cachedScreenshot && Date.now() < this.cacheScreenshotExpireTime) {
+            return this.cachedScreenshot;
+        }
+
+        try {
+            // 使用 screenshot-desktop
+            const imgBuffer = await screenshot({ format: 'png' });
+            const base64 = `data:image/png;base64,${imgBuffer.toString('base64')}`;
+            // 缓存截图，设置 2 秒过期（避免数据太旧）
+            this.cachedScreenshot = base64;
+            this.cacheScreenshotExpireTime = Date.now() + 2000;
+            return base64;
+        } catch (error) {
+            console.error('预加载截图失败：', error);
+            return null;
+        }
+    }
+
     startListen() {
         // 连接SFTP服务器
         ipcMain.handle("ssh:connect", async (event, config) => {
@@ -80,6 +105,45 @@ class IPCManager extends Singleton {
         });
         // 获取桌面截图
         ipcMain.handle('get-desktop-screenshot', async () => {
+            // 优先返回缓存，同时异步更新缓存（不阻塞）
+            const cached = this.cachedScreenshot;
+            // 异步更新缓存（用户无感知）
+            this.preloadScreenshot();
+            return cached || await this.preloadScreenshot();
+        });
+        // 截取指定区域的屏幕内容
+        ipcMain.handle('capture-area', async (_, rect) => {
+            try {
+                // 校验选区参数（避免无效截取）
+                if (!rect || rect.width <= 0 || rect.height <= 0) {
+                    throw new Error('无效的截取区域');
+                }
+
+                // 获取主屏幕的缩放比例（解决高分屏/缩放导致的截图偏移问题）
+                const display = screen.getPrimaryDisplay();
+                const scaleFactor = display.scaleFactor;
+
+                // 关键：screenshot-desktop 的区域坐标需要乘以缩放比例
+                const captureOptions = {
+                    format: 'png',
+                    // 选区坐标适配缩放（比如 150% 缩放时，坐标需要×1.5）
+                    x: rect.x * scaleFactor,
+                    y: rect.y * scaleFactor,
+                    width: rect.width * scaleFactor,
+                    height: rect.height * scaleFactor
+                };
+
+                // 截取指定区域
+                const imgBuffer = await screenshot(captureOptions);
+                const base64 = `data:image/png;base64,${imgBuffer.toString('base64')}`;
+                return {
+                    dataUrl: base64,
+                    rect // 附带原始选区信息
+                };
+            } catch (error) {
+                console.error('区域截图失败：', error);
+                return null;
+            }
         });
         // 显示窗口
         ipcMain.handle("show-window", (event, name) => {
@@ -127,8 +191,12 @@ class IPCManager extends Singleton {
             }
         });
         // 当用户点击截图按钮时
-        ipcMain.handle('start-screenshot', (event, mode) => {
+        ipcMain.handle('start-screenshot', async (event, mode) => {
+            await this.preloadScreenshot();
             WndManager.getInstance().showCaptureEditWindow();
+        });
+        ipcMain.handle('cancel-screenshot', async (event) => {
+            WndManager.getInstance().closeCaptureEditWindow();
         });
         // 当需要开始选区时
         ipcMain.handle('start-selection', () => {

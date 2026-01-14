@@ -11,7 +11,7 @@ class WndManager extends Singleton {
         super();
         this.mainWnd = null;
         this.screenshotToolWnd = null;  // 控制工具栏窗口（小窗口，固定在左侧）
-        this.captureEditWnd = null;     // 截图编辑窗口（全屏透明窗口）
+        this.bindMouseEvents = null;     // 截图编辑窗口（全屏透明窗口）
     }
 
     /**
@@ -27,7 +27,7 @@ class WndManager extends Singleton {
         const iconSize = 32;
         const iconGap = 12;
         const toolbarWidth = icons * iconSize + (icons - 1) * iconGap;     // 工具栏宽度
-        const toolbarHeight = iconSize + 16+ 60;   // 工具栏高度
+        const toolbarHeight = iconSize + 16 + 60;   // 工具栏高度
         const screenSize = screen.getPrimaryDisplay().workAreaSize;
 
         // 计算位置：屏幕左侧居中
@@ -81,84 +81,114 @@ class WndManager extends Singleton {
      * 创建截图编辑窗口（全屏透明窗口）
      */
     createCaptureEditWindow() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.show();
-            this.captureEditWnd.focus();
-            return this.captureEditWnd;
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.show();
+            this.captureWnd.focus();
+            return this.captureWnd;
         }
 
         // 获取所有显示器的工作区，处理多显示器情况
-        const displays = screen.getAllDisplays();
-        const bounds = {
+        // const displays = screen.getAllDisplays();
+        // const bounds = {
+        //     x: 0,
+        //     y: 0,
+        //     width: 0,
+        //     height: 0
+        // };
+
+        // // 计算包含所有显示器的边界
+        // displays.forEach(display => {
+        //     const workArea = display.workArea;
+        //     bounds.x = Math.min(bounds.x, workArea.x);
+        //     bounds.y = Math.min(bounds.y, workArea.y);
+        //     bounds.width = Math.max(bounds.width, workArea.x + workArea.width);
+        //     bounds.height = Math.max(bounds.height, workArea.y + workArea.height);
+        // });
+
+        // // 最终尺寸
+        // const totalWidth = bounds.width - bounds.x;
+        // const totalHeight = bounds.height - bounds.y;
+
+        const primaryDisplay = screen.getPrimaryDisplay()
+        const { width, height } = primaryDisplay.size
+
+        this.captureWnd = new BrowserWindow({
+            width: width,
+            height: height,
             x: 0,
             y: 0,
-            width: 0,
-            height: 0
-        };
-
-        // 计算包含所有显示器的边界
-        displays.forEach(display => {
-            const workArea = display.workArea;
-            bounds.x = Math.min(bounds.x, workArea.x);
-            bounds.y = Math.min(bounds.y, workArea.y);
-            bounds.width = Math.max(bounds.width, workArea.x + workArea.width);
-            bounds.height = Math.max(bounds.height, workArea.y + workArea.height);
-        });
-
-        // 最终尺寸
-        const totalWidth = bounds.width - bounds.x;
-        const totalHeight = bounds.height - bounds.y;
-
-        this.captureEditWnd = new BrowserWindow({
-            width: totalWidth,
-            height: totalHeight,
-            x: bounds.x,
-            y: bounds.y,
+            enableKeybindings: true,
+            fullscreen: true, // 可以同时设置
             frame: false,
+            alwaysOnTop: true,
+            skipTaskbar: true,
             transparent: true,
             hasShadow: false,
             show: false,             // 先不显示，等加载完成
-            alwaysOnTop: true,
-            skipTaskbar: true,
             movable: false,          // 截图窗口不能移动
             resizable: false,
             minimizable: false,
             maximizable: false,
             fullscreenable: false,
             enableLargerThanScreen: true,
+            titleBarStyle: 'customButtonsOnHover', // Linux 下设置窗口层级为最高（高于任务栏）
             focusable: true,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
                 preload: path.join(__dirname, '../preload.cjs'),
                 // 截图窗口需要额外的权限
-                webSecurity: false,
-                allowRunningInsecureContent: true
+                webSecurity: true,
+                allowRunningInsecureContent: false,
+                // 禁用硬件加速（部分设备会导致截图闪烁）
+                // hardwareAcceleration: false,
             }
         });
 
+        // 禁用窗口动画（Windows/macOS 通用）
+        this.captureWnd.setOpacity(1);
+        this.captureWnd.setHasShadow(false);
+        // Windows 额外禁用 Aero 效果
+        if (process.platform === 'win32') {
+            this.captureWnd.setBlur(false);
+        }
+
+        // 新增：Linux 下强制设置窗口为「顶层窗口」（麒麟系统专用）
+        if (process.platform === 'linux') {
+            this.captureWnd.setAlwaysOnTop(true, 'screen-saver'); // 层级高于屏幕保护程序/任务栏
+            this.captureWnd.setVisibleOnAllWorkspaces(true); // 所有工作区可见
+        }
+
         // 加载截图编辑页面
         let listenUrl = process.argv[2];
-        this.captureEditWnd.loadURL(process.env.NODE_ENV === 'development'
+
+        this.captureWnd.loadURL(process.env.NODE_ENV === 'development'
             ? `${listenUrl}/#/screenshot/capture-rect`  // 注意是 screenshot 路由
             : `file://${path.join(__dirname, '../dist/index.html#/screenshot/capture-rect')}`
         );
 
-        // 初始设置鼠标事件穿透
-        this.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
+        // this.captureWnd.setIgnoreMouseEvents(false);
 
         // 窗口事件处理
-        this.captureEditWnd.on('closed', () => {
-            this.captureEditWnd = null;
+        this.captureWnd.on('closed', () => {
+            this.captureWnd = null;
         });
 
-        this.captureEditWnd.on('ready-to-show', () => {
+        this.captureWnd.webContents.on('did-finish-load', () => {
             // 页面加载完成后，确保窗口在所有屏幕的最上层
-            this.captureEditWnd.setAlwaysOnTop(true, 'screen-saver');
-            this.captureEditWnd.show();
+            // this.captureWnd.setFullScreen(true);
+            // this.captureWnd.setAlwaysOnTop(true, 'screen-saver');
+            this.captureWnd.show();
+            // 聚焦窗口，确保鼠标事件生效
+            this.captureWnd.focus();
+            // 可选：强制刷新窗口尺寸，确保覆盖整个屏幕
+            setTimeout(() => {
+                this.captureWnd.setBounds({ x: 0, y: 0, width, height });
+            }, 100);
+
         });
 
-        return this.captureEditWnd;
+        return this.captureWnd;
     }
 
     /**
@@ -186,9 +216,9 @@ class WndManager extends Singleton {
      * 显示截图编辑窗口
      */
     showCaptureEditWindow() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.show();
-            this.captureEditWnd.focus();
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.show();
+            this.captureWnd.focus();
         } else {
             this.createCaptureEditWindow();
         }
@@ -201,8 +231,8 @@ class WndManager extends Singleton {
      * 隐藏截图编辑窗口
      */
     hideCaptureEditWindow() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.hide();
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.hide();
         }
 
         // 显示控制工具栏
@@ -213,9 +243,9 @@ class WndManager extends Singleton {
      * 关闭截图编辑窗口
      */
     closeCaptureEditWindow() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.close();
-            this.captureEditWnd = null;
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.close();
+            this.captureWnd = null;
         }
 
         this.showScreenshotToolWindow();
@@ -225,8 +255,8 @@ class WndManager extends Singleton {
      * 启用截图窗口的鼠标事件
      */
     enableCaptureWindowMouseEvents() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.setIgnoreMouseEvents(false);
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.setIgnoreMouseEvents(false);
         }
     }
 
@@ -234,8 +264,8 @@ class WndManager extends Singleton {
      * 禁用截图窗口的鼠标事件（穿透）
      */
     disableCaptureWindowMouseEvents() {
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.setIgnoreMouseEvents(true, { forward: true });
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.setIgnoreMouseEvents(true, { forward: true });
         }
     }
 
@@ -247,7 +277,7 @@ class WndManager extends Singleton {
             case 'tool':
                 return this.screenshotToolWnd;
             case 'capture':
-                return this.captureEditWnd;
+                return this.captureWnd;
             case 'main':
                 return this.mainWnd;
             default:
@@ -262,11 +292,11 @@ class WndManager extends Singleton {
         if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
             this.screenshotToolWnd.close();
         }
-        if (this.captureEditWnd && !this.captureEditWnd.isDestroyed()) {
-            this.captureEditWnd.close();
+        if (this.captureWnd && !this.captureWnd.isDestroyed()) {
+            this.captureWnd.close();
         }
         this.screenshotToolWnd = null;
-        this.captureEditWnd = null;
+        this.captureWnd = null;
     }
 }
 
