@@ -66,11 +66,14 @@ const magnifierPos = ref({ x: 0, y: 0 });
 const toolbarRef = ref(null);
 const showToolbar = ref(false);
 const toolbarPos = ref({ x: 0, y: 0 });
-const toolbarSize = ref({ width: 280, height: 60 });
+const toolbarSize = ref({ width: 28 * 12 + 10, height: 60 });
+const CONTROL_POINT_RADIUS = 4; // 控制点半径
+let scaleX = 1;
+let scaleY = 1;
 
 // 标注相关
 const markManager = ref(null); // 标注管理器实例
-const currentMarkTool = ref("select"); // 当前选中的标注工具
+const currentMarkTool = "none"; // 当前选中的标注工具
 
 // ========== 计算属性 ==========
 // 放大窗样式
@@ -128,6 +131,10 @@ async function init() {
     return;
   }
 
+  const rect = screenshotCanvas.value.getBoundingClientRect();
+  scaleX = screenSize.value.width / rect.width;
+  scaleY = screenSize.value.height / rect.height;
+
   // 获取全屏截图
   try {
     const dataUrl = await window.channel.getDesktopScreenshot();
@@ -157,22 +164,64 @@ async function init() {
   }
 }
 
+function getControlPoints(selection) {
+  const { x, y, width, height } = selection;
+  // 8个圆形控制点的圆心坐标 + 对应光标样式
+  return {
+    tl: { cx: x, cy: y, cursor: "nwse-resize" }, // 左上圆心
+    tm: { cx: x + width / 2, cy: y, cursor: "ns-resize" }, // 中上圆心
+    tr: { cx: x + width, cy: y, cursor: "nesw-resize" }, // 右上圆心
+    rm: { cx: x + width, cy: y + height / 2, cursor: "ew-resize" }, // 右中圆心
+    br: { cx: x + width, cy: y + height, cursor: "nwse-resize" }, // 右下圆心
+    bm: { cx: x + width / 2, cy: y + height, cursor: "ns-resize" }, // 中下圆心
+    bl: { cx: x, cy: y + height, cursor: "nesw-resize" }, // 左下圆心
+    lm: { cx: x, cy: y + height / 2, cursor: "ew-resize" }, // 左中圆心
+  };
+}
+
+// 检测鼠标是否在控制点上
+function isInControlPoint(mouseX, mouseY) {
+  const ctrlPoints = getControlPoints(currentSelection.value);
+  const radius = CONTROL_POINT_RADIUS + 2; // 两个像素的容差
+  for (const [key, ctrlPoint] of Object.entries(ctrlPoints)) {
+    // 计算鼠标到控制点圆心的欧几里得距离
+    const dx = mouseX - ctrlPoint.cx;
+    const dy = mouseY - ctrlPoint.cy;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // 距离 ≤ 检测半径 → 命中控制点
+    if (distance <= radius) {
+      return { direction: key, cursor: ctrlPoint.cursor };
+    }
+  }
+  return null;
+}
+
+// 3. 检测鼠标是否在选区内部
+function isInsideSelection(mouseX, mouseY) {
+  const { x, y, width, height } = currentSelection.value;
+  return (
+    mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
+  );
+}
+
 // ========== 选区绘制相关 ==========
 // 精准清除上一次的选区（包括矩形和文字）
 function clearLastSelection() {
   // 清除选区矩形
   const { x, y, width, height } = lastSelection.value;
   if (width > 2 && height > 2) {
+    const radius = CONTROL_POINT_RADIUS;
     ctx.value.drawImage(
       offscreenCanvas.value,
-      x - 2,
-      y - 2,
-      width + 4,
-      height + 4,
-      x - 2,
-      y - 2,
-      width + 4,
-      height + 4
+      x - radius,
+      y - radius,
+      width + radius * 2,
+      height + radius * 2,
+      x - radius,
+      y - radius,
+      width + radius * 2,
+      height + radius * 2
     );
   }
 
@@ -245,75 +294,123 @@ function drawControlPoints(ctx, x, y, width, height) {
   ctx.fillStyle = "#1890ff";
   points.forEach((point) => {
     ctx.beginPath();
-    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    ctx.arc(point.x, point.y, CONTROL_POINT_RADIUS, 0, Math.PI * 2);
     ctx.fill();
   });
 }
 
 // ========== 放大预览相关 ==========
+// ========== 放大预览相关 ==========
 function updateMagnifier(e) {
   if (!offscreenCanvas.value || !magnifierCtx.value) return;
 
-  // 计算鼠标真实坐标
-  const rect = screenshotCanvas.value.getBoundingClientRect();
-  const scaleX = screenSize.value.width / rect.width;
-  const scaleY = screenSize.value.height / rect.height;
+  // 计算鼠标真实坐标（相对于原始画布）
   const mouseX = e.clientX * scaleX;
   const mouseY = e.clientY * scaleY;
 
-  // 计算放大窗位置（自适应边界）
+  // 计算放大窗位置：默认显示在鼠标右下角（+20偏移），自适应边界
   let magnifierX = e.clientX + 20;
   let magnifierY = e.clientY + 20;
 
-  // 边界检测
+  // 边界检测：如果右下角超出屏幕，调整到左侧/上侧
   if (magnifierX + magnifierSize.value > window.innerWidth) {
     magnifierX = e.clientX - magnifierSize.value - 20;
   }
   if (magnifierY + magnifierSize.value > window.innerHeight) {
     magnifierY = e.clientY - magnifierSize.value - 20;
   }
+  // 确保不超出屏幕左上角
   if (magnifierX < 0) magnifierX = 20;
   if (magnifierY < 0) magnifierY = 20;
 
+  console.log("magnifier x:", maginifierX, "maginifier y: ", maginifierY);
+
   magnifierPos.value = { x: magnifierX, y: magnifierY };
 
-  // 绘制放大预览
-  const radius = magnifierRadius.value;
-  magnifierCtx.value.clearRect(0, 0, magnifierSize.value, magnifierSize.value);
-  magnifierCtx.value.drawImage(
-    offscreenCanvas.value,
-    mouseX - radius,
-    mouseY - radius,
-    radius * 2,
-    radius * 2,
-    0,
-    0,
-    magnifierSize.value,
-    magnifierSize.value
-  );
+  // ===== 核心修改：像素级放大（拾色器效果） =====
+  const magnifierSize = magnifierSize.value; // 放大镜画布尺寸
+  const pixelRadius = magnifierRadius.value; // 要放大的原像素区域半径（比如5，表示取10x10像素）
+  const scale = magnifierSize / (pixelRadius * 2); // 放大比例（画布尺寸 / 原像素区域尺寸）
+
+  // 清空放大镜画布
+  magnifierCtx.value.clearRect(0, 0, magnifierSize, magnifierSize);
+
+  // 获取原画布中鼠标周围pixelRadius*2区域的像素数据
+  const imageData = offscreenCanvas.value
+    .getContext("2d")
+    .getImageData(
+      mouseX - pixelRadius,
+      mouseY - pixelRadius,
+      pixelRadius * 2,
+      pixelRadius * 2
+    );
+  const data = imageData.data; // 像素数据数组（RGBA格式，每个像素占4位）
+
+  // 逐像素绘制放大后的效果（每个原像素放大为scale*scale的方块）
+  for (let y = 0; y < pixelRadius * 2; y++) {
+    for (let x = 0; x < pixelRadius * 2; x++) {
+      // 计算当前像素在data数组中的索引
+      const index = (y * pixelRadius * 2 + x) * 4;
+      // 获取RGBA值
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const a = data[index + 3];
+
+      // 设置画笔颜色
+      magnifierCtx.value.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+      // 绘制放大后的像素块（每个块的尺寸是scale）
+      magnifierCtx.value.fillRect(
+        x * scale, // 放大后的X坐标
+        y * scale, // 放大后的Y坐标
+        scale, // 块宽度
+        scale // 块高度
+      );
+    }
+  }
+
+  // 可选：在放大镜中心绘制十字线，方便定位像素
+  magnifierCtx.value.strokeStyle = "#fff";
+  magnifierCtx.value.lineWidth = 1;
+  const center = magnifierSize / 2;
+  // 水平十字线
+  magnifierCtx.value.beginPath();
+  magnifierCtx.value.moveTo(0, center);
+  magnifierCtx.value.lineTo(magnifierSize, center);
+  magnifierCtx.value.stroke();
+  // 垂直十字线
+  magnifierCtx.value.beginPath();
+  magnifierCtx.value.moveTo(center, 0);
+  magnifierCtx.value.lineTo(center, magnifierSize);
+  magnifierCtx.value.stroke();
 }
 
 // ========== 工具栏位置计算 ==========
 function calculateToolbarPos() {
   const { x, y, width, height } = currentSelection.value;
-  const rect = screenshotCanvas.value.getBoundingClientRect();
-  const scaleX = rect.width / screenSize.value.width;
-  const scaleY = rect.height / screenSize.value.height;
+  const { width: toolbarWidth, height: toolbarHeight } = toolbarSize.value;
 
-  // 转换为视口坐标（水平居中）
-  const viewportX = x * scaleX + (width * scaleX - toolbarSize.value.width) / 2;
-  let viewportY = y * scaleY + height * scaleY + 10; // 选区下方
+  // 默认右对齐选区右下角
+  // 选区右下角的x坐标 - 工具条宽度 = 工具条右边缘和选区右边缘对齐
+  const selectionRightX = x * scaleX + width * scaleX;
+  const viewportX = selectionRightX - toolbarWidth;
+  // 选区右下角的y坐标 + 10px 间距 = 工具条顶部位置
+  let viewportY = y * scaleY + height * scaleY + 10;
 
-  // 边界适配
-  if (viewportY + toolbarSize.value.height > window.innerHeight) {
-    viewportY = y * scaleY - toolbarSize.value.height - 10; // 选区上方
+  // 边界适配：确保工具条完全在可视区域内
+  // 水平边界：工具条左边缘不能小于0
+  const finalX = Math.max(0, viewportX);
+  // 垂直边界：如果工具条底部超出屏幕高度，则上移到选区上方
+  const toolbarBottom = viewportY + toolbarHeight;
+  if (toolbarBottom > window.innerHeight) {
+    // 工具条底部 = 选区顶部 - 10px 间距
+    viewportY = y * scaleY - toolbarHeight - 10;
+    // 如果上移后仍超出顶部，固定在屏幕顶部
+    viewportY = Math.max(0, viewportY);
   }
-  if (viewportX < 0) viewportX = 20;
-  if (viewportX + toolbarSize.value.width > window.innerWidth) {
-    viewportX = window.innerWidth - toolbarSize.value.width - 20;
-  }
 
-  toolbarPos.value = { x: viewportX, y: viewportY };
+  // 更新工具条位置
+  toolbarPos.value = { x: finalX, y: viewportY };
 }
 
 // ========== 事件绑定 ==========
@@ -331,8 +428,9 @@ function bindMouseEvents() {
     // 如果显示工具栏（标注模式）
     if (showToolbar.value) {
       // 标注工具逻辑
-      if (currentMarkTool.value !== "select" && markManager.value) {
-        markManager.value.startDrawing(currentMarkTool.value, mouseX, mouseY);
+      if (currentMarkTool !== "none" && markManager.value) {
+        markManager.value.startDrawing(currentMarkTool, mouseX, mouseY);
+        console.log("draw " + currentMarkTool);
       }
       return;
     }
@@ -354,9 +452,6 @@ function bindMouseEvents() {
 
   // 鼠标移动事件
   const handleMousemove = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = screenSize.value.width / rect.width;
-    const scaleY = screenSize.value.height / rect.height;
     const mouseX = e.clientX * scaleX;
     const mouseY = e.clientY * scaleY;
 
@@ -393,9 +488,6 @@ function bindMouseEvents() {
 
   // 鼠标抬起事件
   const handleMouseup = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = screenSize.value.width / rect.width;
-    const scaleY = screenSize.value.height / rect.height;
     const mouseX = e.clientX * scaleX;
     const mouseY = e.clientY * scaleY;
 
@@ -448,7 +540,7 @@ function bindMouseEvents() {
   canvas.addEventListener("mousemove", handleMousemove);
   canvas.addEventListener("mouseup", handleMouseup);
   canvas.addEventListener("mouseleave", handleMouseleave);
-  canvas.addEventListener('keydown', handleKeydown);
+  canvas.addEventListener("keydown", handleKeydown);
   document.addEventListener("keydown", handleKeydown);
 
   // 解绑事件
@@ -465,18 +557,23 @@ function bindMouseEvents() {
 // ========== 工具栏交互 ==========
 // 切换标注工具
 function handleToolChange(tool) {
-  currentMarkTool.value = tool;
+  currentMarkTool = tool;
+  console.log("currentMarkTool: ", currentMarkTool);
   // 切换鼠标样式
   const canvas = screenshotCanvas.value;
   if (canvas) {
-    canvas.style.cursor = tool === "select" ? "default" : "crosshair";
+    canvas.style.cursor = tool === "none" ? "default" : "crosshair";
   }
 }
 
 // 工具栏取消按钮
 function handleToolbarCancel() {
-  resetCaptureState();
-  if (window.channel) window.channel.cancelScreenshot();
+  try {
+    resetCaptureState();
+    if (window.channel) window.channel.cancelScreenshot();
+  } catch (e) {
+    console.log("handleToolbarCancel: ", e);
+  }
 }
 
 // 工具栏完成按钮
@@ -511,27 +608,31 @@ async function handleToolbarFinish() {
 
 // ========== 状态重置 ==========
 function resetCaptureState() {
-  // 重置基础状态
-  captureStarted.value = false;
-  isDrawing.value = false;
-  isMagnifierShow.value = false;
-  showToolbar.value = false;
-  currentMarkTool.value = "select";
+  try {
+    // 重置基础状态
+    captureStarted.value = false;
+    isDrawing.value = false;
+    isMagnifierShow.value = false;
+    showToolbar.value = false;
+    currentMarkTool = "none";
 
-  // 重置选区
-  currentSelection.value = { x: 0, y: 0, width: 0, height: 0 };
-  lastSelection.value = { x: 0, y: 0, width: 0, height: 0 };
-  lastTextRect.value = { x: 0, y: 0, width: 0, height: 0 };
+    // 重置选区
+    currentSelection.value = { x: 0, y: 0, width: 0, height: 0 };
+    lastSelection.value = { x: 0, y: 0, width: 0, height: 0 };
+    lastTextRect.value = { x: 0, y: 0, width: 0, height: 0 };
 
-  // 清空标注
-  if (markManager.value) {
-    markManager.value.clear();
-  }
+    // 清空标注
+    if (markManager.value) {
+      markManager.value.clear();
+    }
 
-  // 恢复全屏截图
-  if (ctx.value && offscreenCanvas.value) {
-    ctx.value.drawImage(offscreenCanvas.value, 0, 0);
-    screenshotCanvas.value.style.cursor = "crosshair";
+    // 恢复全屏截图
+    if (ctx.value && offscreenCanvas.value) {
+      ctx.value.drawImage(offscreenCanvas.value, 0, 0);
+      screenshotCanvas.value.style.cursor = "crosshair";
+    }
+  } catch (e) {
+    console.log("resetCaptureStawte: ", e);
   }
 }
 

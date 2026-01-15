@@ -1,4 +1,4 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen, globalShortcut } from 'electron';
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import path from "path"
@@ -11,6 +11,8 @@ class WndManager extends Singleton {
         super();
         this.mainWnd = null;
         this.screenshotToolWnd = null;  // 控制工具栏窗口（小窗口，固定在左侧）
+        this.captureWnd = null; // 截图窗口
+        this.screenRulerWnd = null; // 屏幕标尺窗口
         this.bindMouseEvents = null;     // 截图编辑窗口（全屏透明窗口）
     }
 
@@ -191,6 +193,83 @@ class WndManager extends Singleton {
         return this.captureWnd;
     }
 
+    // 打开屏幕标尺窗口
+    createScreenRulerWindow(options = { type: 'horizontal', precision: 1 }) {
+        if (this.screenRulerWnd) {
+            this.screenRulerWnd.focus();
+            return;
+        }
+
+        // 获取屏幕尺寸
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const { width, height } = primaryDisplay.workAreaSize;
+
+        // 标尺默认尺寸
+        const rulerWidth = options.type === 'horizontal' ? 800 : 40;
+        const rulerHeight = options.type === 'horizontal' ? 40 : 800;
+
+        this.screenRulerWnd = new BrowserWindow({
+            width: rulerWidth,
+            height: rulerHeight,
+            x: (width - rulerWidth) / 2,
+            y: (height - rulerHeight) / 2,
+            frame: false, // 无边框
+            transparent: true, // 透明背景
+            alwaysOnTop: true, // 置顶
+            resizable: true, // 可缩放
+            movable: true, // 可拖拽
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                devTools: false,
+                preload: path.join(__dirname, '../preload.cjs')
+            },
+        });
+
+        // 加载标尺页面
+        let listenUrl = process.argv[2];
+        this.screenRulerWnd.loadURL(process.env.NODE_ENV === 'development'
+            ? `${listenUrl}/#/screen-ruler`
+            : `file://${path.join(__dirname, '../dist/index.html/#screen-ruler')}`
+        );
+
+        // 传递初始配置
+        this.screenRulerWnd.webContents.on('did-finish-load', () => {
+            this.screenRulerWnd.webContents.send('ruler-init', options);
+        });
+
+        // 监听窗口关闭
+        this.screenRulerWnd.on('closed', () => {
+            this.screenRulerWnd = null;
+        });
+
+        // 全局鼠标监听（实时传递坐标）
+        const mouseMoveHandler = (e) => {
+            if (this.screenRulerWnd && !this.screenRulerWnd.isDestroyed()) {
+                this.screenRulerWnd.webContents.send('mouse-position', {
+                    x: e.x,
+                    y: e.y,
+                    screenWidth: primaryDisplay.size.width,
+                    screenHeight: primaryDisplay.size.height,
+                });
+            }
+        };
+
+        // 绑定鼠标事件
+        globalShortcut.register('Escape', () => {
+            if (this.screenRulerWnd) {
+                this.screenRulerWnd.close();
+                globalShortcut.unregister('Escape');
+            }
+        });
+
+        screen.on('mouse-move', mouseMoveHandler);
+        this.screenRulerWnd.on('closed', () => {
+            screen.off('mouse-move', mouseMoveHandler);
+            globalShortcut.unregister('Escape');
+        });
+    }
+
     /**
      * 显示截图控制工具栏
      */
@@ -249,6 +328,14 @@ class WndManager extends Singleton {
         }
 
         this.showScreenshotToolWindow();
+    }
+
+    // 关闭屏幕标尺窗口
+    closeScreenRulerWindow() {
+        if (this.screenRulerWnd && !this.screenRulerWnd.isDestroyed()) {
+            this.screenRulerWnd.close();
+            this.screenRulerWnd = null;
+        }
     }
 
     /**

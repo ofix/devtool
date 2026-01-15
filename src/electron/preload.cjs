@@ -47,12 +47,19 @@ contextBridge.exposeInMainWorld('channel', {
     hideWindow: (window) => ipcRenderer.invoke("hide-window", window),
     // 屏幕截图
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
-    cancelScreenshot:()=>ipcRenderer.invoke("cancel-screenshot"),
+    cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
     sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
     openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),
     getDesktopScreenshot: () => ipcRenderer.invoke('get-desktop-screenshot'),
     enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
     saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
-    closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window')
+    closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
+    // 屏幕标尺
+    openScreenRuler: (option) => ipcRenderer.invoke("open-ruler", option),
+    closeScreenRuler: () => ipcRenderer.invoke("close-ruler"),
+    rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
+    rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
+    rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
+    rulerSetPosition: (x, y) => ipcRenderer.invoke("ruler:set-position", x, y),
 })

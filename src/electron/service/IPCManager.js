@@ -16,6 +16,7 @@ class IPCManager extends Singleton {
             mode: 'rectangle', // rectangle, window, scroll, etc.
             isActive: false
         };
+        this.screenRulerWnd = null;
         this.cachedScreenshot = null; // 预加载的截图数据（base64）
         this.cacheScreenshotExpireTime = 0; // 缓存过期时间
     }
@@ -210,6 +211,41 @@ class IPCManager extends Singleton {
         });
         // 暂存滚动截图
         ipcMain.on('save-scroll-screenshot', (event, screenshotBase64) => {
+        });
+        // 打开标尺
+        ipcMain.handle('open-ruler', async (_, options) => {
+            this.screenRulerWnd = WndManager.getInstance().createScreenRulerWindow(options);
+        });
+        // 关闭标尺
+        ipcMain.handle('close-ruler', async () => {
+            WndManager.getInstance().closeScreenRulerWindow();
+            this.screenRulerWnd = null;
+        });
+        // 切换标尺方向（调整窗口尺寸）
+        ipcMain.handle('ruler:toggle-type', () => {
+            if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) {
+                return;
+            }
+            const [w, h] = this.screenRulerWnd.getSize();
+            this.screenRulerWnd.setSize(h, w); // 交换宽高实现横竖切换
+            return { width: h, height: w }; // 返回新尺寸
+        });
+        // 获取标尺窗口尺寸
+        ipcMain.handle('ruler:get-size', () => {
+            if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { width: 0, height: 0 };
+            const [w, h] = this.screenRulerWnd.getSize();
+            return { width: w, height: h };
+        });
+        // 获取标尺窗口位置
+        ipcMain.handle('ruler:get-position', () => {
+            if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { x: 0, y: 0 };
+            const [x, y] = this.screenRulerWnd.getPosition();
+            return { x, y };
+        });
+        // 设置标尺窗口位置（拖拽移动）
+        ipcMain.handle('ruler:set-position', (_, x, y) => {
+            if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return;
+            this.screenRulerWnd.setPosition(x, y);
         });
         // 各种工具命令
         ipcMain.handle('tool-cmd', (event, command, data) => {

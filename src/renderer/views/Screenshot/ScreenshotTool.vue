@@ -193,7 +193,7 @@ async function onClickRecordVideo() {
 async function onClickScreenRuler() {
   try {
     activeTool.value = "ruler";
-    await window.channel.sendToolCmd("screen-ruler", {});
+    await window.channel.openScreenRuler();
   } catch (error) {
     console.error("打开屏幕标尺失败:", error);
     ElMessage.error("打开屏幕标尺失败");

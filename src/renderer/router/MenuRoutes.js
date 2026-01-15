@@ -7,6 +7,7 @@ import PostWomanLayout from "@/layout/PostWomanLayout.vue";
 import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
 import ScreenshotTool from "@/views/Screenshot/ScreenshotTool.vue";
 import Capture from "@/views/Screenshot/Capture.vue";
+import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
 
 const MenuRoutes = [
     {
@@ -109,6 +110,16 @@ const MenuRoutes = [
         meta: {
             icon: SSHIcon,
             title: '矩形截图',
+            desc: ''
+        }
+    },
+    {
+        path: '/screen-ruler',
+        name: 'screen-ruler',
+        component: ScreenRuler,
+        meta: {
+            icon: SSHIcon,
+            title: '屏幕标尺',
             desc: ''
         }
     },
