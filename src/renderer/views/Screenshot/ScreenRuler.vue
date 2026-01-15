@@ -2,281 +2,403 @@
   <div
     class="ruler-container"
     :class="`ruler-${type}`"
-    :style="{ width: '100%', height: '100%' }"
+    @mousedown="handleMouseDown"
   >
-    <!-- 标尺刻度 -->
-    <div class="ruler-scale">
-      <div
-        v-for="tick in tickList"
-        :key="tick.value"
-        class="ruler-tick"
-        :style="{
-          [type === 'horizontal' ? 'left' : 'top']: `${tick.percent}%`,
-          height: tick.type === 'major' ? '20px' : '10px',
-          width: tick.type === 'major' ? '20px' : '10px',
-        }"
-      >
-        <span v-if="tick.type === 'major'" class="tick-label">{{
-          tick.value
-        }}</span>
-      </div>
-    </div>
-
-    <!-- 鼠标位置显示 -->
-    <div class="ruler-position">
-      X: {{ mouseX }} px | Y: {{ mouseY }} px | 尺寸: {{ rulerWidth }} x
-      {{ rulerHeight }} px
-    </div>
-
-    <!-- 控制面板 -->
-    <div class="ruler-controls">
-      <el-button size="mini" icon="el-icon-refresh" @click="toggleType">
-        {{ type === "horizontal" ? "竖尺" : "横尺" }}
-      </el-button>
-      <el-select v-model="precision" size="mini" style="width: 80px">
-        <el-option label="1px" value="1"></el-option>
-        <el-option label="5px" value="5"></el-option>
-        <el-option label="10px" value="10"></el-option>
-      </el-select>
-      <el-button size="mini" icon="el-icon-close" @click="closeRuler"
-        >关闭</el-button
-      >
-    </div>
-
-    <!-- 鼠标标线 -->
-    <div
-      class="mouse-line vertical"
-      v-if="type === 'horizontal'"
-      :style="{ left: `${mousePercentX}%` }"
-    ></div>
-    <div
-      class="mouse-line horizontal"
-      v-if="type === 'vertical'"
-      :style="{ top: `${mousePercentY}%` }"
-    ></div>
+    <!-- Canvas 标尺 -->
+    <canvas
+      ref="rulerCanvas"
+      class="ruler-canvas"
+      :width="canvasSize.fixed"
+      :height="canvasSize.dynamic"
+    ></canvas>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { ElMessage } from "element-plus";
 
+// ========== 核心配置：固定标尺尺寸 & 刻度规则 ==========
+const FIXED_EDGE_SIZE = 30; // 横尺高度/竖尺宽度 固定为30px
+// 刻度配置（仿FastStone）
+const MAJOR_TICK_INTERVAL = 50; // 主刻度间隔（50px）
+const MINOR_TICK_INTERVAL = 10; // 次级刻度间隔（10px）
+const FINE_TICK_INTERVAL = 1; // 细刻度间隔（1px）
+
 // 响应式数据
-const type = ref("horizontal");
-const precision = ref("1");
+const type = ref("horizontal"); // horizontal/vertical
 const mouseX = ref(0);
 const mouseY = ref(0);
-const mousePercentX = ref(0);
-const mousePercentY = ref(0);
-const rulerWidth = ref(0);
-const rulerHeight = ref(0);
-const screenWidth = ref(0);
-const screenHeight = ref(0);
+const rulerWidth = ref(800); // 横尺宽度（可拉伸），竖尺宽度=30
+const rulerHeight = ref(FIXED_EDGE_SIZE); // 横尺高度=30，竖尺高度（可拉伸）
+const rulerCanvas = ref(null);
+const winPos = ref({ x: 0, y: 0 });
+const isDragging = ref(false);
+const dragStartX = ref(0);
+const dragStartY = ref(0);
 
-// 存储监听函数引用（用于卸载时清理）
+// Canvas 尺寸计算：横尺[宽=窗口宽, 高=30]；竖尺[宽=30, 高=窗口高]
+const canvasSize = computed(() => {
+  return type.value === "horizontal"
+    ? { fixed: rulerWidth.value, dynamic: FIXED_EDGE_SIZE }
+    : { fixed: FIXED_EDGE_SIZE, dynamic: rulerHeight.value };
+});
+
+// 存储监听函数
 let rulerInitListener = null;
 let mousePositionListener = null;
+let mouseMoveHandler = null;
+let mouseUpHandler = null;
 
-// 计算刻度列表
-const tickList = computed(() => {
-  const list = [];
-  const precisionVal = Number(precision.value);
-  const maxValue =
-    type.value === "horizontal" ? rulerWidth.value : rulerHeight.value;
+// ========== 核心重构：仿FastStone标尺绘制逻辑 ==========
+const redrawRuler = () => {
+  if (!rulerCanvas.value) return;
+  const ctx = rulerCanvas.value.getContext("2d");
+  const isHorizontal = type.value === "horizontal";
+  const { fixed: w, dynamic: h } = canvasSize.value;
 
-  for (let i = 0; i <= maxValue; i += precisionVal) {
-    const percent = (i / maxValue) * 100;
-    const isMajor = i % (10 * precisionVal) === 0;
-    list.push({
-      value: i,
-      percent,
-      type: isMajor ? "major" : "minor",
-    });
+  // 初始化+抗锯齿关闭
+  ctx.save();
+  ctx.reset();
+  ctx.imageSmoothingEnabled = false;
+  ctx.webkitImageSmoothingEnabled = false;
+  ctx.msImageSmoothingEnabled = false;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "rgba(255, 255, 255, 1)";
+  ctx.fillRect(0, 0, Math.floor(w), Math.floor(h));
+
+  // 控制区域计算
+  const center = Math.floor(isHorizontal ? h / 2 : w / 2);
+  const controlAreaSize = 80;
+  const controlStart = Math.floor(
+    (isHorizontal ? w : h) / 2 - controlAreaSize / 2
+  );
+  const controlEnd = Math.floor(
+    (isHorizontal ? w : h) / 2 + controlAreaSize / 2
+  );
+
+  // 样式配置
+  ctx.strokeStyle = "#666";
+  ctx.fillStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.font = "11px Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.textRendering = "geometricPrecision";
+
+  const maxLength = isHorizontal ? w : h;
+  const halfHeight = Math.floor(h);
+  const halfWidth = Math.floor(w);
+
+  ctx.beginPath();
+  for (let i = 0; i <= maxLength; i += 1) {
+    // 步长1px遍历
+    if (i >= controlStart && i <= controlEnd) continue;
+
+    // 刻度类型判断
+    const isMajor = i % MAJOR_TICK_INTERVAL === 0; // 50px 主刻度
+    const isMinor = i % MINOR_TICK_INTERVAL === 0; // 10px 次级刻度
+    // 细刻度：非主/次级 且 是偶数像素位置（2、4、6...）
+    const isFine = !isMajor && !isMinor && i % 2 === 0;
+
+    if (!isMajor && !isMinor && !isFine) continue; // 跳过不需要绘制的位置
+
+    // 刻度长度
+    let tickLength = 0;
+    if (isMajor) tickLength = 10;
+    else if (isMinor) tickLength = 6;
+    else if (isFine) tickLength = 3;
+
+    // 坐标取整
+    const pos = Math.floor(i);
+    const tickLen = Math.floor(tickLength);
+
+    if (isHorizontal) {
+      // 上刻度
+      ctx.moveTo(pos, 0);
+      ctx.lineTo(pos, tickLen);
+      // 下刻度
+      ctx.moveTo(pos, halfHeight);
+      ctx.lineTo(pos, halfHeight - tickLen);
+    } else {
+      // 左刻度
+      ctx.moveTo(0, pos);
+      ctx.lineTo(tickLen, pos);
+      // 右刻度
+      ctx.moveTo(halfWidth, pos);
+      ctx.lineTo(halfWidth - tickLen, pos);
+    }
   }
-  return list;
-});
+  ctx.stroke();
+  ctx.closePath();
 
-// 切换标尺方向（基于你现有 channel 调用）
+  // 绘制主刻度文本（不变）
+  for (let i = 0; i <= maxLength; i += MAJOR_TICK_INTERVAL) {
+    if (i >= controlStart && i <= controlEnd) continue;
+    const pos = Math.floor(i);
+    if (isHorizontal) {
+      ctx.textAlign = "center";
+      ctx.fillText(i.toString(), pos, Math.floor(center));
+    } else {
+      ctx.textAlign = "center";
+      ctx.fillText(i.toString(), Math.floor(center), pos);
+    }
+  }
+
+  // 鼠标标线+边框 部分不变
+  if (winPos.value.x && winPos.value.y) {
+    const localX = Math.floor(mouseX.value - winPos.value.x);
+    const localY = Math.floor(mouseY.value - winPos.value.y);
+
+    ctx.strokeStyle = "#ff4444";
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.7;
+
+    ctx.beginPath();
+    if (isHorizontal) {
+      if (localX < controlStart || localX > controlEnd) {
+        ctx.moveTo(localX, 0);
+        ctx.lineTo(localX, halfHeight);
+      }
+    } else {
+      if (localY < controlStart || localY > controlEnd) {
+        ctx.moveTo(0, localY);
+        ctx.lineTo(halfWidth, localY);
+      }
+    }
+    ctx.stroke();
+    ctx.closePath();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(0, 0, Math.floor(w), Math.floor(h));
+  ctx.stroke();
+  ctx.closePath();
+
+  ctx.restore();
+};
+
+// ========== 横竖切换逻辑：固定尺寸不变 ==========
 const toggleType = async () => {
-  type.value = type.value === "horizontal" ? "vertical" : "horizontal";
-  // 调用主进程切换窗口尺寸
-  const newSize = await window.channel.rulerToggleType();
-  if (newSize) {
-    rulerWidth.value = newSize.width;
-    rulerHeight.value = newSize.height;
+  const oldType = type.value;
+  type.value = oldType === "horizontal" ? "vertical" : "horizontal";
+
+  // 切换时调整窗口尺寸：横尺[宽=原长, 高=30]；竖尺[宽=30, 高=原长]
+  const newSize =
+    oldType === "horizontal"
+      ? { width: FIXED_EDGE_SIZE, height: rulerWidth.value }
+      : { width: rulerHeight.value, height: FIXED_EDGE_SIZE };
+
+  // 调用主进程修改窗口尺寸（保留原有IPC逻辑）
+  try {
+    await window.channel.sendToolCmd(
+      "ruler:set-size",
+      newSize.width,
+      newSize.height
+    );
+  } catch (e) {
+    ElMessage.warning("切换尺寸失败：" + e.message);
+  }
+
+  // 更新本地尺寸
+  rulerWidth.value = newSize.width;
+  rulerHeight.value = newSize.height;
+  // 重绘标尺
+  redrawRuler();
+};
+
+// ========== 原有 IPC 逻辑保留 ==========
+const closeRuler = async () => {
+  try {
+    await window.channel.closeScreenRuler();
+  } catch (e) {
+    ElMessage.warning("关闭失败：" + e.message);
   }
 };
 
-// 关闭标尺（复用你 preload 中定义的 closeScreenRuler）
-const closeRuler = async () => {
-  await window.channel.closeScreenRuler();
-};
-
-// 更新标尺尺寸（基于 channel 获取）
 const updateRulerSize = async () => {
-  const size = await window.channel.rulerGetSize();
-  rulerWidth.value = size.width;
-  rulerHeight.value = size.height;
+  try {
+    const size = await window.channel.rulerGetSize();
+    rulerWidth.value = size.width || 800;
+    rulerHeight.value = size.height || FIXED_EDGE_SIZE;
+  } catch (e) {
+    rulerWidth.value = 800;
+    rulerHeight.value = FIXED_EDGE_SIZE;
+  }
+  redrawRuler();
 };
 
-// 初始化
+const updateWinPos = async () => {
+  try {
+    const pos = await window.channel.rulerGetPosition();
+    winPos.value = pos;
+  } catch (e) {
+    winPos.value = { x: 0, y: 0 };
+  }
+};
+
+const handleMouseDown = async (e) => {
+  isDragging.value = true;
+  try {
+    const pos = await window.channel.rulerGetPosition();
+    dragStartX.value = e.x - pos.x;
+    dragStartY.value = e.y - pos.y;
+  } catch (e) {
+    dragStartX.value = e.x;
+    dragStartY.value = e.y;
+  }
+
+  mouseMoveHandler = async (e) => {
+    if (isDragging.value) {
+      try {
+        await window.channel.rulerSetPosition(
+          e.x - dragStartX.value,
+          e.y - dragStartY.value
+        );
+        await updateWinPos();
+        redrawRuler();
+      } catch (e) {
+        console.error("拖动失败：", e);
+      }
+    }
+  };
+
+  mouseUpHandler = () => {
+    isDragging.value = false;
+    document.removeEventListener("mousemove", mouseMoveHandler);
+    document.removeEventListener("mouseup", mouseUpHandler);
+  };
+
+  document.addEventListener("mousemove", mouseMoveHandler);
+  document.addEventListener("mouseup", mouseUpHandler);
+};
+
+const handleMousePositionUpdate = async (pos) => {
+  mouseX.value = pos.x;
+  mouseY.value = pos.y;
+  await updateWinPos();
+  redrawRuler();
+};
+
+// ========== 初始化 & 监听 ==========
 onMounted(async () => {
-  // 1. 监听初始配置（复用你 preload 的 on 方法）
+  // 监听初始配置
   rulerInitListener = (options) => {
     if (options.type) type.value = options.type;
-    if (options.precision) precision.value = options.precision;
   };
-  window.channel.on("ruler-init", rulerInitListener);
+  try {
+    window.channel.on("ruler-init", rulerInitListener);
+  } catch (e) {
+    console.warn("未监听初始化事件：", e);
+  }
 
-  // 2. 监听鼠标位置
-  mousePositionListener = async (pos) => {
-    mouseX.value = pos.x;
-    mouseY.value = pos.y;
-    screenWidth.value = pos.screenWidth;
-    screenHeight.value = pos.screenHeight;
+  // 监听鼠标位置
+  mousePositionListener = handleMousePositionUpdate;
+  try {
+    window.channel.on("mouse-position", mousePositionListener);
+  } catch (e) {
+    console.warn("未监听鼠标位置事件：", e);
+  }
 
-    // 获取窗口位置和尺寸（通过 channel 调用）
-    const winPos = await window.channel.rulerGetPosition();
-    const winSize = await window.channel.rulerGetSize();
-
-    // 计算鼠标在标尺内的百分比
-    if (type.value === "horizontal") {
-      mousePercentX.value = ((pos.x - winPos.x) / winSize.width) * 100;
-    } else {
-      mousePercentY.value = ((pos.y - winPos.y) / winSize.height) * 100;
-    }
-  };
-  window.channel.on("mouse-position", mousePositionListener);
-
-  // 3. 初始化窗口尺寸
+  // 初始化尺寸和位置
   await updateRulerSize();
-  window.addEventListener("resize", updateRulerSize);
+  await updateWinPos();
+  redrawRuler();
 
-  // 4. 拖拽窗口（基于 channel 设置位置）
-  let isDragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-
-  document.addEventListener("mousedown", async (e) => {
-    if (e.target.classList.contains("ruler-container")) {
-      isDragging = true;
-      const winPos = await window.channel.rulerGetPosition();
-      dragStartX = e.x - winPos.x;
-      dragStartY = e.y - winPos.y;
-    }
+  // 监听窗口缩放
+  window.addEventListener("resize", async () => {
+    await updateRulerSize();
+    redrawRuler();
   });
 
-  document.addEventListener("mousemove", async (e) => {
-    if (isDragging) {
-      await window.channel.rulerSetPosition(e.x - dragStartX, e.y - dragStartY);
-    }
-  });
-
-  document.addEventListener("mouseup", () => {
-    isDragging = false;
-  });
-
-  ElMessage.success("标尺已打开（ESC键可关闭）");
+  // 监听类型变化
+  watch(type, redrawRuler);
 });
 
-// 清理监听
 onUnmounted(() => {
-  // 移除自定义监听
-  if (rulerInitListener) window.channel.off("ruler-init", rulerInitListener);
-  if (mousePositionListener)
-    window.channel.off("mouse-position", mousePositionListener);
+  // 移除事件监听
+  if (rulerInitListener) {
+    try {
+      window.channel.off("ruler-init", rulerInitListener);
+    } catch (e) {}
+  }
+  if (mousePositionListener) {
+    try {
+      window.channel.off("mouse-position", mousePositionListener);
+    } catch (e) {}
+  }
+  if (mouseMoveHandler) {
+    document.removeEventListener("mousemove", mouseMoveHandler);
+  }
+  if (mouseUpHandler) {
+    document.removeEventListener("mouseup", mouseUpHandler);
+  }
   window.removeEventListener("resize", updateRulerSize);
 });
 </script>
 
 <style scoped>
-/* 样式完全保持不变 */
+/* 容器：固定宽高，禁止滚动 */
 .ruler-container {
   position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ccc;
+  width: 100%;
+  height: 100%;
   user-select: none;
   cursor: move;
+  overflow: hidden;
 }
 
-.ruler-horizontal {
-  flex-direction: row;
-}
-.ruler-vertical {
-  flex-direction: column;
-}
-
-.ruler-scale {
-  position: absolute;
-  top: 0;
-  left: 0;
+/* Canvas：1:1 像素绘制，避免拉伸模糊 */
+.ruler-canvas {
+  display: block;
+  /* 关键：禁止浏览器缩放 Canvas */
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: row;
+  /* 强制像素级渲染，禁用平滑 */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  /* 避免布局偏移导致的模糊 */
+  transform: translateZ(0);
 }
 
-.ruler-tick {
-  position: absolute;
-  border-left: 1px solid #666;
-  border-bottom: 1px solid #666;
-}
-
-.tick-label {
-  position: absolute;
-  bottom: 0;
-  left: -5px;
-  font-size: 12px;
-  color: #333;
-}
-
-.ruler-position {
-  position: absolute;
-  top: 2px;
-  right: 10px;
-  font-size: 12px;
-  color: #666;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 2px 5px;
-  border-radius: 3px;
-}
-
+/* 控制按钮区域：中间悬浮层 */
 .ruler-controls {
   position: absolute;
-  bottom: 2px;
-  right: 10px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
-  gap: 5px;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  z-index: 10;
 }
 
-.mouse-line {
-  position: absolute;
-  background: #ff4444;
-  opacity: 0.7;
-}
-.vertical {
-  width: 1px;
-  height: 100%;
-  top: 0;
-}
-.horizontal {
-  height: 1px;
-  width: 100%;
-  left: 0;
+.control-btn {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.ruler-vertical .ruler-scale {
-  flex-direction: column;
+.control-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
 }
-.ruler-vertical .ruler-tick {
-  border-left: none;
-  border-bottom: none;
-  border-top: 1px solid #666;
-  border-right: 1px solid #666;
+
+/* 横竖尺鼠标样式优化 */
+.ruler-horizontal {
+  cursor: ew-resize; /* 横尺可左右拉伸 */
 }
-.ruler-vertical .tick-label {
-  bottom: auto;
-  left: 5px;
-  top: -8px;
+.ruler-vertical {
+  cursor: ns-resize; /* 竖尺可上下拉伸 */
 }
 </style>
