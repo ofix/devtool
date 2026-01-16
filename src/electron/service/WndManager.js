@@ -82,7 +82,7 @@ class WndManager extends Singleton {
     /**
      * 创建截图编辑窗口（全屏透明窗口）
      */
-    createCaptureEditWindow() {
+    createCaptureWindow() {
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.show();
             this.captureWnd.focus();
@@ -169,7 +169,7 @@ class WndManager extends Singleton {
             : `file://${path.join(__dirname, '../dist/index.html#/screenshot/capture-rect')}`
         );
 
-        // this.captureWnd.setIgnoreMouseEvents(false);
+        // this.captureWnd.webContents.openDevTools();
 
         // 窗口事件处理
         this.captureWnd.on('closed', () => {
@@ -294,12 +294,12 @@ class WndManager extends Singleton {
     /**
      * 显示截图编辑窗口
      */
-    showCaptureEditWindow() {
+    showCaptureWindow() {
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.show();
             this.captureWnd.focus();
         } else {
-            this.createCaptureEditWindow();
+            this.createCaptureWindow();
         }
 
         // 隐藏控制工具栏
@@ -309,7 +309,7 @@ class WndManager extends Singleton {
     /**
      * 隐藏截图编辑窗口
      */
-    hideCaptureEditWindow() {
+    hideCaptureWindow() {
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.hide();
         }

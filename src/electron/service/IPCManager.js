@@ -194,7 +194,7 @@ class IPCManager extends Singleton {
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', async (event, mode) => {
             await this.preloadScreenshot();
-            WndManager.getInstance().showCaptureEditWindow();
+            WndManager.getInstance().showCaptureWindow();
         });
         ipcMain.handle('cancel-screenshot', async (event) => {
             WndManager.getInstance().closeCaptureEditWindow();
