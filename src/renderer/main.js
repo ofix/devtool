@@ -6,7 +6,9 @@ import 'element-plus/dist/index.css'
 import './theme/Global.css'
 import themePlugin from './theme/ThemePlugin';
 import App from './App.vue'
+import { removeVueDevtoolsContainers } from "./vite.remove.js";
 
+removeVueDevtoolsContainers();
 
 const app = createApp(App)
 app.use(createPinia())
