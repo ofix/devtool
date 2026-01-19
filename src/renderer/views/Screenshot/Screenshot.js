@@ -36,10 +36,10 @@ export default class Screenshot {
         this.magnifierCanvas = magnifierCanvasEl;
         // Canvas 上下文
         this.ctx = this.canvas.getContext("2d");
-        this.magnifierCtx = this.magnifierCanvas?.getContext("2d");
+        this.magnifierCtx = this.magnifierCanvas?.getContext("2d", { alpha: true });
         // 离屏 Canvas（优化重绘性能）
         this.offscreenCanvas = document.createElement("canvas");
-        this.offscreenCtx = this.offscreenCanvas.getContext("2d");
+        this.offscreenCtx = this.offscreenCanvas.getContext("2d", { alpha: true });
 
         // 核心状态
         this.state = {
@@ -82,18 +82,18 @@ export default class Screenshot {
         const rect = this.canvas.getBoundingClientRect();
         this.state.scaleX = this.state.screenSize.width / rect.width;
         this.state.scaleY = this.state.screenSize.height / rect.height;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); // 画布初始化为透明色
 
         // 初始化标注管理器（按需）
-        
-            this.state.markManager = new MarkManager(
-                this.canvas,
-                this.offscreenCanvas,
-                this.state.screenSize
-            );
-        
+        this.state.markManager = new MarkManager(
+            this.canvas,
+            this.offscreenCanvas,
+            this.state.screenSize
+        );
+
     }
 
-    getMarkManager(){
+    getMarkManager() {
         return this.state.markManager;
     }
 
@@ -119,7 +119,6 @@ export default class Screenshot {
             img.src = base64Str; // 触发图片加载
         });
     }
-
 
     // ========== 对外暴露的初始化方法（Vue 组件调用） ==========
     async init(base64Image) {

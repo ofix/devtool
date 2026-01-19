@@ -76,8 +76,9 @@ onMounted(async () => {
   canvas.addEventListener("keydown", screenshot.handleKeydown);
 
   // 初始化截图（传入全屏截图图片，按需实现）
-  const fullScreenImage = await window.channel.getDesktopScreenshot(); // 自行实现截图逻辑
-  screenshot.init(fullScreenImage);
+  window.channel.getDesktopScreenshot().then((fullScreenImage) => {
+    screenshot.init(fullScreenImage);
+  }); // 自行实现截图逻辑
 
   markManager.value = screenshot.getMarkManager();
 });
@@ -101,7 +102,15 @@ const handleToolChange = (tool) => {
 };
 </script>
 
-<style scoped>
+<style>
+html,
+body {
+  /* 背景透明，无默认白色 */
+  /* 直接设置透明，覆盖原变量 */
+  --dt-primary-bg-color: transparent !important;
+  background-color: transparent !important;
+  background: transparent !important;
+}
 .screenshot-container {
   position: fixed;
   top: 0;
@@ -114,6 +123,7 @@ const handleToolChange = (tool) => {
 .screenshot-canvas {
   width: 100%;
   height: 100%;
+  background: transparent !important;
   cursor: crosshair;
 }
 

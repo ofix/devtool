@@ -125,6 +125,7 @@ class WndManager extends Singleton {
             alwaysOnTop: true,
             skipTaskbar: true,
             transparent: true,
+            backgroundColor: '#00000000',
             hasShadow: false,
             show: false,             // 先不显示，等加载完成
             movable: false,          // 截图窗口不能移动
@@ -143,7 +144,7 @@ class WndManager extends Singleton {
                 webSecurity: true,
                 allowRunningInsecureContent: false,
                 // 禁用硬件加速（部分设备会导致截图闪烁）
-                // hardwareAcceleration: false,
+                hardwareAcceleration: true,
             }
         });
 
