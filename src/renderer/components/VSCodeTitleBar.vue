@@ -8,6 +8,14 @@
     <span class="title">{{ title }}</span>
     <div class="title-bar-controls">
       <button
+        ref="captureBtn"
+        id="capture-box"
+        class="control-btn"
+        aria-label="截图"
+      >
+        <IconCaptureRect />
+      </button>
+      <button
         ref="minBtn"
         id="minimize-box"
         class="control-btn"
@@ -43,6 +51,7 @@ import IconMaximizeBox from "@/components/icons/IconMaximizeBox.vue";
 import IconMinimizeBox from "@/components/icons/IconMinimizeBox.vue";
 import IconRestoreBox from "@/components/icons/IconRestoreBox.vue";
 import IconCloseBox from "@/components/icons/IconCloseBox.vue";
+import IconCaptureRect from "@/components/icons/IconCaptureRect.vue";
 
 // 可传入的 props
 const props = defineProps({
@@ -57,12 +66,16 @@ const titleBarHeight = ref(32); // 与 titleBarOverlay.height 保持一致
 const emit = defineEmits(["maximized", "unmaximized"]);
 
 // 模板 ref
+const captureBtn = ref(null);
 const minBtn = ref(null);
 const maxBtn = ref(null);
 const closeBtn = ref(null);
 
 onMounted(() => {
   // 绑定事件（使用模板 ref，避免多次 getElementById）
+  captureBtn.value?.addEventListener("click", async () => {
+    window.channel.showScreenshotTool();
+  });
   minBtn.value?.addEventListener("click", () =>
     window.channel.send("window-minimize")
   );

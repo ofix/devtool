@@ -191,13 +191,19 @@ class IPCManager extends Singleton {
                 return [];
             }
         });
+        ipcMain.handle('open-screenshot-tool', (event, mode) => {
+            WndManager.getInstance().createScreenshotToolWindow();
+        })
+        ipcMain.handle('close-screenshot-tool', (event, mode) => {
+            WndManager.getInstance().closeScreenshotToolWindow();
+        })
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', async (event, mode) => {
             await this.preloadScreenshot();
             WndManager.getInstance().showCaptureWindow();
         });
         ipcMain.handle('cancel-screenshot', async (event) => {
-            WndManager.getInstance().closeCaptureEditWindow();
+            WndManager.getInstance().closeCaptureWindow();
         });
         // 当需要开始选区时
         ipcMain.handle('start-selection', () => {
@@ -206,7 +212,7 @@ class IPCManager extends Singleton {
         });
         // 完成滚动截图拼接
         ipcMain.handle('finish-screenshot', async () => {
-            WndManager.getInstance().closeCaptureEditWindow();
+            WndManager.getInstance().closeCaptureWindow();
             return true;
         });
         // 暂存滚动截图

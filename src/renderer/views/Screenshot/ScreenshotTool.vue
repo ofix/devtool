@@ -41,6 +41,7 @@
       title="拾色器 (Ctrl+Shift+P)"
       @click="onSettings"
     />
+    <Close class="tool-button" title="关闭" @click="onClose" />
   </div>
 </template>
 
@@ -54,9 +55,8 @@ import CaptureScroll from "@/components/icons/IconCaptureScroll.vue";
 import RecordVideo from "@/components/icons/IconRecordVideo.vue";
 import ScreenRuler from "@/components/icons/IconScreenRuler.vue";
 import ColorPicker from "@/components/icons/IconColorPicker.vue";
-import {
-  ElMessage,
-} from "element-plus";
+import Close from "@/components/icons/IconCloseBox.vue";
+import { ElMessage } from "element-plus";
 
 import { ref, onMounted, onUnmounted } from "vue";
 
@@ -149,7 +149,7 @@ async function onClickCaptureRect() {
     await window.channel.startScreenshot("rectangle");
   } catch (error) {
     console.error("启动矩形截图失败:", error);
-    ElMessage.error("启动截图失败："+ error);
+    ElMessage.error("启动截图失败：" + error);
   }
 }
 
@@ -213,6 +213,10 @@ async function onClickColorPicker() {
 
 async function onSettings() {}
 
+async function onClose(){
+    await window.channel.closeScreenshotTool();
+}
+
 // 全局快捷键处理
 function handleKeydown(e) {
   const key = e.key;
@@ -272,7 +276,7 @@ onUnmounted(() => {
   flex-direction: row;
   gap: 12px;
   z-index: 2147483647;
-  padding:8px;
+  padding: 8px;
   background-color: rgba(0, 0, 0, 0.9);
 }
 

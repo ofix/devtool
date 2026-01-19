@@ -25,16 +25,16 @@ class WndManager extends Singleton {
         }
 
         // 控制工具栏是小窗口，不需要全屏
-        const icons = 8;
+        const icons = 9;
         const iconSize = 32;
         const iconGap = 12;
         const toolbarWidth = icons * iconSize + (icons - 1) * iconGap;     // 工具栏宽度
-        const toolbarHeight = iconSize + 16 + 60;   // 工具栏高度
+        const toolbarHeight = iconSize + 16;   // 工具栏高度
         const screenSize = screen.getPrimaryDisplay().workAreaSize;
 
         // 计算位置：屏幕左侧居中
-        const x = 0;
-        const y = (screenSize.height - toolbarHeight) / 2;
+        const x = screenSize.width - toolbarWidth - 42;
+        const y = screenSize.height - toolbarHeight - 42;
         this.screenshotToolWnd = new BrowserWindow({
             width: toolbarWidth,
             height: toolbarHeight,
@@ -319,9 +319,19 @@ class WndManager extends Singleton {
     }
 
     /**
+     * 关闭截图工具窗口
+     */
+    closeScreenshotToolWindow() {
+        if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            this.screenshotToolWnd.close();
+            this.screenshotToolWnd = null;
+        }
+    }
+
+    /**
      * 关闭截图编辑窗口
      */
-    closeCaptureEditWindow() {
+    closeCaptureWindow() {
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.close();
             this.captureWnd = null;
@@ -382,8 +392,12 @@ class WndManager extends Singleton {
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.close();
         }
+        if (this.screenRulerWnd && !this.screenRulerWnd.isDestroyed()) {
+            this.screenRulerWnd.close();
+        }
         this.screenshotToolWnd = null;
         this.captureWnd = null;
+        this.screenRulerWnd = null;
     }
 }
 
