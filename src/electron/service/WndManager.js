@@ -151,10 +151,6 @@ class WndManager extends Singleton {
         // 禁用窗口动画（Windows/macOS 通用）
         this.captureWnd.setOpacity(1);
         this.captureWnd.setHasShadow(false);
-        // Windows 额外禁用 Aero 效果
-        if (process.platform === 'win32') {
-            this.captureWnd.setBlur(false);
-        }
 
         // 新增：Linux 下强制设置窗口为「顶层窗口」（麒麟系统专用）
         if (process.platform === 'linux') {
