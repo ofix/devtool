@@ -1,21 +1,23 @@
 <template>
   <div class="screenshot-container">
     <!-- 截图 Canvas -->
-    <canvas
-      ref="screenshotCanvas"
-      class="screenshot-canvas"
-      tabindex="0"
-    ></canvas>
+    <canvas ref="canvasScreen" class="screen-canvas" tabindex="0"></canvas>
+    <canvas ref="canvasCapture" class="capture-canvas" tabindex="1"></canvas>
 
     <!-- 放大窗（仅渲染） -->
     <div
-      v-if="isMagnifierShow"
+      v-show="isMagnifierShow"
       class="magnifier-card"
       :style="{ left: `${magnifierPos.x}px`, top: `${magnifierPos.y}px` }"
     >
-      <canvas ref="magnifierCanvas" :width="200" :height="200"></canvas>
+      <canvas ref="canvasMagnifier" :width="200" :height="200"></canvas>
     </div>
-
+    <LogViewer
+      id="log-viewer"
+      width="400px"
+      height="240px"
+      :auto-scroll="true"
+    />
     <!-- 工具栏（仅渲染） -->
     <MarkToolbar
       ref="toolbarRef"
@@ -31,10 +33,12 @@
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import Screenshot from "./Screenshot.js";
 import MarkToolbar from "./MarkToolbar.vue";
+import LogViewer from "@/components/LogViewer.vue";
 
 // ========== 仅渲染相关的响应式变量 ==========
-const screenshotCanvas = ref(null);
-const magnifierCanvas = ref(null);
+const canvasScreen = ref(null);
+const canvasCapture = ref(null);
+const canvasMagnifier = ref(null);
 const isMagnifierShow = ref(false);
 const showToolbar = ref(false);
 const magnifierPos = ref({ x: 0, y: 0 });
@@ -47,10 +51,14 @@ let screenshot = null;
 // ========== 生命周期 ==========
 onMounted(async () => {
   await nextTick();
-  if (!screenshotCanvas.value) return;
-
+  if (!canvasScreen.value || !canvasCapture.value) return;
+  wnd.log("初始化 screenshot");
   // 初始化截图类实例
-  screenshot = new Screenshot(screenshotCanvas.value, magnifierCanvas.value);
+  screenshot = new Screenshot(
+    canvasScreen.value,
+    canvasCapture.value,
+    canvasMagnifier.value
+  );
 
   // 注册事件监听（接收类内部的状态通知）
   screenshot.on("magnifierShow", (show) => {
@@ -61,14 +69,13 @@ onMounted(async () => {
   });
   screenshot.on("toolbarShow", (show) => {
     showToolbar.value = show;
-    console.log("showToolbar: ", show);
   });
   screenshot.on("toolbarPosChange", (pos) => {
     toolbarPos.value = pos;
   });
 
   // 绑定鼠标事件（仅转发，无逻辑）
-  const canvas = screenshotCanvas.value;
+  const canvas = canvasCapture.value;
   canvas.addEventListener("mousedown", screenshot.handleMousedown);
   canvas.addEventListener("mousemove", screenshot.handleMousemove);
   canvas.addEventListener("mouseup", screenshot.handleMouseup);
@@ -111,6 +118,10 @@ body {
   background-color: transparent !important;
   background: transparent !important;
 }
+canvas {
+  transform: translateZ(0); /* 触发 GPU 加速 */
+  will-change: transform; /* 告诉浏览器提前优化 */
+}
 .screenshot-container {
   position: fixed;
   top: 0;
@@ -120,9 +131,24 @@ body {
   z-index: 9999;
 }
 
-.screenshot-canvas {
+.screen-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  z-index: 10000;
+  background: transparent !important;
+  cursor: crosshair;
+}
+
+.capture-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10001;
   background: transparent !important;
   cursor: crosshair;
 }
@@ -133,7 +159,13 @@ body {
   height: 200px;
   border: 1px solid #ccc;
   background: white;
-  z-index: 10000;
+  z-index: 10002;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+#log-viewer {
+  position: fixed;
+  z-index: 10003;
+  top: 20px;
+  right: 20px;
 }
 </style>

@@ -186,12 +186,12 @@ function onRedo() {
 
 // 取消截图
 function onClickCancel() {
-  emit("cancel");
+  window.channel.cancelScreenshot();
 }
 
 // 完成截图
 function onClickFinish() {
-  emit("finish");
+  window.channel.cancelScreenshot();
 }
 
 // 注册快捷键

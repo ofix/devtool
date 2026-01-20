@@ -7,6 +7,7 @@ import './theme/Global.css'
 import themePlugin from './theme/ThemePlugin';
 import App from './App.vue'
 import { removeVueDevtoolsContainers } from "./vite.remove.js";
+import './common/LogManager.js'
 
 removeVueDevtoolsContainers();
 
