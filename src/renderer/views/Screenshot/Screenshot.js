@@ -50,7 +50,10 @@ export default class Screenshot {
             captureStarted: false,
             scaleX: 1,
             scaleY: 1,
-            screenSize: { width: window.screen.width, height: window.screen.height },
+            screenSize: {
+                width: window.screen.width * window.devicePixelRatio,
+                height: window.screen.height * window.devicePixelRatio
+            },
             currentSelection: { x: 0, y: 0, width: 0, height: 0 },
             lastSelection: { x: 0, y: 0, width: 0, height: 0 },
             startPos: { x: 0, y: 0 },
