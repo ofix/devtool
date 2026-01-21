@@ -1,6 +1,7 @@
 import MarkManager from "./MarkManager.js"
 import PerformanceMonitor from "../../common/PerformanceMonitor.js";
-
+import { ShapeType } from "./Shapes/ShapeFactory.js";
+import ShapeFactory from "./Shapes/ShapeFactory.js";
 export default class Screenshot {
     static DrawingState = Object.freeze({
         NO_ACTION: 0,
@@ -15,12 +16,17 @@ export default class Screenshot {
         DRAG_CAPTURE_BOTTOM_CENTER: 9,
         DRAG_CAPTURE_BOTTOM_RIGHT: 10,
         DRAW_LINE: 11,
-        DRAW_RECT: 12,
-        DRAW_ARROW: 13,
+        DRAW_ARROW: 12,
+        DRAW_RECT: 13,
         DRAW_ELLIPSE: 14,
-        DRAW_ERASER: 15,
-        DRAW_BLUR_AREA: 16,
-        MOVE_SHAPE: 17,
+        DRAW_STAR: 15,
+        DRAW_NUMBER: 16,
+        DRAW_PENCIL: 17,
+        DRAW_HILIGHTER: 18,
+        DRAW_ERASER: 19,
+        DRAW_MOSAIC: 20,
+        DRAW_GAUSSIAN_BLUR: 21,
+        MOVE_SHAPE: 30,
     });
 
     static CONFIG = {
@@ -60,7 +66,7 @@ export default class Screenshot {
             initialMoveOffset: { x: 0, y: 0 },
             magnifierPos: { x: 0, y: 0 },
             toolbarPos: { x: 0, y: 0 },
-            currentMarkTool: "none",
+            currentMarkTool: ShapeType.NONE,
             markManager: null,
             showCtrlPoints: false, // 修复：挂载到state中
         };
@@ -138,10 +144,12 @@ export default class Screenshot {
         this.state.isMouseDown = true;
         const { x: mouseX, y: mouseY } = this._getRealMousePos(e);
 
-        // 标注模式
 
-        if (this.state.currentMarkTool !== "none" && this.state.markManager) {
-            this.state.drawingState = Screenshot.DrawingState[`DRAW_${this.state.currentMarkTool.toUpperCase()}`] || Screenshot.DrawingState.NO_ACTION;
+        if (this.state.currentMarkTool == ShapeType.SELECT) { // 移动标注对象
+
+        } else if (this.state.currentMarkTool !== ShapeType.NONE) { // 标注模式
+            let key = `DRAW_${ShapeFactory.typeToStr(this.state.currentMarkTool).toUpperCase()}`;
+            this.state.drawingState = Screenshot.DrawingState[key] || Screenshot.DrawingState.NO_ACTION;
             this.state.markManager.startDrawing(this.state.currentMarkTool, mouseX, mouseY);
             return;
         }
@@ -169,6 +177,7 @@ export default class Screenshot {
                 this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
                 this.state.startPos = { x: mouseX, y: mouseY };
                 this.state.currentSelection = { x: mouseX, y: mouseY, width: 0, height: 0 };
+                this.state.showCtrlPoints = false;
             }
         }
     }
@@ -185,7 +194,8 @@ export default class Screenshot {
         const { x: mouseX, y: mouseY } = this._getRealMousePos(e);
 
         // 标注绘制
-        if (this.state.markManager && this.state.drawingState >= 11) {
+        console.log("")
+        if (this.state.drawingState >= 11) {
             this.state.markManager.updateDrawing(mouseX, mouseY);
         }
         // 选区操作

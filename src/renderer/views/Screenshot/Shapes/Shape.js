@@ -14,11 +14,13 @@ export default class Shape {
         this.lineWidth = 2;
     }
 
-    updateEndPos(endX, endY){
+    updateEndPos(endX, endY) {
+        this.endX = endX;
+        this.endY = endY;
         this.width = Math.abs(endX - this.x);
         this.height = Math.abs(endY - this.y);
         this.x = Math.min(this.x, endX);
-        this.y = Math.min(this.y, endY); 
+        this.y = Math.min(this.y, endY);
     }
 
     setRotate(angle) {
@@ -36,30 +38,30 @@ export default class Shape {
     // 应用变换（旋转、缩放、透明度）
     applyTransform(ctx) {
         ctx.save();
-        
+
         // 设置透明度
         ctx.globalAlpha = this.opacity;
-        
+
         // 计算中心点
         const centerX = this.x + this.width / 2;
         const centerY = this.y + this.height / 2;
-        
+
         // 移动到中心点
         ctx.translate(centerX, centerY);
-        
+
         // 旋转
         if (this.rotate !== 0) {
             ctx.rotate(this.rotate);
         }
-        
+
         // 缩放
         if (this.scale !== 1) {
             ctx.scale(this.scale, this.scale);
         }
-        
+
         // 移动回原位置
         ctx.translate(-centerX, -centerY);
-        
+
         return ctx;
     }
 

@@ -4,42 +4,60 @@
     <div class="edit-toolbar-content">
       <BtnSelect
         @click="onSelect"
-        :class="{ active: currentTool === 'select' }"
-        title="选择工具"
-      />
-      <BtnLine
-        @click="onClickLine"
-        :class="{ active: currentTool === 'line' }"
-        title="线条标注"
-      />
-      <BtnRect
-        @click="onClickRect"
-        :class="{ active: currentTool === 'rect' }"
-        title="矩形标注"
-      />
-      <BtnArrow
-        @click="onClickArrow"
-        :class="{ active: currentTool === 'arrow' }"
-        title="箭头标注"
-      />
-      <BtnIncrementNumber
-        @click="onClickIncrementNumber"
-        :class="{ active: currentTool === 'number' }"
-        title="数字标注"
-      />
-      <BtnEclipse
-        @click="onClickEllipse"
-        :class="{ active: currentTool === 'ellipse' }"
-        title="椭圆标注"
-      />
-      <BtnText
-        @click="onClickText"
-        :class="{ active: currentTool === 'text' }"
-        title="文字标注"
+        :class="{ active: currentTool === ShapeType.SELECT }"
+        title="选择"
       />
       <div class="toolbar-divider"></div>
-      <button class="undo-btn" @click="onUndo" title="撤销(Ctrl+Z)">↩</button>
-      <button class="redo-btn" @click="onRedo" title="重做(Ctrl+Y)">↪</button>
+      <BtnArrow
+        @click="onClickTool(ShapeType.ARROW)"
+        :class="{ active: currentTool === ShapeType.ARROW }"
+        title="箭头/线条"
+      />
+      <BtnRect
+        @click="onClickTool(ShapeType.RECT)"
+        :class="{ active: currentTool === ShapeType.RECT }"
+        title="矩形"
+      />
+      <BtnEclipse
+        @click="onClickTool(ShapeType.ELLIPSE)"
+        :class="{ active: currentTool === ShapeType.ELLIPSE }"
+        title="椭圆"
+      />
+      <BtnStar
+        @click="onClickTool(ShapeType.STAR)"
+        :class="{ active: currentTool === ShapeType.STAR }"
+        title="五角星"
+      />
+      <BtnIncrementNumber
+        @click="onClickTool(ShapeType.INCREMENT_NUMBER)"
+        :class="{ active: currentTool === ShapeType.INCREMENT_NUMBER }"
+        title="数字"
+      />
+      <BtnText
+        @click="onClickTool(ShapeTYpe.TEXT)"
+        :class="{ active: currentTool === ShapeType.TEXT }"
+        title="文字"
+      />
+      <BtnPencil
+        @click="onClickTool(ShapeType.PENCIL)"
+        :class="{ active: currentTool === ShapeType.PENCIL }"
+        title="铅笔"
+      />
+      <BtnHilighter
+        @click="onClickTool(ShapeType.HIGHLIGHTER)"
+        :class="{ active: currentTool === ShapeType.HIGHLIGHTER }"
+        title="荧光笔"
+      />
+      <BtnEraser
+        @click="onClickTool(ShapeType.ERASER)"
+        :class="{ active: currentTool === ShapeType.ERASER }"
+        title="荧光笔"
+      />
+      <BtnMosaic
+        @click="onClickTool(ShapeType.MOSAIC)"
+        :class="{ active: currentTool === ShapeType.MOSAIC }"
+        title="马赛克"
+      />
       <div class="toolbar-divider"></div>
       <BtnCancel @click="onClickCancel" title="取消" />
       <BtnFinish @click="onClickFinish" title="完成" />
@@ -53,13 +71,19 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 // 编辑截图按钮组件
 import BtnSelect from "@/components/icons/IconSelect.vue";
 import BtnLine from "@/components/icons/IconLine.vue";
-import BtnRect from "@/components/icons/IconRect.vue";
 import BtnArrow from "@/components/icons/IconArrowUp.vue";
+import BtnRect from "@/components/icons/IconRect.vue";
 import BtnEclipse from "@/components/icons/IconEclipse.vue";
+import BtnStar from "@/components/icons/IconStar.vue";
+import BtnPencil from "@/components/icons/IconPencil.vue";
+import BtnHilighter from "@/components/icons/IconHilighter.vue";
+import BtnEraser from "@/components/icons/IconEraser.vue";
+import BtnMosaic from "@/components/icons/IconMosaic.vue";
 import BtnIncrementNumber from "@/components/icons/IconNumber.vue";
 import BtnText from "@/components/icons/IconText.vue";
 import BtnCancel from "@/components/icons/IconCloseBox.vue";
 import BtnFinish from "@/components/icons/IconOk.vue";
+import { ShapeType } from "./Shapes/ShapeFactory.js";
 
 // 接收父组件传参
 const props = defineProps({
@@ -98,76 +122,26 @@ const toolbarStyle = computed(() => ({
 }));
 
 // 响应式数据
-const currentTool = ref("none"); // 当前工具
+const currentTool = ref(ShapeType.NONE); // 当前工具
 
 // 工具按钮点击事件
 function onSelect() {
-  if (currentTool.value == "select") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
+  if (currentTool.value == ShapeType.SELECT) {
+    currentTool.value = ShapeType.NONE;
+    emit("toolChange", ShapeType.NONE);
   } else {
-    currentTool.value = "select";
-    emit("toolChange", "select");
+    currentTool.value = ShapeType.SELECT;
+    emit("toolChange", ShapeType.SELECT);
   }
 }
 
-function onClickLine() {
-  if (currentTool.value == "line") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
+function onClickTool(tool) {
+  if (currentTool.value == tool) {
+    currentTool.value = ShapeType.NONE;
+    emit("toolChange", ShapeType.NONE);
   } else {
-    currentTool.value = "line";
-    emit("toolChange", "line");
-  }
-}
-
-function onClickRect() {
-  if (currentTool.value == "rect") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
-  } else {
-    currentTool.value = "rect";
-    emit("toolChange", "rect");
-  }
-}
-
-function onClickArrow() {
-  if (currentTool.value == "arrow") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
-  } else {
-    currentTool.value = "arrow";
-    emit("toolChange", "arrow");
-  }
-}
-
-function onClickEllipse() {
-  if (currentTool.value == "line") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
-  } else {
-    currentTool.value = "ellipse";
-    emit("toolChange", "ellipse");
-  }
-}
-
-function onClickIncrementNumber() {
-  if (currentTool.value == "incrementNumber") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
-  } else {
-    currentTool.value = "number";
-    emit("toolChange", "incrementNumber");
-  }
-}
-
-function onClickText() {
-  if (currentTool.value == "text") {
-    currentTool.value = "none";
-    emit("toolChange", "none");
-  } else {
-    currentTool.value = "text";
-    emit("toolChange", "text");
+    currentTool.value = tool;
+    emit("toolChange", tool);
   }
 }
 

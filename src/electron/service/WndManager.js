@@ -25,7 +25,7 @@ class WndManager extends Singleton {
         }
 
         // 控制工具栏是小窗口，不需要全屏
-        const icons = 9;
+        const icons = 13;
         const iconSize = 32;
         const iconGap = 12;
         const toolbarWidth = icons * iconSize + (icons - 1) * iconGap;     // 工具栏宽度

@@ -52,7 +52,6 @@ let screenshot = null;
 onMounted(async () => {
   await nextTick();
   if (!canvasScreen.value || !canvasCapture.value) return;
-  wnd.log("初始化 screenshot");
   // 初始化截图类实例
   screenshot = new Screenshot(
     canvasScreen.value,
