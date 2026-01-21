@@ -33,7 +33,7 @@ export default class Screenshot {
         CONTROL_POINT_RADIUS: 4,
         MAGNIFIER_SIZE: 200,
         MAGNIFIER_RADIUS: 20,
-        TOOLBAR_SIZE: { width: 28 * 12 + 10, height: 60 },
+        TOOLBAR_SIZE: { width: 32 * 18 + 20, height: 50 },
     };
 
     constructor(canvasScreen, canvasCapture, canvasMagnifier) {
@@ -440,11 +440,11 @@ export default class Screenshot {
         const { TOOLBAR_SIZE } = Screenshot.CONFIG;
         const finalX = Math.max(
             0,
-            x * this.state.scaleX + width * this.state.scaleX - TOOLBAR_SIZE.width
+            (x + width - TOOLBAR_SIZE.width) / this.state.scaleX
         );
         const finalY = Math.max(
             0,
-            y * this.state.scaleY + height * this.state.scaleY + 10
+            (y + height + TOOLBAR_SIZE.height) / this.state.scaleY
         );
         this.state.toolbarPos = { x: finalX, y: finalY };
     }

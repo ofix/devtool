@@ -114,7 +114,7 @@ const toolbarStyle = computed(() => ({
   position: "fixed",
   zIndex: 10001,
   backgroundColor: "rgba(30, 30, 30, 0.95)",
-  borderRadius: "8px",
+  borderRadius: "2px",
   padding: "8px",
   margin: 0,
   left: `${props.position.x}px`,

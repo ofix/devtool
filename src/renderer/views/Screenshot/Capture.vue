@@ -56,7 +56,7 @@ onMounted(async () => {
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
-    canvasMagnifier.value
+    canvasMagnifier.value,
   );
 
   // 注册事件监听（接收类内部的状态通知）
