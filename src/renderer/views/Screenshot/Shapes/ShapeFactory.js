@@ -8,7 +8,7 @@ import IncrementNumber from "./IncrementNumber.js";
 export default class ShapeFactory {
   // 生成唯一ID
   static generateId() {
-    return Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+    return Date.now() + "_" + Math.random().toString(36).substring(2, 9);
   }
 
   static createShape(type, x, y, options = {}) {
@@ -27,7 +27,7 @@ export default class ShapeFactory {
       case "ellipse":
         return new Ellipse(shape);
       case "line":
-        return new Line(shape);
+        return new Line(x,y);
       case "text":
         return new Text(shape);
       case "incrementNumber":

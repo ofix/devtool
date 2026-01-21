@@ -139,6 +139,7 @@ export default class Screenshot {
         const { x: mouseX, y: mouseY } = this._getRealMousePos(e);
 
         // 标注模式
+
         if (this.state.currentMarkTool !== "none" && this.state.markManager) {
             this.state.drawingState = Screenshot.DrawingState[`DRAW_${this.state.currentMarkTool.toUpperCase()}`] || Screenshot.DrawingState.NO_ACTION;
             this.state.markManager.startDrawing(this.state.currentMarkTool, mouseX, mouseY);
@@ -186,9 +187,7 @@ export default class Screenshot {
         // 标注绘制
         if (this.state.markManager && this.state.drawingState >= 11) {
             this.state.markManager.updateDrawing(mouseX, mouseY);
-            return;
         }
-
         // 选区操作
         if (this.state.captureStarted) {
             if (this.state.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
@@ -203,8 +202,9 @@ export default class Screenshot {
             } else if (this.state.drawingState === Screenshot.DrawingState.MOVE_CAPTURE_AREA) {
                 this._moveSelection(mouseX, mouseY);
             }
-            this.refresh();
+
         }
+        this.refresh();
     }
 
     handleMouseup(e) {
@@ -357,6 +357,8 @@ export default class Screenshot {
         this._clearLastSelection();
         // 绘制当前选区
         this._drawCurrentSelection();
+        // 绘制所有形状
+        this.state.markManager.redraw();
         // 绘制控制点（仅当需要显示时）
         if (this.state.showCtrlPoints) {
             this._drawControlPoints();

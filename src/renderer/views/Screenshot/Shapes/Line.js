@@ -26,35 +26,34 @@ export default class Line extends Shape {
 
     draw(ctx) {
         const transformedCtx = this.applyTransform(ctx);
-        
         transformedCtx.strokeStyle = this.selected ? '#ff0000' : this.strokeStyle;
         transformedCtx.lineWidth = this.lineWidth;
         transformedCtx.lineCap = 'round';
         transformedCtx.lineJoin = 'round';
-        
+
         if (this.dashed) {
             transformedCtx.setLineDash([5, 5]);
         } else {
             transformedCtx.setLineDash([]);
         }
-        
+
         // 绘制线条
         transformedCtx.beginPath();
         transformedCtx.moveTo(this.x, this.y);
         transformedCtx.lineTo(this.endX, this.endY);
         transformedCtx.stroke();
-        
+
         // 绘制箭头
         if (this.hasArrow && (this.width > 5 || this.height > 5)) {
             this.drawArrow(transformedCtx);
         }
-        
+
         this.restoreTransform(transformedCtx);
     }
 
     drawArrow(ctx) {
         const angle = Math.atan2(this.endY - this.y, this.endX - this.x);
-        
+
         if (this.arrowType === 'circle') {
             // 圆形箭头
             ctx.beginPath();
@@ -65,25 +64,25 @@ export default class Line extends Shape {
             // 三角形箭头
             const arrowLength = this.arrowSize;
             const arrowAngle = Math.PI / 6; // 30度
-            
+
             ctx.beginPath();
-            
+
             // 箭头顶点
             const tipX = this.endX;
             const tipY = this.endY;
-            
+
             // 计算箭头两个点
             const x1 = tipX - arrowLength * Math.cos(angle - arrowAngle);
             const y1 = tipY - arrowLength * Math.sin(angle - arrowAngle);
             const x2 = tipX - arrowLength * Math.cos(angle + arrowAngle);
             const y2 = tipY - arrowLength * Math.sin(angle + arrowAngle);
-            
+
             // 绘制箭头
             ctx.moveTo(tipX, tipY);
             ctx.lineTo(x1, y1);
             ctx.moveTo(tipX, tipY);
             ctx.lineTo(x2, y2);
-            
+
             ctx.stroke();
         }
     }
@@ -103,7 +102,7 @@ export default class Line extends Shape {
         const dot = A * C + B * D;
         const lenSq = C * C + D * D;
         let param = -1;
-        
+
         if (lenSq !== 0) {
             param = dot / lenSq;
         }
