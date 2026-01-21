@@ -7,7 +7,7 @@ export default class IncrementNumber extends Shape {
         this.type = 'incrementNumber';
         this.number = options.number || 1;
         this.color = options.color || '#ffffff'; // 数字颜色（前景色）
-        this.bgColor = options.bgColor || '#ff5722'; // 背景色
+        this.bgColor = options.bgColor || 'transparent'; // 背景色
         this.backgroundColor = options.backgroundColor || options.bgColor || '#ff5722'; // 背景色别名
         this.foregroundColor = options.foregroundColor || options.color || '#ffffff'; // 前景色
         this.font = options.font || 'bold 16px Arial';

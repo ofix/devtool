@@ -6,7 +6,7 @@ export default class Rect extends Shape {
         super(x, y);
         this.type = 'rect';
         this.strokeStyle = options.strokeStyle || '#00ff00'; // 边框色
-        this.fillStyle = options.fillStyle || 'rgba(0, 255, 0, 0.1)'; // 填充色/背景色
+        this.fillStyle = options.fillStyle || 'transparent'; // 填充色/背景色
         this.lineWidth = options.lineWidth || 2;
         this.dashed = options.dashed || false;
         this.cornerRadius = options.cornerRadius || 0;
@@ -16,7 +16,6 @@ export default class Rect extends Shape {
 
     draw(ctx) {
         const transformedCtx = this.applyTransform(ctx);
-        
         // 绘制背景/填充
         if (this.backgroundColor) {
             transformedCtx.fillStyle = this.selected ? 
@@ -29,7 +28,6 @@ export default class Rect extends Shape {
                 transformedCtx.fillRect(this.x, this.y, this.width, this.height);
             }
         }
-        
         // 绘制边框
         transformedCtx.strokeStyle = this.selected ? '#ff0000' : this.strokeStyle;
         transformedCtx.lineWidth = this.lineWidth;

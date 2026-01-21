@@ -39,8 +39,7 @@ class MarkManager {
         if (!this.isDrawingShape || !this.currentShape) return;
         this.endX = x;
         this.endY = y;
-        this.currentShape.updateSize(this.startX ,this.startY,this.endX ,this.endY);
-        // this.currentShape.updateEndPos(x, y)
+        this.currentShape.updateEndPos(x, y);
     }
 
     // 完成形状绘制

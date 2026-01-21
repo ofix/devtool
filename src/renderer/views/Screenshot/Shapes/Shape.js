@@ -14,11 +14,11 @@ export default class Shape {
         this.lineWidth = 2;
     }
 
-    updateSize(startX, startY, endX, endY) {
-        this.width = Math.abs(endX - startX);
-        this.height = Math.abs(endY - startY);
-        this.x = Math.min(startX, endX);
-        this.y = Math.min(startY, endY);
+    updateEndPos(endX, endY){
+        this.width = Math.abs(endX - this.x);
+        this.height = Math.abs(endY - this.y);
+        this.x = Math.min(this.x, endX);
+        this.y = Math.min(this.y, endY); 
     }
 
     setRotate(angle) {

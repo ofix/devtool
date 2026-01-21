@@ -337,9 +337,6 @@ export default class Screenshot {
         const { x, y, width, height } = this.state.currentSelection;
         if (width < 2 || height < 2) return;
 
-        // 绘制选区背景
-        this.ctxOffscreen.fillStyle = "rgba(0, 122, 255, 0.2)";
-        this.ctxOffscreen.fillRect(x, y, width, height);
         // 绘制选区边框（取整避免模糊）
         this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
         this.ctxOffscreen.lineWidth = 2;

@@ -11,17 +11,8 @@ export default class Line extends Shape {
         this.lineWidth = options.lineWidth || 2;
         this.dashed = options.dashed || false;
         this.arrowSize = options.arrowSize || 10;
-        this.hasArrow = options.hasArrow !== false;
+        this.hasArrow = options.hasArrow || false;
         this.arrowType = options.arrowType || 'triangle';
-    }
-
-    updateSize(startX, startY, endX, endY) {
-        this.x = startX;
-        this.y = startY;
-        this.endX = endX;
-        this.endY = endY;
-        this.width = Math.abs(endX - startX);
-        this.height = Math.abs(endY - startY);
     }
 
     draw(ctx) {

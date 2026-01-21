@@ -5,7 +5,7 @@ export default class Ellipse extends Shape {
         super(x, y);
         this.type = 'ellipse';
         this.strokeStyle = options.strokeStyle || '#ff9900';
-        this.fillStyle = options.fillStyle || 'rgba(255, 153, 0, 0.1)';
+        this.fillStyle = options.fillStyle || 'transparent';
         this.backgroundColor = options.backgroundColor || this.fillStyle;
         this.foregroundColor = options.foregroundColor || '#000000';
         this.lineWidth = options.lineWidth || 2;
