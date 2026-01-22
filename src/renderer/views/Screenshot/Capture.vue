@@ -6,8 +6,8 @@
 
     <!-- 放大窗（仅渲染） -->
     <div
-      v-show="isMagnifierShow"
-      class="magnifier-card"
+      v-show="showMagnifier"
+      class="magnifier-box"
       :style="{ left: `${magnifierPos.x}px`, top: `${magnifierPos.y}px` }"
     >
       <canvas ref="canvasMagnifier" :width="200" :height="200"></canvas>
@@ -39,9 +39,9 @@ import LogViewer from "@/components/LogViewer.vue";
 const canvasScreen = ref(null);
 const canvasCapture = ref(null);
 const canvasMagnifier = ref(null);
-const isMagnifierShow = ref(false);
+const showMagnifier = ref(true);
 const showToolbar = ref(false);
-const magnifierPos = ref({ x: 0, y: 0 });
+const magnifierPos = ref({ x: -1000, y: -1000 });
 const toolbarPos = ref({ x: 0, y: 0 });
 const markManager = ref(null); // 标注管理器实例
 
@@ -56,17 +56,17 @@ onMounted(async () => {
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
-    canvasMagnifier.value,
+    canvasMagnifier.value
   );
 
   // 注册事件监听（接收类内部的状态通知）
-  screenshot.on("magnifierShow", (show) => {
-    isMagnifierShow.value = show;
+  screenshot.on("showMagnifier", (show) => {
+    showMagnifier.value = show;
   });
-  screenshot.on("magnifierPosChange", (pos) => {
+  screenshot.on("magnifierNewPos", (pos) => {
     magnifierPos.value = pos;
   });
-  screenshot.on("toolbarShow", (show) => {
+  screenshot.on("showToolbar", (show) => {
     showToolbar.value = show;
   });
   screenshot.on("toolbarPosChange", (pos) => {
@@ -99,6 +99,7 @@ onUnmounted(() => {
     canvas.removeEventListener("mousemove", screenshot?.handleMousemove);
     canvas.removeEventListener("mouseup", screenshot?.handleMouseup);
     canvas.removeEventListener("mouseleave", screenshot?.handleMouseleave);
+    canvas.removeEventListener("keydown", screenshot?.handleKeyDown);
   }
 });
 
@@ -152,12 +153,12 @@ canvas {
   cursor: crosshair;
 }
 
-.magnifier-card {
+.magnifier-box {
   position: fixed;
-  width: 200px;
-  height: 200px;
+  width: 151px;
+  height: 151px;
   border: 1px solid #ccc;
-  background: white;
+  background: transparent;
   z-index: 10002;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
