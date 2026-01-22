@@ -56,7 +56,7 @@ onMounted(async () => {
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
-    canvasMagnifier.value
+    canvasMagnifier.value,
   );
 
   // 注册事件监听（接收类内部的状态通知）
@@ -75,12 +75,11 @@ onMounted(async () => {
 
   // 绑定鼠标事件（仅转发，无逻辑）
   const canvas = canvasCapture.value;
-  canvas.addEventListener("mousedown", screenshot.handleMousedown);
-  canvas.addEventListener("mousemove", screenshot.handleMousemove);
-  canvas.addEventListener("mouseup", screenshot.handleMouseup);
-  canvas.addEventListener("mouseleave", screenshot.handleMouseleave);
-  canvas.addEventListener("keydown", screenshot.handleKeydown);
-
+  canvas.addEventListener("mousedown", screenshot.onMouseDown);
+  canvas.addEventListener("mousemove", screenshot.onMouseMove);
+  canvas.addEventListener("mouseup", screenshot.onMouseUp);
+  canvas.addEventListener("mouseleave", screenshot.onMouseLeave);
+  canvas.addEventListener("keydown", screenshot.onKeyDown);
   // 初始化截图（传入全屏截图图片，按需实现）
   window.channel.getDesktopScreenshot().then((fullScreenImage) => {
     screenshot.init(fullScreenImage);
@@ -95,11 +94,11 @@ onUnmounted(() => {
   }
   const canvas = screenshotCanvas.value;
   if (canvas) {
-    canvas.removeEventListener("mousedown", screenshot?.handleMousedown);
-    canvas.removeEventListener("mousemove", screenshot?.handleMousemove);
-    canvas.removeEventListener("mouseup", screenshot?.handleMouseup);
-    canvas.removeEventListener("mouseleave", screenshot?.handleMouseleave);
-    canvas.removeEventListener("keydown", screenshot?.handleKeyDown);
+    canvas.removeEventListener("mousedown", screenshot?.onMouseDown);
+    canvas.removeEventListener("mousemove", screenshot?.onMouseMove);
+    canvas.removeEventListener("mouseup", screenshot?.onMouseUp);
+    canvas.removeEventListener("mouseleave", screenshot?.onMouseLeave);
+    canvas.removeEventListener("keydown", screenshot?.onKeyDown);
   }
 });
 

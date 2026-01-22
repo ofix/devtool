@@ -21,6 +21,8 @@ class WndManager extends Singleton {
      */
     createScreenshotToolWindow() {
         if (this.screenshotToolWnd && !this.screenshotToolWnd.isDestroyed()) {
+            this.screenshotToolWnd.show();
+            this.screenshotToolWnd.focus();
             return this.screenshotToolWnd;
         }
 
