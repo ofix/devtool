@@ -1,266 +1,356 @@
 export default class ScreenRuler {
-    // 静态常量配置
-    static get FIXED_EDGE_SIZE() { return 30; }
+    // 静态常量配置（适配FastStone刻度标准）
+    static get FIXED_EDGE_SIZE() { return 100; }
     static get RULER_CONFIG() {
-      return {
-        MAJOR_TICK_INTERVAL: 50,
-        MINOR_TICK_INTERVAL: 10,
-        FINE_TICK_INTERVAL: 1,
-        CONTROL_AREA_SIZE: 80,
-        TEXT_FONT: "11px Arial, Helvetica, sans-serif",
-        DEFAULT_SIZE: { width: 800, height: 30 }
-      };
+        return {
+            // 三层刻度间隔（FastStone标准）
+            MAJOR_TICK_INTERVAL: 50,    // 主刻度：50px
+            MINOR_TICK_INTERVAL: 10,    // 次刻度：10px
+            FINE_TICK_INTERVAL: 1,      // 微刻度：1px
+            // 三层刻度长度（FastStone视觉比例）
+            MAJOR_TICK_LENGTH: 14,      // 主刻度长度
+            MINOR_TICK_LENGTH: 8,      // 次刻度长度
+            FINE_TICK_LENGTH: 5,        // 微刻度长度
+            // 其他配置
+            CONTROL_AREA_SIZE: 80,
+            TEXT_FONT: "11px Arial, Helvetica, sans-serif",
+            TEXT_OFFSET: 22,            // 文本距离标尺边缘的偏移
+            DEFAULT_SIZE: { width: 800, height: 80 }
+        };
     }
-  
+
     /**
      * 构造函数
      * @param {HTMLCanvasElement} canvas - 画布元素
      * @param {Object} options - 初始化选项
      */
     constructor(canvas, options = {}) {
-      this.canvas = canvas;
-      this.ctx = canvas?.getContext("2d") || null;
-      this.type = options.type || "horizontal"; // horizontal/vertical
-      this.winPos = options.winPos || { x: 0, y: 0 };
-      this.mousePos = { x: 0, y: 0 };
-      this.size = {
-        width: options.width || RulerCore.RULER_CONFIG.DEFAULT_SIZE.width,
-        height: options.height || RulerCore.RULER_CONFIG.DEFAULT_SIZE.height
-      };
-  
-      // 初始化画布上下文
-      this._initContext();
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+
+        // 初始化配置
+        this.type = options.type || "horizontal"; // horizontal/vertical
+        this.winPos = options.winPos || { x: 0, y: 0 };
+        this.mousePos = { x: 0, y: 0 };
+        this.size = {
+            width: options.width || ScreenRuler.RULER_CONFIG.DEFAULT_SIZE.width,
+            height: options.height || ScreenRuler.RULER_CONFIG.DEFAULT_SIZE.height
+        };
+
+        // 初始化画布上下文和尺寸
+        this._initContext();
+
+        // 首次绘制
+        this.redraw();
     }
-  
+
     /**
      * 初始化画布上下文（禁用抗锯齿）
      * @private
      */
     _initContext() {
-      if (!this.ctx) return;
-      this.ctx.imageSmoothingEnabled = false;
-      this.ctx.webkitImageSmoothingEnabled = false;
-      this.ctx.msImageSmoothingEnabled = false;
+        if (!this.ctx) return;
+
+        // 禁用抗锯齿，保证刻度清晰
+        this.ctx.imageSmoothingEnabled = false;
+        this.ctx.webkitImageSmoothingEnabled = false;
+        this.ctx.msImageSmoothingEnabled = false;
+
+        // 文本默认对齐方式
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+        // 设置画布尺寸
+        const { fixed, dynamic } = this.getCanvasSize();
+        this.canvas.width = fixed;
+        this.canvas.height = dynamic;
+        this.canvas.style.width = `${fixed}px`;
+        this.canvas.style.height = `${dynamic}px`;
     }
-  
+
     /**
      * 计算画布尺寸
      * @returns {Object} { fixed, dynamic }
      */
     getCanvasSize() {
-      return {
-        fixed: this.type === "horizontal" 
-          ? this.size.width 
-          : RulerCore.FIXED_EDGE_SIZE,
-        dynamic: this.type === "horizontal" 
-          ? RulerCore.FIXED_EDGE_SIZE 
-          : this.size.height
-      };
+        return {
+            fixed: this.type === "horizontal"
+                ? this.size.width
+                : ScreenRuler.FIXED_EDGE_SIZE,
+            dynamic: this.type === "horizontal"
+                ? ScreenRuler.FIXED_EDGE_SIZE
+                : this.size.height
+        };
     }
-  
+
     /**
      * 更新标尺类型（横/竖）
      * @param {string} newType - horizontal/vertical
      */
     updateType(newType) {
-      this.type = newType;
-      // 同步更新画布尺寸
-      const { width, height } = this.canvas;
-      this.canvas.width = this.getCanvasSize().fixed;
-      this.canvas.height = this.getCanvasSize().dynamic;
+        if (!["horizontal", "vertical"].includes(newType)) return;
+
+        this.type = newType;
+        this._initContext();
+        this.redraw();
     }
-  
+
     /**
      * 更新标尺尺寸
      * @param {number} width - 宽度
      * @param {number} height - 高度
      */
     updateSize(width, height) {
-      this.size = { width, height };
-      this.canvas.width = this.getCanvasSize().fixed;
-      this.canvas.height = this.getCanvasSize().dynamic;
+        if (!width || !height || width <= 0 || height <= 0) return;
+
+        this.size = { width, height };
+        this._initContext();
+        this.redraw();
     }
-  
+
     /**
      * 更新窗口位置
      * @param {Object} pos - { x, y }
      */
     updateWinPos(pos) {
-      this.winPos = pos;
+        if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+        this.winPos = pos;
+        this.redraw();
     }
-  
+
     /**
      * 更新鼠标位置
      * @param {Object} pos - { x, y }
      */
     updateMousePos(pos) {
-      this.mousePos = pos;
+        if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+        this.mousePos = pos;
+        this.redraw();
     }
-  
+
     /**
      * 核心绘制逻辑
      */
     redraw() {
-      if (!this.ctx || !this.canvas) return;
-  
-      // 保存上下文状态
-      this.ctx.save();
-      this.ctx.reset();
-  
-      const isHorizontal = this.type === "horizontal";
-      const { fixed: w, dynamic: h } = this.getCanvasSize();
-      const [floorW, floorH] = [Math.floor(w), Math.floor(h)];
-  
-      // 1. 清空画布
-      this.ctx.clearRect(0, 0, floorW, floorH);
-      this.ctx.fillStyle = "rgba(255, 255, 255, 1)";
-      this.ctx.fillRect(0, 0, floorW, floorH);
-  
-      // 2. 计算控制区域
-      const center = Math.floor(isHorizontal ? h / 2 : w / 2);
-      const { CONTROL_AREA_SIZE } = RulerCore.RULER_CONFIG;
-      const [controlStart, controlEnd] = [
-        Math.floor((isHorizontal ? w : h) / 2 - CONTROL_AREA_SIZE / 2),
-        Math.floor((isHorizontal ? w : h) / 2 + CONTROL_AREA_SIZE / 2)
-      ];
-  
-      // 3. 设置基础样式
-      this.ctx.strokeStyle = "#666";
-      this.ctx.fillStyle = "#333";
-      this.ctx.lineWidth = 1;
-      this.ctx.font = RulerCore.RULER_CONFIG.TEXT_FONT;
-      this.ctx.textBaseline = "middle";
-      this.ctx.textRendering = "geometricPrecision";
-  
-      // 4. 绘制刻度
-      this._drawTicks(isHorizontal, w, h, floorW, floorH, controlStart, controlEnd, center);
-  
-      // 5. 绘制主刻度文本
-      this._drawTickText(isHorizontal, w, h, controlStart, controlEnd, center);
-  
-      // 6. 绘制鼠标标线
-      this._drawMouseLine(isHorizontal, floorW, floorH, controlStart, controlEnd, center);
-  
-      // 7. 绘制边框
-      this._drawBorder(floorW, floorH);
-  
-      // 恢复上下文状态
-      this.ctx.restore();
+        if (!this.ctx || !this.canvas) return;
+
+        this.ctx.save();
+
+        const isHorizontal = this.type === "horizontal";
+        const { fixed: w, dynamic: h } = this.getCanvasSize();
+        const [floorW, floorH] = [Math.floor(w), Math.floor(h)];
+
+        // 清空画布并绘制背景
+        this.ctx.clearRect(0, 0, floorW, floorH);
+        this.ctx.fillStyle = "rgba(220, 250, 245, 0.9)";
+        this.ctx.fillRect(0, 0, floorW, floorH);
+
+        // 计算控制区域（中间无刻度区域）
+        const center = Math.floor(isHorizontal ? h / 2 : w / 2);
+        const { CONTROL_AREA_SIZE } = ScreenRuler.RULER_CONFIG;
+
+        // 设置基础样式
+        this.ctx.strokeStyle = "#333";
+        this.ctx.fillStyle = "#000";
+        this.ctx.lineWidth = 1;
+        this.ctx.font = ScreenRuler.RULER_CONFIG.TEXT_FONT;
+
+        // 绘制三层刻度（核心优化）
+        this._drawThreeLevelTicks(isHorizontal, floorW, floorH, center);
+
+        // 绘制主刻度文本
+        this._drawTickText(isHorizontal, floorW, floorH, center);
+
+        // 绘制鼠标标线
+        // this._drawMouseLine(isHorizontal, floorW, floorH, controlStart, controlEnd, center);
+
+        // 绘制边框
+        // this._drawBorder(floorW, floorH);
+
+        this.ctx.restore();
     }
-  
+
     /**
-     * 绘制刻度
+     * 绘制三层刻度（核心修改：微刻度添加1px间距）
      * @private
      */
-    _drawTicks(isHorizontal, w, h, floorW, floorH, controlStart, controlEnd, center) {
-      const maxLength = isHorizontal ? w : h;
-      const { MAJOR_TICK_INTERVAL, MINOR_TICK_INTERVAL } = RulerCore.RULER_CONFIG;
-  
-      this.ctx.beginPath();
-      for (let i = 0; i <= maxLength; i += 1) {
-        if (i >= controlStart && i <= controlEnd) continue;
-  
-        // 判断刻度类型
-        const isMajor = i % MAJOR_TICK_INTERVAL === 0;
-        const isMinor = i % MINOR_TICK_INTERVAL === 0;
-        const isFine = !isMajor && !isMinor && i % 2 === 0;
-  
-        if (!isMajor && !isMinor && !isFine) continue;
-  
-        // 刻度长度
-        const tickLength = isMajor ? 10 : isMinor ? 6 : 3;
-        const [pos, tickLen] = [Math.floor(i), Math.floor(tickLength)];
-  
-        // 绘制横/竖刻度
-        if (isHorizontal) {
-          this.ctx.moveTo(pos, 0);
-          this.ctx.lineTo(pos, tickLen);
-          this.ctx.moveTo(pos, floorH);
-          this.ctx.lineTo(pos, floorH - tickLen);
-        } else {
-          this.ctx.moveTo(0, pos);
-          this.ctx.lineTo(tickLen, pos);
-          this.ctx.moveTo(floorW, pos);
-          this.ctx.lineTo(floorW - tickLen, pos);
+    _drawThreeLevelTicks(isHorizontal, w, h) {
+        const maxLength = isHorizontal ? w : h;
+        const config = ScreenRuler.RULER_CONFIG;
+
+        if (maxLength <= 0) return;
+
+        // 强制关闭所有抗锯齿相关设置
+        this.ctx.imageSmoothingEnabled = false;
+        this.ctx.webkitImageSmoothingEnabled = false;
+        this.ctx.msImageSmoothingEnabled = false;
+        this.ctx.lineCap = 'butt'; // 线条端点为直角，避免圆角扩散
+
+        // 主刻度（50px间隔)
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 1; // 主刻度宽度
+        for (let i = 0; i <= maxLength; i += config.MAJOR_TICK_INTERVAL) {
+            if (i == 0) continue;
+            const pos = i + 0.5;
+            if (isHorizontal) {
+                this.ctx.moveTo(pos, 0);
+                this.ctx.lineTo(pos, config.MAJOR_TICK_LENGTH);
+                this.ctx.moveTo(pos, h);
+                this.ctx.lineTo(pos, h - config.MAJOR_TICK_LENGTH);
+            } else {
+                this.ctx.moveTo(0, pos);
+                this.ctx.lineTo(config.MAJOR_TICK_LENGTH, pos);
+                this.ctx.moveTo(w, pos);
+                this.ctx.lineTo(w - config.MAJOR_TICK_LENGTH, pos);
+            }
         }
-      }
-      this.ctx.stroke();
-      this.ctx.closePath();
+        this.ctx.stroke();
+        this.ctx.closePath();
+
+        // 2. 次刻度（10px间隔，中等长度)
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "#555"; // 次刻度单独设置颜色，区分微刻度
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i <= maxLength; i += config.MINOR_TICK_INTERVAL) {
+            if (i % config.MAJOR_TICK_INTERVAL === 0) continue;
+            const pos = i + 0.5; // 像素对齐
+            if (isHorizontal) {
+                this.ctx.moveTo(pos, 0);
+                this.ctx.lineTo(pos, config.MINOR_TICK_LENGTH);
+                this.ctx.moveTo(pos, h);
+                this.ctx.lineTo(pos, h - config.MINOR_TICK_LENGTH);
+            } else {
+                this.ctx.moveTo(0, pos);
+                this.ctx.lineTo(config.MINOR_TICK_LENGTH, pos);
+                this.ctx.moveTo(w, pos);
+                this.ctx.lineTo(w - config.MINOR_TICK_LENGTH, pos);
+            }
+        }
+        this.ctx.stroke();
+        this.ctx.closePath();
+
+        // 微刻度
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "#000"; // 浅灰色，降低视觉融合度
+        this.ctx.lineWidth = 1; // 微刻度用1px宽度，避免细线条模糊
+        // 关键：步长改为2px，直接跳过1px，避免抗锯齿融合
+        for (let i = 0; i <= maxLength; i += 2) {
+            // 跳过主/次刻度（次刻度是10px，2px步长不会冲突）
+            if (i % config.MAJOR_TICK_INTERVAL === 0 || i % config.MINOR_TICK_INTERVAL === 0) continue;
+
+            const pos = i + 0.5; // 强制像素对齐
+            if (isHorizontal) {
+                // 微刻度长度缩短，进一步区分层级
+                this.ctx.moveTo(pos, 0);
+                this.ctx.lineTo(pos, config.FINE_TICK_LENGTH - 2);
+                this.ctx.moveTo(pos, h);
+                this.ctx.lineTo(pos, h - (config.FINE_TICK_LENGTH - 2));
+            } else {
+                this.ctx.moveTo(0, pos);
+                this.ctx.lineTo(config.FINE_TICK_LENGTH - 2, pos);
+                this.ctx.moveTo(w, pos);
+                this.ctx.lineTo(w - (config.FINE_TICK_LENGTH - 2), pos);
+            }
+        }
+        this.ctx.stroke();
+        this.ctx.closePath();
     }
-  
+
     /**
-     * 绘制刻度文本
+     * 绘制主刻度文本（FastStone风格，上下/左右都有）
      * @private
      */
-    _drawTickText(isHorizontal, w, h, controlStart, controlEnd, center) {
-      const maxLength = isHorizontal ? w : h;
-      const { MAJOR_TICK_INTERVAL } = RulerCore.RULER_CONFIG;
-  
-      this.ctx.textAlign = "center";
-      for (let i = 0; i <= maxLength; i += MAJOR_TICK_INTERVAL) {
-        if (i >= controlStart && i <= controlEnd) continue;
-        const pos = Math.floor(i);
-        this.ctx.fillText(
-          i.toString(),
-          isHorizontal ? pos : center,
-          isHorizontal ? center : pos
-        );
-      }
+    _drawTickText(isHorizontal, w, h, center) {
+        const maxLength = isHorizontal ? w : h;
+        const config = ScreenRuler.RULER_CONFIG;
+
+        if (maxLength <= 0) return;
+
+        this.ctx.fillStyle = "#000";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+        for (let i = 0; i <= maxLength; i += config.MAJOR_TICK_INTERVAL) {
+            const pos = Math.floor(i);
+            if (i == 0) continue;
+            if (isHorizontal) {
+                // 水平标尺：上下都显示文本
+                this.ctx.fillText(i.toString(), pos, config.TEXT_OFFSET);       // 上方文本
+                this.ctx.fillText(i.toString(), pos, h - config.TEXT_OFFSET);   // 下方文本
+            } else {
+                // 垂直标尺：左右都显示文本（旋转90度）
+                // 左侧文本
+                this.ctx.save();
+                this.ctx.translate(config.TEXT_OFFSET, pos);
+                this.ctx.rotate(-Math.PI / 2);
+                this.ctx.fillText(i.toString(), 0, 0);
+                this.ctx.restore();
+
+                // 右侧文本
+                this.ctx.save();
+                this.ctx.translate(w - config.TEXT_OFFSET, pos);
+                this.ctx.rotate(-Math.PI / 2);
+                this.ctx.fillText(i.toString(), 0, 0);
+                this.ctx.restore();
+            }
+        }
     }
-  
+
     /**
      * 绘制鼠标标线
      * @private
      */
-    _drawMouseLine(isHorizontal, floorW, floorH, controlStart, controlEnd, center) {
-      if (!this.winPos.x || !this.winPos.y) return;
-  
-      const [localX, localY] = [
-        Math.floor(this.mousePos.x - this.winPos.x),
-        Math.floor(this.mousePos.y - this.winPos.y)
-      ];
-  
-      this.ctx.strokeStyle = "#ff4444";
-      this.ctx.lineWidth = 1;
-      this.ctx.globalAlpha = 0.7;
-  
-      this.ctx.beginPath();
-      if (isHorizontal) {
-        if (localX < controlStart || localX > controlEnd) {
-          this.ctx.moveTo(localX, 0);
-          this.ctx.lineTo(localX, floorH);
+    _drawMouseLine(isHorizontal, w, h, controlStart, controlEnd, center) {
+        if (typeof this.winPos.x !== 'number' || typeof this.winPos.y !== 'number') return;
+        if (typeof this.mousePos.x !== 'number' || typeof this.mousePos.y !== 'number') return;
+
+        const [localX, localY] = [
+            Math.floor(this.mousePos.x - this.winPos.x),
+            Math.floor(this.mousePos.y - this.winPos.y)
+        ];
+
+        this.ctx.strokeStyle = "#ff4444";
+        this.ctx.lineWidth = 1.5;
+        this.ctx.globalAlpha = 0.8;
+
+        this.ctx.beginPath();
+        if (isHorizontal) {
+            if (localX >= 0 && localX <= w && (localX < controlStart || localX > controlEnd)) {
+                this.ctx.moveTo(localX, 0);
+                this.ctx.lineTo(localX, h);
+            }
+        } else {
+            if (localY >= 0 && localY <= h && (localY < controlStart || localY > controlEnd)) {
+                this.ctx.moveTo(0, localY);
+                this.ctx.lineTo(w, localY);
+            }
         }
-      } else {
-        if (localY < controlStart || localY > controlEnd) {
-          this.ctx.moveTo(0, localY);
-          this.ctx.lineTo(floorW, localY);
-        }
-      }
-      this.ctx.stroke();
-      this.ctx.closePath();
-      this.ctx.globalAlpha = 1;
+        this.ctx.stroke();
+        this.ctx.closePath();
+        this.ctx.globalAlpha = 1;
     }
-  
+
     /**
      * 绘制边框
      * @private
      */
-    _drawBorder(floorW, floorH) {
-      this.ctx.strokeStyle = "#ccc";
-      this.ctx.lineWidth = 1;
-      this.ctx.beginPath();
-      this.ctx.rect(0, 0, floorW, floorH);
-      this.ctx.stroke();
-      this.ctx.closePath();
+    _drawBorder(w, h) {
+        this.ctx.strokeStyle = "#bbb";
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.rect(0, 0, w, h);
+        this.ctx.stroke();
+        this.ctx.closePath();
     }
-  
+
     /**
      * 计算切换类型后的新尺寸
      * @returns {Object} { width, height }
      */
     calculateNewSize() {
-      return this.type === "horizontal"
-        ? { width: RulerCore.FIXED_EDGE_SIZE, height: this.size.width }
-        : { width: this.size.height, height: RulerCore.FIXED_EDGE_SIZE };
+        return this.type === "horizontal"
+            ? { width: ScreenRuler.FIXED_EDGE_SIZE, height: this.size.width }
+            : { width: this.size.height, height: ScreenRuler.FIXED_EDGE_SIZE };
     }
-  }
+}

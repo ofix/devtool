@@ -204,8 +204,8 @@ class WndManager extends Singleton {
         const { width, height } = primaryDisplay.workAreaSize;
 
         // 标尺默认尺寸
-        const rulerWidth = options.type === 'horizontal' ? 800 : 40;
-        const rulerHeight = options.type === 'horizontal' ? 40 : 800;
+        const rulerWidth = options.type === 'horizontal' ? 800 : 100;
+        const rulerHeight = options.type === 'horizontal' ? 100 : 800;
 
         this.screenRulerWnd = new BrowserWindow({
             width: rulerWidth,
@@ -231,11 +231,6 @@ class WndManager extends Singleton {
             ? `${listenUrl}/#/screen-ruler`
             : `file://${path.join(__dirname, '../dist/index.html/#screen-ruler')}`
         );
-
-        // 传递初始配置
-        this.screenRulerWnd.webContents.on('did-finish-load', () => {
-            this.screenRulerWnd.webContents.send('ruler-init', options);
-        });
 
         // 监听窗口关闭
         this.screenRulerWnd.on('closed', () => {
