@@ -266,7 +266,7 @@ export default class Screenshot {
             return;
         }
 
-        if (this.state.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+        if (this.state.drawingState >= 1 && this.state.drawingState <= 10) {
             this._calculateToolbarPos();
             this.state.showCtrlPoints = true;
             this.refresh(e);
@@ -432,32 +432,6 @@ export default class Screenshot {
         this.state.currentSelection = newSelection;
     }
 
-    // ========== 绘制控制点：纯物理像素 ==========
-    _drawControlPoints() {
-        const { x, y, width, height } = this.state.currentSelection;
-        const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS;
-        const points = [
-            { x, y, cursor: "nwse-resize", state: 3 },
-            { x: x + width / 2, y, cursor: "ns-resize", state: 4 },
-            { x: x + width, y, cursor: "nesw-resize", state: 5 },
-            { x, y: y + height / 2, cursor: "ew-resize", state: 6 },
-            { x: x + width, y: y + height / 2, cursor: "ew-resize", state: 7 },
-            { x, y: y + height, cursor: "nesw-resize", state: 8 },
-            { x: x + width / 2, y: y + height, cursor: "ns-resize", state: 9 },
-            { x: x + width, y: y + height, cursor: "nwse-resize", state: 10 },
-        ];
-
-        this.ctxOffscreen.fillStyle = "white";
-        this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
-        this.ctxOffscreen.lineWidth = 2; // 物理像素线宽
-        points.forEach((p) => {
-            this.ctxOffscreen.beginPath();
-            this.ctxOffscreen.arc(p.x, p.y, radius, 0, Math.PI * 2);
-            this.ctxOffscreen.fill();
-            this.ctxOffscreen.stroke();
-        });
-    }
-
     // ========== 检测控制点：纯物理像素 ==========
     _isInControlPoint(mouseX, mouseY) {
         const { x, y, width, height } = this.state.currentSelection;
@@ -510,7 +484,33 @@ export default class Screenshot {
     _clearLastSelection() {
         const { x, y, width, height } = this.state.lastSelection;
         const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS;
-        this.ctxOffscreen.clearRect(x - radius, y - radius, width + radius * 2, height + radius * 2);
+        this.ctxOffscreen.clearRect(x - radius * 2, y - radius * 2, width + radius * 4, height + radius * 4);
+    }
+
+    // ========== 绘制控制点：纯物理像素 ==========
+    _drawControlPoints() {
+        const { x, y, width, height } = this.state.currentSelection;
+        const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS;
+        const points = [
+            { x, y, cursor: "nwse-resize", state: 3 },
+            { x: x + width / 2, y, cursor: "ns-resize", state: 4 },
+            { x: x + width, y, cursor: "nesw-resize", state: 5 },
+            { x, y: y + height / 2, cursor: "ew-resize", state: 6 },
+            { x: x + width, y: y + height / 2, cursor: "ew-resize", state: 7 },
+            { x, y: y + height, cursor: "nesw-resize", state: 8 },
+            { x: x + width / 2, y: y + height, cursor: "ns-resize", state: 9 },
+            { x: x + width, y: y + height, cursor: "nwse-resize", state: 10 },
+        ];
+
+        this.ctxOffscreen.fillStyle = "white";
+        this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
+        this.ctxOffscreen.lineWidth = 2; // 物理像素线宽
+        points.forEach((p) => {
+            this.ctxOffscreen.beginPath();
+            this.ctxOffscreen.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            this.ctxOffscreen.fill();
+            this.ctxOffscreen.stroke();
+        });
     }
 
     // ========== 绘制选区：纯物理像素 ==========
@@ -530,7 +530,6 @@ export default class Screenshot {
 
     // ========== 重绘：纯物理像素 ==========
     refresh(e) {
-
         // 清除上一次选区
         this._clearLastSelection();
         // 绘制当前选区
@@ -605,12 +604,18 @@ export default class Screenshot {
         this.ctxMagnifier.lineWidth = pixelSize; // 物理像素
         const center = totalSize / 2;
         this.ctxMagnifier.beginPath();
-        this.ctxMagnifier.moveTo(0, center);
-        this.ctxMagnifier.lineTo(center + pixelSize / 2, center);
-        this.ctxMagnifier.moveTo(center, 0);
-        this.ctxMagnifier.lineTo(center, center);
+        if (this.state.currentSelection.width <= 10 && this.state.currentSelection.height <= 10) {
+            this.ctxMagnifier.moveTo(0, center);
+            this.ctxMagnifier.lineTo(totalSize, center);
+            this.ctxMagnifier.moveTo(center, 0);
+            this.ctxMagnifier.lineTo(center, totalSize);
+        } else {
+            this.ctxMagnifier.moveTo(0, center);
+            this.ctxMagnifier.lineTo(center + pixelSize / 2, center);
+            this.ctxMagnifier.moveTo(center, 0);
+            this.ctxMagnifier.lineTo(center, center);
+        }
         this.ctxMagnifier.stroke();
-
         // 对外输出逻辑坐标
         this._emit("magnifierNewPos", this._physicalToLogical(magX, magY));
     }
