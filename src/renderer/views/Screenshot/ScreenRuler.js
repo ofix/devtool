@@ -9,8 +9,8 @@ export default class ScreenRuler {
             FINE_TICK_INTERVAL: 1,      // 微刻度：1px
             // 三层刻度长度（FastStone视觉比例）
             MAJOR_TICK_LENGTH: 14,      // 主刻度长度
-            MINOR_TICK_LENGTH: 8,      // 次刻度长度
-            FINE_TICK_LENGTH: 5,        // 微刻度长度
+            MINOR_TICK_LENGTH: 9,      // 次刻度长度
+            FINE_TICK_LENGTH: 7,        // 微刻度长度
             // 其他配置
             CONTROL_AREA_SIZE: 80,
             TEXT_FONT: "11px Arial, Helvetica, sans-serif",
@@ -165,7 +165,7 @@ export default class ScreenRuler {
         // this._drawMouseLine(isHorizontal, floorW, floorH, controlStart, controlEnd, center);
 
         // 绘制边框
-        // this._drawBorder(floorW, floorH);
+        this._drawBorder(floorW, floorH);
 
         this.ctx.restore();
     }
@@ -336,10 +336,13 @@ export default class ScreenRuler {
      * @private
      */
     _drawBorder(w, h) {
-        this.ctx.strokeStyle = "#bbb";
-        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = "#000";
+        this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.rect(0, 0, w, h);
+        this.ctx.moveTo(0, 0);
+        this.ctx.lineTo(0, h);
+        this.ctx.moveTo(w, 0);
+        this.ctx.lineTo(w, h);
         this.ctx.stroke();
         this.ctx.closePath();
     }
