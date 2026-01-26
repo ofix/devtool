@@ -31,11 +31,13 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import Screenshot from "./Screenshot.js";
 import MarkToolbar from "./MarkToolbar.vue";
 import LogViewer from "@/components/LogViewer.vue";
 
 // ========== 仅渲染相关的响应式变量 ==========
+const route = useRoute();
 const canvasScreen = ref(null);
 const canvasCapture = ref(null);
 const canvasMagnifier = ref(null);
@@ -56,7 +58,7 @@ onMounted(async () => {
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
-    canvasMagnifier.value,
+    canvasMagnifier.value
   );
 
   // 注册事件监听（接收类内部的状态通知）
@@ -80,6 +82,14 @@ onMounted(async () => {
   canvas.addEventListener("mouseup", screenshot.onMouseUp);
   canvas.addEventListener("mouseleave", screenshot.onMouseLeave);
   canvas.addEventListener("keydown", screenshot.onKeyDown);
+
+  let captureMode = await window.channel.getCaptureMode();
+
+  if (captureMode == "window") {
+    let windows = await window.channel.enumWindowList();
+    screenshot.setWindowList(windows);
+  }
+
   // 初始化截图（传入全屏截图图片，按需实现）
   window.channel.getDesktopScreenshot().then((fullScreenImage) => {
     screenshot.init(fullScreenImage);

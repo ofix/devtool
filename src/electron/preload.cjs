@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('channel', {
     closeScreenshotTool: ()=> ipcRenderer.invoke("close-screenshot-tool"),
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
     cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
+    getCaptureMode: ()=>ipcRenderer.invoke("get-capture-mode"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
     sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
     openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),

@@ -104,12 +104,12 @@ const MenuRoutes = [
         ]
     },
     {
-        path: '/screenshot/capture-rect',
-        name: 'capture-rect',
+        path: '/screenshot/capture',
+        name: 'capture',
         component: Capture,
         meta: {
             icon: SSHIcon,
-            title: '矩形截图',
+            title: '截图',
             desc: ''
         }
     },

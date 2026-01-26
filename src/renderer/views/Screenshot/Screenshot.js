@@ -8,26 +8,28 @@ export default class Screenshot {
         NO_ACTION: 0,
         DRAG_CAPTURE_AREA: 1,
         MOVE_CAPTURE_AREA: 2,
-        DRAG_CAPTURE_CORNER_TOP_LEFT: 3,
-        DRAG_CAPTURE_CORNER_TOP_CENTER: 4,
-        DRAG_CAPTURE_CORNER_TOP_RIGHT: 5,
-        DRAG_CAPTURE_CORNER_LEFT_CENTER: 6,
-        DRAG_CAPTURE_CORNER_RIGHT_CENTER: 7,
-        DRAG_CAPTURE_CORNER_BOTTOM_LEFT: 8,
-        DRAG_CAPTURE_BOTTOM_CENTER: 9,
-        DRAG_CAPTURE_BOTTOM_RIGHT: 10,
-        DRAW_LINE: 11,
-        DRAW_ARROW: 12,
-        DRAW_RECT: 13,
-        DRAW_ELLIPSE: 14,
-        DRAW_STAR: 15,
-        DRAW_NUMBER: 16,
-        DRAW_PENCIL: 17,
-        DRAW_HILIGHTER: 18,
-        DRAW_ERASER: 19,
-        DRAW_MOSAIC: 20,
-        DRAW_GAUSSIAN_BLUR: 21,
-        MOVE_SHAPE: 30,
+        WINDOW_CAPTURE: 3,
+        SCROLL_CAPTURE: 4,
+        DRAG_CAPTURE_CORNER_TOP_LEFT: 10,
+        DRAG_CAPTURE_CORNER_TOP_CENTER: 11,
+        DRAG_CAPTURE_CORNER_TOP_RIGHT: 12,
+        DRAG_CAPTURE_CORNER_LEFT_CENTER: 13,
+        DRAG_CAPTURE_CORNER_RIGHT_CENTER: 14,
+        DRAG_CAPTURE_CORNER_BOTTOM_LEFT: 15,
+        DRAG_CAPTURE_BOTTOM_CENTER: 16,
+        DRAG_CAPTURE_BOTTOM_RIGHT: 17,
+        DRAW_LINE: 30,
+        DRAW_ARROW: 31,
+        DRAW_RECT: 32,
+        DRAW_ELLIPSE: 33,
+        DRAW_STAR: 34,
+        DRAW_NUMBER: 35,
+        DRAW_PENCIL: 36,
+        DRAW_HILIGHTER: 37,
+        DRAW_ERASER: 38,
+        DRAW_MOSAIC: 39,
+        DRAW_GAUSSIAN_BLUR: 40,
+        MOVE_SHAPE: 50,
     });
 
     static CONFIG = {
@@ -84,6 +86,7 @@ export default class Screenshot {
             showCtrlPoints: false,
         };
         this.screenImage = null;
+        this.windows = [];
 
         // 初始化
         this._initCanvas();
@@ -164,9 +167,15 @@ export default class Screenshot {
                 0, 0, this.screenImage.width, this.screenImage.height, // 图片原始尺寸
                 0, 0, this.physicalSize.width, this.physicalSize.height // 物理全屏
             );
+            this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
         } catch (e) {
             console.log(e);
         }
+    }
+
+    setWindowList(windowList) {
+        this.windows = windowList;
+        this.state.drawingState = Screenshot.DrawingState.WINDOW_CAPTURE;
     }
 
     // ========== 鼠标按下事件 ==========
@@ -188,11 +197,12 @@ export default class Screenshot {
         }
 
         // 选区模式（全程物理坐标）
-        if (this.state.currentSelection.width < 1) { // 物理像素的最小宽度
-            this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
+        if (this.state.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) { // 物理像素的最小宽度
             this.state.startPos = { x: mouseX, y: mouseY };
             this.state.currentSelection = { x: mouseX, y: mouseY, width: 0, height: 0 };
             this.state.showCtrlPoints = false;
+        } else if (this.tate.drawingState == Screenshot.DrawingState.WINDOW_CAPTURE) {
+
         } else {
             const controlPoint = this._isInControlPoint(mouseX, mouseY);
             if (controlPoint) {
@@ -229,7 +239,7 @@ export default class Screenshot {
                 : (this._isInsideSelection(mouseX, mouseY) ? "move" : "crosshair");
         } else {
             // 鼠标按下时的逻辑（物理坐标）
-            if (this.state.drawingState >= 11) {
+            if (this.state.drawingState >= 30) {
                 // 标注绘制（物理坐标）
                 this.state.markManager.updateDrawing(mouseX, mouseY);
             } else {
@@ -241,7 +251,7 @@ export default class Screenshot {
                         width: Math.abs(mouseX - this.state.startPos.x),
                         height: Math.abs(mouseY - this.state.startPos.y),
                     };
-                } else if (this.state.drawingState >= 3 && this.state.drawingState <= 10) {
+                } else if (this.state.drawingState >= 10 && this.state.drawingState <= 20) {
                     this._adjustSelection(mouseX, mouseY);
                 } else {
                     this._moveSelection(mouseX, mouseY);
@@ -260,13 +270,13 @@ export default class Screenshot {
         this.state.isMouseDown = false;
         this.canvasCapture.style.cursor = "crosshair";
 
-        if (this.state.drawingState >= 11) {
+        if (this.state.drawingState >= 30) {
             this.state.markManager.finishDrawing();
             this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
             return;
         }
 
-        if (this.state.drawingState >= 1 && this.state.drawingState <= 10) {
+        if (this.state.drawingState >= 11 && this.state.drawingState <= 20) {
             this._calculateToolbarPos();
             this.state.showCtrlPoints = true;
             this.refresh(e);

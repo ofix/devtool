@@ -177,13 +177,13 @@ class IPCManager extends Singleton {
         ipcMain.handle('enum-window-list', async () => {
             try {
                 const sources = await desktopCapturer.getSources({
-                    types: ['window']
-                });
+                    types: ['window'],
+                    thumbnailSize: { width: 0, height: 0 },
 
+                });
                 return sources.map(source => ({
                     id: source.id,
                     name: source.name,
-                    thumbnail: source.thumbnail.toDataURL(),
                     display_id: source.display_id
                 }));
             } catch (error) {
@@ -200,10 +200,14 @@ class IPCManager extends Singleton {
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', async (event, mode) => {
             await this.preloadScreenshot();
-            WndManager.getInstance().showCaptureWindow();
+            WndManager.getInstance().showCaptureWindow(mode);
         });
         ipcMain.handle('cancel-screenshot', async (event) => {
             WndManager.getInstance().closeCaptureWindow();
+        });
+        ipcMain.handle("get-capture-mode", (event) => {
+            let captureMode = WndManager.getInstance().getCaptureMode();
+            return captureMode;
         });
         // 当需要开始选区时
         ipcMain.handle('start-selection', () => {
@@ -240,21 +244,21 @@ class IPCManager extends Singleton {
         ipcMain.handle('ruler:get-size', () => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { width: 0, height: 0 };
             const [w, h] = this.screenRulerWnd.getSize();
-            console.log("ruler:get-size: ",w,h);
+            console.log("ruler:get-size: ", w, h);
             return { width: w, height: h };
         });
         // 获取标尺窗口位置
         ipcMain.handle('ruler:get-position', () => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { x: 0, y: 0 };
             const [x, y] = this.screenRulerWnd.getPosition();
-            console.log("ruler:get-position: ",x,y);
+            console.log("ruler:get-position: ", x, y);
             return { x, y };
         });
         // 设置标尺窗口位置（拖拽移动）
         ipcMain.handle('ruler:set-position', (_, x, y) => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return;
             this.screenRulerWnd.setPosition(x, y);
-            console.log("ruler:set-position: ",x,y);
+            console.log("ruler:set-position: ", x, y);
         });
         // 各种工具命令
         ipcMain.handle('tool-cmd', (event, command, data) => {

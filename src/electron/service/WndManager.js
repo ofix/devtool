@@ -12,6 +12,7 @@ class WndManager extends Singleton {
         this.mainWnd = null;
         this.screenshotToolWnd = null;  // 控制工具栏窗口（小窗口，固定在左侧）
         this.captureWnd = null; // 截图窗口
+        this.captureMode = 'rect';
         this.screenRulerWnd = null; // 屏幕标尺窗口
         this.bindMouseEvents = null;     // 截图编辑窗口（全屏透明窗口）
     }
@@ -84,7 +85,8 @@ class WndManager extends Singleton {
     /**
      * 创建截图编辑窗口（全屏透明窗口）
      */
-    createCaptureWindow() {
+    createCaptureWindow(mode) {
+        this.captureMode = mode;
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.show();
             this.captureWnd.focus();
@@ -164,8 +166,8 @@ class WndManager extends Singleton {
         let listenUrl = process.argv[2];
 
         this.captureWnd.loadURL(process.env.NODE_ENV === 'development'
-            ? `${listenUrl}/#/screenshot/capture-rect`  // 注意是 screenshot 路由
-            : `file://${path.join(__dirname, '../dist/index.html#/screenshot/capture-rect')}`
+            ? `${listenUrl}/#/screenshot/capture`  // 注意是 screenshot 路由
+            : `file://${path.join(__dirname, '../dist/index.html#/screenshot/capture')}`
         );
 
         // this.captureWnd.webContents.openDevTools();
@@ -288,16 +290,21 @@ class WndManager extends Singleton {
     /**
      * 显示截图编辑窗口
      */
-    showCaptureWindow() {
+    showCaptureWindow(mode) {
+        this.captureMode = mode;
         if (this.captureWnd && !this.captureWnd.isDestroyed()) {
             this.captureWnd.show();
             this.captureWnd.focus();
         } else {
-            this.createCaptureWindow();
+            this.createCaptureWindow(mode);
         }
 
         // 隐藏控制工具栏
         this.hideScreenshotToolWindow();
+    }
+
+    getCaptureMode(){
+        return this.captureMode;
     }
 
     /**
