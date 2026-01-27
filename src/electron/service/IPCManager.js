@@ -6,6 +6,7 @@ import screenshot from 'screenshot-desktop';
 import { Buffer } from 'buffer';
 import WndManager from './WndManager.js';
 import Singleton from "./Singleton.js";
+import windowInfo from "./WindowInfo.js";
 
 class IPCManager extends Singleton {
     constructor(window) {
@@ -175,6 +176,10 @@ class IPCManager extends Singleton {
         });
         // 枚举所有窗口列表（EnumWindowList）
         ipcMain.handle('enum-window-list', async () => {
+            return windowInfo.getAllWindows();
+        });
+        // 获取录屏数据源
+        ipcMain.handle("get-record-sources", async () => {
             try {
                 const sources = await desktopCapturer.getSources({
                     types: ['window'],

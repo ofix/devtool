@@ -1,6 +1,18 @@
 import { app, BrowserWindow } from 'electron';
 import DevTool from "./DevTool.js";
 // import mmFileManager from './core/MMFileManager.js';
+import windowInfo from "./service/WindowInfo.js";
+
+// 捕获未处理的异常
+process.on('uncaughtException', (error) => {
+    console.error('💥 未处理的异常:', error);
+    // 不退出应用，记录错误即可
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 未处理的 Promise 拒绝:', reason);
+});
+
 
 let devTool = null;
 app.whenReady().then(() => {
@@ -9,6 +21,7 @@ app.whenReady().then(() => {
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length > 0) createWindow()
     })
+    windowInfo.load(); // 加载 window-info 模块
 })
 
 // 对于 macOS，当所有窗口都关闭时，应用通常不会退出，而是保持在 Dock 中。

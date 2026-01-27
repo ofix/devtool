@@ -87,6 +87,7 @@ onMounted(async () => {
 
   if (captureMode == "window") {
     let windows = await window.channel.enumWindowList();
+    wnd.log("windows= ",windows);
     screenshot.setWindowList(windows);
   }
 
