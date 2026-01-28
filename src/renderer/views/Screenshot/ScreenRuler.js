@@ -9,13 +9,13 @@ export default class ScreenRuler {
             FINE_TICK_INTERVAL: 1,      // 微刻度：1px
             // 三层刻度长度（FastStone视觉比例）
             MAJOR_TICK_LENGTH: 14,      // 主刻度长度
-            MINOR_TICK_LENGTH: 9,      // 次刻度长度
+            MINOR_TICK_LENGTH: 9,       // 次刻度长度
             FINE_TICK_LENGTH: 7,        // 微刻度长度
             // 其他配置
             CONTROL_AREA_SIZE: 80,
             TEXT_FONT: "11px Arial, Helvetica, sans-serif",
             TEXT_OFFSET: 22,            // 文本距离标尺边缘的偏移
-            DEFAULT_SIZE: { width: 800, height: 80 }
+            DEFAULT_SIZE: { width: 800, height: 100 }
         };
     }
 
@@ -161,8 +161,8 @@ export default class ScreenRuler {
         // 绘制主刻度文本
         this._drawTickText(isHorizontal, floorW, floorH, center);
 
-        // 绘制鼠标标线
-        // this._drawMouseLine(isHorizontal, floorW, floorH, controlStart, controlEnd, center);
+        // 绘制鼠标标线（取消注释启用）
+        // this._drawMouseLine(isHorizontal, floorW, floorH, center - CONTROL_AREA_SIZE/2, center + CONTROL_AREA_SIZE/2, center);
 
         // 绘制边框
         this._drawBorder(floorW, floorH);

@@ -259,12 +259,18 @@ class IPCManager extends Singleton {
             console.log("ruler:get-position: ", x, y);
             return { x, y };
         });
-        // 设置标尺窗口位置（拖拽移动）
-        ipcMain.handle('ruler:set-position', (_, x, y) => {
+        ipcMain.handle("ruler:get-bounds", (_) => {
+            if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) {
+                return { x: 0, y: 0, width: 0, height: 0 };
+            }
+            return this.screenRulerWnd.getBounds();
+        })
+        // 设置标尺窗口位置和宽高
+        ipcMain.handle("ruler:set-bounds", (_, bounds) => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return;
-            this.screenRulerWnd.setPosition(x, y);
-            console.log("ruler:set-position: ", x, y);
-        });
+            console.log("ruler:set-bounds:", bounds.x, bounds.y, bounds.width, bounds.height);
+            this.screenRulerWnd.setBounds(bounds);
+        })
         // 各种工具命令
         ipcMain.handle('tool-cmd', (event, command, data) => {
             switch (command) {

@@ -15,6 +15,8 @@ class WndManager extends Singleton {
         this.captureMode = 'rect';
         this.screenRulerWnd = null; // 屏幕标尺窗口
         this.bindMouseEvents = null;     // 截图编辑窗口（全屏透明窗口）
+
+
     }
 
     /**
@@ -198,7 +200,7 @@ class WndManager extends Singleton {
     createScreenRulerWindow(options = { type: 'horizontal', precision: 1 }) {
         if (this.screenRulerWnd) {
             this.screenRulerWnd.focus();
-            return;
+            return this.screenRulerWnd;
         }
 
         // 获取屏幕尺寸
@@ -218,7 +220,11 @@ class WndManager extends Singleton {
             transparent: true, // 透明背景
             alwaysOnTop: true, // 置顶
             resizable: true, // 可缩放
+            aspectRatio: undefined, // 清空宽高比约束
             movable: true, // 可拖拽
+            // 禁止Electron自动调整窗口位置（避免尺寸变化后窗口跑偏）
+            autoHideMenuBar: true,
+            useContentSize: true, // 关键：尺寸基于内容区域，而非窗口边框
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
@@ -264,6 +270,7 @@ class WndManager extends Singleton {
             screen.off('mouse-move', mouseMoveHandler);
             globalShortcut.unregister('Escape');
         });
+        return this.screenRulerWnd;
     }
 
     /**
@@ -303,7 +310,7 @@ class WndManager extends Singleton {
         this.hideScreenshotToolWindow();
     }
 
-    getCaptureMode(){
+    getCaptureMode() {
         return this.captureMode;
     }
 
