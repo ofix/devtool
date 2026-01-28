@@ -220,7 +220,7 @@ export default class Screenshot {
         }
 
         // 按 zOrder 降序排序（zOrder 越大，窗口层级越高）
-        candidateWindows.sort((a, b) => a.zOrder - b.zOrder);
+        candidateWindows.sort((a, b) => b.zOrder - a.zOrder);
 
         // 返回最顶层的窗口（即鼠标实际所在的窗口）
         return candidateWindows[0];
