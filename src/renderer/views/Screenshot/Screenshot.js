@@ -43,7 +43,7 @@ export default class Screenshot {
         },
     };
 
-    constructor(canvasScreen, canvasCapture, canvasMagnifier) {
+    constructor(canvasScreen, canvasCapture, canvasMagnifier, captureMode) {
         // DOM 元素
         this.canvasBg = canvasScreen;
         this.canvasCapture = canvasCapture;
@@ -85,8 +85,16 @@ export default class Screenshot {
             markManager: null,
             showCtrlPoints: false,
         };
+        if (captureMode == "window") {
+            this.state.drawingState = Screenshot.DrawingState.WINDOW_CAPTURE;
+        } else if (captureMode == 'rect') {
+            this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
+        } else if (captureMode == 'scroll') {
+            this.state.drawingState = Screenshot.DrawingState.SCROLL_CAPTURE;
+        }
         this.screenImage = null;
-        this.windows = [];
+        this.windowList = [];
+        this.captureWindow = null;
 
         // 初始化
         this._initCanvas();
@@ -167,15 +175,55 @@ export default class Screenshot {
                 0, 0, this.screenImage.width, this.screenImage.height, // 图片原始尺寸
                 0, 0, this.physicalSize.width, this.physicalSize.height // 物理全屏
             );
-            this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
         } catch (e) {
             console.log(e);
         }
     }
 
     setWindowList(windowList) {
-        this.windows = windowList;
-        this.state.drawingState = Screenshot.DrawingState.WINDOW_CAPTURE;
+        this.windowList = windowList;
+    }
+
+    /**
+  * 判断鼠标是否在指定窗口的矩形区域内
+  * @param {Object} window - 窗口对象（包含x/y/width/height）
+  * @param {Object} mousePos - 鼠标坐标 {x, y}
+  * @returns {Boolean}
+  */
+    isMouseInWindow(window, mousePos) {
+        const { x, y, width, height } = window;
+        return (
+            mousePos.x >= x &&
+            mousePos.x <= x + width &&
+            mousePos.y >= y &&
+            mousePos.y <= y + height
+        );
+    }
+
+    /**
+     * 快速获取鼠标当前所在的窗口（核心方法）
+     * @returns {Object|null} 鼠标所在的窗口对象，无则返回null
+     */
+    getMouseHoverWindow(mousePos) {
+        if (!this.windowList.length) {
+            console.warn('窗口列表为空，无法判断鼠标所在窗口');
+            return null;
+        }
+
+        // 筛选出包含鼠标坐标的所有窗口
+        const candidateWindows = this.windowList.filter(window =>
+            this.isMouseInWindow(window, mousePos)
+        );
+
+        if (!candidateWindows.length) {
+            return null; // 鼠标不在任何窗口内（如桌面区域）
+        }
+
+        // 按 zOrder 降序排序（zOrder 越大，窗口层级越高）
+        candidateWindows.sort((a, b) => a.zOrder - b.zOrder);
+
+        // 返回最顶层的窗口（即鼠标实际所在的窗口）
+        return candidateWindows[0];
     }
 
     // ========== 鼠标按下事件 ==========
@@ -201,8 +249,12 @@ export default class Screenshot {
             this.state.startPos = { x: mouseX, y: mouseY };
             this.state.currentSelection = { x: mouseX, y: mouseY, width: 0, height: 0 };
             this.state.showCtrlPoints = false;
-        } else if (this.tate.drawingState == Screenshot.DrawingState.WINDOW_CAPTURE) {
-
+        } else if (this.state.drawingState == Screenshot.DrawingState.WINDOW_CAPTURE) {
+            // 检查当前鼠标所在方块
+            if (this.captureWindow == null) {
+                this.state.showCtrlPoints = true;
+                this.captureWindow = this.state.currentSelection;
+            }
         } else {
             const controlPoint = this._isInControlPoint(mouseX, mouseY);
             if (controlPoint) {
@@ -233,10 +285,24 @@ export default class Screenshot {
 
         if (!this.state.isMouseDown) {
             // 非拖动时检测控制点（物理坐标）
-            const controlPoint = this._isInControlPoint(mouseX, mouseY);
-            this.canvasCapture.style.cursor = controlPoint
-                ? controlPoint.cursor
-                : (this._isInsideSelection(mouseX, mouseY) ? "move" : "crosshair");
+            if (this.state.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+                const controlPoint = this._isInControlPoint(mouseX, mouseY);
+                this.canvasCapture.style.cursor = controlPoint
+                    ? controlPoint.cursor
+                    : (this._isInsideSelection(mouseX, mouseY) ? "move" : "crosshair");
+            } else if (this.state.drawingState === Screenshot.DrawingState.WINDOW_CAPTURE) {
+                if (this.captureWindow == null) {
+                    let captureWindow = this.getMouseHoverWindow(physicalPos);
+                    if (captureWindow != null) {
+                        this.state.currentSelection = {
+                            x: captureWindow.x,
+                            y: captureWindow.y,
+                            width: captureWindow.width,
+                            height: captureWindow.height,
+                        };
+                    }
+                }
+            }
         } else {
             // 鼠标按下时的逻辑（物理坐标）
             if (this.state.drawingState >= 30) {

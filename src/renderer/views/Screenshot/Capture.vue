@@ -55,11 +55,24 @@ onMounted(async () => {
   await nextTick();
   if (!canvasScreen.value || !canvasCapture.value) return;
   // 初始化截图类实例
+  let captureMode = await window.channel.getCaptureMode();
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
-    canvasMagnifier.value
+    canvasMagnifier.value,
+    captureMode,
   );
+
+  if (captureMode == "window") {
+    let windows = await window.channel.enumWindowList();
+    wnd.log("windows= ",windows);
+    screenshot.setWindowList(windows);
+  }
+
+  // 初始化截图（传入全屏截图图片，按需实现）
+  window.channel.getDesktopScreenshot().then((fullScreenImage) => {
+    screenshot.init(fullScreenImage);
+  }); // 自行实现截图逻辑
 
   // 注册事件监听（接收类内部的状态通知）
   screenshot.on("showMagnifier", (show) => {
@@ -82,19 +95,6 @@ onMounted(async () => {
   canvas.addEventListener("mouseup", screenshot.onMouseUp);
   canvas.addEventListener("mouseleave", screenshot.onMouseLeave);
   canvas.addEventListener("keydown", screenshot.onKeyDown);
-
-  let captureMode = await window.channel.getCaptureMode();
-
-  if (captureMode == "window") {
-    let windows = await window.channel.enumWindowList();
-    wnd.log("windows= ",windows);
-    screenshot.setWindowList(windows);
-  }
-
-  // 初始化截图（传入全屏截图图片，按需实现）
-  window.channel.getDesktopScreenshot().then((fullScreenImage) => {
-    screenshot.init(fullScreenImage);
-  }); // 自行实现截图逻辑
 
   markManager.value = screenshot.getMarkManager();
 });
