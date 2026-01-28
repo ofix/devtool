@@ -1,14 +1,6 @@
 <template>
   <div class="ruler-container" :class="`ruler-${type}`">
-    <!-- Canvas 标尺 -->
-    <canvas
-      ref="rulerCanvas"
-      class="ruler-canvas"
-      :width="canvasSize.fixed"
-      :height="canvasSize.dynamic"
-    ></canvas>
-
-    <!-- 左侧拉伸按钮：添加 .stop 阻止冒泡 -->
+    <canvas ref="rulerCanvas" class="ruler-canvas"></canvas>
     <div
       ref="leftBtn"
       class="resize-btn resize-left"
@@ -16,8 +8,6 @@
     >
       <IconDragLeft />
     </div>
-
-    <!-- 控制按钮：保持原有逻辑 -->
     <div class="ruler-controls">
       <div class="control-btn" @click.stop="toggleType">
         <IconTranslate />
@@ -26,8 +16,6 @@
         <IconCloseBox />
       </div>
     </div>
-
-    <!-- 右侧拉伸按钮：添加 .stop 阻止冒泡 -->
     <div
       ref="rightBtn"
       class="resize-btn resize-right"
@@ -46,7 +34,7 @@ import IconDragLeft from "@/components/icons/IconDragLeft.vue";
 import IconDragRight from "@/components/icons/IconDragRight.vue";
 import ScreenRuler from "./ScreenRuler.js";
 
-// 核心状态
+const dpr = window.devicePixelRatio || 1;
 const type = ref("horizontal");
 const [rulerWidth, rulerHeight] = [
   ref(ScreenRuler.RULER_CONFIG.DEFAULT_SIZE.width),
@@ -58,13 +46,12 @@ const resizeMode = ref("none");
 let screenRuler = null;
 let removeResizeListener = null;
 
-// 拖拽状态
 let dragState = {
   isDragging: false,
   resizeMode: "none",
   start: { x: 0, y: 0, width: 0, height: 0 },
   anchor: { x: 0, y: 0 },
-  mouseOffset: { x: 0, y: 0 }, // 鼠标相对于窗口边缘的初始偏移（核心修复）
+  mouseOffset: { x: 0, y: 0 },
 };
 
 const leftBtn = ref(null);
@@ -74,11 +61,6 @@ let handleMouseUp = null;
 let handleMouseLeave = null;
 let globalMousePos = { x: 0, y: 0 };
 
-const canvasSize = computed(() => {
-  return screenRuler ? screenRuler.getCanvasSize() : { fixed: 0, dynamic: 0 };
-});
-
-// 初始化标尺
 const initScreenRuler = () => {
   if (!rulerCanvas.value) return;
   screenRuler = new ScreenRuler(rulerCanvas.value, {
@@ -90,7 +72,6 @@ const initScreenRuler = () => {
   screenRuler.redraw();
 };
 
-// 切换标尺类型
 async function toggleType() {
   const oldType = type.value;
   type.value = oldType === "horizontal" ? "vertical" : "horizontal";
@@ -103,23 +84,13 @@ async function toggleType() {
   screenRuler.redraw();
 }
 
-// 关闭标尺
 async function closeRuler() {
   await window.channel.closeScreenRuler();
 }
 
-/**
- * 拉伸开始：新增$event，记录【鼠标初始偏移】
- * @param {string} mode - left/right
- * @param {MouseEvent} e - 原生鼠标事件
- */
 async function startDrag(mode, e) {
-  // 禁止拖拽时重复触发
   if (dragState.isDragging) return;
-
-  // 获取窗口初始边界（全局坐标）
   const bounds = await window.channel.rulerGetBounds();
-  // 记录【鼠标相对于窗口的初始偏移】（消去点击位置的偏差）
   let mouseOffset = {
     x: e.screenX - bounds.x,
     y: e.screenY - bounds.y,
@@ -132,7 +103,6 @@ async function startDrag(mode, e) {
     };
   }
 
-  // 初始化锚定边界
   const anchor = {
     x:
       type.value === "horizontal" && mode === "left"
@@ -149,16 +119,13 @@ async function startDrag(mode, e) {
     resizeMode: mode,
     start: { ...bounds },
     anchor,
-    mouseOffset, // 保存初始偏移
+    mouseOffset,
   };
-  // 初始化全局鼠标坐标
   globalMousePos.x = e.screenX;
   globalMousePos.y = e.screenY;
   resizeMode.value = mode;
 }
-/**
- * 统一重置拖拽状态（避免状态残留）
- */
+
 const resetDragState = () => {
   dragState = {
     isDragging: false,
@@ -169,12 +136,11 @@ const resetDragState = () => {
   };
   resizeMode.value = "none";
 };
-// 生命周期钩子
+
 onMounted(async () => {
   initScreenRuler();
-  // 全局鼠标移动
+
   handleMouseMove = async (e) => {
-    // 双重校验：拖拽状态+鼠标是否按下（原生e.buttons，防止状态残留）
     if (!dragState.isDragging || e.buttons !== 1) {
       resetDragState();
       return;
@@ -182,28 +148,24 @@ onMounted(async () => {
 
     const mouseX = e.screenX;
     const mouseY = e.screenY;
-    const minSize = 150;
+    const minSize = 240;
     const { resizeMode, start, anchor, mouseOffset } = dragState;
     let newBounds = { ...start };
 
-    // 横向拉伸：锁定高度，补偿偏移
     if (type.value === "horizontal") {
       newBounds.height = start.height;
       if (resizeMode === "left") {
-        // 偏移补偿：鼠标X - 偏移量（让窗口边缘贴住鼠标，而非鼠标在窗口内）
         const targetX = Math.max(0, mouseX - mouseOffset.x);
-        newBounds.width = Math.max(mioSize, anchor.x - targetX);
+        newBounds.width = Math.max(minSize, anchor.x - targetX);
         newBounds.x = anchor.x - newBounds.width;
       } else if (resizeMode === "right") {
         const targetWidth = Math.max(
           minSize,
-          mouseX - anchor.x - mouseOffset.x
+          mouseX - anchor.x - mouseOffset.x,
         );
         newBounds.width = targetWidth;
       }
-    }
-    // 纵向拉伸：锁定宽度，补偿偏移
-    else {
+    } else {
       newBounds.width = start.width;
       if (resizeMode === "left") {
         const targetY = Math.max(0, mouseY - mouseOffset.y);
@@ -212,38 +174,34 @@ onMounted(async () => {
       } else if (resizeMode === "right") {
         const targetHeight = Math.max(
           minSize,
-          mouseY - anchor.y - mouseOffset.y
+          mouseY - anchor.y - mouseOffset.y,
         );
         newBounds.height = targetHeight;
       }
     }
 
     await window.channel.rulerSetBounds(newBounds);
-    // 同步更新本地状态
+    rulerWidth.value = newBounds.width;
+    rulerHeight.value = newBounds.height;
+    winPos.value = { x: newBounds.x, y: newBounds.y };
+
     if (screenRuler) {
       screenRuler.updateSize(newBounds.width, newBounds.height);
       screenRuler.updateWinPos({ x: newBounds.x, y: newBounds.y });
       screenRuler.redraw();
     }
-    rulerWidth.value = newBounds.width;
-    rulerHeight.value = newBounds.height;
-    winPos.value = { x: newBounds.x, y: newBounds.y };
   };
 
-  // 鼠标松开/离开：重置状态
   handleMouseUp = () => resetDragState();
   handleMouseLeave = () => resetDragState();
 
-  // 绑定全局事件，鼠标移除窗口外也能响应鼠标移动事件（window级别，document都不行）
   window.addEventListener("mousemove", handleMouseMove);
   window.addEventListener("mouseup", handleMouseUp);
   window.addEventListener("mouseleave", handleMouseLeave);
 
-  // 监听主进程resize事件
   if (window.channel?.onRulerResize) {
     removeResizeListener = window.channel.onRulerResize((bounds) => {
       if (!dragState.isDragging) {
-        // 拖拽时忽略主进程推送，避免冲突
         rulerWidth.value = bounds.width;
         rulerHeight.value = bounds.height;
         winPos.value = { x: bounds.x, y: bounds.y };
@@ -256,35 +214,35 @@ onMounted(async () => {
   watch(type, () => {
     if (screenRuler) screenRuler.redraw();
   });
+});
 
-  // 卸载时清理
-  onUnmounted(() => {
-    resetDragState();
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-    document.removeEventListener("mouseleave", handleMouseLeave);
-    if (removeResizeListener) removeResizeListener();
-  });
+onUnmounted(() => {
+  resetDragState();
+  window.removeEventListener("mousemove", handleMouseMove);
+  window.removeEventListener("mouseup", handleMouseUp);
+  window.removeEventListener("mouseleave", handleMouseLeave);
+  if (removeResizeListener) removeResizeListener();
 });
 </script>
 
 <style type="scss" scoped>
 .ruler-container {
-  /* 关键属性：开启拖拽 */
   -webkit-app-region: drag;
   user-select: none;
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  /* 动态鼠标样式优先级最高 */
   cursor: move;
+  /* 为子元素居中提供参考 */
+  box-sizing: border-box;
 }
 
 .ruler-container .ruler-controls,
 .ruler-container .resize-btn {
-  /* 明确标记按钮区域不参与窗口拖拽 */
   -webkit-app-region: no-drag !important;
+  /* 统一盒模型，避免padding/border影响尺寸 */
+  box-sizing: border-box;
 }
 
 .ruler-canvas {
@@ -293,14 +251,20 @@ onMounted(async () => {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   transform: translateZ(0);
+  display: block;
 }
 
+/* 控制按钮容器：通用居中方案，适配横竖 */
 .ruler-controls {
   position: absolute;
-  width: 40px;
-  height: 20px;
+  /* 移除固定宽高，由子元素自适应 */
+  width: auto;
+  height: auto;
+  /* 横向标尺：左偏移40px，垂直居中 */
   left: 40px;
-  top: 36px;
+  top: 50%;
+  /* 核心：垂直居中（抵消自身高度的50%） */
+  transform: translateY(-50%);
   display: flex;
   gap: 4px;
   z-index: 10;
@@ -311,18 +275,26 @@ onMounted(async () => {
   width: 18px;
   height: 18px;
   padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 确保按钮本身内容居中 */
+  flex-shrink: 0;
 }
 
 .icon {
   width: 14px;
   height: 14px;
   color: #000;
+  /* 确保图标自适应按钮尺寸 */
+  flex-shrink: 0;
 }
 
 .control-btn:hover .icon {
   color: #046e75;
 }
 
+/* 拖拽按钮：通用样式，统一居中逻辑 */
 .resize-btn {
   position: absolute;
   width: 16px;
@@ -330,47 +302,87 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 按钮单独设置鼠标样式，确保可点击 */
   cursor: ew-resize;
+  /* 确保按钮不被挤压 */
+  flex-shrink: 0;
 
   .icon {
     color: #575757;
     font-size: 14px;
     font-weight: bold;
     line-height: 1;
+    transform-origin: center center;
+    flex-shrink: 0;
   }
 }
 
-/* 拉伸按钮垂直居中 */
+/* 横向标尺：拖拽按钮垂直居中（核心修复） */
 .resize-left {
   left: 2px;
-  top: 46%;
+  /* 垂直居中：top 50% + transform Y轴偏移 */
+  top: 50%;
   transform: translateY(-50%);
 }
 
 .resize-right {
   right: 2px;
-  top: 46%;
+  /* 垂直居中：和左侧按钮一致 */
+  top: 50%;
   transform: translateY(-50%);
 }
 
+/* 纵向标尺样式修正（核心：所有居中逻辑重构） */
 .ruler-vertical {
-  .resize-btn {
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    cursor: ns-resize;
+  /* 控制按钮：横向居中，上偏移40px */
+  .ruler-controls {
+    /* 移除固定宽高，适配竖向排列 */
+    width: auto;
+    height: auto;
+    /* 横向居中 + 上偏移40px */
+    left: 50%;
+    top: 40px;
+    /* 核心：横向居中（抵消自身宽度的50%） */
+    transform: translateX(-50%);
+    /* 竖向排列 */
+    flex-direction: column;
+    gap: 4px;
   }
+
+  /* 拖拽按钮样式修正 */
+  .resize-btn {
+    cursor: ns-resize;
+
+    /* 左侧按钮（顶部）顺时针旋转90° */
+    &.resize-left .icon {
+      transform: rotate(90deg);
+    }
+
+    /* 右侧按钮（底部）逆时针旋转90°（修复之前的错误旋转） */
+    &.resize-right .icon {
+      transform: rotate(-90deg);
+    }
+  }
+
+  /* 纵向标尺：拖拽按钮横向居中 */
   .resize-left {
+    /* 横向居中 + 上偏移2px */
     left: 50%;
     top: 2px;
+    /* 核心：横向居中（抵消自身宽度的50%） */
     transform: translateX(-50%);
+    /* 覆盖横向的top/transform */
+    right: auto;
   }
+
   .resize-right {
+    /* 横向居中 + 下偏移2px */
     left: 50%;
     bottom: 2px;
+    /* 覆盖横向的top属性 */
+    top: auto;
+    /* 核心：横向居中 */
     transform: translateX(-50%);
+    right: auto;
   }
 }
-
 </style>

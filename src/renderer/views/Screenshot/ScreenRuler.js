@@ -1,198 +1,164 @@
 export default class ScreenRuler {
-    // 静态常量配置（适配FastStone刻度标准）
-    static get FIXED_EDGE_SIZE() { return 100; }
+    // 静态常量配置（完全对齐FastStone物理像素标准，无变更）
+    static get FIXED_EDGE_SIZE() { return 100 * (window.devicePixelRatio || 1); }
     static get RULER_CONFIG() {
         return {
-            // 三层刻度间隔（FastStone标准）
-            MAJOR_TICK_INTERVAL: 50,    // 主刻度：50px
-            MINOR_TICK_INTERVAL: 10,    // 次刻度：10px
-            FINE_TICK_INTERVAL: 1,      // 微刻度：1px
-            // 三层刻度长度（FastStone视觉比例）
-            MAJOR_TICK_LENGTH: 14,      // 主刻度长度
-            MINOR_TICK_LENGTH: 9,       // 次刻度长度
-            FINE_TICK_LENGTH: 7,        // 微刻度长度
-            // 其他配置
+            // 三层刻度间隔（物理像素）
+            MAJOR_TICK_INTERVAL: 50,
+            MINOR_TICK_INTERVAL: 10,
+            FINE_TICK_INTERVAL: 2,
+            // 三层刻度长度（物理像素）
+            MAJOR_TICK_LENGTH: 14,
+            MINOR_TICK_LENGTH: 9,
+            FINE_TICK_LENGTH: 5,
+            // 基础配置（物理像素）
             CONTROL_AREA_SIZE: 80,
-            TEXT_FONT: "11px Arial, Helvetica, sans-serif",
-            TEXT_OFFSET: 22,            // 文本距离标尺边缘的偏移
-            DEFAULT_SIZE: { width: 800, height: 100 }
+            TEXT_FONT_BASE: "Arial, Helvetica, sans-serif",
+            TEXT_FONT_SIZE: 14 * (window.devicePixelRatio || 1),
+            TEXT_OFFSET: 22 * (window.devicePixelRatio || 1),
+            DEFAULT_SIZE: { width: 800 * (window.devicePixelRatio || 1), height: 100 * (window.devicePixelRatio || 1) },
+            // 中心尺寸文本配置（无变更，物理像素）
+            CENTER_TEXT_FONT_SIZE: 16 * (window.devicePixelRatio || 1),
+            CENTER_TEXT_COLOR: "#000",
+            CENTER_TEXT_BG_COLOR: "rgba(255, 255, 255, 0.8)",
+            CENTER_TEXT_PADDING: 0 * (window.devicePixelRatio || 1),
+            CENTER_TEXT_BORDER_RADIUS: 4 * (window.devicePixelRatio || 1)
         };
     }
-
-    /**
-     * 构造函数
-     * @param {HTMLCanvasElement} canvas - 画布元素
-     * @param {Object} options - 初始化选项
-     */
     constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
-
-        // 初始化配置
-        this.type = options.type || "horizontal"; // horizontal/vertical
+        this.dpr = window.devicePixelRatio || 1;
+        this.type = options.type || "horizontal";
         this.winPos = options.winPos || { x: 0, y: 0 };
         this.mousePos = { x: 0, y: 0 };
-        this.size = {
+        this.physicalSize = {
             width: options.width || ScreenRuler.RULER_CONFIG.DEFAULT_SIZE.width,
             height: options.height || ScreenRuler.RULER_CONFIG.DEFAULT_SIZE.height
         };
-
-        // 初始化画布上下文和尺寸
+        this.cssSize = {
+            width: Math.floor(this.physicalSize.width / this.dpr),
+            height: Math.floor(this.physicalSize.height / this.dpr)
+        };
         this._initContext();
-
-        // 首次绘制
         this.redraw();
     }
 
-    /**
-     * 初始化画布上下文（禁用抗锯齿）
-     * @private
-     */
     _initContext() {
         if (!this.ctx) return;
-
-        // 禁用抗锯齿，保证刻度清晰
         this.ctx.imageSmoothingEnabled = false;
         this.ctx.webkitImageSmoothingEnabled = false;
         this.ctx.msImageSmoothingEnabled = false;
-
-        // 文本默认对齐方式
+        this.ctx.lineCap = 'butt';
+        this.ctx.lineJoin = 'miter';
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
-
-        // 设置画布尺寸
-        const { fixed, dynamic } = this.getCanvasSize();
-        this.canvas.width = fixed;
-        this.canvas.height = dynamic;
-        this.canvas.style.width = `${fixed}px`;
-        this.canvas.style.height = `${dynamic}px`;
+        this.canvas.width = this.physicalSize.width;
+        this.canvas.height = this.physicalSize.height;
+        this.canvas.style.width = `${this.cssSize.width}px`;
+        this.canvas.style.height = `${this.cssSize.height}px`;
     }
 
-    /**
-     * 计算画布尺寸
-     * @returns {Object} { fixed, dynamic }
-     */
-    getCanvasSize() {
+    getCanvasPhysicalSize() {
+        const physicalFixed = this.type === "horizontal"
+            ? this.physicalSize.width
+            : ScreenRuler.FIXED_EDGE_SIZE;
+        const physicalDynamic = this.type === "horizontal"
+            ? ScreenRuler.FIXED_EDGE_SIZE
+            : this.physicalSize.height;
         return {
-            fixed: this.type === "horizontal"
-                ? this.size.width
-                : ScreenRuler.FIXED_EDGE_SIZE,
-            dynamic: this.type === "horizontal"
-                ? ScreenRuler.FIXED_EDGE_SIZE
-                : this.size.height
+            fixed: Math.floor(physicalFixed),
+            dynamic: Math.floor(physicalDynamic)
         };
     }
 
-    /**
-     * 更新标尺类型（横/竖）
-     * @param {string} newType - horizontal/vertical
-     */
     updateType(newType) {
         if (!["horizontal", "vertical"].includes(newType)) return;
-
         this.type = newType;
+        const { fixed, dynamic } = this.getCanvasPhysicalSize();
+        this.physicalSize = {
+            width: this.type === "horizontal" ? fixed : dynamic,
+            height: this.type === "horizontal" ? dynamic : fixed
+        };
+        this.cssSize = {
+            width: Math.floor(this.physicalSize.width / this.dpr),
+            height: Math.floor(this.physicalSize.height / this.dpr)
+        };
         this._initContext();
         this.redraw();
     }
 
-    /**
-     * 更新标尺尺寸
-     * @param {number} width - 宽度
-     * @param {number} height - 高度
-     */
     updateSize(width, height) {
         if (!width || !height || width <= 0 || height <= 0) return;
-
-        this.size = { width, height };
+        this.physicalSize = {
+            width: Math.floor(width * this.dpr),
+            height: Math.floor(height * this.dpr)
+        };
+        this.cssSize = { width, height };
         this._initContext();
         this.redraw();
     }
 
-    /**
-     * 更新窗口位置
-     * @param {Object} pos - { x, y }
-     */
     updateWinPos(pos) {
         if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
         this.winPos = pos;
         this.redraw();
     }
 
-    /**
-     * 更新鼠标位置
-     * @param {Object} pos - { x, y }
-     */
     updateMousePos(pos) {
         if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
         this.mousePos = pos;
         this.redraw();
     }
 
-    /**
-     * 核心绘制逻辑
-     */
+    // 核心绘制逻辑【仅新增了_centerSizeText调用，其余不变】
     redraw() {
         if (!this.ctx || !this.canvas) return;
-
         this.ctx.save();
-
         const isHorizontal = this.type === "horizontal";
-        const { fixed: w, dynamic: h } = this.getCanvasSize();
+        const { fixed: w, dynamic: h } = this.getCanvasPhysicalSize();
         const [floorW, floorH] = [Math.floor(w), Math.floor(h)];
 
-        // 清空画布并绘制背景
-        this.ctx.clearRect(0, 0, floorW, floorH);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillStyle = "rgba(220, 250, 245, 0.9)";
         this.ctx.fillRect(0, 0, floorW, floorH);
 
-        // 计算控制区域（中间无刻度区域）
-        const center = Math.floor(isHorizontal ? h / 2 : w / 2);
-        const { CONTROL_AREA_SIZE } = ScreenRuler.RULER_CONFIG;
-
-        // 设置基础样式
-        this.ctx.strokeStyle = "#333";
+        const center = Math.floor((isHorizontal ? ScreenRuler.FIXED_EDGE_SIZE : ScreenRuler.FIXED_EDGE_SIZE) / 2);
+        this.ctx.strokeStyle = "#000";
         this.ctx.fillStyle = "#000";
         this.ctx.lineWidth = 1;
-        this.ctx.font = ScreenRuler.RULER_CONFIG.TEXT_FONT;
+        this.ctx.font = `bold ${ScreenRuler.RULER_CONFIG.TEXT_FONT_SIZE}px ${ScreenRuler.RULER_CONFIG.TEXT_FONT_BASE}`;
 
-        // 绘制三层刻度（核心优化）
         this._drawThreeLevelTicks(isHorizontal, floorW, floorH, center);
-
-        // 绘制主刻度文本
         this._drawTickText(isHorizontal, floorW, floorH, center);
-
-        // 绘制鼠标标线（取消注释启用）
-        // this._drawMouseLine(isHorizontal, floorW, floorH, center - CONTROL_AREA_SIZE/2, center + CONTROL_AREA_SIZE/2, center);
-
-        // 绘制边框
+        // 绘制中心物理像素尺寸【核心保留】
+        this._drawCenterSizeText(isHorizontal, floorW, floorH);
         this._drawBorder(floorW, floorH);
 
         this.ctx.restore();
     }
 
-    /**
-     * 绘制三层刻度（核心修改：微刻度添加1px间距）
-     * @private
-     */
+    // 三层刻度绘制
     _drawThreeLevelTicks(isHorizontal, w, h) {
-        const maxLength = isHorizontal ? w : h;
         const config = ScreenRuler.RULER_CONFIG;
+        const physicalMaxLength = isHorizontal ? this.physicalSize.width : this.physicalSize.height;
+        if (physicalMaxLength <= 0) return;
 
-        if (maxLength <= 0) return;
-
-        // 强制关闭所有抗锯齿相关设置
+        this.ctx.save();
+        this.ctx.translate(0.5, 0.5);
         this.ctx.imageSmoothingEnabled = false;
         this.ctx.webkitImageSmoothingEnabled = false;
         this.ctx.msImageSmoothingEnabled = false;
-        this.ctx.lineCap = 'butt'; // 线条端点为直角，避免圆角扩散
+        this.ctx.lineCap = 'butt';
+        this.ctx.lineJoin = 'miter';
 
-        // 主刻度（50px间隔)
+        // 主刻度
         this.ctx.beginPath();
         this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 1; // 主刻度宽度
-        for (let i = 0; i <= maxLength; i += config.MAJOR_TICK_INTERVAL) {
-            if (i == 0) continue;
-            const pos = i + 0.5;
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i <= physicalMaxLength; i += config.MAJOR_TICK_INTERVAL) {
+            if (i === 0) continue;
+            const pos = Math.floor(i);
             if (isHorizontal) {
                 this.ctx.moveTo(pos, 0);
                 this.ctx.lineTo(pos, config.MAJOR_TICK_LENGTH);
@@ -208,13 +174,11 @@ export default class ScreenRuler {
         this.ctx.stroke();
         this.ctx.closePath();
 
-        // 2. 次刻度（10px间隔，中等长度)
+        // 次刻度
         this.ctx.beginPath();
-        this.ctx.strokeStyle = "#555"; // 次刻度单独设置颜色，区分微刻度
-        this.ctx.lineWidth = 1;
-        for (let i = 0; i <= maxLength; i += config.MINOR_TICK_INTERVAL) {
+        for (let i = 0; i <= physicalMaxLength; i += config.MINOR_TICK_INTERVAL) {
             if (i % config.MAJOR_TICK_INTERVAL === 0) continue;
-            const pos = i + 0.5; // 像素对齐
+            const pos = Math.floor(i);
             if (isHorizontal) {
                 this.ctx.moveTo(pos, 0);
                 this.ctx.lineTo(pos, config.MINOR_TICK_LENGTH);
@@ -232,112 +196,123 @@ export default class ScreenRuler {
 
         // 微刻度
         this.ctx.beginPath();
-        this.ctx.strokeStyle = "#000"; // 浅灰色，降低视觉融合度
-        this.ctx.lineWidth = 1; // 微刻度用1px宽度，避免细线条模糊
-        // 关键：步长改为2px，直接跳过1px，避免抗锯齿融合
-        for (let i = 0; i <= maxLength; i += 2) {
-            // 跳过主/次刻度（次刻度是10px，2px步长不会冲突）
+        for (let i = 0; i <= physicalMaxLength; i += config.FINE_TICK_INTERVAL) {
             if (i % config.MAJOR_TICK_INTERVAL === 0 || i % config.MINOR_TICK_INTERVAL === 0) continue;
-
-            const pos = i + 0.5; // 强制像素对齐
+            const pos = Math.floor(i);
             if (isHorizontal) {
-                // 微刻度长度缩短，进一步区分层级
                 this.ctx.moveTo(pos, 0);
-                this.ctx.lineTo(pos, config.FINE_TICK_LENGTH - 2);
+                this.ctx.lineTo(pos, config.FINE_TICK_LENGTH);
                 this.ctx.moveTo(pos, h);
-                this.ctx.lineTo(pos, h - (config.FINE_TICK_LENGTH - 2));
+                this.ctx.lineTo(pos, h - config.FINE_TICK_LENGTH);
             } else {
                 this.ctx.moveTo(0, pos);
-                this.ctx.lineTo(config.FINE_TICK_LENGTH - 2, pos);
+                this.ctx.lineTo(config.FINE_TICK_LENGTH, pos);
                 this.ctx.moveTo(w, pos);
-                this.ctx.lineTo(w - (config.FINE_TICK_LENGTH - 2), pos);
+                this.ctx.lineTo(w - config.FINE_TICK_LENGTH, pos);
             }
         }
         this.ctx.stroke();
         this.ctx.closePath();
+        this.ctx.restore();
     }
 
-    /**
-     * 绘制主刻度文本（FastStone风格，上下/左右都有）
-     * @private
-     */
+    // 刻度文本绘制
     _drawTickText(isHorizontal, w, h, center) {
-        const maxLength = isHorizontal ? w : h;
         const config = ScreenRuler.RULER_CONFIG;
-
-        if (maxLength <= 0) return;
+        const physicalMaxLength = isHorizontal ? this.physicalSize.width : this.physicalSize.height;
+        if (physicalMaxLength <= 0) return;
 
         this.ctx.fillStyle = "#000";
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
+        this.ctx.fontSmoothingEnabled = true;
+        this.ctx.webkitFontSmoothing = "antialiased";
+        this.ctx.font = `${config.TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
 
-        for (let i = 0; i <= maxLength; i += config.MAJOR_TICK_INTERVAL) {
+        for (let i = 0; i <= physicalMaxLength; i += config.MAJOR_TICK_INTERVAL) {
+            if (i === 0) continue;
             const pos = Math.floor(i);
-            if (i == 0) continue;
             if (isHorizontal) {
-                // 水平标尺：上下都显示文本
-                this.ctx.fillText(i.toString(), pos, config.TEXT_OFFSET);       // 上方文本
-                this.ctx.fillText(i.toString(), pos, h - config.TEXT_OFFSET);   // 下方文本
+                this.ctx.fillText(i.toString(), pos, config.TEXT_OFFSET);
+                this.ctx.fillText(i.toString(), pos, h - config.TEXT_OFFSET);
             } else {
-                // 垂直标尺：左右都显示文本（旋转90度）
-                // 左侧文本
                 this.ctx.save();
                 this.ctx.translate(config.TEXT_OFFSET, pos);
-                this.ctx.rotate(-Math.PI / 2);
                 this.ctx.fillText(i.toString(), 0, 0);
                 this.ctx.restore();
-
-                // 右侧文本
                 this.ctx.save();
                 this.ctx.translate(w - config.TEXT_OFFSET, pos);
-                this.ctx.rotate(-Math.PI / 2);
                 this.ctx.fillText(i.toString(), 0, 0);
                 this.ctx.restore();
             }
         }
     }
 
-    /**
-     * 绘制鼠标标线
-     * @private
-     */
-    _drawMouseLine(isHorizontal, w, h, controlStart, controlEnd, center) {
-        if (typeof this.winPos.x !== 'number' || typeof this.winPos.y !== 'number') return;
-        if (typeof this.mousePos.x !== 'number' || typeof this.mousePos.y !== 'number') return;
-
-        const [localX, localY] = [
-            Math.floor(this.mousePos.x - this.winPos.x),
-            Math.floor(this.mousePos.y - this.winPos.y)
-        ];
-
-        this.ctx.strokeStyle = "#ff4444";
-        this.ctx.lineWidth = 1.5;
-        this.ctx.globalAlpha = 0.8;
-
-        this.ctx.beginPath();
-        if (isHorizontal) {
-            if (localX >= 0 && localX <= w && (localX < controlStart || localX > controlEnd)) {
-                this.ctx.moveTo(localX, 0);
-                this.ctx.lineTo(localX, h);
-            }
+    // ==============================================
+    // 绘制中心物理像素尺寸（直接显示真实物理像素）
+    // ==============================================
+    _drawCenterSizeText(isHorizontal, w, h) {
+        const config = ScreenRuler.RULER_CONFIG;
+        // 直接使用物理像素值，不做任何转换！和标尺刻度完全一致
+        const displayValue = isHorizontal
+            ? Math.floor(this.physicalSize.width)  // 横向=物理宽度
+            : Math.floor(this.physicalSize.height); // 纵向=物理高度
+        let displayText = "";
+        if (this.type === "horizontal") {
+            displayText = `W=${displayValue} px`;
         } else {
-            if (localY >= 0 && localY <= h && (localY < controlStart || localY > controlEnd)) {
-                this.ctx.moveTo(0, localY);
-                this.ctx.lineTo(w, localY);
-            }
+            displayText = `H=${displayValue} px`;
         }
-        this.ctx.stroke();
-        this.ctx.closePath();
-        this.ctx.globalAlpha = 1;
+
+        // 中心坐标（物理像素，整数对齐，避免模糊）
+        let centerX = Math.floor(w / 2);
+        let centerY = Math.floor(h / 2);
+        if (this.type == "vertical") {
+            //  计算主刻度间隔（物理像素，和标尺刻度完全一致）
+            const majorTickInterval = config.MAJOR_TICK_INTERVAL;
+            // 找到中心位置最近的下方主刻度
+            const nearestMajorTick = Math.floor(centerY / majorTickInterval) * majorTickInterval;
+            // 计算两个主刻度的中间间隙（安全位置）
+            // 规则：放在「中心下方刻度」和「下一个刻度」的正中间
+            const safeY = nearestMajorTick + Math.floor(majorTickInterval / 2);
+
+            // 确保安全Y坐标在有效范围内（避免超出标尺）
+            const minY = majorTickInterval; // 避开顶部第一个刻度
+            const maxY = h - majorTickInterval; // 避开底部最后一个刻度
+            centerY = Math.max(minY, Math.min(maxY, safeY));
+        }
+
+        // 文本样式（不变，物理像素配置）
+        this.ctx.font = `bold ${config.CENTER_TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fontSmoothingEnabled = true;
+        this.ctx.webkitFontSmoothing = "antialiased";
+
+        // 绘制醒目物理像素数值（不变）
+        this.ctx.fillStyle = config.CENTER_TEXT_COLOR;
+        this.ctx.fillText(displayText, centerX, centerY);
     }
 
-    /**
-     * 绘制边框
-     * @private
-     */
+    // 圆角矩形辅助方法
+    _drawRoundedRect(x, y, width, height, radius) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + radius, y);
+        this.ctx.lineTo(x + width - radius, y);
+        this.ctx.arcTo(x + width, y, x + width, y + radius, radius);
+        this.ctx.lineTo(x + width, y + height - radius);
+        this.ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+        this.ctx.lineTo(x + radius, y + height);
+        this.ctx.arcTo(x, y + height, x, y + height - radius, radius);
+        this.ctx.lineTo(x, y + radius);
+        this.ctx.arcTo(x, y, x + radius, y, radius);
+        this.ctx.closePath();
+    }
+
+    // 边框绘制
     _drawBorder(w, h) {
         this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 1;
         this.ctx.beginPath();
         this.ctx.moveTo(0, 0);
         this.ctx.lineTo(0, h);
@@ -347,13 +322,21 @@ export default class ScreenRuler {
         this.ctx.closePath();
     }
 
-    /**
-     * 计算切换类型后的新尺寸
-     * @returns {Object} { width, height }
-     */
+    // 剩余方法
     calculateNewSize() {
-        return this.type === "horizontal"
-            ? { width: ScreenRuler.FIXED_EDGE_SIZE, height: this.size.width }
-            : { width: this.size.height, height: ScreenRuler.FIXED_EDGE_SIZE };
+        const newPhysicalWidth = this.type === "horizontal"
+            ? ScreenRuler.FIXED_EDGE_SIZE
+            : this.physicalSize.height;
+        const newPhysicalHeight = this.type === "horizontal"
+            ? this.physicalSize.width
+            : ScreenRuler.FIXED_EDGE_SIZE;
+        return {
+            width: Math.floor(newPhysicalWidth / this.dpr),
+            height: Math.floor(newPhysicalHeight / this.dpr)
+        };
     }
+
+    getCssSize() { return { ...this.cssSize }; }
+    getPhysicalSize() { return { ...this.physicalSize }; }
+    getCanvasSize() { return this.getCanvasPhysicalSize(); }
 }

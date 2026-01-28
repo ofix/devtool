@@ -205,11 +205,12 @@ class WndManager extends Singleton {
 
         // 获取屏幕尺寸
         const primaryDisplay = screen.getPrimaryDisplay();
+        const scaleFactor = primaryDisplay.scaleFactor || 1;
         const { width, height } = primaryDisplay.workAreaSize;
 
         // 标尺默认尺寸
-        const rulerWidth = options.type === 'horizontal' ? 800 : 100;
-        const rulerHeight = options.type === 'horizontal' ? 100 : 800;
+        const rulerWidth = options.type === 'horizontal' ? 800 : 100 * scaleFactor;
+        const rulerHeight = options.type === 'horizontal' ? 100 * scaleFactor : 800;
 
         this.screenRulerWnd = new BrowserWindow({
             width: rulerWidth,
@@ -225,6 +226,8 @@ class WndManager extends Singleton {
             // 禁止Electron自动调整窗口位置（避免尺寸变化后窗口跑偏）
             autoHideMenuBar: true,
             useContentSize: true, // 关键：尺寸基于内容区域，而非窗口边框
+            // 启用高DPI
+            enableHighDpi: true,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
