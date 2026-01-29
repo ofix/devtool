@@ -199,10 +199,10 @@ class WndManager extends Singleton {
     showMeasureLineWnd(options = { type: 'horizontal', visible: false, precision: 1 }) {
         if (options.visible) {
             this.createMeasureLineWindow();
-            
+
         } else {
             this.measureLineWnd?.hide();
-            
+
         }
     }
 
@@ -254,6 +254,14 @@ class WndManager extends Singleton {
             this.measureLineWnd = null;
         });
 
+        // 关键：在页面加载完成后设置层级（确保生效）
+        this.measureLineWnd.webContents.on('did-finish-load', () => {
+            // 使用floating层级（优先级高于normal）+ 更高的relativeLevel
+            this.measureLineWnd.setAlwaysOnTop(true, 'screen-saver', 0);
+            this.measureLineWnd.moveTop(); // 强制移到所有窗口之上
+        });
+
+
         return this.measureLineWnd;
     }
 
@@ -266,12 +274,19 @@ class WndManager extends Singleton {
 
         // 获取屏幕尺寸
         const primaryDisplay = screen.getPrimaryDisplay();
-        const scaleFactor = primaryDisplay.scaleFactor || 1;
+        // const scaleFactor = primaryDisplay.scaleFactor || 1;
         const { width, height } = primaryDisplay.workAreaSize;
 
+        /***************************************************************************
+         * 场景	               禁用enableHighDpiSupport()	       启用enableHighDpiSupport()
+         * DPR 读取	           返回 1.0（虚假值）	                返回 2.0（真实值）
+         * 窗口高度设置 100px	物理高度 = 100px（内容拉伸模糊）      物理高度 = 200px（内容清晰）
+         * 标尺 Canvas 渲染	    刻度模糊、锯齿明显	刻度清晰、1px     物理像素精准对齐
+         * getContentSize()	   返回物理像素值（100px）	            返回逻辑像素值（50px）
+         ***************************************************************************/
         // 标尺默认尺寸
-        const rulerWidth = options.type === 'horizontal' ? 800 : 100 * scaleFactor;
-        const rulerHeight = options.type === 'horizontal' ? 100 * scaleFactor : 800;
+        const rulerWidth = options.type === 'horizontal' ? 800 : 100;
+        const rulerHeight = options.type === 'horizontal' ? 100 : 800;
 
         this.screenRulerWnd = new BrowserWindow({
             width: rulerWidth,
@@ -286,7 +301,6 @@ class WndManager extends Singleton {
             movable: true, // 可拖拽
             // 禁止Electron自动调整窗口位置（避免尺寸变化后窗口跑偏）
             autoHideMenuBar: true,
-            useContentSize: true, // 关键：尺寸基于内容区域，而非窗口边框
             // 启用高DPI
             enableHighDpi: true,
             webPreferences: {
@@ -303,6 +317,13 @@ class WndManager extends Singleton {
             ? `${listenUrl}/#/screen-ruler`
             : `file://${path.join(__dirname, '../dist/index.html/#screen-ruler')}`
         );
+
+        // 设置层级，数值越高越靠前
+        // 预设层级常量（优先级从低到高）：normal < floating < tray < screen-saver < top-most
+        this.screenRulerWnd.webContents.on('did-finish-load', () => {
+            this.screenRulerWnd.setAlwaysOnTop(true, 'pop-up-menu', 0); // normal层级+10（低于measureLineWnd的30）
+        });
+
 
         // 监听窗口关闭
         this.screenRulerWnd.on('closed', () => {
