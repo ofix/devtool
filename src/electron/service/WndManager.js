@@ -249,6 +249,8 @@ class WndManager extends Singleton {
             : `file://${path.join(__dirname, '../dist/index.html/#/measure-line')}`
         );
 
+        this.measureLineWnd.setIgnoreMouseEvents(true, { forward: true });
+
         // 监听窗口关闭
         this.measureLineWnd.on('closed', () => {
             this.measureLineWnd = null;
