@@ -15,8 +15,8 @@ class WndManager extends Singleton {
         this.captureMode = 'rect';
         this.screenRulerWnd = null; // 屏幕标尺窗口
         this.bindMouseEvents = null;     // 截图编辑窗口（全屏透明窗口）
-
-
+        this.measureLineWnd = null; // 屏幕测量线窗口
+        this.measureLineWndVisible = false;
     }
 
     /**
@@ -196,6 +196,67 @@ class WndManager extends Singleton {
         return this.captureWnd;
     }
 
+    showMeasureLineWnd(options = { type: 'horizontal', visible: false, precision: 1 }) {
+        if (options.visible) {
+            this.createMeasureLineWindow();
+            
+        } else {
+            this.measureLineWnd?.hide();
+            
+        }
+    }
+
+    // 创建屏幕标尺测量线
+    createMeasureLineWindow(options = { type: 'horizontal', precision: 1 }) {
+        if (this.measureLineWnd) {
+            this.measureLineWnd.show();
+            return this.measureLineWnd;
+        }
+
+        let width = 10;
+        let height = 30;
+        if (options.type != 'horizontal') {
+            width = 30;
+            height = 10;
+        }
+        this.measureLineWnd = new BrowserWindow({
+            width: width,
+            height: height,
+            x: -100,
+            y: -100,
+            frame: false, // 无边框
+            transparent: true, // 透明背景
+            alwaysOnTop: true, // 置顶
+            resizable: false, // 可缩放
+            aspectRatio: undefined, // 清空宽高比约束
+            movable: true, // 可拖拽
+            focusable: false,           // 不获取焦点
+            // 禁止Electron自动调整窗口位置（避免尺寸变化后窗口跑偏）
+            autoHideMenuBar: true,
+            useContentSize: true, // 关键：尺寸基于内容区域，而非窗口边框
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                devTools: false,
+                preload: path.join(__dirname, '../preload.cjs')
+            },
+        });
+
+        // 加载标尺页面
+        let listenUrl = process.argv[2];
+        this.measureLineWnd.loadURL(process.env.NODE_ENV === 'development'
+            ? `${listenUrl}/#/measure-line`
+            : `file://${path.join(__dirname, '../dist/index.html/#/measure-line')}`
+        );
+
+        // 监听窗口关闭
+        this.measureLineWnd.on('closed', () => {
+            this.measureLineWnd = null;
+        });
+
+        return this.measureLineWnd;
+    }
+
     // 打开屏幕标尺窗口
     createScreenRulerWindow(options = { type: 'horizontal', precision: 1 }) {
         if (this.screenRulerWnd) {
@@ -248,18 +309,6 @@ class WndManager extends Singleton {
             this.screenRulerWnd = null;
         });
 
-        // 全局鼠标监听（实时传递坐标）
-        const mouseMoveHandler = (e) => {
-            if (this.screenRulerWnd && !this.screenRulerWnd.isDestroyed()) {
-                this.screenRulerWnd.webContents.send('mouse-position', {
-                    x: e.x,
-                    y: e.y,
-                    screenWidth: primaryDisplay.size.width,
-                    screenHeight: primaryDisplay.size.height,
-                });
-            }
-        };
-
         // 绑定鼠标事件
         globalShortcut.register('Escape', () => {
             if (this.screenRulerWnd) {
@@ -268,9 +317,7 @@ class WndManager extends Singleton {
             }
         });
 
-        screen.on('mouse-move', mouseMoveHandler);
         this.screenRulerWnd.on('closed', () => {
-            screen.off('mouse-move', mouseMoveHandler);
             globalShortcut.unregister('Escape');
         });
         return this.screenRulerWnd;

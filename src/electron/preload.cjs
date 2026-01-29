@@ -67,4 +67,5 @@ contextBridge.exposeInMainWorld('channel', {
     rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
     rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
     rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
+    updateMeasureLinePos: (option) => ipcRenderer.invoke('ruler:update-measure-line-pos', option),
 })

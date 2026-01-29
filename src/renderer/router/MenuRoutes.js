@@ -8,6 +8,7 @@ import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
 import ScreenshotTool from "@/views/Screenshot/ScreenshotTool.vue";
 import Capture from "@/views/Screenshot/Capture.vue";
 import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
+import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
 
 const MenuRoutes = [
     {
@@ -120,6 +121,16 @@ const MenuRoutes = [
         meta: {
             icon: SSHIcon,
             title: '屏幕标尺',
+            desc: ''
+        }
+    },
+    {
+        path: '/measure-line',
+        name: 'measure-line',
+        component: MeasureLine,
+        meta: {
+            icon: SSHIcon,
+            title: '屏幕测量线',
             desc: ''
         }
     },

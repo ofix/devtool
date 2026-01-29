@@ -243,25 +243,34 @@ class IPCManager extends Singleton {
             }
             const bounds = this.screenRulerWnd.getBounds();
             this.screenRulerWnd.setBounds({
-                x:bounds.x,
-                y:bounds.y,
-                width:bounds.height,
-                height:bounds.width
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.height,
+                height: bounds.width
             }); // 交换宽高实现横竖切换
-            return { width: bounds.height, height: bounds.width}; // 返回新尺寸
+            return { width: bounds.height, height: bounds.width }; // 返回新尺寸
+        });
+        // 显示或者隐藏标尺线
+        ipcMain.handle("ruler:update-measure-line-pos", (_, option) => {
+            if (option.visible) {
+                WndManager.getInstance().measureLineWnd?.setPosition(option.x, option.y);
+                WndManager.getInstance().showMeasureLineWnd(option);
+                console.log("show measure line ");
+            } else {
+                WndManager.getInstance().showMeasureLineWnd(option);
+                console.log("hide measure line ");
+            }
         });
         // 获取标尺窗口尺寸
         ipcMain.handle('ruler:get-size', () => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { width: 0, height: 0 };
             const [w, h] = this.screenRulerWnd.getSize();
-            console.log("ruler:get-size: ", w, h);
             return { width: w, height: h };
         });
         // 获取标尺窗口位置
         ipcMain.handle('ruler:get-position', () => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return { x: 0, y: 0 };
             const [x, y] = this.screenRulerWnd.getPosition();
-            console.log("ruler:get-position: ", x, y);
             return { x, y };
         });
         ipcMain.handle("ruler:get-bounds", (_) => {
@@ -273,7 +282,6 @@ class IPCManager extends Singleton {
         // 设置标尺窗口位置和宽高
         ipcMain.handle("ruler:set-bounds", (_, bounds) => {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) return;
-            console.log("ruler:set-bounds:", bounds.x, bounds.y, bounds.width, bounds.height);
             this.screenRulerWnd.setBounds(bounds);
         })
         // 各种工具命令
