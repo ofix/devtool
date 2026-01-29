@@ -241,9 +241,14 @@ class IPCManager extends Singleton {
             if (!this.screenRulerWnd || this.screenRulerWnd.isDestroyed()) {
                 return;
             }
-            const [w, h] = this.screenRulerWnd.getSize();
-            this.screenRulerWnd.setSize(h, w); // 交换宽高实现横竖切换
-            return { width: h, height: w }; // 返回新尺寸
+            const bounds = this.screenRulerWnd.getBounds();
+            this.screenRulerWnd.setBounds({
+                x:bounds.x,
+                y:bounds.y,
+                width:bounds.height,
+                height:bounds.width
+            }); // 交换宽高实现横竖切换
+            return { width: bounds.height, height: bounds.width}; // 返回新尺寸
         });
         // 获取标尺窗口尺寸
         ipcMain.handle('ruler:get-size', () => {

@@ -220,7 +220,7 @@ class WndManager extends Singleton {
             frame: false, // 无边框
             transparent: true, // 透明背景
             alwaysOnTop: true, // 置顶
-            resizable: true, // 可缩放
+            resizable: false, // 可缩放
             aspectRatio: undefined, // 清空宽高比约束
             movable: true, // 可拖拽
             // 禁止Electron自动调整窗口位置（避免尺寸变化后窗口跑偏）
