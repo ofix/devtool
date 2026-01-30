@@ -74,7 +74,7 @@ const closeBtn = ref(null);
 onMounted(() => {
   // 绑定事件（使用模板 ref，避免多次 getElementById）
   captureBtn.value?.addEventListener("click", async () => {
-    window.channel.showScreenshotTool();
+    window.channel.showWindow("ScreenshotToolWnd");
   });
   minBtn.value?.addEventListener("click", () =>
     window.channel.send("window-minimize")

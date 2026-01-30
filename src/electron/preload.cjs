@@ -43,11 +43,9 @@ contextBridge.exposeInMainWorld('channel', {
     doPatch: (options) => ipcRenderer.invoke("https:patch", options),
     doPut: (options) => ipcRenderer.invoke("https:put", options),
     // 控制窗口
-    showWindow: (window) => ipcRenderer.invoke("show-window", window),
-    hideWindow: (window) => ipcRenderer.invoke("hide-window", window),
+    showWindow: (wndName,options={}) => ipcRenderer.invoke("show-window", wndName,options),
+    hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
     // 屏幕截图
-    showScreenshotTool: () => ipcRenderer.invoke("open-screenshot-tool"),
-    closeScreenshotTool: () => ipcRenderer.invoke("close-screenshot-tool"),
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
     cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
     getCaptureMode: () => ipcRenderer.invoke("get-capture-mode"),

@@ -214,7 +214,7 @@ async function onClickColorPicker() {
 async function onSettings() {}
 
 async function onClose(){
-    await window.channel.closeScreenshotTool();
+    await window.channel.hideWindow('ScreenshotToolWnd');
 }
 
 // 全局快捷键处理
