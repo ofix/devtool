@@ -352,7 +352,7 @@ export default class Screenshot {
     }
 
     onMouseLeave() {
-        wnd.log("mouse leave");
+        dt.log("mouse leave");
     }
 
     onKeyDown(e) {

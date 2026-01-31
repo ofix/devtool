@@ -193,10 +193,9 @@ async function onClickRecordVideo() {
 async function onClickScreenRuler() {
   try {
     activeTool.value = "ruler";
-    await window.channel.openScreenRuler();
+    await window.channel.showWindow("ScreenRulerWnd", {});
   } catch (error) {
     console.error("打开屏幕标尺失败:", error);
-    ElMessage.error("打开屏幕标尺失败");
   }
 }
 
@@ -213,8 +212,8 @@ async function onClickColorPicker() {
 
 async function onSettings() {}
 
-async function onClose(){
-    await window.channel.hideWindow('ScreenshotToolWnd');
+async function onClose() {
+  await window.channel.hideWindow("ScreenshotToolWnd");
 }
 
 // 全局快捷键处理

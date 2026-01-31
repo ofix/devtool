@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import ShortcutManager from './service/ShortcutManager.js';
 import IPCManager from "./service/IPCManager.js"
 import WndManager from "./service/WndManager.js"
+import debugLogger from './service/DebugLogger.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -23,6 +24,37 @@ class DevTool {
                     wndManager.createScreenshotToolWindow();
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
+            }, {
+                shortcut: "F10",
+                callback: () => {
+                    const wndManager = WndManager.getInstance();
+                    let wnd = wndManager.getWindow('DebugWnd');
+                    if (wnd && !wnd.isDestroyed()) {
+                        wnd.isVisible() ? wnd.hide() : wnd.show();
+                    } else {
+                        wndManager.showWindow('DebugWnd', {});
+                        const debugWindow = wndManager.getWindow('DebugWnd');
+                        // 设置日志回调
+                        debugLogger.setLogCallback((log) => {
+                            if (debugWindow && debugWindow.isVisible()) {
+                                console.log("发送新日志到调试窗口: ", log);
+                                debugWindow.webContents.send('new-log', log);
+                            }
+                        });
+                        if (debugWindow) {
+                            debugWindow.webContents.on('dom-ready', () => {
+                                debugWindow.show();
+                                const incrementalLogs = debugLogger.getIncrementalLogs();
+                                if (incrementalLogs.length > 0) {
+                                    debugWindow.webContents.send('incremental-logs', incrementalLogs); // 新增IPC事件：增量日志
+                                }
+                            });
+                        }
+                        // 第一次显示的时候推送历史日志
+
+                    }
+                },
+                description: '显示/隐藏 调试窗口'
             }
         ];
     }
@@ -69,7 +101,6 @@ class DevTool {
         let listenUrl = process.argv[2];
         if (listenUrl) {
             this.mainWnd.loadURL(listenUrl);
-            this.mainWnd.webContents.openDevTools();
         } else {
             // __dirname 是当前 main.js 所在目录：src/electron
             // ../../dist/renderer/index.html = app.asar/dist/renderer/index.html

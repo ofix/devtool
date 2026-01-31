@@ -5,6 +5,8 @@ import screenshot from 'screenshot-desktop';
 import WndManager from './WndManager.js';
 import Singleton from "./Singleton.js";
 import windowInfo from "./WindowInfo.js";
+import debugLogger from './DebugLogger.js';
+// 日志缓存上限
 
 class IPCManager extends Singleton {
     constructor(window) {
@@ -40,6 +42,16 @@ class IPCManager extends Singleton {
     }
 
     startListen() {
+        ipcMain.on('console-log', (event, data) => {
+            debugLogger.addLog(data);
+        });
+        ipcMain.on('clear-debug-logs', () => {
+            debugLogger.clearLogs();
+            const debugWindow = WndManager.getInstance().getWindow('DebugWnd');
+            if (debugWindow && debugWindow.isVisible()) {
+                debugWindow.webContents.send('clear-log');
+            }
+        });
         // 连接SFTP服务器
         ipcMain.handle("ssh:connect", async (event, config) => {
             try {
@@ -149,7 +161,18 @@ class IPCManager extends Singleton {
             return WndManager.getInstance().showWindow(wndName, option)
         });
         ipcMain.handle("hide-window", (event, wndName) => {
-            return WndManager.getInstance.hideWindow(wndName);
+            return WndManager.getInstance().hideWindow(wndName);
+        });
+        ipcMain.handle("close-window", (event, wndName) => {
+            return WndManager.getInstance().closeWindow(wndName);
+        });
+        ipcMain.handle("get-window-options", (event, wndName) => {
+            const manager = WndManager.getInstance();
+            const wnd = manager.getWindow(wndName);
+            if (wnd) {
+                return manager.getWindowOptions(wndName);
+            }
+            return null;
         });
         // 枚举所有窗口列表（EnumWindowList）
         ipcMain.handle('enum-window-list', async () => {
@@ -173,27 +196,17 @@ class IPCManager extends Singleton {
                 return [];
             }
         });
-        ipcMain.handle('open-screenshot-tool', (_, option) => {
-            WndManager.getInstance().showWindow("ScreenshotToolWnd", option)
-        })
-        ipcMain.handle('close-screenshot-tool', (_) => {
-            WndManager.getInstance().closeWindow("ScreenshotToolWnd");
-        })
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', async (event, option) => {
             await this.preloadScreenshot();
             let manager = WndManager.getInstance();
             manager.hideWindow('ScreenshotToolWnd');
-            manager.showWindow('CaptureWnd',option);
+            manager.showWindow('CaptureWnd', option);
         });
         ipcMain.handle('cancel-screenshot', async (event) => {
             let manager = WndManager.getInstance();
             manager.closeWindow('CaptureWnd');
             manager.showWindow('ScreenshotToolWnd');
-        });
-        ipcMain.handle("get-capture-mode", (event) => {
-            let captureMode = WndManager.getInstance().getCaptureMode();
-            return captureMode;
         });
         // 完成滚动截图拼接
         ipcMain.handle('finish-screenshot', async () => {
@@ -203,14 +216,6 @@ class IPCManager extends Singleton {
         });
         // 暂存滚动截图
         ipcMain.on('save-scroll-screenshot', (event, screenshotBase64) => {
-        });
-        // 打开标尺
-        ipcMain.handle('open-ruler', async (_, options) => {
-            WndManager.getInstance().showWindow("ScreenRulerWnd", options);
-        });
-        // 关闭标尺
-        ipcMain.handle('close-ruler', async () => {
-            WndManager.getInstance().closeWindow("ScreenRulerWnd");
         });
         // 切换标尺方向（调整窗口尺寸）
         ipcMain.handle('ruler:toggle-type', () => {
@@ -226,15 +231,6 @@ class IPCManager extends Singleton {
                 height: bounds.width
             }); // 交换宽高实现横竖切换
             return { width: bounds.height, height: bounds.width }; // 返回新尺寸
-        });
-        // 显示或者隐藏标尺线
-        ipcMain.handle("ruler:update-measure-line-pos", (_, option) => {
-            let manager = WndManager.getInstance();
-            if (option.visible) {
-                manager.showWindow('MeasureLineWnd', option);
-            } else {
-                manager.hideWindow('MeasureLineWnd');
-            }
         });
         // 获取标尺窗口尺寸
         ipcMain.handle('ruler:get-size', () => {

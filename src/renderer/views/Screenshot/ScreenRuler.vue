@@ -172,13 +172,17 @@ const isInMeasureArea = (mouseX, mouseY) => {
  * 防抖更新测量线位置（Electron IPC通信，避免高频调用）
  */
 const debounceUpdatePos = debounce((params) => {
-  if (!window.channel) return;
-  window.channel.updateMeasureLinePos({
-    x: params.x,
-    y: params.y,
-    type: type.value,
-    visible: params.visible,
-  });
+  if (params.visible) {
+    dt.log("显示游标线", params);
+    window.channel.showWindow("MeasureLineWnd", {
+      x: params.x,
+      y: params.y,
+      type: type.value,
+    });
+  } else {
+    dt.log("隐藏游标线");
+    window.channel.hideWindow("MeasureLineWnd");
+  }
 }, 20);
 
 /**
@@ -263,8 +267,7 @@ async function closeRuler() {
   clearTimeout(measureLineTimer);
   measureLineVisible = false;
   debounceUpdatePos({ x: 0, y: 0, visible: false });
-  // 关闭窗口
-  await window.channel?.closeScreenRuler();
+  window.channel.closeWindow("ScreenRulerWnd");
 }
 
 /**
@@ -305,7 +308,6 @@ async function startDrag(mode, e) {
   };
   resizeMode.value = mode;
 }
-
 /**
  * 重置拖拽状态
  */
@@ -428,7 +430,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  // ========== 强制清理所有状态和事件 ==========
   clearTimeout(measureLineTimer);
   measureLineVisible = false;
   resetDragState();

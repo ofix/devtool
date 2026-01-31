@@ -9,19 +9,22 @@ const __dirname = dirname(__filename);
 class WndManager extends Singleton {
     constructor() {
         super();
-        this.captureMode = 'rect';
         this.wndMap = new Map();
-        this.wndInitialOptions = new Map(); // 窗口初始化选项，用于后续获取
+        this.windowOptionsCache = new Map(); // 统一存储窗口的最新选项
 
+        // 分离BrowserWindow配置和自定义配置
         this.windowPresets = {
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
-            'ScreenRulerWnd': this.getScreenRulerWndConfig()
+            'ScreenRulerWnd': this.getScreenRulerWndConfig(),
+            'DebugWnd': this.getDebugWndConfig()
         };
+
+        this.activeWnd = "";
     }
 
-    // 基础窗口配置
+    // 基础窗口配置（只包含BrowserWindow属性）
     get transparentWndOptions() {
         return {
             frame: false,
@@ -35,15 +38,12 @@ class WndManager extends Singleton {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                devTools: false,
                 preload: join(__dirname, '../preload.cjs'),
-                // 启用IPC通信，用于向窗口传递参数
                 contextIsolation: true
             }
         };
     }
-
-    // 窗口配置预设
+    // 窗口配置预设 - 返回分离的配置对象
     getScreenshotToolWndConfig() {
         const icons = 13;
         const iconSize = 32;
@@ -53,38 +53,52 @@ class WndManager extends Singleton {
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
         return {
-            x: screenWidth - toolbarWidth - 42,
-            y: screenHeight - toolbarHeight - 42,
-            width: toolbarWidth,
-            height: toolbarHeight,
-            url: '/screenshot',
-            levelName: 'popup-menu',
-            levelZOrder: 2
+            // BrowserWindow配置
+            browserWindow: {
+                x: screenWidth - toolbarWidth - 42,
+                y: screenHeight - toolbarHeight - 42,
+                width: toolbarWidth,
+                height: toolbarHeight
+            },
+            // 自定义配置
+            custom: {
+                url: '/screenshot',
+                levelName: 'popup-menu',
+                levelZOrder: 2
+            }
         };
     }
 
     getCaptureWndConfig() {
         const { width, height } = screen.getPrimaryDisplay().size;
         return {
-            x: 0, y: 0, width, height,
-            url: '/screenshot/capture',
-            levelName: 'screen-saver',
-            levelZOrder: 100
+            browserWindow: {
+                x: 0, y: 0, width, height
+            },
+            custom: {
+                url: '/screenshot/capture',
+                levelName: 'screen-saver',
+                levelZOrder: 100
+            }
         };
     }
 
     getMeasureLineWndConfig(options = {}) {
-        const { type = 'horizontal', position = 'above' } = options;
+        const { type = 'horizontal', position = 'top' } = options;
         const width = type === 'horizontal' ? 10 : 30;
         const height = type === 'horizontal' ? 30 : 10;
 
         return {
-            x: -100, y: -100, width, height,
-            focusable: true,
-            url: '/measure-line',
-            levelName: 'screen-saver',
-            levelZOrder: 0,
-            ignoreMouseEvents: true,
+            browserWindow: {
+                x: -100, y: -100, width, height,
+                focusable: false,
+            },
+            custom: {
+                url: '/measure-line',
+                levelName: 'screen-saver',
+                levelZOrder: 0,
+                ignoreMouseEvents: true,
+            }
         };
     }
 
@@ -96,18 +110,36 @@ class WndManager extends Singleton {
         const rulerHeight = type === 'horizontal' ? 100 : 800;
 
         return {
-            x: (screenWidth - rulerWidth) / 2,
-            y: (screenHeight - rulerHeight) / 2,
-            width: rulerWidth,
-            height: rulerHeight,
-            url: '/screen-ruler',
-            levelName: 'pop-up-menu',
-            levelZOrder: 0
+            browserWindow: {
+                x: (screenWidth - rulerWidth) / 2,
+                y: (screenHeight - rulerHeight) / 2,
+                width: rulerWidth,
+                height: rulerHeight
+            },
+            custom: {
+                url: '/screen-ruler',
+                levelName: 'pop-up-menu',
+                levelZOrder: 0
+            }
+        };
+    }
+
+    getDebugWndConfig(options = {}) {
+        const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+        return {
+            browserWindow: {
+                x: screenWidth - 800, y: 20, width: 780, height: Math.floor(screenHeight / 3), show: false, frame: true, resizable: true
+            },
+            custom: {
+                url: '/debug-wnd',
+                levelName: 'pop-up-menu',
+                levelZOrder: 0
+            }
         };
     }
 
     /**
-     * 统一窗口创建方法（增强版，支持参数传递）
+     * 统一窗口创建方法
      * @param {string} name 窗口名称
      * @param {Object} options 自定义选项
      * @param {Function} customConfig 自定义配置生成函数
@@ -123,14 +155,22 @@ class WndManager extends Singleton {
             throw new Error(`未找到窗口 "${name}" 的配置`);
         }
 
+        // 分离BrowserWindow配置和自定义配置
+        const { browserWindow, custom } = config;
+
+        // 合并BrowserWindow配置
+        const wndOptions = {
+            ...this.transparentWndOptions,
+            ...browserWindow
+        };
+
+        // 创建窗口时立即存储选项
+        this.windowOptionsCache.set(name, options);
+
         const wnd = this.createTransparentWnd({
             name,
-            ...config,
-        });
-
-        // 窗口创建完成后发送选项参数
-        wnd.webContents.on('did-finish-load', () => {
-            this.sendWindowOptions(name, options);
+            wndOptions,
+            customOptions: custom
         });
 
         return wnd;
@@ -139,17 +179,7 @@ class WndManager extends Singleton {
     /**
      * 创建透明窗口
      */
-    createTransparentWnd({
-        name,
-        x,
-        y,
-        width,
-        height,
-        url,
-        levelName = "normal",
-        levelZOrder = 0,
-        ignoreMouseEvents = false,
-    }) {
+    createTransparentWnd({ name, wndOptions, customOptions }) {
         // 避免重复创建
         if (this.wndMap.has(name)) {
             const existingWnd = this.wndMap.get(name);
@@ -159,26 +189,27 @@ class WndManager extends Singleton {
             }
         }
 
-        const wndOptions = {
-            ...this.transparentWndOptions,
-            x, y, width, height
-        };
-
         const wnd = new BrowserWindow(wndOptions);
         this.wndMap.set(name, wnd);
 
-        this.loadUrl(wnd, url);
+        this.loadUrl(wnd, customOptions.url);
 
-        if (ignoreMouseEvents) {
+        if (customOptions.ignoreMouseEvents) {
             wnd.setIgnoreMouseEvents(true, { forward: true });
         }
 
+        wnd.webContents.openDevTools({ 'detached': true });
+
         wnd.on('closed', () => {
             this.wndMap.delete(name);
+            this.windowOptionsCache.delete(name);
         });
 
-        wnd.webContents.on('did-finish-load', () => {
-            wnd.setAlwaysOnTop(true, levelName, levelZOrder);
+        // 窗口加载完成时设置层级
+        wnd.webContents.once('did-finish-load', () => {
+            if (customOptions.levelName && customOptions.levelZOrder !== undefined) {
+                wnd.setAlwaysOnTop(true, customOptions.levelName, customOptions.levelZOrder);
+            }
             wnd.moveTop();
         });
 
@@ -186,15 +217,26 @@ class WndManager extends Singleton {
     }
 
     /**
-     * 向窗口发送选项参数（通过IPC）
+     * 改进的showWindow方法
+     * @param {string} wndName 窗口名称
+     * @param {Object} options 选项参数
      */
-    sendWindowOptions(name, options) {
-        const wnd = this.wndMap.get(name);
+    showWindow(wndName, options = {}) {
+        this.activeWnd = wndName;
+        const wnd = this.wndMap.get(wndName);
+
         if (wnd && !wnd.isDestroyed()) {
-            wnd.webContents.send('window-options', {
-                windowName: name,
-                options: options
-            });
+            // 窗口已存在，更新选项
+            this.windowOptionsCache.set(wndName, options);
+            if (wnd.isFocusable()) {
+                wnd.focus();
+            }
+            wnd.show();
+            return true;
+        } else {
+            // 窗口不存在，创建新窗口
+            this.createWindow(wndName, options);
+            return true;
         }
     }
 
@@ -209,12 +251,7 @@ class WndManager extends Singleton {
     }
 
     /**
-     * 创建测量线窗口（支持位置参数）
-     * @param {Object} options 
-     * @param {string} options.type 类型：horizontal/vertical
-     * @param {string} options.position 位置：top/bottom/left/right（相对于标尺）
-     * @param {number} options.x x坐标
-     * @param {number} options.y y坐标
+     * 创建测量线窗口
      */
     createMeasureLineWindow(options = {}) {
         return this.createWindow('MeasureLineWnd', options);
@@ -253,25 +290,9 @@ class WndManager extends Singleton {
         });
     }
 
-    // 通用窗口操作方法
-    showWindow(wndName, options = {}) {
-        const wnd = this.wndMap.get(wndName);
-        if (wnd && !wnd.isDestroyed()) {
-            if (wnd.isFocusable()) {
-                wnd.focus();
-            }
-            wnd.show();
-            // 显示时重新发送选项参数
-            this.sendWindowOptions(wndKey, options);
-            return true;
-        } else {
-            this.createWindow(wndName,)
-        }
-        return false;
-    }
-
-    // 其他方法保持不变...
+    // 其他方法
     hideWindow(wndKey) {
+        this.activeWnd = "";
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
             wnd.hide();
@@ -281,6 +302,7 @@ class WndManager extends Singleton {
     }
 
     closeWindow(wndKey) {
+        this.activeWnd = "";
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
             wnd.close();
@@ -293,6 +315,11 @@ class WndManager extends Singleton {
 
     getWindow(wndKey) {
         return this.wndMap.get(wndKey) || null;
+    }
+
+    // 获取窗口当前选项
+    getWindowOptions(wndKey) {
+        return this.windowOptionsCache.get(wndKey) || {};
     }
 
     cleanup() {

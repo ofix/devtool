@@ -1,9 +1,80 @@
 const { contextBridge, ipcRenderer } = require('electron/renderer')
 
+function safeStringify(arg) {
+    const seen = new WeakMap();
+    try {
+        return JSON.stringify(arg, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) return '[循环引用]';
+                seen.set(value, true);
+            }
+            // 处理特殊类型
+            if (value === undefined) return 'undefined';
+            if (typeof value === 'function') return '[Function]';
+            return value;
+        }, 2);
+    } catch (e) {
+        return `[序列化失败: ${e.message}]`;
+    }
+}
+
+// 封装日志发送到主进程的核心逻辑（加异常捕获+日志打印）
+function sendLogToMainProcess(type, args) {
+    try {
+        // 前置校验：ipcRenderer 是否就绪
+        if (!ipcRenderer || typeof ipcRenderer.send !== 'function') {
+            console.error('[日志发送失败] ipcRenderer 未就绪');
+            return;
+        }
+
+        const logData = {
+            type,
+            timestamp: new Date().toLocaleString(),
+            args: Array.from(args).map(arg => {
+                if (typeof arg === 'object' && arg !== null) {
+                    return safeStringify(arg);
+                }
+                // 基础类型直接返回，处理 undefined/function
+                return arg === undefined ? 'undefined' :
+                    typeof arg === 'function' ? '[Function]' : arg;
+            })
+        };
+
+        // 调试：打印要发送的日志（确认数据正确）
+        console.log('[渲染进程发送日志]', logData);
+        ipcRenderer.send('console-log', logData);
+    } catch (e) {
+        // 降级到原生console输出错误（带详细栈信息）
+        console.error('[日志转发到调试面板失败]', e.stack);
+    }
+}
+
+const wndLog = (...args) => sendLogToMainProcess('log', args);
+const wndError = (...args) => sendLogToMainProcess('error', args);
+const wndWarn = (...args) => sendLogToMainProcess('warn', args);
+const wndInfo = (...args) => sendLogToMainProcess('info', args);
+
+// 2. 通过 contextBridge 暴露 wnd（无需 initWndLog，直接全局可用）
+contextBridge.exposeInMainWorld('dt', {
+    log: wndLog,
+    error: wndError,
+    warn: wndWarn,
+    info: wndInfo
+});
+
+
 contextBridge.exposeInMainWorld('channel', {
+    clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
     setFullScreen: (flag) => ipcRenderer.send('full-screen', flag),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),
-    on: (channel, listener) => ipcRenderer.on(channel, (_evt, ...args) => listener(...args)),
+    on: (channel, callback) => {
+        const wrappedCallback = (event, ...args) => {
+            callback(event, ...args); // 解构参数，确保渲染进程能拿到 logs
+        };
+        ipcRenderer.on(channel, wrappedCallback);
+        // 返回移除监听的方法（可选）
+        return () => ipcRenderer.removeListener(channel, wrappedCallback);
+    },
     off: (channel, listener) => ipcRenderer.off(channel, listener),
     minimize: () => ipcRenderer.send('window-minimize'),
     maximizeToggle: () => ipcRenderer.send('window-maximize-toggle'),
@@ -43,12 +114,13 @@ contextBridge.exposeInMainWorld('channel', {
     doPatch: (options) => ipcRenderer.invoke("https:patch", options),
     doPut: (options) => ipcRenderer.invoke("https:put", options),
     // 控制窗口
-    showWindow: (wndName,options={}) => ipcRenderer.invoke("show-window", wndName,options),
+    showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
     hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
+    closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
+    getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     // 屏幕截图
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
     cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
-    getCaptureMode: () => ipcRenderer.invoke("get-capture-mode"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
     sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
     openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),
@@ -57,13 +129,10 @@ contextBridge.exposeInMainWorld('channel', {
     saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
     closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
     // 屏幕标尺
-    openScreenRuler: (option) => ipcRenderer.invoke("open-ruler", option),
-    closeScreenRuler: () => ipcRenderer.invoke("close-ruler"),
     rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
     rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),
     rulerSetBounds: (bounds) => ipcRenderer.invoke("ruler:set-bounds", bounds),
     rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
     rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
     rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
-    updateMeasureLinePos: (option) => ipcRenderer.invoke('ruler:update-measure-line-pos', option),
 })

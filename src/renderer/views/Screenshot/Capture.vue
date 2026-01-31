@@ -12,12 +12,6 @@
     >
       <canvas ref="canvasMagnifier" :width="200" :height="200"></canvas>
     </div>
-    <LogViewer
-      id="log-viewer"
-      width="400px"
-      height="240px"
-      :auto-scroll="true"
-    />
     <!-- 工具栏（仅渲染） -->
     <MarkToolbar
       ref="toolbarRef"
@@ -34,8 +28,6 @@ import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import Screenshot from "./Screenshot.js";
 import MarkToolbar from "./MarkToolbar.vue";
-import LogViewer from "@/components/LogViewer.vue";
-
 // ========== 仅渲染相关的响应式变量 ==========
 const route = useRoute();
 const canvasScreen = ref(null);
@@ -55,7 +47,7 @@ onMounted(async () => {
   await nextTick();
   if (!canvasScreen.value || !canvasCapture.value) return;
   // 初始化截图类实例
-  let captureMode = await window.channel.getCaptureMode();
+  let captureMode = await window.channel.getWindowOptions("ScreenshotToolWnd");
   screenshot = new Screenshot(
     canvasScreen.value,
     canvasCapture.value,
@@ -65,7 +57,6 @@ onMounted(async () => {
 
   if (captureMode == "window") {
     let windows = await window.channel.enumWindowList();
-    wnd.log("windows= ",windows);
     screenshot.setWindowList(windows);
   }
 

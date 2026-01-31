@@ -9,11 +9,22 @@ import ScreenshotTool from "@/views/Screenshot/ScreenshotTool.vue";
 import Capture from "@/views/Screenshot/Capture.vue";
 import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
 import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
+import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 
 const MenuRoutes = [
     {
         path: '/',
         redirect: '/postwoman/request' // 可修改为你需要的默认路由，如 '/debug-tool/ssh'
+    },
+    {
+        path: '/debug-wnd',
+        name: 'DebugWnd',
+        component: LogViewer,
+        meta: {
+            icon: SSHIcon,
+            title: '内部调试窗口',
+            desc: ''
+        },
     },
     {
         path: '/debug-tool',
