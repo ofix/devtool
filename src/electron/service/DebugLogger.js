@@ -22,7 +22,6 @@ class DebugLogger {
   }
 
   addLog(log) {
-    console.log("新增日志: ", log);
     if (!log) return;
     const logItem = {
       id: `${Date.now()}-${Math.floor(Math.random() * 10000)}`,

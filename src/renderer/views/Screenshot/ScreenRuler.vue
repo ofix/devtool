@@ -107,123 +107,20 @@ const debounce = (fn, delay = 20) => {
 };
 
 /**
- * 获取元素屏幕坐标（适配Electron窗口偏移，强制整数，无亚像素）
- * @param {HTMLElement} el 目标元素
- * @returns {Object} 屏幕坐标{x, y, right, bottom, width, height}
- */
-const getElementScreenRect = (el) => {
-  if (!el || el.nodeType !== 1)
-    return { x: 0, y: 0, right: 0, bottom: 0, width: 0, height: 0 };
-  const rect = el.getBoundingClientRect();
-  // 强制取整+Electron窗口偏移修正，彻底消除亚像素
-  const screenX = window.screenX || window.screenLeft || 0;
-  const screenY = window.screenY || window.screenTop || 0;
-  return {
-    x: Math.floor(rect.left) + screenX,
-    y: Math.floor(rect.top) + screenY,
-    right: Math.ceil(rect.right) + screenX,
-    bottom: Math.ceil(rect.bottom) + screenY,
-    width: Math.ceil(rect.width),
-    height: Math.ceil(rect.height),
-  };
-};
-
-/**
- * 判定鼠标是否在测量线区域（适配水平/垂直模式，添加边界兜底）
- * @param {Number} mouseX 鼠标屏幕X坐标
- * @param {Number} mouseY 鼠标屏幕Y坐标
- * @returns {Boolean} 是否在测量区
- */
-const isInMeasureArea = (mouseX, mouseY) => {
-  if (!measureLineTop.value || !measureLineBottom.value) return false;
-  const topRect = getElementScreenRect(measureLineTop.value);
-  const bottomRect = getElementScreenRect(measureLineBottom.value);
-  // 适配水平/垂直模式的判定逻辑
-  if (type.value === "horizontal") {
-    // 水平：上下20px区域，X轴全屏，Y轴精准判定
-    const inTop =
-      mouseX >= topRect.x - 1 &&
-      mouseX <= topRect.right + 1 &&
-      mouseY >= topRect.y &&
-      mouseY <= topRect.bottom;
-    const inBottom =
-      mouseX >= bottomRect.x - 1 &&
-      mouseX <= bottomRect.right + 1 &&
-      mouseY >= bottomRect.y &&
-      mouseY <= bottomRect.bottom;
-    return inTop || inBottom;
-  } else {
-    // 垂直：左右20px区域，Y轴全屏，X轴精准判定
-    const inLeft =
-      mouseY >= topRect.y - 1 &&
-      mouseY <= topRect.bottom + 1 &&
-      mouseX >= topRect.x &&
-      mouseX <= topRect.right;
-    const inRight =
-      mouseY >= bottomRect.y - 1 &&
-      mouseY <= bottomRect.bottom + 1 &&
-      mouseX >= bottomRect.x &&
-      mouseX <= bottomRect.right;
-    return inLeft || inRight;
-  }
-};
-
-/**
  * 防抖更新测量线位置（Electron IPC通信，避免高频调用）
  */
-const debounceUpdatePos = debounce((params) => {
+const debounceUpdatePos = (params) => {
   if (params.visible) {
-    dt.log("显示游标线", params);
-    window.channel.showWindow("MeasureLineWnd", {
+    window.channel.updateMeasureLinePos({
       x: params.x,
       y: params.y,
       type: type.value,
+      direction: params.direction,
     });
   } else {
-    dt.log("隐藏游标线");
     window.channel.hideWindow("MeasureLineWnd");
   }
-}, 20);
-
-/**
- * 全局鼠标移动处理（核心：与拖拽状态互斥，仅非拖拽时执行）
- */
-const handleGlobalMouseMove = throttle((e) => {
-  // 关键：拖拽中不执行测量线逻辑，避免事件冲突
-  if (dragState.isDragging) return;
-  const inArea = isInMeasureArea(e.screenX, e.screenY);
-  clearTimeout(measureLineTimer);
-
-  // 1. 鼠标在测量区：显示并更新位置（适配水平/垂直）
-  if (inArea) {
-    if (!measureLineVisible) measureLineVisible = true;
-    let targetX = e.screenX;
-    let targetY = e.screenY;
-    // 适配水平/垂直模式的位置计算
-    if (type.value === "horizontal") {
-      targetY = isInMeasureArea(e.screenX, e.screenY)
-        ? e.screenY <= measureLineTop.value.getBoundingClientRect().bottom
-          ? e.screenY - 100
-          : e.screenY - 20
-        : e.screenY;
-    } else {
-      targetX = isInMeasureArea(e.screenX, e.screenY)
-        ? e.screenX <= measureLineTop.value.getBoundingClientRect().right
-          ? e.screenX - 20
-          : e.screenX
-        : e.screenX;
-    }
-    debounceUpdatePos({ x: targetX, y: targetY, visible: true });
-  }
-  // 2. 鼠标离开测量区：延迟隐藏（60ms，避免快速移动的频繁切换）
-  else {
-    if (!measureLineVisible) return;
-    measureLineTimer = setTimeout(() => {
-      measureLineVisible = false;
-      debounceUpdatePos({ x: e.screenX, y: e.screenY, visible: false });
-    }, 60);
-  }
-});
+};
 
 /**
  * 初始化标尺实例
@@ -256,7 +153,6 @@ async function toggleType() {
   // 切换模式后重置测量线状态
   clearTimeout(measureLineTimer);
   measureLineVisible = false;
-  debounceUpdatePos({ x: 0, y: 0, visible: false });
 }
 
 /**
@@ -266,7 +162,6 @@ async function closeRuler() {
   // 清理测量线状态
   clearTimeout(measureLineTimer);
   measureLineVisible = false;
-  debounceUpdatePos({ x: 0, y: 0, visible: false });
   window.channel.closeWindow("ScreenRulerWnd");
 }
 
@@ -324,12 +219,39 @@ const resetDragState = () => {
 
 onMounted(async () => {
   initScreenRuler();
-
-  // ========== 1. 绑定全局测量线鼠标事件（仅非拖拽时生效） ==========
-  globalMouseMoveHandler = handleGlobalMouseMove;
-  window.addEventListener("mousemove", globalMouseMoveHandler, {
-    passive: true,
-  }); // passive提升性能
+  measureLineTop.value.addEventListener("mousemove", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const mouseX = e.screenX;
+    const mouseY = e.screenY;
+    debounceUpdatePos({
+      x: mouseX - 4,
+      y: type.value === "horizontal" ? mouseY - 18 : mouseY,
+      visible: true,
+      direction: type.value === "horizontal" ? "top" : "right",
+    });
+  });
+  measureLineTop.value.addEventListener("mouseleave", (e) => {
+    e.preventDefault();
+    window.channel.hideWindow("MeasureLineWnd");
+  });
+  measureLineBottom.value.addEventListener("mousemove", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const mouseX = e.screenX;
+    const mouseY = e.screenY;
+    debounceUpdatePos({
+      x: mouseX,
+      y: mouseY,
+      visible: true,
+      direction: type.value === "horizontal" ? "bottom" : "left",
+    });
+  });
+  measureLineBottom.value.addEventListener("mouseleave", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.channel.hideWindow("MeasureLineWnd");
+  });
 
   // ========== 2. 绑定拖拽专属鼠标事件（独立于全局事件，避免冲突） ==========
   dragMouseMove = async (e) => {
@@ -399,7 +321,7 @@ onMounted(async () => {
     clearTimeout(measureLineTimer);
     if (measureLineVisible) {
       measureLineVisible = false;
-      debounceUpdatePos({ x: 0, y: 0, visible: false });
+      window.channel.hideWindow("MeasureLineWnd");
     }
     resetDragState();
   };
@@ -425,7 +347,7 @@ onMounted(async () => {
     // 方向切换后重置测量线
     clearTimeout(measureLineTimer);
     measureLineVisible = false;
-    debounceUpdatePos({ x: 0, y: 0, visible: false });
+    window.channel.hideWindow("MeasureLineWnd");
   });
 });
 
@@ -433,13 +355,6 @@ onUnmounted(() => {
   clearTimeout(measureLineTimer);
   measureLineVisible = false;
   resetDragState();
-
-  // 移除全局测量线事件
-  if (globalMouseMoveHandler) {
-    window.removeEventListener("mousemove", globalMouseMoveHandler, {
-      passive: true,
-    });
-  }
 
   // 移除拖拽事件
   if (dragMouseMove)
@@ -469,12 +384,6 @@ onUnmounted(() => {
 </script>
 
 <style type="scss" scoped>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 .ruler-container {
   user-select: none;
   position: relative;
@@ -503,6 +412,9 @@ onUnmounted(() => {
   }
   z-index: 10;
   transform: translateZ(0);
+  & > * {
+    -webkit-app-region: no-drag !important;
+  }
 }
 
 .drag-area .ruler-controls,
@@ -514,9 +426,10 @@ onUnmounted(() => {
 .ruler-canvas {
   width: 100%;
   height: 100%;
+  display: block;
+  z-index: 0;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  display: block;
   transform: translateZ(0);
 }
 
@@ -613,9 +526,7 @@ onUnmounted(() => {
   position: absolute;
   border: none;
   outline: none;
-  cursor: crosshair;
-  pointer-events: none !important;
-  z-index: 15;
+  z-index: 150;
   transform: translateZ(0);
 }
 
@@ -625,12 +536,14 @@ onUnmounted(() => {
     top: 0;
     width: 100%;
     height: 20px;
+    cursor: url("@/assets/empty.cur"), auto !important;
   }
   .measure-line-bottom {
     left: 0;
     bottom: 0;
     width: 100%;
     height: 20px;
+    cursor: url("@/assets/empty.cur"), auto !important;
   }
   .drag-area {
     top: 20px;
@@ -644,12 +557,14 @@ onUnmounted(() => {
     top: 0;
     width: 20px;
     height: 100%;
+    cursor: url("@/assets/empty.cur"), auto !important;
   }
   .measure-line-bottom {
     right: 0;
     top: 0;
     width: 20px;
     height: 100%;
+    cursor: url("@/assets/empty.cur"), auto !important;
   }
   .drag-area {
     left: 20px;

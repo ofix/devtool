@@ -40,8 +40,6 @@ function sendLogToMainProcess(type, args) {
             })
         };
 
-        // 调试：打印要发送的日志（确认数据正确）
-        console.log('[渲染进程发送日志]', logData);
         ipcRenderer.send('console-log', logData);
     } catch (e) {
         // 降级到原生console输出错误（带详细栈信息）
@@ -135,4 +133,5 @@ contextBridge.exposeInMainWorld('channel', {
     rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
     rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
     rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
+    updateMeasureLinePos: (option) => ipcRenderer.invoke("ruler:update-measure-line-pos", option),
 })

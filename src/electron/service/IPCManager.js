@@ -265,6 +265,31 @@ class IPCManager extends Singleton {
             }
             wnd.setBounds(bounds);
         })
+        ipcMain.handle("ruler:update-measure-line-pos", (_, option) => {
+            let wnd = WndManager.getInstance().getWindow('MeasureLineWnd');
+            if (wnd && !wnd.isDestroyed()) {
+                if (option.direction == 'top' || option.direction == 'bottom') {
+                    wnd.setBounds({ x: option.x, y: option.y, width: 10, height: 30 });
+                } else {
+                    wnd.setBounds({ x: option.x, y: option.y, width: 30, height: 10 });
+                }
+                WndManager.getInstance().showWindow("MeasureLineWnd", option);
+                wnd.webContents.send('window-options', option);
+                wnd.moveTop();
+            } else {
+                WndManager.getInstance().showWindow("MeasureLineWnd", option);
+                let wnd = WndManager.getInstance().getWindow('MeasureLineWnd');
+                if (option.direction == 'top' || option.direction == 'bottom') {
+                    wnd.setBounds({ x: option.x, y: option.y, width: 10, height: 30 });
+                } else {
+                    wnd.setBounds({ x: option.x, y: option.y, width: 30, height: 10 });
+                }
+                wnd.webContents.on('dom-ready', () => {
+                    wnd.webContents.send('window-options', option);
+                });
+                wnd.moveTop();
+            }
+        });
         // 各种工具命令
         ipcMain.handle('tool-cmd', (event, command, data) => {
             switch (command) {

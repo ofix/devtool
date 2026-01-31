@@ -37,7 +37,6 @@ class DevTool {
                         // 设置日志回调
                         debugLogger.setLogCallback((log) => {
                             if (debugWindow && debugWindow.isVisible()) {
-                                console.log("发送新日志到调试窗口: ", log);
                                 debugWindow.webContents.send('new-log', log);
                             }
                         });

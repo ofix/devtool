@@ -63,7 +63,7 @@ class WndManager extends Singleton {
             // 自定义配置
             custom: {
                 url: '/screenshot',
-                levelName: 'popup-menu',
+                levelName: 'pop-up-menu',
                 levelZOrder: 2
             }
         };
@@ -78,7 +78,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/screenshot/capture',
                 levelName: 'screen-saver',
-                levelZOrder: 100
+                levelZOrder: 10
             }
         };
     }
@@ -91,13 +91,14 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: -100, y: -100, width, height,
-                focusable: false,
+                focusable: false, show: true,
             },
             custom: {
                 url: '/measure-line',
-                levelName: 'screen-saver',
-                levelZOrder: 0,
+                levelName: 'pop-up-menu',
+                levelZOrder: 100,
                 ignoreMouseEvents: true,
+                devTool: true
             }
         };
     }
@@ -119,7 +120,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/screen-ruler',
                 levelName: 'pop-up-menu',
-                levelZOrder: 0
+                levelZOrder: 10,
             }
         };
     }
@@ -133,7 +134,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/debug-wnd',
                 levelName: 'pop-up-menu',
-                levelZOrder: 0
+                levelZOrder: 9
             }
         };
     }
@@ -198,7 +199,9 @@ class WndManager extends Singleton {
             wnd.setIgnoreMouseEvents(true, { forward: true });
         }
 
-        wnd.webContents.openDevTools({ 'detached': true });
+        if (customOptions.devTool) {
+            wnd.webContents.openDevTools({ 'detached': true });
+        }
 
         wnd.on('closed', () => {
             this.wndMap.delete(name);
