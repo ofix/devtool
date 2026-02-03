@@ -275,7 +275,6 @@ class IPCManager extends Singleton {
                 }
                 WndManager.getInstance().showWindow("MeasureLineWnd", option);
                 wnd.webContents.send('window-options', option);
-                wnd.moveTop();
             } else {
                 WndManager.getInstance().showWindow("MeasureLineWnd", option);
                 let wnd = WndManager.getInstance().getWindow('MeasureLineWnd');
@@ -287,7 +286,6 @@ class IPCManager extends Singleton {
                 wnd.webContents.on('dom-ready', () => {
                     wnd.webContents.send('window-options', option);
                 });
-                wnd.moveTop();
             }
         });
         // 各种工具命令

@@ -98,7 +98,7 @@ class WndManager extends Singleton {
                 levelName: 'pop-up-menu',
                 levelZOrder: 100,
                 ignoreMouseEvents: true,
-                devTool: true
+                devTool: false
             }
         };
     }
@@ -121,6 +121,7 @@ class WndManager extends Singleton {
                 url: '/screen-ruler',
                 levelName: 'pop-up-menu',
                 levelZOrder: 10,
+                devTool: false
             }
         };
     }
@@ -195,12 +196,10 @@ class WndManager extends Singleton {
 
         this.loadUrl(wnd, customOptions.url);
 
-        if (customOptions.ignoreMouseEvents) {
-            wnd.setIgnoreMouseEvents(true, { forward: true });
-        }
 
         if (customOptions.devTool) {
-            wnd.webContents.openDevTools({ 'detached': true });
+            console.log(`窗口 ${name} 打开开发者工具选项`);
+            wnd.webContents.openDevTools({ mode: "detach", activate: true });
         }
 
         wnd.on('closed', () => {
@@ -213,8 +212,19 @@ class WndManager extends Singleton {
             if (customOptions.levelName && customOptions.levelZOrder !== undefined) {
                 wnd.setAlwaysOnTop(true, customOptions.levelName, customOptions.levelZOrder);
             }
+            if (customOptions.ignoreMouseEvents) {
+                console.log(`窗口 ${name} 忽略鼠标事件`);
+                wnd.setIgnoreMouseEvents(true, { forward: true });
+            }
             wnd.moveTop();
         });
+
+        wnd.on("blur", () => {
+            if (customOptions.ignoreMouseEvents) {
+                console.log(`窗口 ${name} blur 的时候，忽略鼠标事件`);
+                wnd.setIgnoreMouseEvents(true, { forward: true });
+            }
+        })
 
         return wnd;
     }
@@ -232,6 +242,7 @@ class WndManager extends Singleton {
             // 窗口已存在，更新选项
             this.windowOptionsCache.set(wndName, options);
             if (wnd.isFocusable()) {
+                console.log("focus wnd");
                 wnd.focus();
             }
             wnd.show();

@@ -1,3 +1,5 @@
+import { listen } from "node-7z";
+
 export default class ScreenRuler {
     // 静态常量配置（完全对齐FastStone物理像素标准，无变更）
     static get FIXED_EDGE_SIZE() { return 100 * (window.devicePixelRatio || 1); }
@@ -22,8 +24,12 @@ export default class ScreenRuler {
             CENTER_TEXT_COLOR: "#000",
             CENTER_TEXT_BG_COLOR: "rgba(255, 255, 255, 0.8)",
             CENTER_TEXT_PADDING: 0 * (window.devicePixelRatio || 1),
-            CENTER_TEXT_BORDER_RADIUS: 4 * (window.devicePixelRatio || 1)
+            CENTER_TEXT_BORDER_RADIUS: 4 * (window.devicePixelRatio || 1),
+
         };
+    }
+    static get MEASURE_SIZE() {
+        return 28 * (window.devicePixelRatio || 1);
     }
     constructor(canvas, options = {}) {
         this.canvas = canvas;
@@ -40,6 +46,9 @@ export default class ScreenRuler {
             width: Math.floor(this.physicalSize.width / this.dpr),
             height: Math.floor(this.physicalSize.height / this.dpr)
         };
+        this.measureStart = -1;
+        this.measureEnd = -1;
+        this.measureDirection = 'top';
         this._initContext();
         this.redraw();
     }
@@ -72,6 +81,24 @@ export default class ScreenRuler {
         };
     }
 
+    setMeasurePoints(start, end) {
+        this.measureStart = start;
+        this.measureEnd = end;
+    }
+
+    updateEndMeasurePoint(end) {
+        this.measureEnd = end;
+
+    }
+
+    setMeasureDirection(direction) {
+        this.measureDirection = direction;
+    }
+
+    clearMeasurePoints() {
+        this.measureStart = this.measureEnd = -1;
+    }
+
     updateType(newType) {
         if (!["horizontal", "vertical"].includes(newType)) return;
         this.type = newType;
@@ -84,6 +111,7 @@ export default class ScreenRuler {
             width: Math.floor(this.physicalSize.width / this.dpr),
             height: Math.floor(this.physicalSize.height / this.dpr)
         };
+        this.clearMeasurePoints();
         this._initContext();
         this.redraw();
     }
@@ -129,12 +157,37 @@ export default class ScreenRuler {
         this.ctx.lineWidth = 1;
         this.ctx.font = `bold ${ScreenRuler.RULER_CONFIG.TEXT_FONT_SIZE}px ${ScreenRuler.RULER_CONFIG.TEXT_FONT_BASE}`;
 
+        this._drawMeasurePoints(this.measureDirection, floorW, floorH, this.measureStart, this.measureEnd);
         this._drawThreeLevelTicks(isHorizontal, floorW, floorH, center);
         this._drawTickText(isHorizontal, floorW, floorH, center);
         // 绘制中心物理像素尺寸【核心保留】
         this._drawCenterSizeText(isHorizontal, floorW, floorH);
         this._drawBorder(floorW, floorH);
 
+        this.ctx.restore();
+    }
+
+    _drawMeasurePoints(direction, width, height, start, end) {
+        if (start == -1 || end == -1 || start == end) {
+            return;
+        }
+        this.ctx.save();
+        let _start = start;
+        let _end = end;
+        if (start > end) {
+            _start = end;
+            _end = start;
+        }
+        this.ctx.fillStyle = "rgba(253, 159, 153, 0.9)";
+        if (direction == 'top') {
+            this.ctx.fillRect(_start, 0, _end - _start, ScreenRuler.MEASURE_SIZE);
+        } else if (direction == 'bottom') {
+            this.ctx.fillRect(_start, height - ScreenRuler.MEASURE_SIZE, _end - _start, ScreenRuler.MEASURE_SIZE);
+        } else if (direction == 'left') {
+            this.ctx.fillRect(0, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
+        } else if (direction == 'right') {
+            this.ctx.fillRect(width - ScreenRuler.MEASURE_SIZE, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
+        }
         this.ctx.restore();
     }
 
@@ -254,9 +307,17 @@ export default class ScreenRuler {
     _drawCenterSizeText(isHorizontal, w, h) {
         const config = ScreenRuler.RULER_CONFIG;
         // 直接使用物理像素值，不做任何转换！和标尺刻度完全一致
-        const displayValue = isHorizontal
+        let displayValue = isHorizontal
             ? Math.floor(this.physicalSize.width)  // 横向=物理宽度
             : Math.floor(this.physicalSize.height); // 纵向=物理高度
+        if (this.measureStart != -1 && this.measureEnd != -1 && this.measureStart != this.measureEnd) {
+            if (this.measureStart > this.measureEnd) {
+                displayValue = this.measureStart - this.measureEnd;
+            } else {
+                displayValue = this.measureEnd - this.measureStart;
+            }
+        }
+
         let displayText = "";
         if (this.type === "horizontal") {
             displayText = `W=${displayValue} px`;

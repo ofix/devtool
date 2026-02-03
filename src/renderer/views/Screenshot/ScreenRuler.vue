@@ -1,7 +1,6 @@
 <template>
   <div class="ruler-container" :class="`ruler-${type}`">
     <canvas ref="rulerCanvas" class="ruler-canvas"></canvas>
-    <div ref="measureLineTop" class="measureline measure-line-top"></div>
     <div class="drag-area">
       <div
         ref="leftBtn"
@@ -26,7 +25,6 @@
         <IconDragRight />
       </div>
     </div>
-    <div ref="measureLineBottom" class="measureline measure-line-bottom"></div>
   </div>
 </template>
 
@@ -56,13 +54,17 @@ const winPos = ref({ x: 0, y: 0 });
 const resizeMode = ref("none");
 let screenRuler = null;
 let removeResizeListener = null;
-// 拖拽状态（独立隔离）
+// 拖拽状态
 let dragState = {
   isDragging: false,
   resizeMode: "none",
   start: { x: 0, y: 0, width: 0, height: 0 },
   anchor: { x: 0, y: 0 },
   mouseOffset: { x: 0, y: 0 },
+};
+let captureState = {
+  isDragging: false,
+  direction: "top",
 };
 // 测量线核心状态（全局唯一，避免多实例冲突）
 let measureLineVisible = false;
@@ -201,6 +203,7 @@ async function startDrag(mode, e) {
     anchor,
     mouseOffset,
   };
+
   resizeMode.value = mode;
 }
 /**
@@ -217,39 +220,104 @@ const resetDragState = () => {
   resizeMode.value = "none";
 };
 
+function getMeasureDirection(mouseX, mouseY) {
+  if (type.value == "horizontal") {
+    if (mouseY <= 30 * dpr) {
+      return "top";
+    }
+    if (mouseY >= 70 * dpr) {
+      return "bottom";
+    }
+    return "none";
+  } else {
+    if (mouseX <= 30 * dpr) {
+      return "left";
+    }
+    if (mouseX >= 70 * dpr) {
+      return "right";
+    }
+    return "none";
+  }
+}
+
 onMounted(async () => {
   initScreenRuler();
-  measureLineTop.value.addEventListener("mousemove", (e) => {
+  rulerCanvas.value.addEventListener("mousedown", (e) => {
+    let direction = getMeasureDirection(e.clientX, e.clientY);
+    if (direction != "none") {
+      captureState.isDragging = true;
+      screenRuler.setMeasureDirection(direction);
+      if (direction == "top" || direction == "bottom") {
+        screenRuler.setMeasurePoints(e.clientX, e.clientX);
+      } else {
+        screenRuler.setMeasurePoints(e.clientY, e.clientY);
+      }
+      captureState.direction = direction;
+    } else {
+      captureState.isDragging = false;
+    }
+    screenRuler?.redraw();
+  });
+  rulerCanvas.value.addEventListener("mouseup", (e) => {
+    captureState.isDragging = false;
+  });
+  rulerCanvas.value.addEventListener("mousemove", (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (captureState.isDragging && e.buttons == 1) {
+      if (
+        captureState.direction == "top" ||
+        captureState.direction == "bottom"
+      ) {
+        screenRuler?.updateEndMeasurePoint(e.clientX);
+      } else {
+        screenRuler?.updateEndMeasurePoint(e.clientY);
+      }
+      screenRuler?.redraw();
+    }
+    if (dragState.isDragging) {
+      return;
+    }
     const mouseX = e.screenX;
     const mouseY = e.screenY;
-    debounceUpdatePos({
-      x: mouseX - 4,
-      y: type.value === "horizontal" ? mouseY - 18 : mouseY,
-      visible: true,
-      direction: type.value === "horizontal" ? "top" : "right",
-    });
+    const clientY = e.clientY;
+    const clientX = e.clientX;
+    if (type.value === "horizontal") {
+      if (clientY <= 20) {
+        debounceUpdatePos({
+          x: mouseX - 2,
+          y: mouseY - 18,
+          visible: true,
+          direction: "top",
+        });
+      } else {
+        debounceUpdatePos({
+          x: mouseX,
+          y: mouseY + 1,
+          visible: true,
+          direction: "bottom",
+        });
+      }
+    } else {
+      if (clientX <= 20) {
+        debounceUpdatePos({
+          x: mouseX - 28,
+          y: mouseY,
+          visible: true,
+          direction: "left",
+        });
+      } else if (clientX >= 80) {
+        debounceUpdatePos({
+          x: mouseX + 1,
+          y: mouseY,
+          visible: true,
+          direction: "right",
+        });
+      }
+    }
   });
-  measureLineTop.value.addEventListener("mouseleave", (e) => {
-    e.preventDefault();
-    window.channel.hideWindow("MeasureLineWnd");
-  });
-  measureLineBottom.value.addEventListener("mousemove", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const mouseX = e.screenX;
-    const mouseY = e.screenY;
-    debounceUpdatePos({
-      x: mouseX,
-      y: mouseY,
-      visible: true,
-      direction: type.value === "horizontal" ? "bottom" : "left",
-    });
-  });
-  measureLineBottom.value.addEventListener("mouseleave", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+
+  rulerCanvas.value.addEventListener("mouseleave", (e) => {
     window.channel.hideWindow("MeasureLineWnd");
   });
 
@@ -275,7 +343,7 @@ onMounted(async () => {
       } else if (resizeMode === "right") {
         const targetWidth = Math.max(
           minSize,
-          mouseX - anchor.x - mouseOffset.x,
+          mouseX - anchor.x - mouseOffset.x
         );
         newBounds.width = targetWidth;
       }
@@ -290,7 +358,7 @@ onMounted(async () => {
       } else if (resizeMode === "right") {
         const targetHeight = Math.max(
           minSize,
-          mouseY - anchor.y - mouseOffset.y,
+          mouseY - anchor.y - mouseOffset.y
         );
         newBounds.height = targetHeight;
       }
@@ -308,25 +376,12 @@ onMounted(async () => {
     }
   };
 
-  dragMouseUp = () => resetDragState();
-  dragMouseLeave = () => resetDragState();
-
-  // 拖拽事件绑定（捕获阶段，优先执行）
-  window.addEventListener("mousemove", dragMouseMove, { capture: true });
-  window.addEventListener("mouseup", dragMouseUp, { capture: true });
-  window.addEventListener("mouseleave", dragMouseLeave, { capture: true });
-
-  // ========== 3. 窗口兜底事件（离开/失焦时隐藏测量线） ==========
-  handleWindowLeave = () => {
-    clearTimeout(measureLineTimer);
-    if (measureLineVisible) {
-      measureLineVisible = false;
-      window.channel.hideWindow("MeasureLineWnd");
-    }
+  dragMouseUp = () => {
     resetDragState();
   };
-  document.addEventListener("mouseleave", handleWindowLeave);
-  window.addEventListener("blur", handleWindowLeave);
+
+  window.addEventListener("mousemove", dragMouseMove, { capture: true });
+  window.addEventListener("mouseup", dragMouseUp, { capture: true });
 
   // ========== 4. 标尺尺寸监听 ==========
   if (window.channel?.onRulerResize) {
@@ -361,14 +416,6 @@ onUnmounted(() => {
     window.removeEventListener("mousemove", dragMouseMove, { capture: true });
   if (dragMouseUp)
     window.removeEventListener("mouseup", dragMouseUp, { capture: true });
-  if (dragMouseLeave)
-    window.removeEventListener("mouseleave", dragMouseLeave, { capture: true });
-
-  // 移除窗口兜底事件
-  if (handleWindowLeave) {
-    document.removeEventListener("mouseleave", handleWindowLeave);
-    window.removeEventListener("blur", handleWindowLeave);
-  }
 
   // 移除尺寸监听
   if (removeResizeListener) removeResizeListener();
@@ -395,49 +442,47 @@ onUnmounted(() => {
 
 .drag-area {
   -webkit-app-region: drag;
+  user-select: none;
   position: absolute;
-  width: 100%;
-  height: 100%;
-  left: 0;
-  top: 0;
 
-  &.ruler-horizontal {
-    top: 20px;
-    height: calc(100% - 40px);
-  }
-
-  &.ruler-vertical {
-    left: 20px;
-    width: calc(100% - 40px);
-  }
-  z-index: 10;
+  box-sizing: border-box;
   transform: translateZ(0);
-  & > * {
-    -webkit-app-region: no-drag !important;
+
+  .ruler-horizontal & {
+    width: 100%;
+    height: calc(100% - 60px);
+    left: 0;
+    top: 30px;
+  }
+  .ruler-vertical & {
+    width: calc(100% - 60px);
+    height: 100%;
+    left: 30px;
+    top: 0px;
   }
 }
 
 .drag-area .ruler-controls,
 .drag-area .resize-btn {
   -webkit-app-region: no-drag !important;
-  pointer-events: auto !important;
 }
 
 .ruler-canvas {
   width: 100%;
   height: 100%;
   display: block;
-  z-index: 0;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  /* image-rendering: pixelated;
+  image-rendering: crisp-edges; */
   transform: translateZ(0);
+  cursor:
+    url("@/assets/empty.cur") 0 0,
+    auto;
 }
 
 .ruler-controls {
   position: absolute;
   display: flex;
   gap: 4px;
-  z-index: 20;
   cursor: pointer;
 
   .ruler-horizontal & {
@@ -519,56 +564,6 @@ onUnmounted(() => {
     &.resize-right .icon {
       transform: rotate(-90deg);
     }
-  }
-}
-
-.measureline {
-  position: absolute;
-  border: none;
-  outline: none;
-  z-index: 150;
-  transform: translateZ(0);
-}
-
-.ruler-horizontal {
-  .measure-line-top {
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 20px;
-    cursor: url("@/assets/empty.cur"), auto !important;
-  }
-  .measure-line-bottom {
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 20px;
-    cursor: url("@/assets/empty.cur"), auto !important;
-  }
-  .drag-area {
-    top: 20px;
-    height: calc(100% - 40px);
-  }
-}
-
-.ruler-vertical {
-  .measure-line-top {
-    left: 0;
-    top: 0;
-    width: 20px;
-    height: 100%;
-    cursor: url("@/assets/empty.cur"), auto !important;
-  }
-  .measure-line-bottom {
-    right: 0;
-    top: 0;
-    width: 20px;
-    height: 100%;
-    cursor: url("@/assets/empty.cur"), auto !important;
-  }
-  .drag-area {
-    left: 20px;
-    width: calc(100% - 40px);
   }
 }
 </style>

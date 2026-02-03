@@ -46,8 +46,6 @@ const setupOptionsListener = () => {
  * 动态更新 Canvas 尺寸（匹配 SVG 尺寸：横向10×30，纵向30×10）
  */
 const updateCanvasSize = (direction) => {
-  // 横向（top/bottom）：10×30（和SVG viewBox一致）
-  // 纵向（left/right）：30×10（宽高互换）
   if (direction === "top" || direction === "bottom") {
     canvasSize.value = { width: 10, height: 30 };
   } else {
@@ -198,16 +196,16 @@ const drawTriangleRight = (ctx) => {
 /**
  * 监听方向变化，重新绘制
  */
-watch(
-  windowOptions,
-  (newVal) => {
-    if (newVal?.direction) {
-      updateCanvasSize(newVal.direction);
-      nextTick(() => drawMeasureLine(newVal.direction));
-    }
-  },
-  { deep: true },
-);
+// watch(
+//   windowOptions,
+//   (newVal) => {
+//     if (newVal?.direction) {
+//       updateCanvasSize(newVal.direction);
+//       nextTick(() => drawMeasureLine(newVal.direction));
+//     }
+//   },
+//   { deep: true }
+// );
 
 onMounted(async () => {
   await getWindowOptions();
@@ -227,6 +225,7 @@ onUnmounted(() => {
   border: none;
   outline: none;
   background: transparent;
-  cursor: url("@/assets/empty.cur"), auto !important;
+  pointer-events: none;
+  cursor: none !important;
 }
 </style>
