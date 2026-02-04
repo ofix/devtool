@@ -10,6 +10,7 @@ import Capture from "@/views/Screenshot/Capture.vue";
 import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
 import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
 import LogViewer from "@/views/DebugLogger/LogViewer.vue";
+import AllConfig from "@/views/ToolConfig/AllConfig.vue";
 
 const MenuRoutes = [
     {
@@ -142,6 +143,16 @@ const MenuRoutes = [
         meta: {
             icon: SSHIcon,
             title: '屏幕测量线',
+            desc: ''
+        }
+    },
+    {
+        path: '/tool-config',
+        name: 'tool-config',
+        component: AllConfig,
+        meta: {
+            icon: SSHIcon,
+            title: '配置弹窗',
             desc: ''
         }
     },

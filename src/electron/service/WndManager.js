@@ -18,6 +18,7 @@ class WndManager extends Singleton {
             'CaptureWnd': this.getCaptureWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
             'ScreenRulerWnd': this.getScreenRulerWndConfig(),
+            'ToolConfig': this.getToolConfigWndConfig(),
             'DebugWnd': this.getDebugWndConfig()
         };
 
@@ -119,6 +120,23 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/screen-ruler',
+                levelName: 'pop-up-menu',
+                levelZOrder: 10,
+                devTool: false
+            }
+        };
+    }
+
+    getToolConfigWndConfig(options = {}) {
+        return {
+            browserWindow: {
+                x: -1000,
+                y: -1000,
+                width: 100,
+                height: 100
+            },
+            custom: {
+                url: '/tool-config',
                 levelName: 'pop-up-menu',
                 levelZOrder: 10,
                 devTool: false
