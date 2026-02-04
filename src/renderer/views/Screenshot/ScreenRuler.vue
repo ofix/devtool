@@ -14,6 +14,9 @@
           <IconTranslate />
         </div>
         <div class="control-btn" @click.stop="closeRuler">
+          <IconMinimizeBox />
+        </div>
+        <div class="control-btn" @click.stop="closeRuler">
           <IconCloseBox />
         </div>
       </div>
@@ -32,6 +35,7 @@
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import IconTranslate from "@/components/icons/IconTranslate.vue";
 import IconCloseBox from "@/components/icons/IconCloseBox.vue";
+import IconMinimizeBox from "@//components/icons/IconMinimizeBox.vue";
 import IconDragLeft from "@/components/icons/IconDragLeft.vue";
 import IconDragRight from "@/components/icons/IconDragRight.vue";
 import ScreenRuler from "./ScreenRuler.js";

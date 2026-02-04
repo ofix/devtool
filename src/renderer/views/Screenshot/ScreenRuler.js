@@ -1,5 +1,3 @@
-import { listen } from "node-7z";
-
 export default class ScreenRuler {
     // 静态常量配置（完全对齐FastStone物理像素标准，无变更）
     static get FIXED_EDGE_SIZE() { return 100 * (window.devicePixelRatio || 1); }
