@@ -47,19 +47,19 @@ export default class ScreenRuler {
         this.measureStart = -1;
         this.measureEnd = -1;
         this.measureDirection = 'top';
-        this._initContext();
+        this._initContext(this.ctx);
         this.redraw();
     }
 
-    _initContext() {
-        if (!this.ctx) return;
-        this.ctx.imageSmoothingEnabled = false;
-        this.ctx.webkitImageSmoothingEnabled = false;
-        this.ctx.msImageSmoothingEnabled = false;
-        this.ctx.lineCap = 'butt';
-        this.ctx.lineJoin = 'miter';
-        this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
+    _initContext(ctx) {
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         this.canvas.width = this.physicalSize.width;
         this.canvas.height = this.physicalSize.height;
         this.canvas.style.width = `${this.cssSize.width}px`;
@@ -110,7 +110,7 @@ export default class ScreenRuler {
             height: Math.floor(this.physicalSize.height / this.dpr)
         };
         this.clearMeasurePoints();
-        this._initContext();
+        this._initContext(this.ctx);
         this.redraw();
     }
 
@@ -121,7 +121,7 @@ export default class ScreenRuler {
             height: Math.floor(height * this.dpr)
         };
         this.cssSize = { width, height };
-        this._initContext();
+        this._initContext(this.ctx);
         this.redraw();
     }
 
@@ -140,161 +140,162 @@ export default class ScreenRuler {
     // 核心绘制逻辑【仅新增了_centerSizeText调用，其余不变】
     redraw() {
         if (!this.ctx || !this.canvas) return;
-        this.ctx.save();
+        const ctx = this.ctx;
+        ctx.save();
         const isHorizontal = this.type === "horizontal";
         const { fixed: w, dynamic: h } = this.getCanvasPhysicalSize();
         const [floorW, floorH] = [Math.floor(w), Math.floor(h)];
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = "rgba(220, 250, 245, 0.9)";
-        this.ctx.fillRect(0, 0, floorW, floorH);
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillStyle = "rgba(220, 250, 245, 0.9)";
+        ctx.fillRect(0, 0, floorW, floorH);
 
         const center = Math.floor((isHorizontal ? ScreenRuler.FIXED_EDGE_SIZE : ScreenRuler.FIXED_EDGE_SIZE) / 2);
-        this.ctx.strokeStyle = "#000";
-        this.ctx.fillStyle = "#000";
-        this.ctx.lineWidth = 1;
-        this.ctx.font = `bold ${ScreenRuler.RULER_CONFIG.TEXT_FONT_SIZE}px ${ScreenRuler.RULER_CONFIG.TEXT_FONT_BASE}`;
+        ctx.strokeStyle = "#000";
+        ctx.fillStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.font = `bold ${ScreenRuler.RULER_CONFIG.TEXT_FONT_SIZE}px ${ScreenRuler.RULER_CONFIG.TEXT_FONT_BASE}`;
 
-        this._drawMeasurePoints(this.measureDirection, floorW, floorH, this.measureStart, this.measureEnd);
-        this._drawThreeLevelTicks(isHorizontal, floorW, floorH, center);
-        this._drawTickText(isHorizontal, floorW, floorH, center);
+        this._drawMeasurePoints(ctx, this.measureDirection, floorW, floorH, this.measureStart, this.measureEnd);
+        this._drawThreeLevelTicks(ctx, isHorizontal, floorW, floorH, center);
+        this._drawTickText(ctx, isHorizontal, floorW, floorH, center);
         // 绘制中心物理像素尺寸【核心保留】
-        this._drawCenterSizeText(isHorizontal, floorW, floorH);
-        this._drawBorder(floorW, floorH);
+        this._drawCenterSizeText(ctx, isHorizontal, floorW, floorH);
+        this._drawBorder(ctx, floorW, floorH);
 
-        this.ctx.restore();
+        ctx.restore();
     }
 
-    _drawMeasurePoints(direction, width, height, start, end) {
+    _drawMeasurePoints(ctx, direction, width, height, start, end) {
         if (start == -1 || end == -1 || start == end) {
             return;
         }
-        this.ctx.save();
+        ctx.save();
         let _start = start;
         let _end = end;
         if (start > end) {
             _start = end;
             _end = start;
         }
-        this.ctx.fillStyle = "rgba(253, 159, 153, 0.9)";
+        ctx.fillStyle = "rgba(253, 159, 153, 0.9)";
         if (direction == 'top') {
-            this.ctx.fillRect(_start, 0, _end - _start, ScreenRuler.MEASURE_SIZE);
+            ctx.fillRect(_start, 0, _end - _start, ScreenRuler.MEASURE_SIZE);
         } else if (direction == 'bottom') {
-            this.ctx.fillRect(_start, height - ScreenRuler.MEASURE_SIZE, _end - _start, ScreenRuler.MEASURE_SIZE);
+            ctx.fillRect(_start, height - ScreenRuler.MEASURE_SIZE, _end - _start, ScreenRuler.MEASURE_SIZE);
         } else if (direction == 'left') {
-            this.ctx.fillRect(0, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
+            ctx.fillRect(0, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
         } else if (direction == 'right') {
-            this.ctx.fillRect(width - ScreenRuler.MEASURE_SIZE, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
+            ctx.fillRect(width - ScreenRuler.MEASURE_SIZE, _start, ScreenRuler.MEASURE_SIZE, _end - _start);
         }
-        this.ctx.restore();
+        ctx.restore();
     }
 
     // 三层刻度绘制
-    _drawThreeLevelTicks(isHorizontal, w, h) {
+    _drawThreeLevelTicks(ctx, isHorizontal, w, h) {
         const config = ScreenRuler.RULER_CONFIG;
         const physicalMaxLength = isHorizontal ? this.physicalSize.width : this.physicalSize.height;
         if (physicalMaxLength <= 0) return;
 
-        this.ctx.save();
-        this.ctx.translate(0.5, 0.5);
-        this.ctx.imageSmoothingEnabled = false;
-        this.ctx.webkitImageSmoothingEnabled = false;
-        this.ctx.msImageSmoothingEnabled = false;
-        this.ctx.lineCap = 'butt';
-        this.ctx.lineJoin = 'miter';
+        ctx.save();
+        ctx.translate(0.5, 0.5);
+        ctx.imageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
 
         // 主刻度
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
         for (let i = 0; i <= physicalMaxLength; i += config.MAJOR_TICK_INTERVAL) {
             if (i === 0) continue;
             const pos = Math.floor(i);
             if (isHorizontal) {
-                this.ctx.moveTo(pos, 0);
-                this.ctx.lineTo(pos, config.MAJOR_TICK_LENGTH);
-                this.ctx.moveTo(pos, h);
-                this.ctx.lineTo(pos, h - config.MAJOR_TICK_LENGTH);
+                ctx.moveTo(pos, 0);
+                ctx.lineTo(pos, config.MAJOR_TICK_LENGTH);
+                ctx.moveTo(pos, h);
+                ctx.lineTo(pos, h - config.MAJOR_TICK_LENGTH);
             } else {
-                this.ctx.moveTo(0, pos);
-                this.ctx.lineTo(config.MAJOR_TICK_LENGTH, pos);
-                this.ctx.moveTo(w, pos);
-                this.ctx.lineTo(w - config.MAJOR_TICK_LENGTH, pos);
+                ctx.moveTo(0, pos);
+                ctx.lineTo(config.MAJOR_TICK_LENGTH, pos);
+                ctx.moveTo(w, pos);
+                ctx.lineTo(w - config.MAJOR_TICK_LENGTH, pos);
             }
         }
-        this.ctx.stroke();
-        this.ctx.closePath();
+        ctx.stroke();
+        ctx.closePath();
 
         // 次刻度
-        this.ctx.beginPath();
+        ctx.beginPath();
         for (let i = 0; i <= physicalMaxLength; i += config.MINOR_TICK_INTERVAL) {
             if (i % config.MAJOR_TICK_INTERVAL === 0) continue;
             const pos = Math.floor(i);
             if (isHorizontal) {
-                this.ctx.moveTo(pos, 0);
-                this.ctx.lineTo(pos, config.MINOR_TICK_LENGTH);
-                this.ctx.moveTo(pos, h);
-                this.ctx.lineTo(pos, h - config.MINOR_TICK_LENGTH);
+                ctx.moveTo(pos, 0);
+                ctx.lineTo(pos, config.MINOR_TICK_LENGTH);
+                ctx.moveTo(pos, h);
+                ctx.lineTo(pos, h - config.MINOR_TICK_LENGTH);
             } else {
-                this.ctx.moveTo(0, pos);
-                this.ctx.lineTo(config.MINOR_TICK_LENGTH, pos);
-                this.ctx.moveTo(w, pos);
-                this.ctx.lineTo(w - config.MINOR_TICK_LENGTH, pos);
+                ctx.moveTo(0, pos);
+                ctx.lineTo(config.MINOR_TICK_LENGTH, pos);
+                ctx.moveTo(w, pos);
+                ctx.lineTo(w - config.MINOR_TICK_LENGTH, pos);
             }
         }
-        this.ctx.stroke();
-        this.ctx.closePath();
+        ctx.stroke();
+        ctx.closePath();
 
         // 微刻度
-        this.ctx.beginPath();
+        ctx.beginPath();
         for (let i = 0; i <= physicalMaxLength; i += config.FINE_TICK_INTERVAL) {
             if (i % config.MAJOR_TICK_INTERVAL === 0 || i % config.MINOR_TICK_INTERVAL === 0) continue;
             const pos = Math.floor(i);
             if (isHorizontal) {
-                this.ctx.moveTo(pos, 0);
-                this.ctx.lineTo(pos, config.FINE_TICK_LENGTH);
-                this.ctx.moveTo(pos, h);
-                this.ctx.lineTo(pos, h - config.FINE_TICK_LENGTH);
+                ctx.moveTo(pos, 0);
+                ctx.lineTo(pos, config.FINE_TICK_LENGTH);
+                ctx.moveTo(pos, h);
+                ctx.lineTo(pos, h - config.FINE_TICK_LENGTH);
             } else {
-                this.ctx.moveTo(0, pos);
-                this.ctx.lineTo(config.FINE_TICK_LENGTH, pos);
-                this.ctx.moveTo(w, pos);
-                this.ctx.lineTo(w - config.FINE_TICK_LENGTH, pos);
+                ctx.moveTo(0, pos);
+                ctx.lineTo(config.FINE_TICK_LENGTH, pos);
+                ctx.moveTo(w, pos);
+                ctx.lineTo(w - config.FINE_TICK_LENGTH, pos);
             }
         }
-        this.ctx.stroke();
-        this.ctx.closePath();
-        this.ctx.restore();
+        ctx.stroke();
+        ctx.closePath();
+        ctx.restore();
     }
 
     // 刻度文本绘制
-    _drawTickText(isHorizontal, w, h, center) {
+    _drawTickText(ctx, isHorizontal, w, h, center) {
         const config = ScreenRuler.RULER_CONFIG;
         const physicalMaxLength = isHorizontal ? this.physicalSize.width : this.physicalSize.height;
         if (physicalMaxLength <= 0) return;
 
-        this.ctx.fillStyle = "#000";
-        this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
-        this.ctx.fontSmoothingEnabled = true;
-        this.ctx.webkitFontSmoothing = "antialiased";
-        this.ctx.font = `${config.TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
+        ctx.fillStyle = "#000";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fontSmoothingEnabled = true;
+        ctx.webkitFontSmoothing = "antialiased";
+        ctx.font = `${config.TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
 
         for (let i = 0; i <= physicalMaxLength; i += config.MAJOR_TICK_INTERVAL) {
             if (i === 0) continue;
             const pos = Math.floor(i);
             if (isHorizontal) {
-                this.ctx.fillText(i.toString(), pos, config.TEXT_OFFSET);
-                this.ctx.fillText(i.toString(), pos, h - config.TEXT_OFFSET);
+                ctx.fillText(i.toString(), pos, config.TEXT_OFFSET);
+                ctx.fillText(i.toString(), pos, h - config.TEXT_OFFSET);
             } else {
-                this.ctx.save();
-                this.ctx.translate(config.TEXT_OFFSET, pos);
-                this.ctx.fillText(i.toString(), 0, 0);
-                this.ctx.restore();
-                this.ctx.save();
-                this.ctx.translate(w - config.TEXT_OFFSET, pos);
-                this.ctx.fillText(i.toString(), 0, 0);
-                this.ctx.restore();
+                ctx.save();
+                ctx.translate(config.TEXT_OFFSET, pos);
+                ctx.fillText(i.toString(), 0, 0);
+                ctx.restore();
+                ctx.save();
+                ctx.translate(w - config.TEXT_OFFSET, pos);
+                ctx.fillText(i.toString(), 0, 0);
+                ctx.restore();
             }
         }
     }
@@ -302,7 +303,7 @@ export default class ScreenRuler {
     // ==============================================
     // 绘制中心物理像素尺寸（直接显示真实物理像素）
     // ==============================================
-    _drawCenterSizeText(isHorizontal, w, h) {
+    _drawCenterSizeText(ctx, isHorizontal, w, h) {
         const config = ScreenRuler.RULER_CONFIG;
         // 直接使用物理像素值，不做任何转换！和标尺刻度完全一致
         let displayValue = isHorizontal
@@ -342,43 +343,43 @@ export default class ScreenRuler {
         }
 
         // 文本样式（不变，物理像素配置）
-        this.ctx.font = `bold ${config.CENTER_TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
-        this.ctx.textAlign = "center";
-        this.ctx.textBaseline = "middle";
-        this.ctx.fontSmoothingEnabled = true;
-        this.ctx.webkitFontSmoothing = "antialiased";
+        ctx.font = `bold ${config.CENTER_TEXT_FONT_SIZE}px ${config.TEXT_FONT_BASE}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fontSmoothingEnabled = true;
+        ctx.webkitFontSmoothing = "antialiased";
 
         // 绘制醒目物理像素数值（不变）
-        this.ctx.fillStyle = config.CENTER_TEXT_COLOR;
-        this.ctx.fillText(displayText, centerX, centerY);
+        ctx.fillStyle = config.CENTER_TEXT_COLOR;
+        ctx.fillText(displayText, centerX, centerY);
     }
 
     // 圆角矩形辅助方法
-    _drawRoundedRect(x, y, width, height, radius) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(x + radius, y);
-        this.ctx.lineTo(x + width - radius, y);
-        this.ctx.arcTo(x + width, y, x + width, y + radius, radius);
-        this.ctx.lineTo(x + width, y + height - radius);
-        this.ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
-        this.ctx.lineTo(x + radius, y + height);
-        this.ctx.arcTo(x, y + height, x, y + height - radius, radius);
-        this.ctx.lineTo(x, y + radius);
-        this.ctx.arcTo(x, y, x + radius, y, radius);
-        this.ctx.closePath();
+    _drawRoundedRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.arcTo(x + width, y, x + width, y + radius, radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+        ctx.lineTo(x + radius, y + height);
+        ctx.arcTo(x, y + height, x, y + height - radius, radius);
+        ctx.lineTo(x, y + radius);
+        ctx.arcTo(x, y, x + radius, y, radius);
+        ctx.closePath();
     }
 
     // 边框绘制
-    _drawBorder(w, h) {
-        this.ctx.strokeStyle = "#000";
-        this.ctx.lineWidth = 1;
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, 0);
-        this.ctx.lineTo(0, h);
-        this.ctx.moveTo(w, 0);
-        this.ctx.lineTo(w, h);
-        this.ctx.stroke();
-        this.ctx.closePath();
+    _drawBorder(ctx, w, h) {
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, h);
+        ctx.moveTo(w, 0);
+        ctx.lineTo(w, h);
+        ctx.stroke();
+        ctx.closePath();
     }
 
     // 剩余方法
