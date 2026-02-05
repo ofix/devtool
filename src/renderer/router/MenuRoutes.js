@@ -13,6 +13,7 @@ import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 import AllConfig from "@/views/ToolConfig/AllConfig.vue";
 import TrayApp from "@/views/Tray/TrayApp.vue";
 import UnitConvert from "@/views/Misc/UnitConvert.vue";
+import FileCompare from "@/views/Misc/FileCompare.vue";
 
 const MenuRoutes = [
     {
@@ -60,16 +61,6 @@ const MenuRoutes = [
                     desc: ''
                 }
             },
-            {
-                path: '/debug-tool/file-compare',
-                name: 'FileCompare',
-                component: () => import('@/views/DebugTool/FileComparePanel.vue'),
-                meta: {
-                    icon: FileCompareIcon,
-                    title: '文件对比',
-                    desc: ''
-                }
-            }
         ],
     },
     {
@@ -175,6 +166,16 @@ const MenuRoutes = [
         meta: {
             icon: SSHIcon,
             title: '单位换算',
+            desc: ''
+        }
+    },
+    {
+        path: '/file-compare',
+        name: 'FileCompare',
+        component: FileCompare,
+        meta: {
+            icon: FileCompareIcon,
+            title: '文件对比',
             desc: ''
         }
     },

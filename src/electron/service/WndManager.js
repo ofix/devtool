@@ -21,7 +21,8 @@ class WndManager extends Singleton {
             'ToolConfigWnd': this.getToolConfigWndConfig(),
             'TrayAppWnd': this.getTrayAppWndConfig(),
             'UnitConvertWnd': this.getUnitConvertConfig(),
-            'DebugWnd': this.getDebugWndConfig()
+            'DebugWnd': this.getDebugWndConfig(),
+            'FileCompareWnd': this.getFileCompareWndConfig()
         };
 
         this.activeWnd = "";
@@ -205,6 +206,28 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/unit-convert',
+                levelName: 'normal',
+                levelZOrder: 10,
+                devTool: false
+            }
+        };
+    }
+
+    getFileCompareWndConfig(options = {}) {
+        const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+        const wndWidth = 1280;
+        const wndHeight = 960;
+        return {
+            browserWindow: {
+                x: (screenWidth - wndWidth) / 2,
+                y: (screenHeight - wndHeight) / 2,
+                width: wndWidth,
+                height: wndHeight,
+                title: "文件比对",
+                frame: true
+            },
+            custom: {
+                url: '/file-compare',
                 levelName: 'normal',
                 levelZOrder: 10,
                 devTool: false
