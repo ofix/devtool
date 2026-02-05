@@ -38,8 +38,8 @@
 import { computed } from "vue";
 import { ElMessage } from "element-plus";
 import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests";
-import IconSend from "@/components/icons/IconSend.vue";
-import IconLink from "@/components/icons/IconLink.vue";
+import IconSend from "@/icons/IconSend.vue";
+import IconLink from "@/icons/IconLink.vue";
 
 // 获取Pinia仓库
 const requestStore = useHttpsRequestStore();

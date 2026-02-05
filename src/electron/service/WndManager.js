@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, globalShortcut, ipcMain } from 'electron';
+import { BrowserWindow, screen, Tray, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Singleton from './Singleton.js';
@@ -18,7 +18,9 @@ class WndManager extends Singleton {
             'CaptureWnd': this.getCaptureWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
             'ScreenRulerWnd': this.getScreenRulerWndConfig(),
-            'ToolConfig': this.getToolConfigWndConfig(),
+            'ToolConfigWnd': this.getToolConfigWndConfig(),
+            'TrayAppWnd': this.getTrayAppWndConfig(),
+            'UnitConvertWnd': this.getUnitConvertConfig(),
             'DebugWnd': this.getDebugWndConfig()
         };
 
@@ -138,6 +140,72 @@ class WndManager extends Singleton {
             custom: {
                 url: '/tool-config',
                 levelName: 'pop-up-menu',
+                levelZOrder: 10,
+                devTool: false
+            }
+        };
+    }
+
+    getTrayAppWndConfig(options = {}) {
+        const screenBounds = screen.getPrimaryDisplay().bounds;
+        const trayIcon = join(__dirname, '../public/tray.png');
+        let tray = new Tray(trayIcon);
+        tray.setToolTip('devtool');
+        tray.on('click', () => {
+            let trayWnd = this.getWindow('TrayAppWnd');
+            if (trayWnd && trayWnd.isVisible()) {
+                this.hideWindow('TrayAppWnd');
+            } else {
+                this.showWindow('TrayAppWnd');
+            }
+        });
+        const trayBounds = tray.getBounds(); // 托盘图标位置
+        // 计算窗口位置（兼容Windows/macOS/Linux）
+        const windowWidth = 400;
+        const windowHeight = 600;
+        let x, y;
+
+        if (process.platform === 'win32' || process.platform === 'linux') {
+            // Windows/Linux：右下角，托盘上方10px，右侧10px
+            x = screenBounds.width - windowWidth - 10;
+            y = screenBounds.height - windowHeight - trayBounds.height - 10;
+        } else if (process.platform === 'darwin') {
+            // macOS：右上角，托盘（菜单栏）下方10px
+            x = screenBounds.width - windowWidth - 10;
+            y = trayBounds.y + trayBounds.height + 10;
+        }
+        return {
+            browserWindow: {
+                x: x,
+                y: y,
+                width: windowWidth,
+                height: windowHeight
+            },
+            custom: {
+                url: '/tray-app',
+                levelName: 'pop-up-menu',
+                levelZOrder: 11,
+                devTool: true
+            }
+        };
+    }
+
+    getUnitConvertConfig(options = {}) {
+        const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+        const wndWidth = 800;
+        const wndHeight = 600;
+        return {
+            browserWindow: {
+                x: (screenWidth - wndWidth) / 2,
+                y: (screenHeight - wndHeight) / 2,
+                width: wndWidth,
+                height: wndHeight,
+                title: "单位换算",
+                frame: true
+            },
+            custom: {
+                url: '/unit-convert',
+                levelName: 'normal',
                 levelZOrder: 10,
                 devTool: false
             }

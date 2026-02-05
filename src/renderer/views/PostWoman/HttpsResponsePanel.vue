@@ -154,7 +154,7 @@ import { computed,ref } from "vue";
 import VueJsonPretty from "vue-json-pretty";
 import "vue-json-pretty/lib/styles.css";
 import JsonEditor from "./JsonEditor.vue";
-import IconSend from "@/components/icons/IconSend.vue";
+import IconSend from "@/icons/IconSend.vue";
 import { useHttpsRequestStore } from "@/stores/StoreHttpsRequests";
 
 // 获取Pinia仓库

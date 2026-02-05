@@ -46,12 +46,12 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
-import RedfishIcon from "@/components/icons/IconRedfish.vue";
-import IconMaximizeBox from "@/components/icons/IconMaximizeBox.vue";
-import IconMinimizeBox from "@/components/icons/IconMinimizeBox.vue";
-import IconRestoreBox from "@/components/icons/IconRestoreBox.vue";
-import IconCloseBox from "@/components/icons/IconCloseBox.vue";
-import IconCaptureRect from "@/components/icons/IconCaptureRect.vue";
+import RedfishIcon from "@/icons/IconRedfish.vue";
+import IconMaximizeBox from "@/icons/IconMaximizeBox.vue";
+import IconMinimizeBox from "@/icons/IconMinimizeBox.vue";
+import IconRestoreBox from "@/icons/IconRestoreBox.vue";
+import IconCloseBox from "@/icons/IconCloseBox.vue";
+import IconCaptureRect from "@/icons/IconCaptureRect.vue";
 
 // 可传入的 props
 const props = defineProps({

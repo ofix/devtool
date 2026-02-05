@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import DevTool from "./DevTool.js";
 // import mmFileManager from './core/MMFileManager.js';
 import windowInfo from "./service/WindowInfo.js";
+import WndManager from "./service/WndManager.js"
 
 // 捕获未处理的异常
 process.on('uncaughtException', (error) => {
@@ -16,6 +17,9 @@ process.on('unhandledRejection', (reason, promise) => {
 
 let devTool = null;
 app.whenReady().then(() => {
+    const wndManager = WndManager.getInstance();
+    wndManager.showWindow('TrayAppWnd');
+    wndManager.hideWindow('TrayAppWnd');
     devTool = new DevTool();
     devTool.init();
     app.on('activate', () => {

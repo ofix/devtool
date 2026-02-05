@@ -47,15 +47,15 @@
 
 <script setup>
 // 截图功能按钮
-import Settings from "@/components/icons/IconSettings.vue";
-import Capture from "@/components/icons/IconCapture.vue";
-import CaptureWindow from "@/components/icons/IconCaptureWindow.vue";
-import CaptureRect from "@/components/icons/IconCaptureRect.vue";
-import CaptureScroll from "@/components/icons/IconCaptureScroll.vue";
-import RecordVideo from "@/components/icons/IconRecordVideo.vue";
-import ScreenRuler from "@/components/icons/IconScreenRuler.vue";
-import ColorPicker from "@/components/icons/IconColorPicker.vue";
-import Close from "@/components/icons/IconCloseBox.vue";
+import Settings from "@/icons/IconSettings.vue";
+import Capture from "@/icons/IconCapture.vue";
+import CaptureWindow from "@/icons/IconCaptureWindow.vue";
+import CaptureRect from "@/icons/IconCaptureRect.vue";
+import CaptureScroll from "@/icons/IconCaptureScroll.vue";
+import RecordVideo from "@/icons/IconRecordVideo.vue";
+import ScreenRuler from "@/icons/IconScreenRuler.vue";
+import ColorPicker from "@/icons/IconColorPicker.vue";
+import Close from "@/icons/IconCloseBox.vue";
 import { ElMessage } from "element-plus";
 
 import { ref, onMounted, onUnmounted } from "vue";

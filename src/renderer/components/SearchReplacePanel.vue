@@ -103,11 +103,11 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import IconMatchCase from "@/components/icons/IconMatchCase.vue";
-import IconMatchRegex from "@/components/icons/IconMatchRegex.vue";
-import IconMatchWholeWord from "@/components/icons/IconMatchWholeWord.vue";
-import IconOpenFiles from "@/components/icons/IconOpenFiles.vue";
-import IconExcludeFiles from "@/components/icons/IconExcludeFiles.vue";
+import IconMatchCase from "@/icons/IconMatchCase.vue";
+import IconMatchRegex from "@/icons/IconMatchRegex.vue";
+import IconMatchWholeWord from "@/icons/IconMatchWholeWord.vue";
+import IconOpenFiles from "@/icons/IconOpenFiles.vue";
+import IconExcludeFiles from "@/icons/IconExcludeFiles.vue";
 
 // 搜索输入值
 const searchValue = ref("");

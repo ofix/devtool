@@ -114,13 +114,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useFindReplaceStore } from "@/stores/StoreFindReplace";
-import IconMatchCase from "@/components/icons/IconMatchCase.vue";
-import IconMatchWholeWord from "@/components/icons/IconMatchWholeWord.vue";
-import IconMatchRegex from "@/components/icons/IconMatchRegex.vue";
-import IconReplace from "@/components/icons/IconReplace.vue";
-import IconReplaceAll from "@/components/icons/IconReplaceAll.vue";
-import IconPrev from "@/components/icons/IconArrowUp.vue";
-import IconNext from "@/components/icons/IconArrowDown.vue";
+import IconMatchCase from "@/icons/IconMatchCase.vue";
+import IconMatchWholeWord from "@/icons/IconMatchWholeWord.vue";
+import IconMatchRegex from "@/icons/IconMatchRegex.vue";
+import IconReplace from "@/icons/IconReplace.vue";
+import IconReplaceAll from "@/icons/IconReplaceAll.vue";
+import IconPrev from "@/icons/IconArrowUp.vue";
+import IconNext from "@/icons/IconArrowDown.vue";
 
 const findStore = useFindReplaceStore();
 

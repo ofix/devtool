@@ -69,20 +69,20 @@
 // 导入必要依赖
 import { ref, computed, onMounted, onUnmounted } from "vue";
 // 编辑截图按钮组件
-import BtnSelect from "@/components/icons/IconSelect.vue";
-import BtnLine from "@/components/icons/IconLine.vue";
-import BtnArrow from "@/components/icons/IconArrowUp.vue";
-import BtnRect from "@/components/icons/IconRect.vue";
-import BtnEclipse from "@/components/icons/IconEclipse.vue";
-import BtnStar from "@/components/icons/IconStar.vue";
-import BtnPencil from "@/components/icons/IconPencil.vue";
-import BtnHilighter from "@/components/icons/IconHilighter.vue";
-import BtnEraser from "@/components/icons/IconEraser.vue";
-import BtnMosaic from "@/components/icons/IconMosaic.vue";
-import BtnIncrementNumber from "@/components/icons/IconNumber.vue";
-import BtnText from "@/components/icons/IconText.vue";
-import BtnCancel from "@/components/icons/IconCloseBox.vue";
-import BtnFinish from "@/components/icons/IconOk.vue";
+import BtnSelect from "@/icons/IconSelect.vue";
+import BtnLine from "@/icons/IconLine.vue";
+import BtnArrow from "@/icons/IconArrowUp.vue";
+import BtnRect from "@/icons/IconRect.vue";
+import BtnEclipse from "@/icons/IconEclipse.vue";
+import BtnStar from "@/icons/IconStar.vue";
+import BtnPencil from "@/icons/IconPencil.vue";
+import BtnHilighter from "@/icons/IconHilighter.vue";
+import BtnEraser from "@/icons/IconEraser.vue";
+import BtnMosaic from "@/icons/IconMosaic.vue";
+import BtnIncrementNumber from "@/icons/IconNumber.vue";
+import BtnText from "@/icons/IconText.vue";
+import BtnCancel from "@/icons/IconCloseBox.vue";
+import BtnFinish from "@/icons/IconOk.vue";
 import { ShapeType } from "./Shapes/ShapeFactory.js";
 
 // 接收父组件传参

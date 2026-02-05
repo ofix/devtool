@@ -1,7 +1,7 @@
 // 菜单图标集合
-import SSHIcon from "@/components/icons/IconSSH.vue";
-import SearchIcon from "@/components/icons/IconSearch.vue";
-import FileCompareIcon from "@/components/icons/IconFileCompare.vue";
+import SSHIcon from "@/icons/IconSSH.vue";
+import SearchIcon from "@/icons/IconSearch.vue";
+import FileCompareIcon from "@/icons/IconFileCompare.vue";
 import VSCodeLayout from '@/layout/VSCodeLayout.vue'
 import PostWomanLayout from "@/layout/PostWomanLayout.vue";
 import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
@@ -11,6 +11,8 @@ import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
 import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
 import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 import AllConfig from "@/views/ToolConfig/AllConfig.vue";
+import TrayApp from "@/views/Tray/TrayApp.vue";
+import UnitConvert from "@/views/Misc/UnitConvert.vue";
 
 const MenuRoutes = [
     {
@@ -153,6 +155,26 @@ const MenuRoutes = [
         meta: {
             icon: SSHIcon,
             title: '配置弹窗',
+            desc: ''
+        }
+    },
+    {
+        path: '/tray-app',
+        name: 'tray-app',
+        component: TrayApp,
+        meta: {
+            icon: SSHIcon,
+            title: '托盘应用',
+            desc: ''
+        }
+    },
+    {
+        path: '/unit-convert',
+        name: 'unit-conert',
+        component: UnitConvert,
+        meta: {
+            icon: SSHIcon,
+            title: '单位换算',
             desc: ''
         }
     },

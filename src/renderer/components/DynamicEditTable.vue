@@ -104,7 +104,7 @@ import {
   onUnmounted,
   reactive,
 } from "vue";
-import Delete from "@/components/icons/IconDelete.vue";
+import Delete from "@/icons/IconDelete.vue";
 import DynamicEditCell from "./DynamicEditCell.vue";
 
 const props = defineProps({

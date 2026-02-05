@@ -33,11 +33,11 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from "vue";
-import IconTranslate from "@/components/icons/IconTranslate.vue";
-import IconCloseBox from "@/components/icons/IconCloseBox.vue";
-import IconMinimizeBox from "@//components/icons/IconMinimizeBox.vue";
-import IconDragLeft from "@/components/icons/IconDragLeft.vue";
-import IconDragRight from "@/components/icons/IconDragRight.vue";
+import IconTranslate from "@/icons/IconTranslate.vue";
+import IconCloseBox from "@/icons/IconCloseBox.vue";
+import IconMinimizeBox from "@//icons/IconMinimizeBox.vue";
+import IconDragLeft from "@/icons/IconDragLeft.vue";
+import IconDragRight from "@/icons/IconDragRight.vue";
 import ScreenRuler from "./ScreenRuler.js";
 
 // 基础配置
