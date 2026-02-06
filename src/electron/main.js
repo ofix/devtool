@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import DevTool from "./DevTool.js";
 // import mmFileManager from './core/MMFileManager.js';
-import windowInfo from "./service/WindowInfo.js";
+import native from "./service/DevtoolNative.js";
 import WndManager from "./service/WndManager.js"
 
 // 捕获未处理的异常
@@ -25,7 +25,7 @@ app.whenReady().then(() => {
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length > 0) createWindow()
     })
-    windowInfo.load(); // 加载 window-info 模块
+    native.load(); // 加载 native 模块
 })
 
 // 对于 macOS，当所有窗口都关闭时，应用通常不会退出，而是保持在 Dock 中。

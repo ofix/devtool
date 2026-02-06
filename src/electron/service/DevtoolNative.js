@@ -6,7 +6,7 @@ import { createRequire } from 'module';  // 引入 createRequire
 // 创建 require 函数用于加载原生模块
 const require = createRequire(import.meta.url);
 
-class WindowInfo {
+class DevtoolNative {
   constructor() {
     this.nativeModule = null;
     this.isLoaded = false;
@@ -19,12 +19,12 @@ class WindowInfo {
    */
   getModuleFilename() {
     const platformMap = {
-      'win32': 'window_info_win32.node',
-      'darwin': 'window_info_darwin.node',
-      'linux': 'window_info_linux.node'
+      'win32': 'devtool_native_win32.node',
+      'darwin': 'devtool_native_darwin.node',
+      'linux': 'devtool_native_linux.node'
     };
 
-    return platformMap[this.platform] || 'window_info_win32.node';
+    return platformMap[this.platform] || 'devtool_native_win32.node';
   }
 
   /**
@@ -52,7 +52,7 @@ class WindowInfo {
     // 尝试多个可能的路径
     const possiblePaths = [
       // 开发环境路径（相对于当前文件位置）
-      path.join(currentDir, `../../../build/window-info/`, filename),
+      path.join(currentDir, `../../../build/native/`, filename),
       // 生产环境路径（打包后）
       path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'Release', filename),
       path.join(process.resourcesPath, 'native_modules', filename)
@@ -245,10 +245,10 @@ class WindowInfo {
 }
 
 // 创建单例实例
-const windowInfo = new WindowInfo();
+const native = new DevtoolNative();
 
 // 导出平台信息
 console.log('🌐 Native Window Info Module - Platform:', process.platform, 'Arch:', process.arch);
 
 // 导出单例实例
-export default windowInfo;
+export default native;

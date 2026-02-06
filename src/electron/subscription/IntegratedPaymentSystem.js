@@ -1,6 +1,6 @@
 // subscription-strategy/integrated-payment-system.js
 import { PaymentManager } from '../payment/payment-manager.js';
-import { SubscriptionManager, SubscriptionPeriod } from './subscription-core.js';
+import { SubscriptionManager, SubscriptionPeriod } from './Subscription.js';
 
 export class IntegratedPaymentSystem {
     constructor(config) {

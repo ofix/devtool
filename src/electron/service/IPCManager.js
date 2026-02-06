@@ -4,7 +4,7 @@ import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
 import WndManager from './WndManager.js';
 import Singleton from "./Singleton.js";
-import windowInfo from "./WindowInfo.js";
+import native from "./DevtoolNative.js";
 import debugLogger from './DebugLogger.js';
 // 日志缓存上限
 
@@ -176,7 +176,7 @@ class IPCManager extends Singleton {
         });
         // 枚举所有窗口列表（EnumWindowList）
         ipcMain.handle('enum-window-list', async () => {
-            return windowInfo.getAllWindows();
+            return native.getAllWindows();
         });
         // 获取录屏数据源
         ipcMain.handle("get-record-sources", async () => {
