@@ -7,15 +7,14 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-#include <future>
+#include <atomic>
 #include <stdexcept>
 
 class ThreadPool {
 public:
-    // 构造函数：指定线程数，默认CPU核心数
-    explicit ThreadPool(size_t threads = std::thread::hardware_concurrency()) {
-        if (threads == 0) threads = 4; // 兜底，至少4线程
-        for (size_t i = 0; i < threads; ++i)
+    explicit ThreadPool(size_t threads = std::thread::hardware_concurrency()) : stop(false) {
+        if (threads == 0) threads = 1;
+        for (size_t i = 0; i < threads; ++i) {
             workers.emplace_back([this] {
                 for (;;) {
                     std::function<void()> task;
@@ -31,48 +30,42 @@ public:
                     task();
                 }
             });
+        }
     }
 
-    // 提交任务，返回未来对象
-    template<class F, class... Args>
-    auto enqueue(F&& f, Args&&... args) 
-        -> std::future<typename std::result_of<F(Args...)>::type> {
-        using return_type = typename std::result_of<F(Args...)>::type;
-        auto task = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-        );
-        std::future<return_type> res = task->get_future();
+    // 提交任务
+    template<class F>
+    void enqueue(F&& f) {
         {
             std::unique_lock<std::mutex> lock(queue_mutex);
             if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
-            tasks.emplace([task]() { (*task)(); });
+            tasks.emplace(std::forward<F>(f));
         }
         condition.notify_one();
-        return res;
     }
 
-    // 析构函数：等待所有线程完成
+    // 析构：等待所有任务完成
     ~ThreadPool() {
         {
             std::unique_lock<std::mutex> lock(queue_mutex);
             stop = true;
         }
         condition.notify_all();
-        for (std::thread& worker : workers) worker.join();
+        for (std::thread& worker : workers) {
+            worker.join();
+        }
     }
 
-    // 禁用拷贝/移动
+    // 禁止拷贝
     ThreadPool(const ThreadPool&) = delete;
     ThreadPool& operator=(const ThreadPool&) = delete;
-    ThreadPool(ThreadPool&&) = delete;
-    ThreadPool& operator=(ThreadPool&&) = delete;
 
 private:
-    std::vector<std::thread> workers;       // 工作线程池
-    std::queue<std::function<void()>> tasks;// 任务队列
-    std::mutex queue_mutex;                 // 队列互斥锁
-    std::condition_variable condition;      // 条件变量
-    bool stop = false;                      // 停止标志
+    std::vector<std::thread> workers;
+    std::queue<std::function<void()>> tasks;
+    std::mutex queue_mutex;
+    std::condition_variable condition;
+    std::atomic<bool> stop;
 };
 
 #endif // THREAD_POOL_H

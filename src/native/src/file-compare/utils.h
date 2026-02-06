@@ -3,129 +3,126 @@
 
 #include <string>
 #include <vector>
-#include <filesystem>
-#include <fstream>
-#include <zlib.h>
 #include <stdexcept>
+#include <filesystem>
+#include <cstdint>
 #include <sstream>
-
-// 跨平台路径分隔符
+#include <algorithm>
+#include <fstream>      // 关键：添加ifstream所需头文件
+#include <cstdio>       // snprintf所需
+#include <cctype>       // isprint/isspace所需
+#include <mutex>        // 通用mutex头文件
+#include <thread>       // 线程相关
 #ifdef _WIN32
-#define PATH_SEP "\\"
-#define PATH_SEP_CHAR '\\'
+#include <windows.h>    // Windows隐藏文件判断
 #else
-#define PATH_SEP "/"
-#define PATH_SEP_CHAR '/'
+#include <unistd.h>     // Linux/Mac基础头文件
 #endif
 
 // 命名空间别名
 namespace fs = std::filesystem;
 
-// 路径标准化：统一转换为正斜杠，处理末尾分隔符
-inline std::string normalize_path(const std::string& path) {
-    std::string res = path;
-#ifdef _WIN32
-    std::replace(res.begin(), res.end(), '\\', '/');
-#endif
-    // 移除末尾分隔符
-    if (!res.empty() && (res.back() == '/' || res.back() == '\\')) {
-        res.pop_back();
+// FNV-1a哈希（快速计算行/文件哈希）
+inline uint64_t fnv1a_hash(const std::string& s) {
+    uint64_t hash = 14695981039346656037ULL; // FNV偏移量
+    for (char c : s) {
+        hash ^= static_cast<uint8_t>(c);
+        hash *= 1099511628211ULL; // FNV质数
     }
-    return res;
+    return hash;
 }
 
-// 获取相对路径（基于根目录）
-inline std::string get_relative_path(const std::string& root, const std::string& file) {
-    fs::path root_path(normalize_path(root));
-    fs::path file_path(normalize_path(file));
-    return fs::relative(file_path, root_path).string();
-}
-
-// 判断是否为隐藏文件（跨平台）
-inline bool is_hidden_file(const fs::path& path) {
-    try {
-#ifdef _WIN32
-        // Windows：判断文件属性
-        DWORD attr = GetFileAttributesA(path.string().c_str());
-        return (attr != INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_HIDDEN);
-#else
-        // macOS/Linux：文件名以.开头
-        std::string filename = path.filename().string();
-        return !filename.empty() && filename[0] == '.';
-#endif
-    } catch (...) {
-        return false;
-    }
-}
-
-// 判断是否为文本文件（简单魔数判断，比后缀更准确）
-inline bool is_text_file(const std::string& file_path) {
-    std::ifstream file(file_path, std::ios::binary | std::ios::ate);
-    if (!file) return false;
-    std::streampos size = file.tellg();
-    if (size == 0) return true; // 空文件视为文本
-    file.seekg(0);
-    char buf[1024];
-    file.read(buf, std::min((std::streampos)1024, size));
-    std::streamsize read = file.gcount();
-    // 检查是否包含空字节（二进制文件特征）
-    for (std::streamsize i = 0; i < read; ++i) {
-        if (buf[i] == 0) return false;
-    }
-    return true;
-}
-
-// 计算文件CRC32（流式，支持大文件，zlib硬件加速）
-inline std::string calculate_crc32(const std::string& file_path) {
-    std::ifstream file(file_path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Failed to open file: " + file_path);
-    }
-    uLong crc = crc32(0L, Z_NULL, 0);
-    char buf[8192]; // 8K缓冲区，平衡IO和内存
-    while (file.read(buf, sizeof(buf))) {
-        crc = crc32(crc, (const Bytef*)buf, file.gcount());
-    }
-    // 处理剩余字节
-    if (file.gcount() > 0) {
-        crc = crc32(crc, (const Bytef*)buf, file.gcount());
-    }
-    if (!file.eof()) {
-        throw std::runtime_error("Read file error: " + file_path);
-    }
-    // 转换为16进制字符串
-    char crc_str[9];
-    snprintf(crc_str, sizeof(crc_str), "%08x", (unsigned int)crc);
-    return std::string(crc_str);
-}
-
-// 异常信息转换为字符串
+// 异常转字符串
 inline std::string exception_to_string(const std::exception& e) {
     return std::string(e.what());
 }
 
-// 分割字符串（用于行级对比）
-inline std::vector<std::string> split_lines(const std::string& content) {
+// 路径标准化（统一分隔符）
+inline std::string normalize_path(const std::string& path) {
+    fs::path p(path);
+    return p.make_preferred().string();
+}
+
+// 判断隐藏文件（跨平台）
+inline bool is_hidden_file(const fs::path& path) {
+    if (path.empty()) return false;
+#ifdef _WIN32
+    // Windows：检查文件属性
+    DWORD attr = GetFileAttributesA(path.string().c_str());
+    return (attr != INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_HIDDEN);
+#else
+    // Linux/Mac：文件名以.开头
+    std::string filename = path.filename().string();
+    return !filename.empty() && filename[0] == '.';
+#endif
+}
+
+// 读取文本文件（按行拆分）
+inline std::vector<std::string> read_text_file_lines(const std::string& file_path) {
     std::vector<std::string> lines;
-    std::stringstream ss(content);
-    std::string line;
-    while (std::getline(ss, line)) {
-        lines.push_back(line);
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + file_path);
     }
-    // 处理最后一行无换行的情况
-    if (!content.empty() && content.back() != '\n') {
+    std::string line;
+    while (std::getline(file, line)) {
         lines.push_back(line);
     }
     return lines;
 }
 
-// 读取文件内容（文本文件）
-inline std::string read_text_file(const std::string& file_path) {
-    std::ifstream file(file_path, std::ios::in);
-    if (!file) {
-        throw std::runtime_error("Failed to open text file: " + file_path);
+// 计算文件CRC32（简化版，实际可替换为zlib）
+inline std::string calculate_crc32(const std::string& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file.is_open()) {
+        return "00000000";
     }
-    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    uint32_t crc = 0xFFFFFFFF;
+    char buf[4096];
+    while (file.read(buf, sizeof(buf))) {
+        for (size_t i = 0; i < file.gcount(); ++i) {
+            crc = (crc >> 8) ^ ((uint32_t)static_cast<uint8_t>(buf[i]) << 24);
+            for (int j = 0; j < 8; ++j) {
+                crc = (crc << 1) ^ ((crc & 0x80000000) ? 0x04C11DB7 : 0);
+            }
+        }
+    }
+    // 处理剩余字节
+    if (file.gcount() > 0) {
+        for (size_t i = 0; i < file.gcount(); ++i) {
+            crc = (crc >> 8) ^ ((uint32_t)static_cast<uint8_t>(buf[i]) << 24);
+            for (int j = 0; j < 8; ++j) {
+                crc = (crc << 1) ^ ((crc & 0x80000000) ? 0x04C11DB7 : 0);
+            }
+        }
+    }
+    crc = ~crc;
+    char crc_str[9];
+    snprintf(crc_str, sizeof(crc_str), "%08X", crc);
+    return std::string(crc_str);
+}
+
+// 判断是否为文本文件（简化版：检查前1024字节是否有不可打印字符）
+inline bool is_text_file(const std::string& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file.is_open()) return false;
+    char buf[1024];
+    file.read(buf, sizeof(buf));
+    size_t count = file.gcount();
+    for (size_t i = 0; i < count; ++i) {
+        if (buf[i] == 0) return false; // 二进制空字符
+        if (!isprint(static_cast<unsigned char>(buf[i])) && !isspace(static_cast<unsigned char>(buf[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// 获取相对路径
+inline std::string get_relative_path(const std::string& root, const std::string& full_path) {
+    fs::path root_path(root);
+    fs::path full_path_obj(full_path);
+    return fs::relative(full_path_obj, root_path).string();
 }
 
 #endif // UTILS_H
