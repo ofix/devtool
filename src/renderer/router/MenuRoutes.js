@@ -11,7 +11,7 @@ import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
 import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
 import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 import AllConfig from "@/views/ToolConfig/AllConfig.vue";
-import TrayApp from "@/views/Tray/TrayApp.vue";
+import TrayEntry from "@/views/Tray/TrayEntry.vue";
 import UnitConvert from "@/views/Misc/UnitConvert.vue";
 import FileCompare from "@/views/Misc/FileCompare.vue";
 
@@ -152,7 +152,7 @@ const MenuRoutes = [
     {
         path: '/tray-app',
         name: 'tray-app',
-        component: TrayApp,
+        component: TrayEntry,
         meta: {
             icon: SSHIcon,
             title: '托盘应用',

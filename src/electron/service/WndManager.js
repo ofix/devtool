@@ -162,14 +162,14 @@ class WndManager extends Singleton {
         });
         const trayBounds = tray.getBounds(); // 托盘图标位置
         // 计算窗口位置（兼容Windows/macOS/Linux）
-        const windowWidth = 400;
+        const windowWidth = 420;
         const windowHeight = 600;
         let x, y;
 
         if (process.platform === 'win32' || process.platform === 'linux') {
             // Windows/Linux：右下角，托盘上方10px，右侧10px
-            x = screenBounds.width - windowWidth - 10;
-            y = screenBounds.height - windowHeight - trayBounds.height - 10;
+            x = screenBounds.width - windowWidth;
+            y = screenBounds.height - windowHeight - trayBounds.height;
         } else if (process.platform === 'darwin') {
             // macOS：右上角，托盘（菜单栏）下方10px
             x = screenBounds.width - windowWidth - 10;

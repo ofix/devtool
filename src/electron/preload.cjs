@@ -115,6 +115,8 @@ contextBridge.exposeInMainWorld('channel', {
     showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
     hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
     closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
+    getWindowBounds:(wndName)=>ipcRenderer.invoke('get-window-bounds',wndName),
+    setWindowBounds: (wndName,bounds)=> ipcRenderer.invoke('set-window-bounds',wndName,bounds),
     getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     // 屏幕截图
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),

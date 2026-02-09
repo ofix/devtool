@@ -160,6 +160,26 @@ class IPCManager extends Singleton {
         ipcMain.handle("show-window", (event, wndName, option = {}) => {
             return WndManager.getInstance().showWindow(wndName, option)
         });
+        ipcMain.handle('get-window-bounds', (event, wndName) => {
+            const manager = WndManager.getInstance();
+            const wnd = manager.getWindow(wndName);
+            if (wnd) {
+                return wnd.getBounds();
+            }
+            return { x: 0, y: 0, width: 0, height: 0 };
+        });
+        ipcMain.handle('set-window-bounds', (event, wndName, bounds) => {
+            const manager = WndManager.getInstance();
+            const wnd = manager.getWindow(wndName);
+            if (wnd) {
+                wnd.setBounds({
+                    x: bounds.x,
+                    y: bounds.y,
+                    width: bounds.width,
+                    height: bounds.height
+                });
+            }
+        });
         ipcMain.handle("hide-window", (event, wndName) => {
             return WndManager.getInstance().hideWindow(wndName);
         });
