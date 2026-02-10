@@ -148,6 +148,13 @@
       disabled: true,
     },
     {
+      key: "FileCompareWnd",
+      name: "文件对比",
+      category: "文件工具", // 新增：应用类别
+      icon: "FileCompare",
+      disabled: false,
+    },
+    {
       key: "HexEditorWnd",
       name: "十六进制编辑器",
       category: "编辑工具", // 新增：应用类别
@@ -174,13 +181,6 @@
       category: "文件传输", // 新增：应用类别
       icon: "SFTP", 
       disabled: true 
-    },
-    {
-      key: "FileCompareWnd",
-      name: "文件对比",
-      category: "文件工具", // 新增：应用类别
-      icon: "FileCompare",
-      disabled: true,
     },
     {
       key: "DesktopTileWnd",

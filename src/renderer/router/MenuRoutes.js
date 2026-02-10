@@ -13,7 +13,7 @@ import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 import AllConfig from "@/views/ToolConfig/AllConfig.vue";
 import TrayEntry from "@/views/Tray/TrayEntry.vue";
 import UnitConvert from "@/views/Misc/UnitConvert.vue";
-import FileCompare from "@/views/Misc/FileCompare.vue";
+import FileCompare from "@/views/FileCompare/FileCompareEntry.vue";
 
 const MenuRoutes = [
     {
