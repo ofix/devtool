@@ -59,17 +59,9 @@ class DevTool {
     }
 
     init() {
-        this.createMainWnd();
-        const wndManager = WndManager.getInstance();
-        wndManager.mainWnd = this.mainWnd;
-        if (this.mainWnd && !this.mainWnd.isDestroyed()) {
-            const ipcManager = IPCManager.getInstance(this.mainWnd);
-            ipcManager.startListen();
-        } else {
-            console.error('主窗口未就绪，无法初始化 IPCManager');
-        }
+        const ipcManager = IPCManager.getInstance();
+        ipcManager.startListen();
         this.registerAppShortcuts();
-
     }
 
     createMainWnd() {

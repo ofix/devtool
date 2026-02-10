@@ -9,9 +9,8 @@ import debugLogger from './DebugLogger.js';
 // 日志缓存上限
 
 class IPCManager extends Singleton {
-    constructor(window) {
+    constructor() {
         super();
-        this.window = window;
         // 存储截图状态
         this.screenshotState = {
             mode: 'rectangle', // rectangle, window, scroll, etc.
@@ -324,30 +323,50 @@ class IPCManager extends Singleton {
                     console.log('未知工具命令:', command);
             }
         });
-        ipcMain.on("full-screen", (enent, flag) => {
+        ipcMain.on("full-screen", (enent, wndName, flag) => {
+            let wnd = WndManager.getInstance().getWindow(wndName);
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
             if (flag == 0) {
-                if (this.window.isMinimized()) {
-                    this.window.restore(); // 先恢复窗口
-                    this.window.setFullScreen(true); // 再全屏显示
-                } else if (!this.window.isVisible()) {
-                    this.window.show(); // 如果窗口不可见，则显示窗口
-                    this.window.setFullScreen(true); // 再全屏显示
+                if (wnd.isMinimized()) {
+                    wnd.restore(); // 先恢复窗口
+                    wnd.setFullScreen(true); // 再全屏显示
+                } else if (!wnd.isVisible()) {
+                    wnd.show(); // 如果窗口不可见，则显示窗口
+                    wnd.setFullScreen(true); // 再全屏显示
                 } else {
-                    this.window.setFullScreen(true); // 直接全屏显示
+                    wnd.setFullScreen(true); // 直接全屏显示
                 }
+
             } else if (flag == 1) {
-                this.window.fullScreen = false;  // 还原
+                wnd.restore(); // 还原
             }
         })
-        ipcMain.on('window-minimize', () => this.window.minimize())
-        ipcMain.on('window-close', () => this.window.close())
-        ipcMain.on('window-maximize-toggle', () => {
-            if (this.window.isMaximized()) this.window.unmaximize()
-            else this.window.maximize()
+        ipcMain.on('window-minimize', (event, wndName) => {
+            let wnd = WndManager.getInstance().getWindow(wndName);
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            wnd.minimize();
+            return true;
         })
-        // 同步状态
-        this.window.on('maximize', () => this.window.webContents.send('maximized'))
-        this.window.on('unmaximize', () => this.window.webContents.send('unmaximized'))
+        ipcMain.on('window-close', (event, wndName) => {
+            let wnd = WndManager.getInstance().getWindow(wndName);
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            wnd.close();
+            return true;
+        })
+        ipcMain.on('window-maximize-toggle', () => {
+            let wnd = WndManager.getInstance().getWindow(wndName);
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            if (wnd.isMaximized()) wnd.unmaximize()
+            else wnd.maximize()
+        })
     }
 }
 

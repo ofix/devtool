@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld('dt', {
 
 contextBridge.exposeInMainWorld('channel', {
     clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
-    setFullScreen: (flag) => ipcRenderer.send('full-screen', flag),
+    setFullScreen: (flag,wndName) => ipcRenderer.send('full-screen', flag,wndName),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),
     on: (channel, callback) => {
         const wrappedCallback = (event, ...args) => {
@@ -74,7 +74,7 @@ contextBridge.exposeInMainWorld('channel', {
         return () => ipcRenderer.removeListener(channel, wrappedCallback);
     },
     off: (channel, listener) => ipcRenderer.off(channel, listener),
-    minimize: () => ipcRenderer.send('window-minimize'),
+    minimize: (wndName) => ipcRenderer.send('window-minimize',wndName),
     maximizeToggle: () => ipcRenderer.send('window-maximize-toggle'),
     close: () => ipcRenderer.send('window-close'),
     onMaximized: (cb) => ipcRenderer.on('maximized', cb),

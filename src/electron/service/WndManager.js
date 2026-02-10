@@ -186,7 +186,7 @@ class WndManager extends Singleton {
                 url: '/tray-app',
                 levelName: 'pop-up-menu',
                 levelZOrder: 11,
-                devTool: true
+                devTool: false
             }
         };
     }
@@ -215,8 +215,8 @@ class WndManager extends Singleton {
 
     getFileCompareWndConfig(options = {}) {
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-        const wndWidth = 1280;
-        const wndHeight = 960;
+        const wndWidth = 960;
+        const wndHeight = 680;
         return {
             browserWindow: {
                 x: (screenWidth - wndWidth) / 2,
@@ -224,13 +224,15 @@ class WndManager extends Singleton {
                 width: wndWidth,
                 height: wndHeight,
                 title: "文件比对",
-                frame: true
+                frame: true,
+                resizable: true,
+                transparent: false
             },
             custom: {
                 url: '/file-compare',
                 levelName: 'normal',
                 levelZOrder: 10,
-                devTool: false
+                devTool: true
             }
         };
     }
