@@ -12,6 +12,7 @@ import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
 import LogViewer from "@/views/DebugLogger/LogViewer.vue";
 import AllConfig from "@/views/ToolConfig/AllConfig.vue";
 import TrayEntry from "@/views/Tray/TrayEntry.vue";
+import AppEntry from "@/views/Main/AppEntry.vue";
 import UnitConvert from "@/views/Misc/UnitConvert.vue";
 import FileCompare from "@/views/FileCompare/FileCompareEntry.vue";
 
@@ -19,6 +20,15 @@ const MenuRoutes = [
     {
         path: '/',
         redirect: '/postwoman/request' // 可修改为你需要的默认路由，如 '/debug-tool/ssh'
+    },{
+        path: '/main-app',
+        name: 'main-app',
+        component: AppEntry,
+        meta: {
+            icon: SSHIcon,
+            title: '主应用',
+            desc: ''
+        }
     },
     {
         path: '/debug-wnd',

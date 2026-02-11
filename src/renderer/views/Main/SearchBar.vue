@@ -49,15 +49,19 @@ const onShortcut = () => {
 
 <style scoped>
 .search-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: sticky;
+  bottom: 0px; /* 距离父容器可视区域底部10px */
+  /* 关键：继承3D变换，跟着父容器翻转 */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  width:102%;
+  margin-left:-8px;
   display: flex;
   align-items: center;
   padding: 8px 12px;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 99999;
 }
 
 .search-input {

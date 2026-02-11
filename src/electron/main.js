@@ -18,12 +18,13 @@ process.on('unhandledRejection', (reason, promise) => {
 let devTool = null;
 app.whenReady().then(() => {
     const wndManager = WndManager.getInstance();
+    wndManager.showWindow('MainWnd');
     wndManager.showWindow('TrayAppWnd');
     wndManager.hideWindow('TrayAppWnd');
     devTool = new DevTool();
     devTool.init();
     app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length > 0) createWindow()
+        // if (BrowserWindow.getAllWindows().length > 0) createWindow()
     })
     native.load(); // 加载 native 模块
 })

@@ -173,14 +173,14 @@
       name: "postman", 
       category: "接口测试", // 新增：应用类别
       icon: "Postman", 
-      disabled: true 
+      disabled: false 
     },
     { 
       key: "SFTPWnd", 
       name: "sftp", 
       category: "文件传输", // 新增：应用类别
       icon: "SFTP", 
-      disabled: true 
+      disabled: false, 
     },
     {
       key: "DesktopTileWnd",

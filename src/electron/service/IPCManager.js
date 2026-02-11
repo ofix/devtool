@@ -323,6 +323,15 @@ class IPCManager extends Singleton {
                     console.log('未知工具命令:', command);
             }
         });
+        ipcMain.handle("ignoreMouseEvents",(event,wndName,enable)=>{
+            let wnd = WndManager.getInstance().getWindow(wndName);
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            console.log("setIgnoreMouseEvents: ",enable);
+            wnd.setIgnoreMouseEvents(enable, { forward: true });
+            return true;
+        });
         ipcMain.on("full-screen", (enent, wndName, flag) => {
             let wnd = WndManager.getInstance().getWindow(wndName);
             if (!wnd || wnd.isDestroyed()) {

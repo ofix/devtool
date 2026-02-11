@@ -14,6 +14,7 @@ class WndManager extends Singleton {
 
         // 分离BrowserWindow配置和自定义配置
         this.windowPresets = {
+            'MainWnd': this.getMainWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
@@ -21,6 +22,8 @@ class WndManager extends Singleton {
             'ToolConfigWnd': this.getToolConfigWndConfig(),
             'TrayAppWnd': this.getTrayAppWndConfig(),
             'UnitConvertWnd': this.getUnitConvertConfig(),
+            'SFTPWnd': this.getDebugToolWndConfig(),
+            'PostWomanWnd': this.getPostWomanWndConfig(),
             'DebugWnd': this.getDebugWndConfig(),
             'FileCompareWnd': this.getFileCompareWndConfig()
         };
@@ -44,6 +47,22 @@ class WndManager extends Singleton {
                 contextIsolation: true,
                 preload: join(__dirname, '../preload.cjs'),
                 contextIsolation: true
+            }
+        };
+    }
+    getMainWndConfig() {
+        const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
+        const width = 640+120;
+        const height = 480+120;
+        return {
+            browserWindow: {
+                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height
+            },
+            custom: {
+                url: '/main-app',
+                levelName: 'screen-saver',
+                levelZOrder: 10,
+                devTool: true,
             }
         };
     }
@@ -143,6 +162,43 @@ class WndManager extends Singleton {
                 levelName: 'pop-up-menu',
                 levelZOrder: 10,
                 devTool: false
+            }
+        };
+    }
+
+    getDebugToolWndConfig(options = {}) {
+        const screenBounds = screen.getPrimaryDisplay().bounds;
+        return {
+            browserWindow: {
+                x: 0,
+                y: 0,
+                width: screenBounds.width,
+                height: screenBounds.height
+            },
+            custom: {
+                url: '/debug-tool',
+                levelName: 'pop-up-menu',
+                levelZOrder: 10,
+                devTool: false
+            }
+        };
+    }
+
+    getPostWomanWndConfig(options = {}) {
+        const screenBounds = screen.getPrimaryDisplay().bounds;
+        return {
+            browserWindow: {
+                x: 0,
+                y: 0,
+                width: screenBounds.width,
+                height: screenBounds.height,
+                transparent: false,
+            },
+            custom: {
+                url: '/postwoman',
+                levelName: 'pop-up-menu',
+                levelZOrder: 10,
+                devTool: true
             }
         };
     }
