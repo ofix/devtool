@@ -168,7 +168,7 @@ const filteredAppList = computed(() => {
     const matchShortcut = app.shortcuts.some(
       (item) =>
         item.key.toLowerCase().includes(keyword) ||
-        item.desc.toLowerCase().includes(keyword)
+        item.desc.toLowerCase().includes(keyword),
     );
     return matchAppName || matchShortcut;
   });
@@ -193,11 +193,11 @@ const handleBackClick = () => {
 </script>
 
 <style scoped>
-    body{
-      overflow-y:hidden;
-    }
+body {
+  overflow-y: hidden;
+}
 .app-shortcuts {
-  width:640px;
+  width: 640px;
   height: calc(480px - 80px);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.85);

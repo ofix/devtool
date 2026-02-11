@@ -179,6 +179,19 @@ class IPCManager extends Singleton {
                 });
             }
         });
+        ipcMain.handle("move-window", (event, wndName, deltaX, deltaY) => {
+            const manager = WndManager.getInstance();
+            const wnd = manager.getWindow(wndName);
+            if (wnd) {
+                const bounds = wnd.getBounds();
+                wnd.setBounds({
+                    x: bounds.x + deltaX,
+                    y: bounds.y + deltaY,
+                    width: bounds.width,
+                    height: bounds.height
+                })
+            }
+        })
         ipcMain.handle("hide-window", (event, wndName) => {
             return WndManager.getInstance().hideWindow(wndName);
         });
@@ -323,12 +336,11 @@ class IPCManager extends Singleton {
                     console.log('未知工具命令:', command);
             }
         });
-        ipcMain.handle("ignoreMouseEvents",(event,wndName,enable)=>{
+        ipcMain.handle("ignoreMouseEvents", (event, wndName, enable) => {
             let wnd = WndManager.getInstance().getWindow(wndName);
             if (!wnd || wnd.isDestroyed()) {
                 return false;
             }
-            console.log("setIgnoreMouseEvents: ",enable);
             wnd.setIgnoreMouseEvents(enable, { forward: true });
             return true;
         });

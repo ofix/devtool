@@ -216,7 +216,7 @@ const currentTabFilteredDesc = computed(() => {
   if (!searchKeyword.value.trim()) return currentTabOriginDesc.value;
   const keyword = searchKeyword.value.trim().toLowerCase();
   return currentTabOriginDesc.value.filter((desc) =>
-    desc.toLowerCase().includes(keyword)
+    desc.toLowerCase().includes(keyword),
   );
 });
 
@@ -307,7 +307,7 @@ const highlightKeyword = (text) => {
     .replace(/&/g, "&amp;");
   return escapedText.replace(
     reg,
-    (match) => `<span class="highlight">${match}</span>`
+    (match) => `<span class="highlight">${match}</span>`,
   );
 };
 
@@ -349,7 +349,7 @@ onMounted(() => {
         onTabScroll();
       });
     },
-    { immediate: true }
+    { immediate: true },
   );
 });
 </script>
@@ -359,11 +359,10 @@ onMounted(() => {
 .help-wrapper {
   width: 640px;
   height: calc(480px - 80px);
-  border: 1px solid #ff0000;
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 1);
+  background: rgba(0, 0, 0, 0.85);
   color: #fff;
 }
 
@@ -518,8 +517,8 @@ onMounted(() => {
 
 /* 帮助内容区域 */
 .help-content {
-    overflow-y:auto;
-    height:200px;
+  overflow-y: auto;
+  height: 200px;
   padding: 20px;
   line-height: 1.8;
 }

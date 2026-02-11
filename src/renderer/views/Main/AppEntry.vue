@@ -32,7 +32,6 @@ import AppList from "./AppList.vue";
 import AppHelp from "./AppHelp.vue";
 import AppShortcuts from "./AppShortcuts.vue";
 import SearchBar from "./SearchBar.vue";
-import { isStaticProperty } from "vue/compiler-sfc";
 
 // 响应式数据（替代原有的data）
 const isFlipped = ref(false); // 是否翻转
@@ -46,7 +45,8 @@ let mouseMoveTimer = null; // 防抖定时器
 onMounted(async () => {
   document.addEventListener("visibilitychange", handleVisibilityChange);
   // 关键：先监听鼠标移动，再根据鼠标位置决定是否开启全局监听
-  document.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("pointerrawupdate", handleMouseMove);
   // 初始状态：开启穿透，不开启全局监听
   togglePenetration(true);
   isListening = false;
@@ -55,7 +55,7 @@ onMounted(async () => {
 // 6. 组件卸载时清理监听
 onUnmounted(() => {
   stopGlobalListener();
-  document.removeEventListener("mousemove", handleMouseMove);
+  window.removeEventListener("mousemove", handleMouseMove);
   clearTimeout(mouseMoveTimer);
   togglePenetration(true); // 恢复穿透
 });
@@ -63,7 +63,6 @@ onUnmounted(() => {
 // 2. 动态控制鼠标穿透（核心函数）
 const togglePenetration = async (enable) => {
   isPenetrationEnabled.value = enable;
-  console.log("togglePenetration:", enable);
   await window.channel.ignoreMouseEvents("MainWnd", enable);
 
   // 穿透开启 → 关闭全局监听；穿透关闭 → 开启全局监听
@@ -80,7 +79,6 @@ const handleMouseMove = (e) => {
   clearTimeout(mouseMoveTimer);
   mouseMoveTimer = setTimeout(() => {
     if (!flipContainer.value) return;
-
     // 获取3D容器的位置和尺寸
     const rect = flipContainer.value.getBoundingClientRect();
     // 判断鼠标是否在容器内
@@ -89,11 +87,10 @@ const handleMouseMove = (e) => {
       e.clientX <= rect.right &&
       e.clientY >= rect.top &&
       e.clientY <= rect.bottom;
-    console.log("isInContainer: ", isInContainer);
     // 仅当状态不一致时才切换（避免重复IPC调用）
     if (isInContainer && isPenetrationEnabled.value) {
       togglePenetration(false); // 鼠标在容器内：关闭穿透，开启监听
-    } else if (!isInContainer) {
+    } else if (!isInContainer && !isPenetrationEnabled.value) {
       isPenetrationEnabled.value = true;
       togglePenetration(true); // 鼠标在容器外：开启穿透，关闭监听
     }
@@ -181,7 +178,6 @@ function handleGlobalClick(e) {
 function handleWindowBlur() {
   if (isPenetrationEnabled.value) return; // 穿透开启时，失焦不隐藏
 
-  console.log("window blur (only in container)");
   window.channel.hideWindow("mainWnd");
   stopGlobalListener();
   togglePenetration(true);
@@ -190,7 +186,6 @@ function handleWindowBlur() {
 // 兼容方案：判断鼠标位置是否在窗口外
 function handleMouseUp(e) {
   if (!flipContainer.value || isPenetrationEnabled.value) return; // 穿透开启时不处理
-
   const rect = flipContainer.value.getBoundingClientRect();
   const isOutside =
     e.clientX < rect.left ||
@@ -216,7 +211,6 @@ window.addEventListener("unload", stopGlobalListener);
   height: 100vh; /* 等于窗口最终高度 FINAL_HEIGHT */
   margin: 0;
   padding: 0;
-  border: 1px solid #ff0000;
   background: transparent; /* 全透明，外部区域鼠标穿透的关键 */
   box-sizing: border-box;
   transition: margin-top 0.3s ease;

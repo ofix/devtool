@@ -52,11 +52,12 @@ class WndManager extends Singleton {
     }
     getMainWndConfig() {
         const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
-        const width = 640+120;
-        const height = 480+120;
+        const width = 640 + 100;
+        const height = 480 + 120;
         return {
             browserWindow: {
-                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height
+                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
+                titleBarStyle: 'hidden', resizable: true,
             },
             custom: {
                 url: '/main-app',
@@ -374,6 +375,8 @@ class WndManager extends Singleton {
             this.windowOptionsCache.delete(name);
         });
 
+        // wnd._winBox.setDisableDragFeedback(true);
+
         // 窗口加载完成时设置层级
         wnd.webContents.once('did-finish-load', () => {
             if (customOptions.levelName && customOptions.levelZOrder !== undefined) {
@@ -409,7 +412,6 @@ class WndManager extends Singleton {
             // 窗口已存在，更新选项
             this.windowOptionsCache.set(wndName, options);
             if (wnd.isFocusable()) {
-                console.log("focus wnd");
                 wnd.focus();
             }
             wnd.show();

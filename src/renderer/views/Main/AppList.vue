@@ -361,7 +361,7 @@ function handlePinApp() {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder)
+    JSON.stringify(customOrder),
   );
 
   // 更新常见应用列表
@@ -382,7 +382,7 @@ function handleUnpinApp() {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder)
+    JSON.stringify(customOrder),
   );
 
   // 更新常见应用列表
@@ -412,7 +412,7 @@ function handleDrop(dropIndex) {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder)
+    JSON.stringify(customOrder),
   );
 
   // 更新常见应用列表
@@ -426,7 +426,7 @@ function handleDrop(dropIndex) {
 .app-window {
   width: 100%;
   height: calc(100% - 60px);
-  background: rgba(0, 0, 0, 1); /* 半透明黑色 */
+  background: rgba(0, 0, 0, 0.85); /* 半透明黑色 */
   /* 磨砂模糊 */
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

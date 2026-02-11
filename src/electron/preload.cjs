@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld('dt', {
 
 contextBridge.exposeInMainWorld('channel', {
     clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
-    setFullScreen: (flag,wndName) => ipcRenderer.send('full-screen', flag,wndName),
+    setFullScreen: (flag, wndName) => ipcRenderer.send('full-screen', flag, wndName),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),
     on: (channel, callback) => {
         const wrappedCallback = (event, ...args) => {
@@ -74,12 +74,12 @@ contextBridge.exposeInMainWorld('channel', {
         return () => ipcRenderer.removeListener(channel, wrappedCallback);
     },
     off: (channel, listener) => ipcRenderer.off(channel, listener),
-    minimize: (wndName) => ipcRenderer.send('window-minimize',wndName),
+    minimize: (wndName) => ipcRenderer.send('window-minimize', wndName),
     maximizeToggle: () => ipcRenderer.send('window-maximize-toggle'),
     close: () => ipcRenderer.send('window-close'),
     onMaximized: (cb) => ipcRenderer.on('maximized', cb),
     onUnmaximized: (cb) => ipcRenderer.on('unmaximized', cb),
-    ignoreMouseEvents:(wndName,enable)=>ipcRenderer.invoke('ignoreMouseEvents',wndName,enable),
+    ignoreMouseEvents: (wndName, enable) => ipcRenderer.invoke('ignoreMouseEvents', wndName, enable),
     removeMaximized: (cb) => ipcRenderer.off('maximized', cb),
     removeUnmaximized: (cb) => ipcRenderer.off('unmaximized', cb),
     // SSH 连接/断开
@@ -116,8 +116,9 @@ contextBridge.exposeInMainWorld('channel', {
     showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
     hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
     closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
-    getWindowBounds:(wndName)=>ipcRenderer.invoke('get-window-bounds',wndName),
-    setWindowBounds: (wndName,bounds)=> ipcRenderer.invoke('set-window-bounds',wndName,bounds),
+    getWindowBounds: (wndName) => ipcRenderer.invoke('get-window-bounds', wndName),
+    setWindowBounds: (wndName, bounds) => ipcRenderer.invoke('set-window-bounds', wndName, bounds),
+    moveWindow: (wndName, deltaX, deltaY) => ipcRenderer.invoke('move-window', wndName, deltaX, deltaY),
     getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     // 屏幕截图
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
