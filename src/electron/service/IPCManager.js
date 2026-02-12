@@ -363,6 +363,15 @@ class IPCManager extends Singleton {
             }
             throw new Error(`不支持的操作系统：${platform()}`);
         });
+        ipcMain.handle('lock-screen',(_)=>{
+            return native.lockScreen();
+        });
+        ipcMain.handle('unlock-screen',(_)=>{
+            return native.unlockScreen();
+        })
+        ipcMain.handle('is-screen-locked',(_)=>{
+            return native.isScreenLocked();
+        })
         ipcMain.on("full-screen", (enent, wndName, flag) => {
             let wnd = WndManager.getInstance().getWindow(wndName);
             if (!wnd || wnd.isDestroyed()) {

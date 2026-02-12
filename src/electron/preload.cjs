@@ -123,6 +123,9 @@ contextBridge.exposeInMainWorld('channel', {
     moveWindow: (wndName, deltaX, deltaY) => ipcRenderer.invoke('move-window', wndName, deltaX, deltaY),
     getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     // 屏幕截图
+    lockScreen: () => ipcRenderer.invoke('lock-screen'),
+    unlockScreen: () => ipcRenderer.invoke('unlock-screen'),
+    isScreenLocked: () => ipcRenderer.invoke('is-screen-locked'),
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
     cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),

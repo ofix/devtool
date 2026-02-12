@@ -14,9 +14,7 @@ class DevtoolNative {
         this.arch = process.arch;
     }
 
-    /**
-     * 获取当前平台的模块文件名
-     */
+    // 获取当前平台的模块文件名
     getModuleFilename() {
         const platformMap = {
             'win32': 'devtool_native_win32.node',
@@ -27,9 +25,7 @@ class DevtoolNative {
         return platformMap[this.platform] || 'devtool_native_win32.node';
     }
 
-    /**
-    * 修复路径计算：正确处理file:// URL转本地路径
-    */
+    // 修复路径计算：正确处理file:// URL转本地路径
     getCorrectPath(urlPath) {
         // 处理Windows路径：去掉file:///前缀，修复盘符格式
         if (process.platform === 'win32') {
@@ -39,9 +35,7 @@ class DevtoolNative {
         return urlPath.replace('file://', '');
     }
 
-    /**
-     * 获取模块完整路径
-     */
+    // 获取模块完整路径
     getModulePath() {
         const filename = this.getModuleFilename();
 
@@ -77,17 +71,13 @@ class DevtoolNative {
         return null;
     }
 
-    /**
-     * 检查当前平台是否支持
-     */
+    // 检查当前平台是否支持
     isPlatformSupported() {
         const supportedPlatforms = ['win32', 'darwin', 'linux'];
         return supportedPlatforms.includes(this.platform);
     }
 
-    /**
-     * 加载原生模块
-     */
+    // 加载原生模块
     async load() {
         if (this.isLoaded) return true;
 
@@ -122,9 +112,7 @@ class DevtoolNative {
         }
     }
 
-    /**
-     * 显示加载错误对话框
-     */
+    // 显示加载错误对话框
     showLoadError(error) {
         const errorMessages = {
             'win32': 'Windows 平台原生模块加载失败',
@@ -140,9 +128,7 @@ class DevtoolNative {
         }
     }
 
-    /**
-     * 获取所有窗口信息
-     */
+    // 获取所有窗口信息
     getAllWindows() {
         if (!this.isLoaded) {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
@@ -170,9 +156,7 @@ class DevtoolNative {
         }
     }
 
-    /**
-     * 获取可见窗口信息
-     */
+    // 获取可见窗口信息
     getVisibleWindows() {
         const allWindows = this.getAllWindows();
 
@@ -190,9 +174,7 @@ class DevtoolNative {
         return allWindows;
     }
 
-    /**
-     * 按标题过滤窗口
-     */
+    // 按标题过滤窗口
     getWindowsByTitle(pattern) {
         const allWindows = this.getAllWindows();
         const regex = typeof pattern === 'string' ?
@@ -201,9 +183,7 @@ class DevtoolNative {
         return allWindows.filter(win => regex.test(win.title));
     }
 
-    /**
-     * 按进程名过滤窗口
-     */
+    // 按进程名过滤窗口
     getWindowsByProcessName(processName) {
         const allWindows = this.getAllWindows();
         const regex = new RegExp(processName, 'i');
@@ -211,9 +191,7 @@ class DevtoolNative {
         return allWindows.filter(win => regex.test(win.processName));
     }
 
-    /**
-     * 获取当前平台信息
-     */
+    // 获取当前平台信息
     getPlatformInfo() {
         return {
             platform: this.platform,
@@ -223,9 +201,7 @@ class DevtoolNative {
         };
     }
 
-    /**
-     * 平台特定的窗口操作
-     */
+    // 平台特定的窗口操作
     focusWindow(handle) {
         if (!this.isLoaded) return false;
 
@@ -242,20 +218,60 @@ class DevtoolNative {
             return false;
         }
     }
-    /**
-     * 麒麟系统下获取光标在屏幕的物理位置
-     */
+
+    // 麒麟系统下获取光标在屏幕的物理位置
     getCursorPosition() {
         if (!this.isLoaded) {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
         }
 
         try {
-            const point =  this.nativeModule.getCursorPosition();
+            const point = this.nativeModule.getCursorPosition();
             return point;
         } catch (error) {
-            console.error(`Failed to get cursor position on ${this.platform}:`, error);
+            console.error(`Failed to get cursor position on ${this.platform}, `, error);
             return { x: 0, y: 0, error: "" };
+        }
+    }
+
+    // 冻结屏幕
+    lockScreen() {
+        if (!this.isLoaded) {
+            throw new Error(`Native module not loaded for platform ${this.platform}`);
+        }
+        try {
+            return this.nativeModule.lockScreen();
+
+        } catch (error) {
+            console.error(`Failed to lock screen on ${this.platform}, `, error);
+            return false;
+        }
+    }
+
+    // 解冻屏幕
+    unlockScreen() {
+        if (!this.isLoaded) {
+            throw new Error(`Native module not loaded for platform ${this.platform}`);
+        }
+        try {
+            return this.nativeModule.unlockScreen();
+
+        } catch (error) {
+            console.error(`Failed to unlock screen on ${this.platform}, `, error);
+            return false;
+        }
+    }
+
+    // 检查屏幕是否冻结
+    isScreenLocked() {
+        if (!this.isLoaded) {
+            throw new Error(`Native module not loaded for platform ${this.platform}`);
+        }
+        try {
+            return this.nativeModule.isScreenLocked();
+        } catch (error) {
+            console.error(`Failed to check screen lock state on ${this.platform}, `, error);
+            return false;
         }
     }
 }

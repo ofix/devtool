@@ -8,6 +8,7 @@
 #include "./window-info/window_info.h"
 #include "./file-compare/file_compare.h"
 #include "./cursor/cursor.h"
+#include "./screen-locker/screen_locker.h"
 
 // 平台检测 - 包含对应平台的窗口枚举器头文件
 #ifdef _WIN32
@@ -411,6 +412,59 @@ Napi::Value TrackCursorAsync(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// 同步冻结屏幕
+Napi::Value LockScreen(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    // 参数校验
+    if (info.Length() < 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "Expected object parameter { message, allowEsc, backgroundColor }").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    // 解析配置
+    Napi::Object config_obj = info[0].As<Napi::Object>();
+    ScreenLockerConfig config;
+
+    if (config_obj.Has("message") && config_obj.Get("message").IsString()) {
+        config.message = config_obj.Get("message").As<Napi::String>().Utf8Value();
+    }
+
+    if (config_obj.Has("allowEsc") && config_obj.Get("allowEsc").IsBoolean()) {
+        config.allowEsc = config_obj.Get("allowEsc").As<Napi::Boolean>().Value();
+    }
+
+    if (config_obj.Has("backgroundColor") && config_obj.Get("backgroundColor").IsNumber()) {
+        config.backgroundColor = static_cast<int>(config_obj.Get("backgroundColor").As<Napi::Number>().Int32Value());
+    }
+
+    // 调用C++核心层
+    std::string error = ScreenLocker::GetInstance().LockScreen(config);
+
+    // 返回结果
+    Napi::Object result = Napi::Object::New(env);
+    // 修复：旧版node-addon-api用Napi::Boolean::New创建布尔值
+    result.Set("success", Napi::Boolean::New(env, error.empty()));
+    result.Set("error", Napi::String::New(env, error));
+    return result;
+}
+
+// 同步解冻屏幕
+Napi::Value UnlockScreen(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    ScreenLocker::GetInstance().UnlockScreen();
+    // 修复1：替换env.Boolean(true)为标准写法
+    return Napi::Boolean::New(env, true);
+}
+
+// 检查是否冻结
+Napi::Value IsScreenLocked(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    bool is_locked = ScreenLocker::GetInstance().IsScreenLocked();
+    // 修复2：替换env.Boolean(is_locked)为标准写法
+    return Napi::Boolean::New(env, is_locked);
+}
+
 ////////////////////////////////// 模块初始化 /////////////////////////////////////
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "getAllWindows"), Napi::Function::New(env, GetAllWindows));
@@ -419,7 +473,9 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "compareFiles"), Napi::Function::New(env, CompareFiles));
   exports.Set(Napi::String::New(env, "getCursorPosition"), Napi::Function::New(env, GetCursorPosition));
   exports.Set(Napi::String::New(env, "trackCursorAsync"), Napi::Function::New(env, TrackCursorAsync));
-  
+  exports.Set(Napi::String::New(env, "lockScreen"), Napi::Function::New(env, LockScreen));
+  exports.Set(Napi::String::New(env, "unlockScreen"), Napi::Function::New(env, UnlockScreen));
+  exports.Set(Napi::String::New(env, "isScreenLocked"), Napi::Function::New(env, IsScreenLocked));
   return exports;
 }
 
