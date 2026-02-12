@@ -17,12 +17,17 @@ process.on('unhandledRejection', (reason, promise) => {
 
 let devTool = null;
 app.whenReady().then(() => {
-    const wndManager = WndManager.getInstance();
-    wndManager.showWindow('MainWnd');
-    wndManager.showWindow('TrayAppWnd');
-    wndManager.hideWindow('TrayAppWnd');
+    // 必须先创建IPC才能创建MainWnd，否则会出现 setIgnoreMouseEvents 没有处理函数的错误
     devTool = new DevTool();
     devTool.init();
+
+    const wndManager = WndManager.getInstance();
+    wndManager.showWindow('MainWnd');
+    if (!isMac) {
+        wndManager.showWindow('TrayAppWnd');
+        wndManager.hideWindow('TrayAppWnd');
+    }
+
     app.on('activate', () => {
         // if (BrowserWindow.getAllWindows().length > 0) createWindow()
     })

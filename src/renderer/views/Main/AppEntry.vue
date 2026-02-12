@@ -48,7 +48,7 @@ onMounted(async () => {
   window.addEventListener("mousemove", handleMouseMove);
   window.addEventListener("pointerrawupdate", handleMouseMove);
   // 初始状态：开启穿透，不开启全局监听
-  togglePenetration(true);
+  enablePenetration(false);
   isListening = false;
 });
 
@@ -57,11 +57,11 @@ onUnmounted(() => {
   stopGlobalListener();
   window.removeEventListener("mousemove", handleMouseMove);
   clearTimeout(mouseMoveTimer);
-  togglePenetration(true); // 恢复穿透
+  enablePenetration(false); // 恢复穿透
 });
 
 // 2. 动态控制鼠标穿透（核心函数）
-const togglePenetration = async (enable) => {
+const enablePenetration = async (enable) => {
   isPenetrationEnabled.value = enable;
   await window.channel.ignoreMouseEvents("MainWnd", enable);
 
@@ -89,10 +89,10 @@ const handleMouseMove = (e) => {
       e.clientY <= rect.bottom;
     // 仅当状态不一致时才切换（避免重复IPC调用）
     if (isInContainer && isPenetrationEnabled.value) {
-      togglePenetration(false); // 鼠标在容器内：关闭穿透，开启监听
+      enablePenetration(false); // 鼠标在容器内：关闭穿透，开启监听
     } else if (!isInContainer && !isPenetrationEnabled.value) {
       isPenetrationEnabled.value = true;
-      togglePenetration(true); // 鼠标在容器外：开启穿透，关闭监听
+      enablePenetration(true); // 鼠标在容器外：开启穿透，关闭监听
     }
   }, 5); // 10ms防抖，性能更优
 };
@@ -170,7 +170,7 @@ function handleGlobalClick(e) {
   if (isClickOutside) {
     window.channel.hideWindow("mainWnd");
     stopGlobalListener();
-    togglePenetration(true);
+    enablePenetration(true);
   }
 }
 
@@ -180,7 +180,7 @@ function handleWindowBlur() {
 
   window.channel.hideWindow("mainWnd");
   stopGlobalListener();
-  togglePenetration(true);
+  enablePenetration(true);
 }
 
 // 兼容方案：判断鼠标位置是否在窗口外
@@ -196,7 +196,7 @@ function handleMouseUp(e) {
   if (isOutside) {
     window.channel.hideWindow("mainWnd");
     stopGlobalListener();
-    togglePenetration(true);
+    enablePenetration(true);
   }
 }
 
