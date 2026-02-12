@@ -9,9 +9,9 @@ import debugLogger from './service/DebugLogger.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const isWin = process.platform === 'win32'
-const isMac = process.platform === 'darwin'
-const isLinux = process.platform === 'linux'
+export const isWin = process.platform === 'win32'
+export const isMac = process.platform === 'darwin'
+export const isLinux = process.platform === 'linux'
 
 class DevTool {
     constructor() {

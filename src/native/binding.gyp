@@ -4,13 +4,14 @@
       "target_name": "dev_tools_native",
       "sources": [
         "src/main.cc",
-        "src/file-compare/file_compare.cpp"
+        "src/file-compare/file_compare.cpp",
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
          "src/",
          "src/window-info/",
-         "src/file-compare/"
+         "src/file-compare/",
+         "src/cursor/"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
@@ -45,7 +46,7 @@
           "cflags_cc!": [ "-fno-exceptions" ]
         }],
         ["OS=='linux'", {
-          "sources": ["src/window-info/linux/window_enumerator.cc"],
+          "sources": ["src/window-info/linux/window_enumerator.cc","src/cursor/cursor.cc"],
           "include_dirs": [
             "/usr/include/X11",
             "/usr/lib/aarch64-linux-gnu"

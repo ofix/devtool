@@ -80,6 +80,8 @@ contextBridge.exposeInMainWorld('channel', {
     onMaximized: (cb) => ipcRenderer.on('maximized', cb),
     onUnmaximized: (cb) => ipcRenderer.on('unmaximized', cb),
     ignoreMouseEvents: (wndName, enable) => ipcRenderer.invoke('ignoreMouseEvents', wndName, enable),
+    getScreenMousePos: () => ipcRenderer.invoke('get-screen-mouse-pos'),
+    getPlatformInfo: () => ipcRenderer.invoke('get-platform-info'),
     removeMaximized: (cb) => ipcRenderer.off('maximized', cb),
     removeUnmaximized: (cb) => ipcRenderer.off('unmaximized', cb),
     // SSH 连接/断开

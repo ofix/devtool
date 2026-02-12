@@ -7,6 +7,7 @@
 // 自定义头文件（按模块划分，保持原有目录结构）
 #include "./window-info/window_info.h"
 #include "./file-compare/file_compare.h"
+#include "./cursor/cursor.h"
 
 // 平台检测 - 包含对应平台的窗口枚举器头文件
 #ifdef _WIN32
@@ -262,12 +263,162 @@ Napi::Value CompareFiles(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+
+///////////////////////////// 新增：cursor鼠标坐标 N-API封装 /////////////////////////////////
+// 修复：自定义TrackCursorWorker（适配旧版AsyncWorker，移除override，自己实现数据存储）
+struct TrackCursorWorker : public Napi::AsyncWorker {
+    int interval_ms;
+    Napi::Function callback;
+    CursorManager& cursor_mgr;
+    std::atomic<bool> stop_flag;
+    // 自己实现数据存储（替代SetData/GetData）
+    std::string x_data;
+    std::string y_data;
+    std::string error_data;
+    // N-API线程安全回调
+    Napi::ThreadSafeFunction tsfn;
+
+    TrackCursorWorker(Napi::Env env, int interval, Napi::Function cb)
+        : Napi::AsyncWorker(env, "track-cursor-worker"),
+          interval_ms(interval), callback(cb),
+          cursor_mgr(CursorManager::GetInstance()), stop_flag(false) {
+        // 创建线程安全函数（用于跨线程调用JS回调）
+        tsfn = Napi::ThreadSafeFunction::New(
+            env,
+            cb,
+            "TrackCursorCallback",
+            0,
+            1
+        );
+    }
+
+    ~TrackCursorWorker() {
+        tsfn.Release();
+    }
+
+    // 修复：移除override，旧版AsyncWorker没有OnProgress
+    void OnProgress() {
+        Napi::Env env = this->Env();
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("x", Napi::Number::New(env, std::stoi(x_data)));
+        result.Set("y", Napi::Number::New(env, std::stoi(y_data)));
+        result.Set("error", Napi::String::New(env, error_data));
+        callback.Call({ env.Null(), result });
+    }
+
+    // 修复：移除override，旧版AsyncWorker没有Cancel
+    void Cancel() {
+        stop_flag = true;
+        cursor_mgr.StopTracking();
+        Napi::AsyncWorker::Cancel();
+    }
+
+    void GlobalCleanup() {
+    CursorManager::GetInstance().Cleanup();
+}
+
+    void Execute() override {
+        try {
+            // 纯C++回调函数（不能用lambda，必须是普通函数）
+            auto cursor_callback_func = [](const CursorPosition& pos, void* user_data) {
+                TrackCursorWorker* worker = static_cast<TrackCursorWorker*>(user_data);
+                if (worker->stop_flag) return;
+                
+                // 存储数据（自己实现的SetData）
+                worker->x_data = std::to_string(pos.x);
+                worker->y_data = std::to_string(pos.y);
+                worker->error_data = pos.error;
+
+                // 跨线程调用JS回调
+                auto callback = [](Napi::Env env, Napi::Function jsCallback, const CursorPosition* pos) {
+                    Napi::Object result = Napi::Object::New(env);
+                    result.Set("x", Napi::Number::New(env, pos->x));
+                    result.Set("y", Napi::Number::New(env, pos->y));
+                    result.Set("error", Napi::String::New(env, pos->error));
+                    jsCallback.Call({ env.Null(), result });
+                };
+
+                worker->tsfn.BlockingCall(const_cast<CursorPosition*>(&pos), callback);
+            };
+
+            // 构造回调结构体
+            CursorManager::TrackCallback callback{cursor_callback_func, this};
+            
+            // 启动纯C++监听
+            cursor_mgr.StartTracking(interval_ms, callback);
+
+            // 等待停止信号（修复：移除IsCancelled，用stop_flag）
+            while (!stop_flag) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        } catch (const std::exception& e) {
+            SetError(e.what());
+        }
+    }
+
+    void OnOK() override {
+        Napi::Env env = this->Env();
+        callback.Call({ env.Null(), Napi::String::New(env, "Tracking stopped") });
+    }
+
+    void OnError(const Napi::Error& e) override {
+        callback.Call({ e.Value() });
+    }
+};
+
+// 同步获取鼠标坐标（N-API封装）
+Napi::Value GetCursorPosition(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    Napi::Object result = Napi::Object::New(env);
+
+    try {
+        CursorManager& mgr = CursorManager::GetInstance();
+        mgr.Init(); // 初始化X11
+        CursorPosition pos = mgr.GetCursorPosition();
+        
+        result.Set("x", Napi::Number::New(env, pos.x));
+        result.Set("y", Napi::Number::New(env, pos.y));
+        result.Set("error", Napi::String::New(env, pos.error));
+    } catch (const std::exception& e) {
+        result.Set("x", Napi::Number::New(env, -1));
+        result.Set("y", Napi::Number::New(env, -1));
+        result.Set("error", Napi::String::New(env, e.what()));
+    }
+
+    return result;
+}
+
+// 异步监听鼠标坐标（N-API封装）
+Napi::Value TrackCursorAsync(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsNumber() || !info[1].IsFunction()) {
+        Napi::TypeError::New(env, "Params error: (number intervalMs, function callback)").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    int interval_ms = info[0].As<Napi::Number>().Int32Value();
+    Napi::Function callback = info[1].As<Napi::Function>();
+
+    try {
+        // 初始化CursorManager
+        CursorManager::GetInstance().Init();
+        auto worker = new TrackCursorWorker(env, interval_ms, callback);
+        worker->Queue();
+    } catch (const std::exception& e) {
+        Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+    }
+
+    return env.Undefined();
+}
+
 ////////////////////////////////// 模块初始化 /////////////////////////////////////
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set(Napi::String::New(env, "getAllWindows"), Napi::Function::New(env, GetAllWindows));
   exports.Set(Napi::String::New(env, "scanFolder"), Napi::Function::New(env, ScanFolder));
   exports.Set(Napi::String::New(env, "compareFolders"), Napi::Function::New(env, CompareFolders));
   exports.Set(Napi::String::New(env, "compareFiles"), Napi::Function::New(env, CompareFiles));
+  exports.Set(Napi::String::New(env, "getCursorPosition"), Napi::Function::New(env, GetCursorPosition));
+  exports.Set(Napi::String::New(env, "trackCursorAsync"), Napi::Function::New(env, TrackCursorAsync));
   
   return exports;
 }

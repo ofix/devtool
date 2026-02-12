@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import DevTool from "./DevTool.js";
+import { isMac } from './DevTool.js';
 // import mmFileManager from './core/MMFileManager.js';
 import native from "./service/DevtoolNative.js";
 import WndManager from "./service/WndManager.js"

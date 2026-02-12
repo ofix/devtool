@@ -7,241 +7,257 @@ import { createRequire } from 'module';  // 引入 createRequire
 const require = createRequire(import.meta.url);
 
 class DevtoolNative {
-  constructor() {
-    this.nativeModule = null;
-    this.isLoaded = false;
-    this.platform = process.platform;
-    this.arch = process.arch;
-  }
-
-  /**
-   * 获取当前平台的模块文件名
-   */
-  getModuleFilename() {
-    const platformMap = {
-      'win32': 'devtool_native_win32.node',
-      'darwin': 'devtool_native_darwin.node',
-      'linux': 'devtool_native_linux.node'
-    };
-
-    return platformMap[this.platform] || 'devtool_native_win32.node';
-  }
-
-  /**
-  * 修复路径计算：正确处理file:// URL转本地路径
-  */
-  getCorrectPath(urlPath) {
-    // 处理Windows路径：去掉file:///前缀，修复盘符格式
-    if (process.platform === 'win32') {
-      return urlPath.replace('file:///', '').replace(/\//g, '\\');
+    constructor() {
+        this.nativeModule = null;
+        this.isLoaded = false;
+        this.platform = process.platform;
+        this.arch = process.arch;
     }
-    // 处理macOS/Linux路径
-    return urlPath.replace('file://', '');
-  }
 
-  /**
-   * 获取模块完整路径
-   */
-  getModulePath() {
-    const filename = this.getModuleFilename();
+    /**
+     * 获取当前平台的模块文件名
+     */
+    getModuleFilename() {
+        const platformMap = {
+            'win32': 'devtool_native_win32.node',
+            'darwin': 'devtool_native_darwin.node',
+            'linux': 'devtool_native_linux.node'
+        };
 
-    // 获取当前文件所在目录
-    const currentUrl = import.meta.url;
-    const currentDir = this.getCorrectPath(path.dirname(currentUrl));
+        return platformMap[this.platform] || 'devtool_native_win32.node';
+    }
 
-    // 尝试多个可能的路径
-    const possiblePaths = [
-      // 开发环境路径（相对于当前文件位置）
-      path.join(currentDir, `../../../build/native/`, filename),
-      // 生产环境路径（打包后）
-      path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'Release', filename),
-      path.join(process.resourcesPath, 'native_modules', filename)
-    ];
-
-    console.log('🔍 Searching for native module in paths:');
-    possiblePaths.forEach(p => console.log('  -', p));
-
-    for (const modulePath of possiblePaths) {
-      try {
-        if (fs.existsSync(modulePath)) {
-          console.log(`✅ Found native module at: ${modulePath}`);
-          return modulePath;
+    /**
+    * 修复路径计算：正确处理file:// URL转本地路径
+    */
+    getCorrectPath(urlPath) {
+        // 处理Windows路径：去掉file:///前缀，修复盘符格式
+        if (process.platform === 'win32') {
+            return urlPath.replace('file:///', '').replace(/\//g, '\\');
         }
-      } catch (error) {
-        // 忽略路径检查错误
-        console.log(`❌ Path check failed: ${modulePath}`, error.message);
-      }
+        // 处理macOS/Linux路径
+        return urlPath.replace('file://', '');
     }
 
-    console.log(`❌ Native module not found in any of the searched paths`);
-    return null;
-  }
+    /**
+     * 获取模块完整路径
+     */
+    getModulePath() {
+        const filename = this.getModuleFilename();
 
-  /**
-   * 检查当前平台是否支持
-   */
-  isPlatformSupported() {
-    const supportedPlatforms = ['win32', 'darwin', 'linux'];
-    return supportedPlatforms.includes(this.platform);
-  }
+        // 获取当前文件所在目录
+        const currentUrl = import.meta.url;
+        const currentDir = this.getCorrectPath(path.dirname(currentUrl));
 
-  /**
-   * 加载原生模块
-   */
-  async load() {
-    if (this.isLoaded) return true;
+        // 尝试多个可能的路径
+        const possiblePaths = [
+            // 开发环境路径（相对于当前文件位置）
+            path.join(currentDir, `../../../build/native/`, filename),
+            // 生产环境路径（打包后）
+            path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'Release', filename),
+            path.join(process.resourcesPath, 'native_modules', filename)
+        ];
 
-    // 检查平台支持
-    if (!this.isPlatformSupported()) {
-      console.error(`❌ Platform ${this.platform} is not supported`);
-      return false;
+        console.log('🔍 Searching for native module in paths:');
+        possiblePaths.forEach(p => console.log('  -', p));
+
+        for (const modulePath of possiblePaths) {
+            try {
+                if (fs.existsSync(modulePath)) {
+                    console.log(`✅ Found native module at: ${modulePath}`);
+                    return modulePath;
+                }
+            } catch (error) {
+                // 忽略路径检查错误
+                console.log(`❌ Path check failed: ${modulePath}`, error.message);
+            }
+        }
+
+        console.log(`❌ Native module not found in any of the searched paths`);
+        return null;
     }
 
-    // 查找模块文件
-    const modulePath = this.getModulePath();
-    if (!modulePath) {
-      console.error(`❌ Native module file not found for platform ${this.platform}`);
-      return false;
+    /**
+     * 检查当前平台是否支持
+     */
+    isPlatformSupported() {
+        const supportedPlatforms = ['win32', 'darwin', 'linux'];
+        return supportedPlatforms.includes(this.platform);
     }
 
-    try {
-      // 使用 createRequire 创建的 require 函数加载原生模块
-      this.nativeModule = require(modulePath);
-      this.isLoaded = true;
+    /**
+     * 加载原生模块
+     */
+    async load() {
+        if (this.isLoaded) return true;
 
-      console.log(`✅ Native window info module loaded successfully for ${this.platform}`);
-      console.log(`📊 Architecture: ${this.arch}, Module: ${path.basename(modulePath)}`);
+        // 检查平台支持
+        if (!this.isPlatformSupported()) {
+            console.error(`❌ Platform ${this.platform} is not supported`);
+            return false;
+        }
 
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to load native module:', error);
+        // 查找模块文件
+        const modulePath = this.getModulePath();
+        if (!modulePath) {
+            console.error(`❌ Native module file not found for platform ${this.platform}`);
+            return false;
+        }
 
-      // 显示用户友好的错误信息
-      this.showLoadError(error);
-      return false;
-    }
-  }
+        try {
+            // 使用 createRequire 创建的 require 函数加载原生模块
+            this.nativeModule = require(modulePath);
+            this.isLoaded = true;
 
-  /**
-   * 显示加载错误对话框
-   */
-  showLoadError(error) {
-    const errorMessages = {
-      'win32': 'Windows 平台原生模块加载失败',
-      'darwin': 'macOS 平台原生模块加载失败',
-      'linux': 'Linux 平台原生模块加载失败'
-    };
+            console.log(`✅ Native window info module loaded successfully for ${this.platform}`);
+            console.log(`📊 Architecture: ${this.arch}, Module: ${path.basename(modulePath)}`);
 
-    const message = errorMessages[this.platform] || '原生模块加载失败';
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to load native module:', error);
 
-    // 只在有窗口时才显示对话框
-    if (BrowserWindow && BrowserWindow.getAllWindows().length > 0) {
-      dialog.showErrorBox('模块加载错误', `${message}\n\n错误详情: ${error.message}`);
-    }
-  }
-
-  /**
-   * 获取所有窗口信息
-   */
-  getAllWindows() {
-    if (!this.isLoaded) {
-      throw new Error(`Native module not loaded for platform ${this.platform}`);
+            // 显示用户友好的错误信息
+            this.showLoadError(error);
+            return false;
+        }
     }
 
-    try {
-      const startTime = Date.now();
-      const windows = this.nativeModule.getAllWindows();
-      const endTime = Date.now();
+    /**
+     * 显示加载错误对话框
+     */
+    showLoadError(error) {
+        const errorMessages = {
+            'win32': 'Windows 平台原生模块加载失败',
+            'darwin': 'macOS 平台原生模块加载失败',
+            'linux': 'Linux 平台原生模块加载失败'
+        };
 
-      console.log(`📊 Retrieved ${windows.length} windows in ${endTime - startTime}ms`);
+        const message = errorMessages[this.platform] || '原生模块加载失败';
 
-      return windows;
-    } catch (error) {
-      console.error(`Failed to get window info on ${this.platform}:`, error);
-
-      // 平台特定的错误处理
-      if (this.platform === 'darwin') {
-        console.warn('💡 macOS提示: 请确保已授予"屏幕录制"权限');
-      } else if (this.platform === 'linux') {
-        console.warn('💡 Linux提示: 请确保X11服务正常运行');
-      }
-
-      return [];
-    }
-  }
-
-  /**
-   * 获取可见窗口信息
-   */
-  getVisibleWindows() {
-    const allWindows = this.getAllWindows();
-
-    // 平台特定的可见性过滤
-    if (this.platform === 'win32') {
-      return allWindows.filter(win => win.isVisible);
-    } else if (this.platform === 'darwin') {
-      // macOS API 默认返回可见窗口
-      return allWindows;
-    } else if (this.platform === 'linux') {
-      // Linux 实现中已经过滤了不可见窗口
-      return allWindows;
+        // 只在有窗口时才显示对话框
+        if (BrowserWindow && BrowserWindow.getAllWindows().length > 0) {
+            dialog.showErrorBox('模块加载错误', `${message}\n\n错误详情: ${error.message}`);
+        }
     }
 
-    return allWindows;
-  }
+    /**
+     * 获取所有窗口信息
+     */
+    getAllWindows() {
+        if (!this.isLoaded) {
+            throw new Error(`Native module not loaded for platform ${this.platform}`);
+        }
 
-  /**
-   * 按标题过滤窗口
-   */
-  getWindowsByTitle(pattern) {
-    const allWindows = this.getAllWindows();
-    const regex = typeof pattern === 'string' ?
-      new RegExp(pattern, 'i') : pattern;
+        try {
+            const startTime = Date.now();
+            const windows = this.nativeModule.getAllWindows();
+            const endTime = Date.now();
 
-    return allWindows.filter(win => regex.test(win.title));
-  }
+            console.log(`📊 Retrieved ${windows.length} windows in ${endTime - startTime}ms`);
 
-  /**
-   * 按进程名过滤窗口
-   */
-  getWindowsByProcessName(processName) {
-    const allWindows = this.getAllWindows();
-    const regex = new RegExp(processName, 'i');
+            return windows;
+        } catch (error) {
+            console.error(`Failed to get window info on ${this.platform}:`, error);
 
-    return allWindows.filter(win => regex.test(win.processName));
-  }
+            // 平台特定的错误处理
+            if (this.platform === 'darwin') {
+                console.warn('💡 macOS提示: 请确保已授予"屏幕录制"权限');
+            } else if (this.platform === 'linux') {
+                console.warn('💡 Linux提示: 请确保X11服务正常运行');
+            }
 
-  /**
-   * 获取当前平台信息
-   */
-  getPlatformInfo() {
-    return {
-      platform: this.platform,
-      arch: this.arch,
-      moduleLoaded: this.isLoaded,
-      supported: this.isPlatformSupported()
-    };
-  }
-
-  /**
-   * 平台特定的窗口操作
-   */
-  focusWindow(handle) {
-    if (!this.isLoaded) return false;
-
-    try {
-      // 注意：这个功能需要在原生模块中实现
-      if (this.nativeModule.focusWindow) {
-        return this.nativeModule.focusWindow(handle);
-      } else {
-        console.warn(`⚠️ focusWindow not implemented for ${this.platform}`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`Failed to focus window on ${this.platform}:`, error);
-      return false;
+            return [];
+        }
     }
-  }
+
+    /**
+     * 获取可见窗口信息
+     */
+    getVisibleWindows() {
+        const allWindows = this.getAllWindows();
+
+        // 平台特定的可见性过滤
+        if (this.platform === 'win32') {
+            return allWindows.filter(win => win.isVisible);
+        } else if (this.platform === 'darwin') {
+            // macOS API 默认返回可见窗口
+            return allWindows;
+        } else if (this.platform === 'linux') {
+            // Linux 实现中已经过滤了不可见窗口
+            return allWindows;
+        }
+
+        return allWindows;
+    }
+
+    /**
+     * 按标题过滤窗口
+     */
+    getWindowsByTitle(pattern) {
+        const allWindows = this.getAllWindows();
+        const regex = typeof pattern === 'string' ?
+            new RegExp(pattern, 'i') : pattern;
+
+        return allWindows.filter(win => regex.test(win.title));
+    }
+
+    /**
+     * 按进程名过滤窗口
+     */
+    getWindowsByProcessName(processName) {
+        const allWindows = this.getAllWindows();
+        const regex = new RegExp(processName, 'i');
+
+        return allWindows.filter(win => regex.test(win.processName));
+    }
+
+    /**
+     * 获取当前平台信息
+     */
+    getPlatformInfo() {
+        return {
+            platform: this.platform,
+            arch: this.arch,
+            moduleLoaded: this.isLoaded,
+            supported: this.isPlatformSupported()
+        };
+    }
+
+    /**
+     * 平台特定的窗口操作
+     */
+    focusWindow(handle) {
+        if (!this.isLoaded) return false;
+
+        try {
+            // 注意：这个功能需要在原生模块中实现
+            if (this.nativeModule.focusWindow) {
+                return this.nativeModule.focusWindow(handle);
+            } else {
+                console.warn(`⚠️ focusWindow not implemented for ${this.platform}`);
+                return false;
+            }
+        } catch (error) {
+            console.error(`Failed to focus window on ${this.platform}:`, error);
+            return false;
+        }
+    }
+    /**
+     * 麒麟系统下获取光标在屏幕的物理位置
+     */
+    getCursorPosition() {
+        if (!this.isLoaded) {
+            throw new Error(`Native module not loaded for platform ${this.platform}`);
+        }
+
+        try {
+            const point =  this.nativeModule.getCursorPosition();
+            return point;
+        } catch (error) {
+            console.error(`Failed to get cursor position on ${this.platform}:`, error);
+            return { x: 0, y: 0, error: "" };
+        }
+    }
 }
 
 // 创建单例实例

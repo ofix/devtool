@@ -1,4 +1,5 @@
 import { ipcMain, desktopCapturer, screen } from 'electron';
+import os from 'os';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
@@ -120,6 +121,10 @@ class IPCManager extends Singleton {
             // 异步更新缓存（用户无感知）
             this.preloadScreenshot();
             return cached || await this.preloadScreenshot();
+        });
+        // 获取平台信息
+        ipcMain.handle('get-platform-info', async () => {
+            return native.getPlatformInfo();
         });
         // 截取指定区域的屏幕内容
         ipcMain.handle('capture-area', async (_, rect) => {
@@ -343,6 +348,20 @@ class IPCManager extends Singleton {
             }
             wnd.setIgnoreMouseEvents(enable, { forward: true });
             return true;
+        });
+        ipcMain.handle('get-screen-mouse-pos', (event) => {
+            const { platform } = os;
+            // Windows/macOS 使用Electron原生API
+            if (['win32', 'darwin'].includes(platform())) {
+                const { x, y } = screen.getCursorScreenPoint();
+                return { x, y };
+            }
+            // Linux/麒麟系统 使用xdotool包
+            if (platform() === 'linux') {
+                const point = native.getCursorPosition();
+                return point;
+            }
+            throw new Error(`不支持的操作系统：${platform()}`);
         });
         ipcMain.on("full-screen", (enent, wndName, flag) => {
             let wnd = WndManager.getInstance().getWindow(wndName);
