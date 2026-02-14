@@ -1,74 +1,85 @@
-// 菜单图标集合
+// 菜单图标集合（图标组件体积小，可保持静态导入；若需极致分片也可改为异步）
 import SSHIcon from "@/icons/IconSSH.vue";
 import SearchIcon from "@/icons/IconSearch.vue";
 import FileCompareIcon from "@/icons/IconFileCompare.vue";
-import VSCodeLayout from '@/layout/VSCodeLayout.vue'
-import PostWomanLayout from "@/layout/PostWomanLayout.vue";
-import VideoRecordLayout from "@/layout/VideoRecordLayout.vue";
-import ScreenshotTool from "@/views/Screenshot/ScreenshotTool.vue";
-import Capture from "@/views/Screenshot/Capture.vue";
-import ScreenRuler from "@/views/Screenshot/ScreenRuler.vue";
-import MeasureLine from "@/views/Screenshot/MeasureLine.vue";
-import LogViewer from "@/views/DebugLogger/LogViewer.vue";
-import AllConfig from "@/views/ToolConfig/AllConfig.vue";
-import TrayEntry from "@/views/Tray/TrayEntry.vue";
-import AppEntry from "@/views/Main/AppEntry.vue";
-import UnitConvert from "@/views/Misc/UnitConvert.vue";
-import FileCompare from "@/views/FileCompare/FileCompareEntry.vue";
 
+// 所有页面/布局组件改为异步导入 + 配置webpackChunkName实现打包分片
+// 定义异步导入函数（统一管理chunk名称，便于打包分片识别）
+const loadView = (view, chunkName = view) => {
+    // 魔法注释 /* webpackChunkName: "xxx" */ 用于指定打包分片名称
+    // Vite 环境下自动支持分片，注释仅作标识
+    return () => import(/* webpackChunkName: "chunk-[request]" */ `@/views/${view}.vue`);
+};
+
+const loadLayout = (layout, chunkName = layout) => {
+    return () => import(/* webpackChunkName: "layout-[request]" */ `@/layout/${layout}.vue`);
+};
+
+// 动态路由配置（所有组件均为异步导入，支持打包分片）
 const MenuRoutes = [
     {
         path: '/',
-        redirect: '/postwoman/request' // 可修改为你需要的默认路由，如 '/debug-tool/ssh'
-    },{
+        redirect: '/postwoman/request', // 默认路由
+        meta: { hidden: true } // 隐藏默认重定向路由
+    },
+    {
         path: '/main-app',
         name: 'main-app',
-        component: AppEntry,
+        // 分片名称：chunk-Main/AppEntry
+        component: () => import(/* webpackChunkName: "chunk-Main/AppEntry" */ '@/views/Main/AppEntry.vue'),
         meta: {
             icon: SSHIcon,
             title: '主应用',
-            desc: ''
+            desc: '',
+            // 可选：自定义分片组，便于按模块打包
+            chunkGroup: 'main'
         }
     },
     {
         path: '/debug-wnd',
         name: 'DebugWnd',
-        component: LogViewer,
+        // 分片名称：chunk-DebugLogger/LogViewer
+        component: () => import(/* webpackChunkName: "chunk-DebugLogger/LogViewer" */ '@/views/DebugLogger/LogViewer.vue'),
         meta: {
             icon: SSHIcon,
             title: '内部调试窗口',
-            desc: ''
+            desc: '',
+            chunkGroup: 'debug'
         },
     },
     {
         path: '/debug-tool',
         name: 'Root',
-        component: VSCodeLayout,
+        // 布局组件单独分片：layout-VSCodeLayout
+        component: loadLayout('VSCodeLayout'),
         redirect: '/debug-tool/ssh',
         meta: {
             icon: SSHIcon,
             title: '界面调试',
-            desc: ''
+            desc: '',
+            chunkGroup: 'debug'
         },
         children: [
             {
-                path: '/debug-tool/ssh',
+                path: 'ssh', // 简化子路由path（无需重复父路径）
                 name: 'SSH',
-                component: () => import('@/views/DebugTool/SSHPanel.vue'),
+                component: () => import(/* webpackChunkName: "chunk-DebugTool/SSHPanel" */ '@/views/DebugTool/SSHPanel.vue'),
                 meta: {
                     icon: SSHIcon,
                     title: '界面调试',
-                    desc: ''
+                    desc: '',
+                    chunkGroup: 'debug'
                 }
             },
             {
-                path: '/debug-tool/search-replace',
+                path: 'search-replace',
                 name: 'SearchReplace',
-                component: () => import('@/views/DebugTool/SearchReplacePanel.vue'),
+                component: () => import(/* webpackChunkName: "chunk-DebugTool/SearchReplacePanel" */ '@/views/DebugTool/SearchReplacePanel.vue'),
                 meta: {
                     icon: SearchIcon,
                     title: '查找替换',
-                    desc: ''
+                    desc: '',
+                    chunkGroup: 'debug'
                 }
             },
         ],
@@ -76,22 +87,24 @@ const MenuRoutes = [
     {
         path: '/postwoman',
         name: 'postwoman',
-        component: PostWomanLayout,
+        component: loadLayout('PostWomanLayout'),
         redirect: '/postwoman/request',
         meta: {
             icon: SSHIcon,
             title: 'HTTPS请求',
-            desc: ''
+            desc: '',
+            chunkGroup: 'network'
         },
         children: [
             {
-                path: '/postwoman/request',
+                path: 'request',
                 name: 'request',
-                component: PostWomanLayout,
+                component: loadLayout('PostWomanLayout'),
                 meta: {
                     icon: SSHIcon,
                     title: 'https请求',
-                    desc: ''
+                    desc: '',
+                    chunkGroup: 'network'
                 }
             },
         ]
@@ -99,22 +112,24 @@ const MenuRoutes = [
     {
         path: '/screenshot',
         name: 'screenshot',
-        component: ScreenshotTool,
+        component: () => import(/* webpackChunkName: "chunk-Screenshot/ScreenshotTool" */ '@/views/Screenshot/ScreenshotTool.vue'),
         redirect: '/screenshot/toolbar',
         meta: {
             icon: SSHIcon,
             title: '桌面截图',
-            desc: ''
+            desc: '',
+            chunkGroup: 'screenshot'
         },
         children: [
             {
-                path: '/screenshot/toolbar',
+                path: 'toolbar',
                 name: 'screenshot-toolbar',
-                component: ScreenshotTool,
+                component: () => import(/* webpackChunkName: "chunk-Screenshot/ScreenshotTool" */ '@/views/Screenshot/ScreenshotTool.vue'),
                 meta: {
                     icon: SSHIcon,
                     title: '可移动截图工具',
-                    desc: ''
+                    desc: '',
+                    chunkGroup: 'screenshot'
                 }
             },
         ]
@@ -122,96 +137,105 @@ const MenuRoutes = [
     {
         path: '/screenshot/capture',
         name: 'capture',
-        component: Capture,
+        component: () => import(/* webpackChunkName: "chunk-Screenshot/Capture" */ '@/views/Screenshot/Capture.vue'),
         meta: {
             icon: SSHIcon,
             title: '截图',
-            desc: ''
+            desc: '',
+            chunkGroup: 'screenshot'
         }
     },
     {
         path: '/screen-ruler',
         name: 'screen-ruler',
-        component: ScreenRuler,
+        component: () => import(/* webpackChunkName: "chunk-Screenshot/ScreenRuler" */ '@/views/Screenshot/ScreenRuler.vue'),
         meta: {
             icon: SSHIcon,
             title: '屏幕标尺',
-            desc: ''
+            desc: '',
+            chunkGroup: 'screenshot'
         }
     },
     {
         path: '/measure-line',
         name: 'measure-line',
-        component: MeasureLine,
+        component: () => import(/* webpackChunkName: "chunk-Screenshot/MeasureLine" */ '@/views/Screenshot/MeasureLine.vue'),
         meta: {
             icon: SSHIcon,
             title: '屏幕测量线',
-            desc: ''
+            desc: '',
+            chunkGroup: 'screenshot'
         }
     },
     {
         path: '/tool-config',
         name: 'tool-config',
-        component: AllConfig,
+        component: () => import(/* webpackChunkName: "chunk-ToolConfig/AllConfig" */ '@/views/ToolConfig/AllConfig.vue'),
         meta: {
             icon: SSHIcon,
             title: '配置弹窗',
-            desc: ''
+            desc: '',
+            chunkGroup: 'config'
         }
     },
     {
         path: '/tray-app',
         name: 'tray-app',
-        component: TrayEntry,
+        component: () => import(/* webpackChunkName: "chunk-Tray/TrayEntry" */ '@/views/Tray/TrayEntry.vue'),
         meta: {
             icon: SSHIcon,
             title: '托盘应用',
-            desc: ''
+            desc: '',
+            chunkGroup: 'tray'
         }
     },
     {
         path: '/unit-convert',
         name: 'unit-conert',
-        component: UnitConvert,
+        component: () => import(/* webpackChunkName: "chunk-Misc/UnitConvert" */ '@/views/Misc/UnitConvert.vue'),
         meta: {
             icon: SSHIcon,
             title: '单位换算',
-            desc: ''
+            desc: '',
+            chunkGroup: 'misc'
         }
     },
     {
         path: '/file-compare',
         name: 'FileCompare',
-        component: FileCompare,
+        component: () => import(/* webpackChunkName: "chunk-FileCompare/FileCompareEntry" */ '@/views/FileCompare/FileCompareEntry.vue'),
         meta: {
             icon: FileCompareIcon,
             title: '文件对比',
-            desc: ''
+            desc: '',
+            chunkGroup: 'file'
         }
     },
     {
         path: '/videorecord',
         name: 'videorecord',
-        component: VideoRecordLayout,
+        component: loadLayout('VideoRecordLayout'),
         redirect: '/videorecord/videorecord',
         meta: {
             icon: SSHIcon,
             title: '视频录像',
-            desc: ''
+            desc: '',
+            chunkGroup: 'video'
         },
         children: [
             {
-                path: '/videorecord/videorecord',
+                path: 'videorecord',
                 name: 'videorecord-main',
-                component: VideoRecordLayout,
+                component: loadLayout('VideoRecordLayout'),
                 meta: {
                     icon: SSHIcon,
                     title: '视频录像',
-                    desc: ''
+                    desc: '',
+                    chunkGroup: 'video'
                 }
             },
         ]
     }
-]
+];
 
 export default MenuRoutes;
