@@ -21,7 +21,7 @@ class IPCManager extends Singleton {
         this.cacheScreenshotExpireTime = 0; // 缓存过期时间
     }
     // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
-    async preloadScreenshot() {
+    async preloadScreenshot () {
         // 缓存未过期，直接返回
         if (this.cachedScreenshot && Date.now() < this.cacheScreenshotExpireTime) {
             return this.cachedScreenshot;
@@ -41,7 +41,7 @@ class IPCManager extends Singleton {
         }
     }
 
-    startListen() {
+    startListen () {
         ipcMain.on('console-log', (event, data) => {
             debugLogger.addLog(data);
         });
@@ -203,6 +203,15 @@ class IPCManager extends Singleton {
         ipcMain.handle("close-window", (event, wndName) => {
             return WndManager.getInstance().closeWindow(wndName);
         });
+        ipcMain.handle('minimize-window', (event, wndName) => {
+            return WndManager.getInstance().minimizeWindow(wndName);
+        });
+        ipcMain.handle('maximize-window', (event, wndName) => {
+            return WndManager.getInstance().maximizeWindow(wndName);
+        });
+        ipcMain.handle('restore-window', (event, wndName) => {
+            return WndManager.getInstance().restoreWindow(wndName);
+        });
         ipcMain.handle("get-window-options", (event, wndName) => {
             const manager = WndManager.getInstance();
             const wnd = manager.getWindow(wndName);
@@ -363,13 +372,13 @@ class IPCManager extends Singleton {
             }
             throw new Error(`不支持的操作系统：${platform()}`);
         });
-        ipcMain.handle('lock-screen',(_)=>{
+        ipcMain.handle('lock-screen', (_) => {
             return native.lockScreen();
         });
-        ipcMain.handle('unlock-screen',(_)=>{
+        ipcMain.handle('unlock-screen', (_) => {
             return native.unlockScreen();
         })
-        ipcMain.handle('is-screen-locked',(_)=>{
+        ipcMain.handle('is-screen-locked', (_) => {
             return native.isScreenLocked();
         })
         ipcMain.on("full-screen", (enent, wndName, flag) => {

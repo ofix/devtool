@@ -5,18 +5,10 @@
         <RedfishIcon />
       </el-icon>
     </span>
-    <span class="title">{{ title }}</span>
+    <span class="title">{{ wndTitle }}</span>
     <div class="title-bar-controls">
       <button
-        ref="captureBtn"
-        id="capture-box"
-        class="control-btn"
-        aria-label="截图"
-      >
-        <IconCaptureRect />
-      </button>
-      <button
-        ref="minBtn"
+        @click="handleMinimize"
         id="minimize-box"
         class="control-btn"
         aria-label="最小化"
@@ -24,7 +16,7 @@
         <IconMinimizeBox />
       </button>
       <button
-        ref="maxBtn"
+        @click="handleMaximize"
         id="maximize-box"
         class="control-btn"
         aria-label="最大化/还原"
@@ -33,7 +25,7 @@
         <IconRestoreBox v-else />
       </button>
       <button
-        ref="closeBtn"
+        @click="handleClose"
         id="close-box"
         class="control-btn close"
         aria-label="关闭"
@@ -45,65 +37,43 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { ref } from "vue";
 import RedfishIcon from "@/icons/IconRedfish.vue";
 import IconMaximizeBox from "@/icons/IconMaximizeBox.vue";
 import IconMinimizeBox from "@/icons/IconMinimizeBox.vue";
 import IconRestoreBox from "@/icons/IconRestoreBox.vue";
 import IconCloseBox from "@/icons/IconCloseBox.vue";
-import IconCaptureRect from "@/icons/IconCaptureRect.vue";
 
 // 可传入的 props
 const props = defineProps({
-  title: { type: String, default: "我的应用" },
+  wndTitle: { type: String, default: "" },
 });
 
 // 对外暴露的状态
 const isMaximized = ref(false);
-const titleBarHeight = ref(32); // 与 titleBarOverlay.height 保持一致
+const titleBarHeight = ref(32);
 
-// 事件（给父组件监听）
-const emit = defineEmits(["maximized", "unmaximized"]);
+const emit = defineEmits(["close", "minimize", "maximize", "restore", "drag"]);
 
-// 模板 ref
-const captureBtn = ref(null);
-const minBtn = ref(null);
-const maxBtn = ref(null);
-const closeBtn = ref(null);
+// 关闭窗口
+function handleClose() {
+  emit("close");
+}
 
-onMounted(() => {
-  // 绑定事件（使用模板 ref，避免多次 getElementById）
-  captureBtn.value?.addEventListener("click", async () => {
-    window.channel.showWindow("ScreenshotToolWnd");
-  });
-  minBtn.value?.addEventListener("click", () =>
-    window.channel.send("window-minimize")
-  );
-  maxBtn.value?.addEventListener("click", () =>
-    window.channel.send("window-maximize-toggle")
-  );
-  closeBtn.value?.addEventListener("click", () =>
-    window.channel.send("window-close")
-  );
+// 最小化窗口
+function handleMinimize() {
+  emit("minimize");
+}
 
-  // 同步最大化/还原
-  const onMax = () => {
-    isMaximized.value = true;
-    emit("maximized");
-  };
-  const onUnmax = () => {
-    isMaximized.value = false;
-    emit("unmaximized");
-  };
-  window.channel.on("maximized", onMax);
-  window.channel.on("unmaximized", onUnmax);
-
-  // 清理监听
-  onUnmounted(() => {
-    window.channel.off("maximized", onMax);
-    window.channel.off("unmaximized", onUnmax);
-  });
-});
+// 最大化/还原窗口
+function handleMaximize() {
+  if (isMaximized.value) {
+    emit("restore");
+  } else {
+    emit("maximize");
+  }
+  isMaximized.value = !isMaximized.value;
+}
 
 // 供父组件读取
 defineExpose({ isMaximized, titleBarHeight });

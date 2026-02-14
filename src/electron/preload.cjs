@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron/renderer')
 
-function safeStringify(arg) {
+function safeStringify (arg) {
     const seen = new WeakMap();
     try {
         return JSON.stringify(arg, (key, value) => {
@@ -19,7 +19,7 @@ function safeStringify(arg) {
 }
 
 // 封装日志发送到主进程的核心逻辑（加异常捕获+日志打印）
-function sendLogToMainProcess(type, args) {
+function sendLogToMainProcess (type, args) {
     try {
         // 前置校验：ipcRenderer 是否就绪
         if (!ipcRenderer || typeof ipcRenderer.send !== 'function') {
@@ -74,9 +74,17 @@ contextBridge.exposeInMainWorld('channel', {
         return () => ipcRenderer.removeListener(channel, wrappedCallback);
     },
     off: (channel, listener) => ipcRenderer.off(channel, listener),
-    minimize: (wndName) => ipcRenderer.send('window-minimize', wndName),
-    maximizeToggle: () => ipcRenderer.send('window-maximize-toggle'),
-    close: () => ipcRenderer.send('window-close'),
+    // 控制窗口
+    showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
+    hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
+    closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
+    minimizeWindow: (wndName) => ipcRenderer.invoke('minimize-window', wndName),
+    maximizeWindow: (wndName) => ipcRenderer.invoke('maximize-window', wndName),
+    restoreWindow: (wndName) => ipcRenderer.invoke('restore-window', wndName),
+    getWindowBounds: (wndName) => ipcRenderer.invoke('get-window-bounds', wndName),
+    setWindowBounds: (wndName, bounds) => ipcRenderer.invoke('set-window-bounds', wndName, bounds),
+    moveWindow: (wndName, deltaX, deltaY) => ipcRenderer.invoke('move-window', wndName, deltaX, deltaY),
+    getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     onMaximized: (cb) => ipcRenderer.on('maximized', cb),
     onUnmaximized: (cb) => ipcRenderer.on('unmaximized', cb),
     ignoreMouseEvents: (wndName, enable) => ipcRenderer.invoke('ignoreMouseEvents', wndName, enable),
@@ -114,14 +122,6 @@ contextBridge.exposeInMainWorld('channel', {
     doDelete: (options) => ipcRenderer.invoke("https:delete", options),
     doPatch: (options) => ipcRenderer.invoke("https:patch", options),
     doPut: (options) => ipcRenderer.invoke("https:put", options),
-    // 控制窗口
-    showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
-    hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
-    closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
-    getWindowBounds: (wndName) => ipcRenderer.invoke('get-window-bounds', wndName),
-    setWindowBounds: (wndName, bounds) => ipcRenderer.invoke('set-window-bounds', wndName, bounds),
-    moveWindow: (wndName, deltaX, deltaY) => ipcRenderer.invoke('move-window', wndName, deltaX, deltaY),
-    getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
     // 屏幕截图
     lockScreen: () => ipcRenderer.invoke('lock-screen'),
     unlockScreen: () => ipcRenderer.invoke('unlock-screen'),

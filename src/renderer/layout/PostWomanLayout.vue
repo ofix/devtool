@@ -1,12 +1,12 @@
 <template>
-  <VSCodeTitleBar title="DevTool" />
+  <TitleBar title="DevTool" wndKey="PostWomanWnd" />
   <div class="vscode-content">
     <el-container>
       <el-main>
         <el-splitter direction="horizontal" class="debug-splitter">
           <el-splitter-panel :min="100" :size="300">
             <div class="panel-left">
-             <HttpsRequestListPanel/>
+              <HttpsRequestListPanel />
             </div>
           </el-splitter-panel>
           <el-splitter-panel>
@@ -21,7 +21,7 @@
 </template>
 
 <script setup>
-import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
+import TitleBar from "@/components/TitleBar.vue";
 import HttpsRequestListPanel from "../views/PostWoman/HttpsRequestListPanel.vue";
 import HttpsRequestBuildPanel from "@/views/PostWoman/HttpsRequestBuildPanel.vue";
 </script>

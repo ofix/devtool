@@ -1,5 +1,5 @@
 <template>
-  <VSCodeTitleBar title="DevTool" />
+  <TitleBar title="DevTool" wndKey="" />
   <div class="vscode-content">
     <el-container>
       <el-aside>
@@ -31,7 +31,7 @@
 
 <script setup>
 import VSCodeMenu from "@/components/VSCodeMenu.vue";
-import VSCodeTitleBar from "@/components/VSCodeTitleBar.vue";
+import TitleBar from "@/components/TitleBar.vue";
 import CodeEditor from "@/views/DebugTool/CodeEditor.vue";
 </script>
 

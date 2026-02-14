@@ -1,27 +1,7 @@
 <template>
   <!-- 外层容器：包含标题栏 + 主体内容 -->
   <div class="converter-root" ref="rootRef">
-    <!-- 1. 新增标题栏组件：支持拖拽、渐变背景、隐藏/关闭按钮 -->
-    <!-- <div class="title-bar" ref="titleBarRef">
-      <div class="title-drag-area">
-        <span class="title-text">单位换算</span>
-      </div>
-      <div class="title-buttons">
-        <el-button
-          type="text"
-          icon="el-icon-minus"
-          class="title-btn hide-btn"
-          @click="handleHide"
-        />
-        <el-button
-          type="text"
-          icon="el-icon-close"
-          class="title-btn close-btn"
-          @click="handleClose"
-        />
-      </div>
-    </div> -->
-
+    <TitleBar wndKey="UnitConvertWnd" title="单位换算" />
     <!-- 原有主体内容 -->
     <el-container class="converter-container">
       <!-- 2. 左侧菜单宽度缩小一半：240px → 120px -->
@@ -34,7 +14,9 @@
             :class="{ active: activeType === item.key }"
             @click="switchConverter(item.key)"
           >
-            <el-icon class="menu-icon"><component :is="item.icon" /></el-icon>
+            <el-icon class="menu-icon">
+              <component :is="item.icon" />
+            </el-icon>
             <span class="menu-text">{{ item.name }}</span>
           </div>
         </div>
@@ -160,6 +142,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+import TitleBar from "@/components/TitleBar.vue";
 // 引入复制图标
 import Copy from "@/icons/IconCapture.vue";
 import Scale from "@/icons/IconCapture.vue";
@@ -175,12 +158,6 @@ import Energy from "@/icons/IconCapture.vue";
 import Power from "@/icons/IconCapture.vue";
 import DataStorage from "@/icons/IconCapture.vue";
 import { ElMessage } from "element-plus";
-
-// 响应式引用：用于拖拽标题栏
-const rootRef = ref(null);
-const titleBarRef = ref(null);
-let isDragging = ref(false);
-let dragStartPos = ref({ x: 0, y: 0 });
 
 // 1. 定义所有换算类型及单位配置
 const converterConfig = {
@@ -461,7 +438,7 @@ const calculateResult = () => {
   targetValue.value = parseFloat(targetValue.value.toFixed(6));
 };
 
-// 9. 监听与初始化
+// 监听与初始化
 watch([sourceValue, sourceUnit, targetUnit], () => {
   calculateResult();
 });
@@ -487,62 +464,10 @@ onMounted(() => {});
   background-color: #f5f7fa;
 }
 
-/* 1. 标题栏样式：Windows 11 紫色渐变 */
-.title-bar {
-  -webkit-app-region: drag;
-  user-select: none;
-  height: 38px;
-  background: #fff; /* Windows文件夹选中渐变 */
-  border-bottom: 1px solid #ccc;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  -webkit-app-region: drag; /* Electron拖拽支持 */
-  user-select: none; /* 禁止选中文字 */
-}
-
-.title-drag-area {
-  flex: 1;
-  display: flex;
-  justify-content: center; /* 标题居中 */
-}
-
-.title-text {
-  color: #8b5cf6;
-  font-size: 14px;
-  font-weight: bold;
-  /* font-weight: 500; */
-}
-
-.title-buttons {
-  -webkit-app-region: no-drag; /* 按钮区域禁止拖拽 */
-  display: flex;
-  gap: 5px;
-}
-
-.title-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #fff;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.title-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.close-btn:hover {
-  background-color: #e74c3c; /* 关闭按钮hover红色 */
-}
-
 /* 2. 主体容器样式 */
 .converter-container {
-  height: calc(100vh - 38px); /* 减去标题栏高度 */
+  height: calc(100vh - 38px);
+  /* 减去标题栏高度 */
 }
 
 /* 左侧菜单：宽度缩小为120px */
@@ -556,15 +481,18 @@ onMounted(() => {});
 .menu-wrapper {
   height: 100%;
   overflow-y: auto;
-  scrollbar-width: none; /* Firefox 默认隐藏 */
+  scrollbar-width: none;
+  /* Firefox 默认隐藏 */
 }
 
 .menu-wrapper::-webkit-scrollbar {
-  width: 0; /* Chrome 默认隐藏 */
+  width: 0;
+  /* Chrome 默认隐藏 */
 }
 
 .menu-wrapper:hover::-webkit-scrollbar {
-  width: 6px; /* 悬浮显示 */
+  width: 6px;
+  /* 悬浮显示 */
 }
 
 .menu-wrapper::-webkit-scrollbar-thumb {
@@ -575,12 +503,14 @@ onMounted(() => {});
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 12px 10px; /* 适配窄宽度，减少内边距 */
+  padding: 12px 10px;
+  /* 适配窄宽度，减少内边距 */
   cursor: pointer;
   transition: background-color 0.2s;
   margin: 0 4px;
   border-radius: 4px;
-  font-size: 12px; /* 缩小文字 */
+  font-size: 12px;
+  /* 缩小文字 */
 }
 
 .menu-item.active {
@@ -593,7 +523,8 @@ onMounted(() => {});
 }
 
 .menu-icon {
-  margin-right: 8px; /* 缩小图标间距 */
+  margin-right: 8px;
+  /* 缩小图标间距 */
   font-size: 14px;
 }
 
@@ -618,7 +549,8 @@ onMounted(() => {});
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
   overflow-y: auto;
   /* 4. 优化右侧滚动条：仅需要时显示 + 美化 */
-  scrollbar-width: thin; /* Firefox */
+  scrollbar-width: thin;
+  /* Firefox */
   scrollbar-color: #b8c2cc #f5f7fa;
 }
 
@@ -631,11 +563,13 @@ onMounted(() => {});
 .converter-content::-webkit-scrollbar-thumb {
   background-color: #b8c2cc;
   border-radius: 3px;
-  visibility: hidden; /* 默认隐藏 */
+  visibility: hidden;
+  /* 默认隐藏 */
 }
 
 .converter-content:hover::-webkit-scrollbar-thumb {
-  visibility: visible; /* 悬浮显示 */
+  visibility: visible;
+  /* 悬浮显示 */
 }
 
 .converter-content::-webkit-scrollbar-track {
@@ -673,9 +607,12 @@ onMounted(() => {});
 
 /* 优化3：修复禁用输入框文字颜色 */
 :deep(.target-input .el-input__inner) {
-  color: #303133 !important; /* 正常文字颜色 */
-  background-color: #f8f9fa !important; /* 轻微背景区分，可选 */
-  opacity: 1 !important; /* 取消透明度 */
+  color: #303133 !important;
+  /* 正常文字颜色 */
+  background-color: #f8f9fa !important;
+  /* 轻微背景区分，可选 */
+  opacity: 1 !important;
+  /* 取消透明度 */
 }
 
 /* 优化2：复制图标样式 + 禁用状态 */
@@ -683,6 +620,7 @@ onMounted(() => {});
   color: #c0c4cc !important;
   cursor: not-allowed !important;
 }
+
 :deep(.el-input__suffix) {
   cursor: pointer;
 }
@@ -759,7 +697,8 @@ onMounted(() => {});
 }
 
 .unit-tag-active {
-  background: linear-gradient(135deg, #6d28d9, #8b5cf6); /* 与标题栏渐变一致 */
+  background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+  /* 与标题栏渐变一致 */
   color: #fff;
   border: 1px solid #8b5cf6;
 }
