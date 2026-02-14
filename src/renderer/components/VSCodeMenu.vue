@@ -24,28 +24,38 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, markRaw } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElTooltip } from "element-plus";
-import MenuRoutes from "@/router/MenuRoutes.js";
+
+// 手动导入需要的图标组件
+import SSHIcon from "@/icons/IconSSH.vue";
+import SearchIcon from "@/icons/IconSearch.vue";
+import FileCompareIcon from "@/icons/IconFileCompare.vue";
 
 const router = useRouter();
 const route = useRoute();
 
-const menuItems = MenuRoutes.flatMap((route) => [
-  ...(route.children?.map((child) => ({
-    path: child.path,
-    name: child.name,
-    icon: child.meta.icon,
-    desc: child.meta.title,
-    route: child.path,
-  })) || []),
+// 手动定义菜单项配置
+const menuItems = ref([
+  {
+    path: "/debug-tool/ssh", // 唯一标识
+    desc: "SSH连接管理", // 菜单文字提示
+    icon: markRaw(SSHIcon), // 图标组件
+    route: "/debug-tool/ssh", // 实际跳转路由
+  },
+  {
+    path: "/debug-tool/search-replace",
+    desc: "全局搜索",
+    icon: markRaw(SearchIcon),
+    route: "/debug-tool/search-replace",
+  },
 ]);
 
 const props = defineProps({
   defaultMenuPath: {
     type: String,
-    default: null,
+    default: "/debug-tool/ssh",
   },
 });
 
@@ -54,25 +64,27 @@ const emit = defineEmits(["menu-select"]);
 // 当前激活的菜单项路径
 const activeMenuPath = ref(props.defaultMenuPath || null);
 
-// 根据当前路由 path，尝试自动匹配并设置 activeMenuPath（可选但推荐）
+// 根据当前路由 path，匹配菜单项
 const setActiveFromRoute = () => {
   const currentPath = route.path;
   // 查找 menuItems 中 route 字段匹配当前 path 的项
-  const activeItem = menuItems.find((item) => item.route === currentPath);
+  const activeItem = menuItems.value.find((item) => item.route === currentPath);
   if (activeItem) {
     activeMenuPath.value = activeItem.path;
   } else if (props.defaultMenuPath) {
     activeMenuPath.value = props.defaultMenuPath;
-  } else if (menuItems.length > 0) {
+  } else if (menuItems.value.length > 0) {
     // fallback：默认选中第一项
-    activeMenuPath.value = menuItems[0].path;
+    activeMenuPath.value = menuItems.value[0].path;
   }
 };
 
 // 点击菜单项
 const onMenuItemClick = (item) => {
   if (item.route) {
-    router.push(item.route).catch((err) => {});
+    router.push(item.route).catch((err) => {
+      console.log(err);
+    });
   }
   // 设置当前激活项
   activeMenuPath.value = item.path;
@@ -111,19 +123,19 @@ onMounted(() => {
 }
 
 @media screen and (resolution: 1dppx) {
-  .menu-item div {
+  .menu-item .icon {
     width: 28px;
     height: 28px;
   }
 }
 @media screen and (resolution: 1.5dppx) {
-  .menu-item div {
+  .menu-item .icon {
     width: 24px;
     height: 24px;
   }
 }
 @media screen and (resolution: 2dppx) {
-  .el-aside div {
+  .el-aside .icon {
     width: 18px;
     height: 18px;
   }

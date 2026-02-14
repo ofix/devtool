@@ -57,7 +57,7 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
-                titleBarStyle: 'hidden', resizable: false,
+                titleBarStyle: 'hidden', resizable: false, transparent: true,
                 titleBarOverlay: false,        // 显式关闭覆盖层
                 trafficLightPosition: { x: -9999, y: -9999 }, // 把红绿灯移出可视区域
             },
@@ -164,7 +164,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/tool-config',
                 levelName: 'normal',
-                levelZOrder: 10,
+                levelZOrder: 0,
                 devTool: false
             }
         };
@@ -177,13 +177,16 @@ class WndManager extends Singleton {
                 x: 0,
                 y: 0,
                 width: screenBounds.width,
-                height: screenBounds.height
+                height: screenBounds.height,
+                transparent: false,
+                resizable: true,
+                movable: true,
             },
             custom: {
-                url: '/debug-tool',
-                levelName: 'pop-up-menu',
-                levelZOrder: 10,
-                devTool: false
+                url: '/debug-tool/ssh', // 不能指定/debug-tool，否则会被VSCodeLayout的路由守卫重定向，导致无法加载正确的页面
+                levelName: 'normal',
+                levelZOrder: 0,
+                devTool: true
             }
         };
     }
@@ -200,8 +203,8 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/postwoman',
-                levelName: 'pop-up-menu',
-                levelZOrder: 10,
+                levelName: 'normal',
+                levelZOrder: 0,
                 devTool: true
             }
         };

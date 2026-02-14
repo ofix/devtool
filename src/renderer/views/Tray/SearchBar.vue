@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-import { defineEmits, ref } from "vue";
+import { ref } from "vue";
 import { inject } from "vue";
 import IconHelp from "@/icons/IconHelp.vue";
 import IconShortcut from "@/icons/IconShortcut.vue";

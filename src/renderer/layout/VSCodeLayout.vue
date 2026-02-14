@@ -1,5 +1,5 @@
 <template>
-  <TitleBar title="DevTool" wndKey="" />
+  <TitleBar :title="currentWndTitle" :wndKey="currentWndKey" />
   <div class="vscode-content">
     <el-container>
       <el-aside>
@@ -30,9 +30,45 @@
 </template>
 
 <script setup>
+import { ref, computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import VSCodeMenu from "@/components/VSCodeMenu.vue";
 import TitleBar from "@/components/TitleBar.vue";
 import CodeEditor from "@/views/DebugTool/CodeEditor.vue";
+
+const route = useRoute();
+const pathToWndKeyMap = {
+  "/debug-tool/ssh": "SFTPWnd",
+  "/debug-tool/search-replace": "SFTPWnd",
+};
+
+const currentWndKey = computed(() => {
+  if (pathToWndKeyMap[route.path]) {
+    return pathToWndKeyMap[route.path];
+  }
+  return "UnknownWnd";
+});
+
+const pathToWndTitleMap = {
+  "/debug-tool/ssh": "SFTP连接管理",
+  "/debug-tool/search-replace": "全局搜索替换",
+};
+
+const currentWndTitle = computed(() => {
+  if (pathToWndTitleMap[route.path]) {
+    return pathToWndTitleMap[route.path];
+  }
+  return "未知应用";
+});
+
+// （可选）监听路由/组件变化，手动更新 wndKey（兜底保障）
+watch(
+  () => route.fullPath, // 监听路由变化（组件变化会触发路由变化）
+  () => {
+    console.log("当前wndKey:", currentWndKey.value);
+  },
+  { immediate: true } // 初始化时执行一次
+);
 </script>
 
 <style type="scss" scoped>
@@ -48,6 +84,7 @@ import CodeEditor from "@/views/DebugTool/CodeEditor.vue";
 }
 
 .el-aside {
+  width: 60p !important;
   background-color: var(--dt-primary-bg-color);
   border-right: 1px solid var(--dt-border-color);
 }

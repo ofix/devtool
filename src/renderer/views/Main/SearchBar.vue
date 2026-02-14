@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-import { defineEmits, ref } from "vue";
+import { ref } from "vue";
 import { inject } from "vue";
 import IconHelp from "@/icons/IconHelp.vue";
 import IconShortcut from "@/icons/IconShortcut.vue";
@@ -54,8 +54,8 @@ const onShortcut = () => {
   /* 关键：继承3D变换，跟着父容器翻转 */
   transform-style: preserve-3d;
   backface-visibility: hidden;
-  width:102%;
-  margin-left:-8px;
+  width: 102%;
+  margin-left: -8px;
   display: flex;
   align-items: center;
   padding: 8px 12px;

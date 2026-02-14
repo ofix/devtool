@@ -61,15 +61,7 @@
 </template>
 
 <script setup>
-import {
-  ref,
-  computed,
-  nextTick,
-  watch,
-  defineProps,
-  defineEmits,
-  useAttrs,
-} from "vue";
+import { ref, computed, nextTick, watch, useAttrs } from "vue";
 import { ElMessage } from "element-plus";
 import DynamicVariableManager from "@/common/DynamicVariableManager.js";
 
