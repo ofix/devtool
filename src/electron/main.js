@@ -1,9 +1,16 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, nativeImage } from 'electron';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'fs';
+
 import DevTool from "./DevTool.js";
 import { isMac } from './DevTool.js';
 // import mmFileManager from './core/MMFileManager.js';
 import native from "./service/DevtoolNative.js";
 import WndManager from "./service/WndManager.js"
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 捕获未处理的异常
 process.on('uncaughtException', (error) => {
@@ -27,6 +34,26 @@ app.whenReady().then(() => {
     if (!isMac) {
         wndManager.showWindow('TrayAppWnd');
         wndManager.hideWindow('TrayAppWnd');
+    } else {
+        const icnsPath = join(__dirname, '../renderer/assets/devtool.svg');
+        try {
+            // 1. 读取 ICNS 文件的二进制数据
+            const iconImg = nativeImage.createFromPath(icnsPath);
+            // 2. 强制设置图标尺寸（可选，确保清晰度）
+            const sizedIcon = iconImg.resize({ width: 1024, height: 1024 });
+
+            app.dock.setIcon(sizedIcon);
+            app.dock.setIcon(sizedIcon);
+            app.dock.hide();
+            app.dock.show();
+            console.log('✅ 程序坞图标设置成功！');
+
+        } catch (err) {
+            console.error('💥 读取失败：', err.message);
+        }
+        // console.log("设置程序坞图标，路径:", icnsPath);
+        // 设置程序坞图标
+        // app.dock.setIcon(icnsPath);
     }
 
     app.on('activate', () => {

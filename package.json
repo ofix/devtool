@@ -18,7 +18,18 @@
     "copy:electron": "node build/copy.electron.js",
     "build": "vite build && npm run copy:electron",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "build:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.ofix.devtool",
+    "productName": "devtool",
+    "mac": {
+      "icon": "renderer/assets/devtool.icns",
+      "target": [
+        "dmg"
+      ]
+    }
   },
   "dependencies": {
     "@prettier/plugin-php": "^0.24.0",
@@ -28,6 +39,7 @@
     "basic-ftp": "^5.0.5",
     "electron-squirrel-startup": "^1.0.1",
     "element-plus": "^2.11.8",
+    "iconv-lite": "^0.7.2",
     "monaco-editor": "^0.55.1",
     "node-7z": "^3.0.0",
     "node-ssh": "^13.2.1",

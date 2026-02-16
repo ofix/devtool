@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, Tray, globalShortcut, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, Tray, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Singleton from './Singleton.js';
@@ -57,7 +57,8 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
-                titleBarStyle: 'hidden', resizable: false, transparent: true,
+                transparent: true,
+                titleBarStyle: 'hidden', resizable: false,
                 titleBarOverlay: false,        // 显式关闭覆盖层
                 trafficLightPosition: { x: -9999, y: -9999 }, // 把红绿灯移出可视区域
             },
@@ -295,7 +296,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/file-compare',
                 levelName: 'normal',
-                levelZOrder: 10,
+                levelZOrder: 0,
                 devTool: true
             }
         };

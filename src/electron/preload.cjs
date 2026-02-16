@@ -143,4 +143,8 @@ contextBridge.exposeInMainWorld('channel', {
     rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
     rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
     updateMeasureLinePos: (option) => ipcRenderer.invoke("ruler:update-measure-line-pos", option),
+    // 文件比对
+    selectFile: (side) => ipcRenderer.invoke('select-file', side),
+    readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
+    diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines)
 })

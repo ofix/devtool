@@ -1,5 +1,8 @@
-import { ipcMain, desktopCapturer, screen } from 'electron';
+import { ipcMain, desktopCapturer, screen, dialog } from 'electron';
 import os from 'os';
+import fs from 'fs';
+import readline from 'readline';
+import iconv from 'iconv-lite';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
 import screenshot from 'screenshot-desktop';
@@ -7,6 +10,8 @@ import WndManager from './WndManager.js';
 import Singleton from "./Singleton.js";
 import native from "./DevtoolNative.js";
 import debugLogger from './DebugLogger.js';
+import { diffFileContent } from '../core/FileDiff.js';
+
 // 日志缓存上限
 
 class IPCManager extends Singleton {
@@ -39,6 +44,82 @@ class IPCManager extends Singleton {
             console.error('预加载截图失败：', error);
             return null;
         }
+    }
+
+    detectFileEncoding (filePath) {
+        try {
+            const buffer = fs.readFileSync(filePath, { encoding: null, size: 4096 });
+
+            // 最高优先级：检测 UTF-16 LE (带/不带 BOM)
+            // UTF-16 LE BOM (FF FE)
+            if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) {
+                return 'utf16-le';
+            }
+            // 无 BOM 的 UTF-16 LE（通过字节特征检测）
+            if (buffer.length >= 4) {
+                let hasUtf16LePattern = true;
+                // 偶数位是字符，奇数位是空字节（UTF-16 LE 特征）
+                for (let i = 0; i < Math.min(10, buffer.length); i += 2) {
+                    if (i + 1 < buffer.length && buffer[i + 1] !== 0x00) {
+                        hasUtf16LePattern = false;
+                        break;
+                    }
+                }
+                if (hasUtf16LePattern) {
+                    return 'utf16-le';
+                }
+            }
+
+            // 测 UTF-16 BE
+            if (buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF) {
+                return 'utf16-be';
+            }
+
+            // 检测 UTF-8 (带 BOM)
+            if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+                return 'utf8';
+            }
+
+            // 兼容其他常见编码
+            const encodings = ['utf8', 'gbk', 'gb2312', 'big5', 'latin1'];
+            for (const enc of encodings) {
+                try {
+                    iconv.decode(buffer, enc);
+                    return enc;
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            return 'utf8'; // 兜底
+        } catch (e) {
+            return 'utf8';
+        }
+    }
+
+    // 处理大文件的按行读取（真正分片，不一次性加载）
+    async readFileLines (filePath) {
+        return new Promise((resolve, reject) => {
+            const lines = [];
+            const encoding = this.detectFileEncoding(filePath);
+
+            // 创建读取流（适配不同编码）
+            const readStream = fs.createReadStream(filePath, { encoding: null }); // 二进制流
+            const decodeStream = iconv.decodeStream(encoding); // 按检测到的编码解码
+            const rl = readline.createInterface({
+                input: readStream.pipe(decodeStream),
+                crlfDelay: Infinity // 兼容所有换行符（\r\n、\n、\r）
+            });
+
+            // 逐行读取
+            rl.on('line', (line) => {
+                lines.push(line.trimEnd()); // 移除行尾的换行/回车符，适配所有系统
+            });
+
+            // 读取完成/出错
+            rl.on('close', () => resolve(lines));
+            rl.on('error', (err) => reject(err));
+        });
     }
 
     startListen () {
@@ -377,6 +458,39 @@ class IPCManager extends Singleton {
         });
         ipcMain.handle('unlock-screen', (_) => {
             return native.unlockScreen();
+        })
+        // 文件比对
+        // 监听文件选择请求
+        ipcMain.handle('select-file', async (event, side) => {
+            const result = await dialog.showOpenDialog({
+                properties: ['openFile'],
+                filters: [{ name: 'Text Files', extensions: ['txt', 'js', 'json', 'md', 'cpp', 'java', 'dart'] }]
+            })
+            if (!result.canceled && result.filePaths.length > 0) {
+                return { path: result.filePaths[0], side }
+            }
+            return null
+        })
+
+        // 监听文件内容读取请求
+        ipcMain.handle('read-file-content', async (event, filePath) => {
+            try {
+                // 真正的大文件按行读取，避免一次性加载
+                const lines = await this.readFileLines(filePath);
+                return { success: true, lines };
+            } catch (error) {
+                console.error('读取文件失败：', error);
+                return { success: false, error: error.message };
+            }
+        })
+
+        // 监听主进程 diff 计算请求
+        ipcMain.handle('diff-file-content', async (event, leftLines, rightLines) => {
+            try {
+                return diffFileContent(leftLines, rightLines)
+            } catch (error) {
+                return { success: false, error: error.message }
+            }
         })
         ipcMain.handle('is-screen-locked', (_) => {
             return native.isScreenLocked();

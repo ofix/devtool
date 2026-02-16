@@ -58,13 +58,13 @@ class DevTool {
         ];
     }
 
-    init() {
+    init () {
         const ipcManager = IPCManager.getInstance();
         ipcManager.startListen();
         this.registerAppShortcuts();
     }
 
-    createMainWnd() {
+    createMainWnd () {
         this.mainWnd = new BrowserWindow({
             width: 1280,
             height: 960,
@@ -117,7 +117,7 @@ class DevTool {
         });
     }
 
-    registerAppShortcuts() {
+    registerAppShortcuts () {
         // 获取快捷键管理器单例
         const shortcutManager = ShortcutManager.getInstance();
         shortcutManager.init();
