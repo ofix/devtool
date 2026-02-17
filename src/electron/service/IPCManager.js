@@ -464,7 +464,7 @@ class IPCManager extends Singleton {
         ipcMain.handle('select-file', async (event, side) => {
             const result = await dialog.showOpenDialog({
                 properties: ['openFile'],
-                filters: [{ name: 'Text Files', extensions: ['txt', 'js', 'json', 'md', 'cpp', 'java', 'dart'] }]
+                filters: [{ name: 'Text Files', extensions: ['vue', 'cc', 'cpp', 'c', 'txt', 'js', 'php', 'py', 'make', 'json', 'md', 'json', 'cjs', 'java', 'dart'] }]
             })
             if (!result.canceled && result.filePaths.length > 0) {
                 return { path: result.filePaths[0], side }
