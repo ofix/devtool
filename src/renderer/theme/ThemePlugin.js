@@ -1,11 +1,11 @@
 import { themeManager } from '../theme/ThemeManager';
 
 export default {
-  install(app, options) {
+  install (app, options) {
     app.config.globalProperties.$theme = themeManager;
     app.provide('theme', themeManager);
     app.mixin({
-      mounted() {
+      mounted () {
         themeManager.applyTheme();
       }
     });
@@ -19,6 +19,8 @@ export default {
           themeManager.setTheme('light');
         } else if (to.path.includes('/debug-tool')) {
           themeManager.setTheme('dark');
+        } else {
+          themeManager.setTheme('light');
         }
         themeManager.applyTheme(); // 应用切换后的主题
       });

@@ -7,13 +7,13 @@ class ThemeManager {
     }
     ThemeManager.instance = this;
 
-    this.theme = ref('dark');
+    this.theme = ref('light');
     this.initTheme();
 
     return this;
   }
 
-  initTheme() {
+  initTheme () {
     const savedTheme = localStorage.getItem('app-theme');
     if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
       this.theme.value = savedTheme;
@@ -21,17 +21,17 @@ class ThemeManager {
     this.applyTheme();
   }
 
-  applyTheme() {
+  applyTheme () {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(this.theme.value);
   }
 
-  toggleTheme() {
+  toggleTheme () {
     const newTheme = this.theme.value === 'light' ? 'dark' : 'light';
     this.setTheme(newTheme);
   }
 
-  setTheme(theme) {
+  setTheme (theme) {
     this.theme.value = theme;
     this.applyTheme();
     localStorage.setItem('app-theme', theme);

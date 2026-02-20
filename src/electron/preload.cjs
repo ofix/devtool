@@ -146,5 +146,11 @@ contextBridge.exposeInMainWorld('channel', {
     // 文件比对
     selectFile: (side) => ipcRenderer.invoke('select-file', side),
     readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
-    diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines)
+    diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines),
+    // 文件夹比对
+    selectFolder: () => ipcRenderer.invoke('select-folder'),
+    // 加载文件夹
+    loadFolder: (dirPath) => ipcRenderer.invoke('load-folder', dirPath),
+    // 比对文件夹
+    diffFolder: (folderA, folderB) => ipcRenderer.invoke('diff-folder', folderA, folderB),
 })

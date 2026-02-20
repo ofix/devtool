@@ -1,7 +1,8 @@
 import { ipcMain, desktopCapturer, screen, dialog } from 'electron';
-import os from 'os';
-import fs from 'fs';
-import readline from 'readline';
+import os from 'node:os';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import iconv from 'iconv-lite';
 import SFTPService from './SFTPService.js';
 import { httpsClient } from '../core/HTTPSClient.js';
@@ -11,6 +12,7 @@ import Singleton from "./Singleton.js";
 import native from "./DevtoolNative.js";
 import debugLogger from './DebugLogger.js';
 import { diffFileContent } from '../core/FileDiff.js';
+import { DirDiff } from '../core/DirDiff.js';
 
 // 日志缓存上限
 
@@ -97,29 +99,88 @@ class IPCManager extends Singleton {
         }
     }
 
-    // 处理大文件的按行读取（真正分片，不一次性加载）
+    /**
+     * 纯异步逐行读取文件, 处理大文件的按行读取（真正分片，不一次性加载）
+     * @param {string} filePath - 文件路径
+     * @returns {Promise<string[]>} 文件行数组
+     */
     async readFileLines (filePath) {
-        return new Promise((resolve, reject) => {
+        // 前置校验：路径合法性
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('无效的文件路径：必须是非空字符串');
+        }
+
+        let fileHandle = null;
+        try {
+            // 纯异步打开文件（替代同步的 createReadStream）
+            fileHandle = await fs.open(filePath, 'r');
+            // 异步获取文件信息（大小）
+            const fileStat = await fileHandle.stat();
+            const fileSize = fileStat.size;
+
+            // 异步检测文件编码
+            const encoding = await this.detectFileEncoding(filePath);
+
+            // 分块异步读取文件
+            const chunkSize = 64 * 1024; // 64KB 块大小（平衡性能和内存）
+            let position = 0; // 当前读取位置
+            let remainingBuffer = Buffer.alloc(0); // 剩余未处理的缓冲区（跨块的换行符）
             const lines = [];
-            const encoding = this.detectFileEncoding(filePath);
 
-            // 创建读取流（适配不同编码）
-            const readStream = fs.createReadStream(filePath, { encoding: null }); // 二进制流
-            const decodeStream = iconv.decodeStream(encoding); // 按检测到的编码解码
-            const rl = readline.createInterface({
-                input: readStream.pipe(decodeStream),
-                crlfDelay: Infinity // 兼容所有换行符（\r\n、\n、\r）
-            });
+            // 循环异步读取每一块
+            while (position < fileSize) {
+                // 计算本次读取的字节数（最后一块可能不足chunkSize）
+                const bytesToRead = Math.min(chunkSize, fileSize - position);
+                const chunkBuffer = Buffer.alloc(bytesToRead);
 
-            // 逐行读取
-            rl.on('line', (line) => {
-                lines.push(line.trimEnd()); // 移除行尾的换行/回车符，适配所有系统
-            });
+                // 纯异步读取文件块（核心异步API）
+                const { bytesRead } = await fileHandle.read(
+                    chunkBuffer,
+                    0,
+                    bytesToRead,
+                    position
+                );
 
-            // 读取完成/出错
-            rl.on('close', () => resolve(lines));
-            rl.on('error', (err) => reject(err));
-        });
+                // 更新读取位置
+                position += bytesRead;
+
+                // 拼接剩余缓冲区 + 本次读取的块
+                const combinedBuffer = Buffer.concat([remainingBuffer, chunkBuffer.slice(0, bytesRead)]);
+                // 解码为字符串（按检测到的编码）
+                let combinedStr = iconv.decode(combinedBuffer, encoding);
+
+                // 分割行（处理不同换行符：\r\n、\n、\r）
+                const lineBreakRegex = /\r\n|\n|\r/g;
+                let lastIndex = 0;
+                let match;
+
+                // 遍历所有换行符位置
+                while ((match = lineBreakRegex.exec(combinedStr)) !== null) {
+                    const line = combinedStr.slice(lastIndex, match.index).trimEnd();
+                    lines.push(line);
+                    lastIndex = lineBreakRegex.lastIndex;
+                }
+
+                // 保存剩余未分割的部分（跨块的内容）
+                remainingBuffer = iconv.encode(combinedStr.slice(lastIndex), encoding);
+            }
+
+            // 处理最后剩余的内容（文件末尾无换行符的情况）
+            if (remainingBuffer.length > 0) {
+                const lastLine = iconv.decode(remainingBuffer, encoding).trimEnd();
+                if (lastLine) {
+                    lines.push(lastLine);
+                }
+            }
+            return lines;
+        } catch (err) {
+            throw new Error(`读取文件失败：${err.message}`);
+        } finally {
+            // 确保文件句柄异步关闭（无论成功/失败）
+            if (fileHandle) {
+                await fileHandle.close().catch(err => console.warn('关闭文件句柄失败：', err.message));
+            }
+        }
     }
 
     startListen () {
@@ -471,6 +532,37 @@ class IPCManager extends Singleton {
             }
             return null
         })
+
+        // 文件夹比对
+        ipcMain.handle('select-folder', async (event) => {
+            try {
+                const result = await dialog.showOpenDialog({
+                    properties: ['openDirectory', 'createDirectory'],
+                    title: '选择目标文件夹'
+                });
+
+                if (!result.canceled && result.filePaths.length > 0) {
+                    return result.filePaths[0];
+                }
+                return null;
+            } catch (error) {
+                console.error('选择文件夹时发生错误:', error);
+                return null;
+            }
+        })
+
+        // 文件夹扫描
+        ipcMain.handle('load-folder', async (event, dirPath) => {
+            const dirDiff = new DirDiff();
+            return await dirDiff.scanDirRecursive(dirPath);
+        });
+
+        // 文件夹比对
+        ipcMain.handle('diff-folder', async (event, folderA, folderB, ignorePatterns = [/\.DS_Store$/, /Thumbs\.db$/]) => {
+            const dirDiff = new DirDiff();
+            const result = await dirDiff.compareFolders(folderA, folderB);
+            return result;
+        });
 
         // 监听文件内容读取请求
         ipcMain.handle('read-file-content', async (event, filePath) => {
