@@ -66,7 +66,7 @@ class WndManager extends Singleton {
                 url: '/main-app',
                 levelName: 'normal',
                 levelZOrder: 0,
-                devTool: false,
+                devTool: true,
             }
         };
     }

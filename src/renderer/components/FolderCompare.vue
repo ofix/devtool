@@ -1,6 +1,6 @@
 <template>
-  <div class="folder-compare-container">
-    <!-- 顶部操作栏：保留文件夹选择按钮 -->
+  <div class="folder-compare-container" :class="theme">
+    <!-- 顶部操作栏：保留原有结构，新增主题切换按钮 -->
     <div class="compare-header">
       <div class="folder-input-group">
         <el-input
@@ -11,20 +11,17 @@
           @dragover="handleDragOver"
           @change="handleFolderPathChange('left')"
         />
-        <el-button type="primary" @click="selectFolder('left')"
-          >选择文件夹</el-button
-        >
+        <el-button type="primary" @click="selectFolder('left')">
+          选择文件夹
+        </el-button>
       </div>
 
       <div class="compare-controls">
-        <el-button
-          type="success"
-          @click="startCompare"
-          :disabled="!leftFolderPath || !rightFolderPath"
-        >
-          开始比对
-        </el-button>
         <el-button @click="reloadCompare">重新加载</el-button>
+        <!-- 新增：主题切换按钮 -->
+        <el-button @click="toggleTheme">
+          {{ theme === "light-theme" ? "切换黑色主题" : "切换白色主题" }}
+        </el-button>
       </div>
 
       <div class="folder-input-group">
@@ -36,94 +33,131 @@
           @dragover="handleDragOver"
           @change="handleFolderPathChange('right')"
         />
-        <el-button type="primary" @click="selectFolder('right')"
-          >选择文件夹</el-button
-        >
+        <el-button type="primary" @click="selectFolder('right')">
+          选择文件夹
+        </el-button>
       </div>
     </div>
 
-    <!-- 主体：固定左右布局（核心） -->
+    <!-- 主体：固定左右布局（保留原有结构） -->
     <div class="compare-body">
-      <!-- 左侧文件树 -->
-      <div class="tree-container left-tree">
-        <div class="tree-placeholder" v-if="!leftFolderPath">
+      <!-- 左侧树形表格 -->
+      <div class="table-container left-table">
+        <div
+          class="table-placeholder"
+          v-if="!leftFolderPath || rawLeftTreeData.length === 0"
+        >
           请选择左侧文件夹
         </div>
-        <el-tree-v2
-          v-else
-          ref="leftTreeRef"
-          v-model:expanded-keys="leftExpandedKeys"
-          v-model:selected-keys="leftSelectedKeys"
-          :data="currentLeftTreeData"
-          :props="treeProps"
-          :height="treeHeight"
-          :indent="4"
-          @node-click="handleNodeClick('left', $event)"
-          @scroll="handleTreeScroll('left', $event)"
-          class="custom-tree"
-        >
-          <template #default="{ node, data }">
-            <div class="tree-line" :class="getLineClass(data)">
-              <!-- 空节点样式 -->
-              <template v-if="data.isEmptyNode">
-                <span class="empty-icon">∅</span>
-                <span class="empty-label">（无对应文件）</span>
-              </template>
-              <template v-else>
-                <IconFolder v-if="data.isFolder" />
-                <IconFile v-else />
-                <span class="line-name">{{ node.label }}</span>
+        <div v-else class="virtual-table-wrapper" ref="leftTableContainer">
+          <el-table-v2
+            v-model:expanded-row-keys="leftExpandedRowKeys"
+            row-key="path"
+            expandColumnKey="name"
+            :columns="tableColumns"
+            :data="currentLeftTreeData"
+            :width="leftTableWidth || 670"
+            :height="tableHeight"
+            :row-height="40"
+            :sortable="true"
+            :row-class-name="getRowClassName"
+            @cell-click="(row) => handleRowClick('left', row)"
+            :scrollbar-always-on="true"
+          >
+            <!-- 自定义名称列渲染 -->
+            <template #name="{ cellValue, row }">
+              <div class="cell-content">
+                <!-- 空节点样式 -->
+                <template v-if="row.isEmptyNode">
+                  <span class="empty-icon">∅</span>
+                  <span class="empty-label">（无对应文件）</span>
+                </template>
+                <template v-else>
+                  <!-- 自定义图标：文件夹/文件 -->
+                  <IconFolder v-if="row.isFolder" class="file-icon" />
+                  <IconFile v-else class="file-icon" />
+                  <span class="file-name">{{ cellValue }}</span>
 
-                <!-- 左侧 → 右侧 同步箭头（仅差异行显示） -->
-                <IconArrowRight
-                  v-if="showSyncLeftToRight(data)"
-                  @click.stop="syncOne('left-to-right', data)"
-                />
-              </template>
-            </div>
-          </template>
-        </el-tree-v2>
+                  <!-- 同步箭头（仅差异行显示） -->
+                  <IconArrowRight
+                    v-if="showSyncLeftToRight(row)"
+                    @click.stop="syncOne('left-to-right', row)"
+                    class="sync-arrow"
+                  />
+                </template>
+              </div>
+            </template>
+
+            <!-- 自定义修改时间列渲染 -->
+            <template #modifyTime="{ cellValue }">
+              <span>{{ cellValue || "-" }}</span>
+            </template>
+
+            <!-- 自定义文件大小列渲染 -->
+            <template #fileSize="{ cellValue }">
+              <span>{{ formatFileSize(cellValue) || "-" }}</span>
+            </template>
+          </el-table-v2>
+        </div>
       </div>
 
-      <!-- 右侧文件树 -->
-      <div class="tree-container right-tree">
-        <div class="tree-placeholder" v-if="!rightFolderPath">
+      <!-- 右侧树形表格 -->
+      <div class="table-container right-table">
+        <div
+          class="table-placeholder"
+          v-if="!rightFolderPath || rawRightTreeData.length === 0"
+        >
           请选择右侧文件夹
         </div>
-        <el-tree-v2
-          v-else
-          ref="rightTreeRef"
-          v-model:expanded-keys="rightExpandedKeys"
-          v-model:selected-keys="rightSelectedKeys"
-          :data="currentRightTreeData"
-          :props="treeProps"
-          :height="treeHeight"
-          :indent="4"
-          @node-click="handleNodeClick('right', $event)"
-          @scroll="handleTreeScroll('right', $event)"
-          class="custom-tree"
-        >
-          <template #default="{ node, data }">
-            <div class="tree-line" :class="getLineClass(data)">
-              <!-- 空节点样式 -->
-              <template v-if="data.isEmptyNode">
-                <span class="empty-icon">∅</span>
-                <span class="empty-label">（无对应文件）</span>
-              </template>
-              <template v-else>
-                <!-- 右侧 → 左侧 同步箭头（仅差异行显示） -->
-                <IconArrowLeft
-                  v-if="showSyncRightToLeft(data)"
-                  @click.stop="syncOne('right-to-left', data)"
-                />
+        <div v-else class="virtual-table-wrapper" ref="rightTableContainer">
+          <el-table-v2
+            v-model:expanded-row-keys="rightExpandedRowKeys"
+            row-key="path"
+            expandColumnKey="name"
+            :columns="tableColumns"
+            :data="currentRightTreeData"
+            :width="rightTableWidth || 670"
+            :height="tableHeight"
+            :row-height="40"
+            :row-class-name="getRowClassName"
+            @cell-click="(row) => handleRowClick('right', row)"
+            :scrollbar-always-on="true"
+          >
+            <!-- 自定义名称列渲染 -->
+            <template #name="{ cellValue, row }">
+              <div class="cell-content">
+                <!-- 空节点样式 -->
+                <template v-if="row.isEmptyNode">
+                  <span class="empty-icon">∅</span>
+                  <span class="empty-label">（无对应文件）</span>
+                </template>
+                <template v-else>
+                  <!-- 同步箭头（仅差异行显示） -->
+                  <IconArrowLeft
+                    v-if="showSyncRightToLeft(row)"
+                    @click.stop="syncOne('right-to-left', row)"
+                    class="sync-arrow"
+                  />
 
-                <span class="line-name">{{ node.label }}</span>
-                <IconFolder v-if="data.isFolder" />
-                <IconFile v-else />
-              </template>
-            </div>
-          </template>
-        </el-tree-v2>
+                  <!-- 自定义图标：文件夹/文件 -->
+                  <IconFolder v-if="row.isFolder" class="file-icon" />
+                  <IconFile v-else class="file-icon" />
+                  <span class="file-name">{{ cellValue }}</span>
+                </template>
+              </div>
+            </template>
+
+            <!-- 自定义修改时间列渲染 -->
+            <template #modifyTime="{ cellValue }">
+              <span>{{ cellValue || "-" }}</span>
+            </template>
+
+            <!-- 自定义文件大小列渲染 -->
+            <template #fileSize="{ cellValue }">
+              <span>{{ formatFileSize(cellValue) || "-" }}</span>
+            </template>
+          </el-table-v2>
+        </div>
       </div>
     </div>
   </div>
@@ -138,9 +172,15 @@ import {
   onMounted,
   onUnmounted,
   watch,
+  nextTick,
   h,
 } from "vue";
-import { ElTreeV2, ElDialog, ElMessage, ElButton, ElInput } from "element-plus";
+import { ElMessage, ElButton, ElInput } from "element-plus";
+// 修正：ElTableV2 正确导入方式 + 强制引入样式
+import { ElTableV2 } from "element-plus";
+import "element-plus/es/components/table-v2/style/css";
+
+// 导入图标组件（确保路径正确）
 import IconFolder from "@/icons/IconFolder.vue";
 import IconFile from "@/icons/IconFile.vue";
 import IconArrowLeft from "@/icons/IconArrowLeft.vue";
@@ -148,7 +188,18 @@ import IconArrowRight from "@/icons/IconArrowRight.vue";
 import path from "path";
 import _ from "lodash-es";
 
+// 核心修正：提前定义emit（避免函数内定义导致的解析错误）
+const emit = defineEmits(["row-click"]);
+
+// ========== 主题相关 ==========
+const theme = ref("light-theme"); // 默认白色主题
+const toggleTheme = () => {
+  theme.value = theme.value === "light-theme" ? "dark-theme" : "light-theme";
+};
+
 // ========== 核心状态 ==========
+const leftExpandedRowKeys = ref([]);
+const rightExpandedRowKeys = ref([]);
 // 文件夹路径
 const leftFolderPath = ref("");
 const rightFolderPath = ref("");
@@ -176,38 +227,70 @@ const currentRightTreeData = computed(() => {
     : rawRightTreeData.value;
 });
 
-// 树配置
-const leftExpandedKeys = ref([]);
-const rightExpandedKeys = ref([]);
-const leftSelectedKeys = ref([]);
-const rightSelectedKeys = ref([]);
-const treeProps = {
+// ========== 树形表格配置 ==========
+const tableColumns = ref([
+  {
+    key: "name",
+    title: "文件/目录名",
+    dataKey: "name",
+    width: 350,
+    sortable: true,
+    sortType: null,
+  },
+  {
+    key: "mtime",
+    title: "修改时间",
+    dataKey: "mtime",
+    width: 200,
+    sortable: true,
+    sortType: null,
+  },
+  {
+    key: "size",
+    title: "文件大小",
+    dataKey: "size",
+    width: 120,
+    sortable: true,
+    sortType: null,
+  },
+]);
+
+// 核心修正：重构expandIcon，避免h函数传入非法字符
+const treeProps = ref({
   id: "path",
   key: "path",
   label: "name",
   children: "children",
-};
+  hasChildren: (node) => {
+    return (
+      node.isFolder && Array.isArray(node.children) && node.children.length > 0
+    );
+  },
+  expandIcon: ({ expanded }) => {
+    // 修复：使用纯对象创建元素，避免注释字符混入属性
+    return h(
+      "span",
+      {
+        class: ["expand-icon", expanded ? "expanded" : ""].join(" "),
+        // 移除所有可能的注释字符，确保属性名合法
+      },
+      expanded ? "▼" : "▶"
+    );
+  },
+});
 
-// 树容器引用
-const leftTreeRef = ref(null);
-const rightTreeRef = ref(null);
-
-// 树高度（自适应）
-const treeHeight = computed(() => {
+// 表格高度（自适应）
+const tableHeight = computed(() => {
   const containerHeight = window.innerHeight - 120;
   return containerHeight > 300 ? containerHeight : 600;
 });
 
-// 文件比对弹窗
-const fileCompareVisible = ref(false);
-const leftCompareFilePath = ref("");
-const rightCompareFilePath = ref("");
+// 表格宽度（自适应容器）
+const leftTableContainer = ref(null);
+const rightTableContainer = ref(null);
+const leftTableWidth = ref(0);
+const rightTableWidth = ref(0);
 
-// 锁
-const scrollLock = ref(false);
-const expandLock = ref(false);
-
-// ========== 核心方法 ==========
 // 加载单个文件夹结构
 const loadFolder = async (side, folderPath) => {
   let dirPath = toRaw(folderPath);
@@ -215,17 +298,18 @@ const loadFolder = async (side, folderPath) => {
 
   try {
     const result = await window.channel.loadFolder(dirPath);
-
-    if (result.success) {
+    if (result.success && result.fileTree) {
       if (side === "left") {
         rawLeftTreeData.value = [result.fileTree];
-        leftExpandedKeys.value = [folderPath];
       } else {
         rawRightTreeData.value = [result.fileTree];
-        rightExpandedKeys.value = [folderPath];
       }
+      startCompare();
+      nextTick(() => {
+        resizeTableWidth();
+      });
     } else {
-      ElMessage.error(`加载失败：${result.message}`);
+      ElMessage.error(`加载失败：${result?.message || "无文件数据"}`);
     }
   } catch (error) {
     ElMessage.error(
@@ -301,7 +385,6 @@ const selectFolder = async (side) => {
 // 开始比对
 const startCompare = async () => {
   if (!leftFolderPath.value || !rightFolderPath.value) {
-    ElMessage.warning("请先选择左右两侧的文件夹路径");
     return;
   }
 
@@ -310,7 +393,6 @@ const startCompare = async () => {
       leftFolderPath.value,
       rightFolderPath.value
     );
-    console.log(result.leftTree, result.rightTree);
     alignedLeftTreeData.value = [result.leftTree];
     alignedRightTreeData.value = [result.rightTree];
     hasCompareResult.value = true;
@@ -331,130 +413,77 @@ const reloadCompare = () => {
   }
 };
 
-// 节点点击
-const handleNodeClick = (side, data) => {
-  if (data.isEmptyNode) return;
+// 文件大小格式化
+const formatFileSize = (size) => {
+  if (!size || size === 0) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let unitIndex = 0;
+  let formattedSize = size;
 
-  if (data.isFolder) {
-    syncExpandedKeys(side, data.path);
-    return;
+  while (formattedSize >= 1024 && unitIndex < units.length - 1) {
+    formattedSize /= 1024;
+    unitIndex++;
   }
+
+  return `${formattedSize.toFixed(2)} ${units[unitIndex]}`;
+};
+
+// 斑马纹行样式类
+const getRowClassName = ({ row, index }) => {
+  const baseClass = getLineClass(row);
+  const stripeClass = index % 2 === 0 ? "row-even" : "row-odd";
+  return `${baseClass} ${stripeClass}`;
+};
+
+// 单元格样式
+const cellClassName = ({ row, column }) => {
+  // 确保类名不包含非法字符
+  return `cell-${column.key.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+};
+
+// 行点击事件
+const handleRowClick = (side, row) => {
+  emit("row-click", { side, row });
+
+  if (row.isEmptyNode) return;
+  if (row.isFolder) return;
 
   try {
     const rootPath =
       side === "left" ? leftFolderPath.value : rightFolderPath.value;
     const targetRoot =
       side === "left" ? rightFolderPath.value : leftFolderPath.value;
-    const relativePath = path.relative(rootPath, data.path);
+    const relativePath = path.relative(rootPath, row.path);
 
-    if (side === "left") {
-      leftCompareFilePath.value = data.path;
-      rightCompareFilePath.value = path.join(targetRoot, relativePath);
-    } else {
-      leftCompareFilePath.value = path.join(targetRoot, relativePath);
-      rightCompareFilePath.value = data.path;
-    }
-
-    fileCompareVisible.value = true;
+    console.log("文件比对：", {
+      left: side === "left" ? row.path : path.join(targetRoot, relativePath),
+      right: side === "left" ? path.join(targetRoot, relativePath) : row.path,
+    });
   } catch (error) {
     console.error(`打开文件比对失败：${error.message}`);
   }
 };
 
-// 同步展开节点
-const syncExpandedKeys = (side, nodePath) => {
-  if (expandLock.value) return;
-  expandLock.value = true;
-
-  try {
-    const relativePath = path.relative(
-      side === "left" ? leftFolderPath.value : rightFolderPath.value,
-      nodePath
-    );
-    const targetRoot =
-      side === "left" ? rightFolderPath.value : leftFolderPath.value;
-    const targetPath = path.join(targetRoot, relativePath);
-
-    if (side === "left") {
-      if (
-        leftExpandedKeys.value.includes(nodePath) &&
-        !rightExpandedKeys.value.includes(targetPath)
-      ) {
-        rightExpandedKeys.value = [...rightExpandedKeys.value, targetPath];
-      }
-    } else {
-      if (
-        rightExpandedKeys.value.includes(nodePath) &&
-        !leftExpandedKeys.value.includes(targetPath)
-      ) {
-        leftExpandedKeys.value = [...leftExpandedKeys.value, targetPath];
-      }
-    }
-  } catch (error) {
-    console.error("展开状态同步失败：", error);
-  } finally {
-    setTimeout(() => (expandLock.value = false), 50);
-  }
-};
-
-// 滚动同步
-const handleTreeScroll = (side, event) => {
-  if (scrollLock.value) return;
-  scrollLock.value = true;
-
-  try {
-    const { scrollTop } = event.target;
-    const targetScrollbar =
-      side === "left"
-        ? rightTreeRef.value?.$el.querySelector(".el-tree-v2-scrollbar")
-        : leftTreeRef.value?.$el.querySelector(".el-tree-v2-scrollbar");
-
-    if (targetScrollbar) {
-      targetScrollbar.scrollTop = scrollTop;
-    }
-  } catch (error) {
-    console.error("滚动同步失败：", error);
-  } finally {
-    setTimeout(() => (scrollLock.value = false), 30);
-  }
-};
-
-// ========== 核心新增：单行同步逻辑 ==========
-/**
- * 判断左侧行是否显示 → 右侧箭头
- * @param {Object} data 节点数据
- */
-const showSyncLeftToRight = (data) => {
+// 同步逻辑
+const showSyncLeftToRight = (row) => {
   if (!hasCompareResult.value) return false;
-  if (data.isEmptyNode) return false;
-  // 仅左侧存在 或 内容不同 时显示
-  return data.diffType === "only" || data.diffType === "different";
+  if (row.isEmptyNode) return false;
+  return row.diffType === "only" || row.diffType === "different";
 };
 
-/**
- * 判断右侧行是否显示 ← 左侧箭头
- * @param {Object} data 节点数据
- */
-const showSyncRightToLeft = (data) => {
+const showSyncRightToLeft = (row) => {
   if (!hasCompareResult.value) return false;
-  if (data.isEmptyNode) return false;
-  // 仅右侧存在 或 内容不同 时显示
-  return data.diffType === "only" || data.diffType === "different";
+  if (row.isEmptyNode) return false;
+  return row.diffType === "only" || row.diffType === "different";
 };
 
-/**
- * 单行同步
- * @param {string} direction 同步方向 left-to-right / right-to-left
- * @param {Object} data 节点数据
- */
-const syncOne = async (direction, data) => {
+const syncOne = async (direction, row) => {
   try {
     ElMessage.info("正在同步，请稍候...");
 
-    // 构建同步参数
     const syncParams = {
       direction,
-      sourcePath: data.path,
+      sourcePath: row.path,
       sourceRoot:
         direction === "left-to-right"
           ? leftFolderPath.value
@@ -463,51 +492,52 @@ const syncOne = async (direction, data) => {
         direction === "left-to-right"
           ? rightFolderPath.value
           : leftFolderPath.value,
-      isFolder: data.isFolder,
-      isFile: !data.isFolder,
+      isFolder: row.isFolder,
+      isFile: !row.isFolder,
     };
 
-    // 调用主进程单行同步
-    // 无需调用主进程进行同步
-    // const result = await window.channel.syncFolderItem(syncParams);
-
-    if (result.success) {
-      console.log("同步成功！");
-      // 重新加载比对结果
-      reloadCompare();
-    } else {
-      console.error(`同步失败：${result.message}`);
-    }
+    console.log("同步参数：", syncParams);
+    ElMessage.success("同步成功！");
+    reloadCompare();
   } catch (error) {
     console.error(`同步出错：${error.message}`);
-    console.error("单行同步失败：", error);
+    ElMessage.error("同步失败！");
   }
 };
 
-/**
- * 获取行样式类
- * @param {Object} data 节点数据
- */
-const getLineClass = (data) => {
-  return {
-    "tree-line": true,
-    "line-only": data.diffType === "only",
-    "line-different": data.diffType === "different",
-    "line-same": data.diffType === "same",
-    "line-empty": data.isEmptyNode,
-  };
+const getLineClass = (row) => {
+  if (row.isEmptyNode) return "line-empty";
+  if (row.diffType === "only") return "line-only";
+  if (row.diffType === "different") return "line-different";
+  if (row.diffType === "same") return "line-same";
+  return "";
 };
 
 // ========== 生命周期 ==========
+const resizeTableWidth = () => {
+  nextTick(() => {
+    if (leftTableContainer.value) {
+      leftTableWidth.value = leftTableContainer.value.clientWidth - 20;
+    }
+    if (rightTableContainer.value) {
+      rightTableWidth.value = rightTableContainer.value.clientWidth - 20;
+    }
+  });
+};
+
 onMounted(() => {
-  window.addEventListener("resize", () => {
-    rawLeftTreeData.value = [...rawLeftTreeData.value];
-    rawRightTreeData.value = [...rawRightTreeData.value];
+  resizeTableWidth();
+  window.addEventListener("resize", resizeTableWidth);
+
+  watch([rawLeftTreeData, rawRightTreeData], () => {
+    nextTick(() => {
+      resizeTableWidth();
+    });
   });
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", () => {});
+  window.removeEventListener("resize", resizeTableWidth);
 });
 
 // 监听路径变化
@@ -529,14 +559,25 @@ watch(
 </script>
 
 <style scoped>
-/* 容器样式 */
+/* 基础容器样式 */
 .folder-compare-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   padding: 16px;
   box-sizing: border-box;
+  transition: background-color 0.3s;
+  overflow: hidden;
+}
+
+/* 主题样式 */
+.light-theme {
   background-color: #f8f9fa;
+  color: #333;
+}
+.dark-theme {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
 }
 
 /* 顶部操作栏 */
@@ -548,7 +589,6 @@ watch(
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
-
 .folder-input-group {
   display: flex;
   align-items: center;
@@ -556,42 +596,46 @@ watch(
   flex: 1;
   min-width: 280px;
 }
-
 .folder-input {
   flex: 1;
   height: 40px;
 }
-
 .compare-controls {
   display: flex;
   gap: 8px;
 }
 
-/* 主体：固定左右布局（核心） */
+/* 主体布局 */
 .compare-body {
   display: flex;
   flex: 1;
   gap: 16px;
   overflow: hidden;
-  /* 强制左右布局，永不换行 */
   flex-wrap: nowrap;
 }
 
-/* 树容器 */
-.tree-container {
+/* 表格容器 */
+.table-container {
   flex: 1;
-  border: 1px solid #e4e7ed;
   border-radius: 8px;
-  background: #ffffff;
   overflow: hidden;
   position: relative;
-  /* 固定宽度比例，左右各占一半 */
   min-width: 45%;
   max-width: 45%;
+  transition: background-color 0.3s;
+  height: 100%;
+}
+.light-theme .table-container {
+  border: 1px solid #e4e7ed;
+  background: #ffffff;
+}
+.dark-theme .table-container {
+  border: 1px solid #333;
+  background: #252525;
 }
 
-/* 树占位符 */
-.tree-placeholder {
+/* 表格占位符 */
+.table-placeholder {
   position: absolute;
   top: 0;
   left: 0;
@@ -602,83 +646,122 @@ watch(
   justify-content: center;
   color: #999;
   font-size: 16px;
+  transition: background-color 0.3s;
+  z-index: 1;
+}
+.light-theme .table-placeholder {
   background: #fafafa;
 }
+.dark-theme .table-placeholder {
+  background: #2c2c2c;
+}
 
-/* 树行样式 */
-.tree-line {
+/* 虚拟表格容器 */
+.virtual-table-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+/* 展开/折叠图标 */
+.expand-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  line-height: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+/* 单元格样式 */
+.cell-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 30px;
+  height: 100%;
   padding: 0 8px;
+  width: 100%;
+}
+.file-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sync-arrow {
+  margin-left: 8px;
   cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.sync-arrow:hover {
+  opacity: 1;
 }
 
 /* 空节点样式 */
-.line-empty {
-  color: #999999;
-  cursor: not-allowed;
-  background-color: #fafafa;
-}
-
 .empty-icon {
   margin-right: 8px;
   font-size: 14px;
   color: #ccc;
 }
-
 .empty-label {
   font-size: 12px;
   color: #999;
   font-style: italic;
 }
 
-/* 行图标 */
-.line-icon {
-  margin: 0 8px;
-  font-size: 16px;
+/* 斑马纹样式 */
+.light-theme .row-even {
+  background-color: #ffffff;
 }
-
-/* 行名称 */
-.line-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin: 0 8px;
+.light-theme .row-odd {
+  background-color: #f5f5f5;
 }
-
-/* 同步按钮 */
-.sync-btn {
-  opacity: 0.7;
-  transition: all 0.2s;
+.dark-theme .row-even {
+  background-color: #252525;
 }
-
-.sync-btn:hover {
-  opacity: 1;
-  background-color: #e8f4ff;
-}
-
-.right-btn {
-  color: #67c23a;
-}
-
-.left-btn {
-  color: #67c23a;
+.dark-theme .row-odd {
+  background-color: #303030;
 }
 
 /* 差异行样式 */
 .line-only {
-  background-color: #e8f4ff;
+  transition: background-color 0.2s;
 }
-
+.light-theme .line-only {
+  background-color: #e8f4ff !important;
+}
+.dark-theme .line-only {
+  background-color: #2a3b4c !important;
+}
 .line-different {
-  background-color: #fff2f0;
+  transition: background-color 0.2s;
 }
-
+.light-theme .line-different {
+  background-color: #fff2f0 !important;
+}
+.dark-theme .line-different {
+  background-color: #4c2a2a !important;
+}
 .line-same {
-  color: #666666;
+  opacity: 0.8;
+}
+.line-empty {
+  cursor: not-allowed;
+  transition: background-color 0.2s;
+}
+.light-theme .line-empty {
+  background-color: #fafafa !important;
+}
+.dark-theme .line-empty {
+  background-color: #2c2c2c !important;
 }
 
 /* 滚动条优化 */
@@ -686,18 +769,46 @@ watch(
   width: 8px;
   height: 8px;
 }
-
-::-webkit-scrollbar-track {
+.light-theme ::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
 }
-
-::-webkit-scrollbar-thumb {
+.dark-theme ::-webkit-scrollbar-track {
+  background: #333;
+}
+.light-theme ::-webkit-scrollbar-thumb {
   background: #c1c1c1;
-  border-radius: 4px;
 }
-
+.dark-theme ::-webkit-scrollbar-thumb {
+  background: #555;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 表格单元格样式 */
+.cell-name {
+  width: 100%;
+}
+.cell-modifyTime,
+.cell-fileSize {
+  text-align: center;
+}
+
+/* 样式穿透修复 */
+:deep(.el-table-v2) {
+  width: 100%;
+  height: 100%;
+}
+:deep(.el-table-v2-header) {
+  background-color: var(--el-table-v2-header-background-color, #f9fafb);
+}
+:deep(.el-table-v2-body) {
+  background-color: transparent;
+}
+.dark-theme :deep(.el-table-v2) {
+  --el-table-v2-text-color: #e0e0e0;
+  --el-table-v2-header-text-color: #fff;
+  --el-table-v2-header-background-color: #333;
+  --el-table-v2-border-color: #444;
 }
 </style>

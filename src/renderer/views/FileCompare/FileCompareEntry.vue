@@ -13,7 +13,7 @@
           <i
             :class="
               tab.icon ||
-              (tab.component.name === 'FileCompare'
+              (tab.componentName === 'FileCompare'
                 ? 'el-icon-file-text'
                 : 'el-icon-folder-opened')
             "
@@ -43,7 +43,7 @@
           <!-- 直接渲染传入的组件实例：完全不关心组件内部逻辑 -->
           <component
             v-else
-            :is="getCurrentTab(activeKey).component"
+            :is="getComponentInstance(getCurrentTab(activeKey).componentName)"
             style="width: 100%; height: 100%"
             :key="getCurrentTab(activeKey).key"
           />
@@ -54,36 +54,46 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, markRaw } from "vue"; // 新增 markRaw
 import VsCodeTab from "@/components/VsCodeTab.vue";
 // 引入你的业务组件（路径请自行调整）
 import FileCompare from "@/components/FileCompare.vue";
 import FolderCompare from "@/components/FolderCompare.vue";
 
-// ========== 核心：Tab 数据结构（只存储组件实例，不关心业务数据） ==========
+// ========== 核心修复：标记组件为非响应式 ==========
+// 使用 markRaw 标记组件，避免 Vue 深度响应式转换
+const COMPONENT_MAP = {
+  FileCompare: markRaw(FileCompare),
+  FolderCompare: markRaw(FolderCompare),
+};
+
+// ========== 核心：Tab 数据结构（存储组件名称而非实例） ==========
 const tabs = ref([
   {
     key: "tab1", // 唯一标识
     title: "文件比对 - main.js vs app.js", // 标签标题
     icon: "el-icon-file-text", // 可选：自定义图标
-    // 直接传入绑定好参数的组件实例（业务数据在这里绑定，Tab容器完全不感知）
-    component: FileCompare,
+    componentName: "FileCompare", // 存储组件名称而非实例
   },
   {
     key: "tab2",
     title: "文件夹比对 - src vs src-backup",
     icon: "el-icon-folder-opened",
-    // 传入文件夹比对组件（绑定好自己的业务参数）
-    component: FolderCompare,
+    componentName: "FolderCompare", // 存储组件名称而非实例
   },
 ]);
 
 // 当前激活的标签
-const activeKey = ref("tab1");
+const activeKey = ref("tab2");
 
 // 修复：定义获取当前tab的方法（替代模板中错误的<const>标签）
 const getCurrentTab = (key) => {
   return tabs.value.find((tab) => tab.key === key);
+};
+
+// 新增：根据组件名称获取非响应式的组件实例
+const getComponentInstance = (componentName) => {
+  return COMPONENT_MAP[componentName];
 };
 
 // 标题截断（通用功能）
@@ -114,7 +124,7 @@ const handleTabClose = (key) => {
  * @param {Object} tabConfig - 标签配置
  * @param {string} tabConfig.key - 唯一key
  * @param {string} tabConfig.title - 标签标题
- * @param {Object} tabConfig.component - 组件实例（带props）
+ * @param {string} tabConfig.componentName - 组件名称（FileCompare/FolderCompare）
  * @param {string} [tabConfig.icon] - 图标类名
  */
 const addCompareTab = (tabConfig) => {

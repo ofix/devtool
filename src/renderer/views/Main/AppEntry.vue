@@ -218,6 +218,10 @@ provide("shortcutClickEvent", handleShortcutClick);
 </script>
 
 <style scoped>
+:global(html),
+:global(body) {
+  background: transparent !important;
+}
 .app-main {
   width: 100vw;
   height: 100vh;
