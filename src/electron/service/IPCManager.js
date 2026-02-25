@@ -28,7 +28,7 @@ class IPCManager extends Singleton {
         this.cacheScreenshotExpireTime = 0; // 缓存过期时间
     }
     // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
-    async preloadScreenshot () {
+    async preloadScreenshot() {
         // 缓存未过期，直接返回
         if (this.cachedScreenshot && Date.now() < this.cacheScreenshotExpireTime) {
             return this.cachedScreenshot;
@@ -48,7 +48,7 @@ class IPCManager extends Singleton {
         }
     }
 
-    detectFileEncoding (filePath) {
+    detectFileEncoding(filePath) {
         try {
             const buffer = fs.readFileSync(filePath, { encoding: null, size: 4096 });
 
@@ -104,7 +104,7 @@ class IPCManager extends Singleton {
      * @param {string} filePath - 文件路径
      * @returns {Promise<string[]>} 文件行数组
      */
-    async readFileLines (filePath) {
+    async readFileLines(filePath) {
         // 前置校验：路径合法性
         if (!filePath || typeof filePath !== 'string') {
             throw new Error('无效的文件路径：必须是非空字符串');
@@ -183,7 +183,7 @@ class IPCManager extends Singleton {
         }
     }
 
-    startListen () {
+    startListen() {
         ipcMain.on('console-log', (event, data) => {
             debugLogger.addLog(data);
         });
@@ -525,7 +525,8 @@ class IPCManager extends Singleton {
         ipcMain.handle('select-file', async (event, side) => {
             const result = await dialog.showOpenDialog({
                 properties: ['openFile'],
-                filters: [{ name: 'Text Files', extensions: ['vue', 'cc', 'cpp', 'c', 'txt', 'js', 'php', 'py', 'make', 'json', 'md', 'json', 'cjs', 'java', 'dart'] }]
+                filters: [{ name: 'Text Files', extensions: ['vue', 'cc', 'cpp', 'c', 'txt', 'js', 'php', 'py', 'make', 'json', 'md', 'json', 'cjs', 'java', 'dart'] }],
+                modal: true
             })
             if (!result.canceled && result.filePaths.length > 0) {
                 return { path: result.filePaths[0], side }
@@ -538,7 +539,8 @@ class IPCManager extends Singleton {
             try {
                 const result = await dialog.showOpenDialog({
                     properties: ['openDirectory', 'createDirectory'],
-                    title: '选择目标文件夹'
+                    title: '选择目标文件夹',
+                    modal: true
                 });
 
                 if (!result.canceled && result.filePaths.length > 0) {

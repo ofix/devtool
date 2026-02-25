@@ -33,7 +33,7 @@ class WndManager extends Singleton {
     }
 
     // 基础窗口配置（只包含BrowserWindow属性）
-    get transparentWndOptions () {
+    get transparentWndOptions() {
         return {
             frame: false,
             transparent: true,
@@ -50,7 +50,7 @@ class WndManager extends Singleton {
             }
         };
     }
-    getMainWndConfig () {
+    getMainWndConfig() {
         const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
         const width = 640 + 100;
         const height = 480 + 160;
@@ -66,12 +66,12 @@ class WndManager extends Singleton {
                 url: '/main-app',
                 levelName: 'normal',
                 levelZOrder: 0,
-                devTool: true,
+                devTool: false,
             }
         };
     }
     // 窗口配置预设 - 返回分离的配置对象
-    getScreenshotToolWndConfig () {
+    getScreenshotToolWndConfig() {
         const icons = 13;
         const iconSize = 32;
         const iconGap = 12;
@@ -96,7 +96,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getCaptureWndConfig () {
+    getCaptureWndConfig() {
         const { width, height } = screen.getPrimaryDisplay().size;
         return {
             browserWindow: {
@@ -111,7 +111,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getMeasureLineWndConfig (options = {}) {
+    getMeasureLineWndConfig(options = {}) {
         const { type = 'horizontal', position = 'top' } = options;
         const width = type === 'horizontal' ? 10 : 30;
         const height = type === 'horizontal' ? 30 : 10;
@@ -131,7 +131,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getScreenRulerWndConfig (options = {}) {
+    getScreenRulerWndConfig(options = {}) {
         const { type = 'horizontal' } = options;
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -154,7 +154,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getToolConfigWndConfig (options = {}) {
+    getToolConfigWndConfig(options = {}) {
         return {
             browserWindow: {
                 x: -1000,
@@ -171,7 +171,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getDebugToolWndConfig (options = {}) {
+    getDebugToolWndConfig(options = {}) {
         const screenBounds = screen.getPrimaryDisplay().bounds;
         return {
             browserWindow: {
@@ -192,7 +192,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getPostWomanWndConfig (options = {}) {
+    getPostWomanWndConfig(options = {}) {
         const screenBounds = screen.getPrimaryDisplay().bounds;
         return {
             browserWindow: {
@@ -211,7 +211,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getTrayAppWndConfig (options = {}) {
+    getTrayAppWndConfig(options = {}) {
         const screenBounds = screen.getPrimaryDisplay().bounds;
         const trayIcon = join(__dirname, '../public/tray.png');
         let tray = new Tray(trayIcon);
@@ -256,7 +256,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getUnitConvertConfig (options = {}) {
+    getUnitConvertConfig(options = {}) {
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
         const wndWidth = 800;
         const wndHeight = 600;
@@ -278,7 +278,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getFileCompareWndConfig (options = {}) {
+    getFileCompareWndConfig(options = {}) {
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
         const wndWidth = 960;
         const wndHeight = 680;
@@ -302,7 +302,7 @@ class WndManager extends Singleton {
         };
     }
 
-    getDebugWndConfig (options = {}) {
+    getDebugWndConfig(options = {}) {
         const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
         return {
             browserWindow: {
@@ -322,7 +322,7 @@ class WndManager extends Singleton {
      * @param {Object} options 自定义选项
      * @param {Function} customConfig 自定义配置生成函数
      */
-    createWindow (name, options = {}, customConfig = null) {
+    createWindow(name, options = {}, customConfig = null) {
         // 获取配置
         let config;
         if (customConfig) {
@@ -357,7 +357,7 @@ class WndManager extends Singleton {
     /**
      * 创建透明窗口
      */
-    createTransparentWnd ({ name, wndOptions, customOptions }) {
+    createTransparentWnd({ name, wndOptions, customOptions }) {
         // 避免重复创建
         if (this.wndMap.has(name)) {
             const existingWnd = this.wndMap.get(name);
@@ -387,8 +387,12 @@ class WndManager extends Singleton {
 
         // 窗口加载完成时设置层级
         wnd.webContents.once('did-finish-load', () => {
-            if (customOptions.levelName && customOptions.levelZOrder !== undefined) {
-                wnd.setAlwaysOnTop(true, customOptions.levelName, customOptions.levelZOrder);
+            if (customOptions.levelName) {
+                if (customOptions.levelZOrder !== undefined && customOptions.levelZOrder !== 0) {
+                    wnd.setAlwaysOnTop(true, customOptions.levelName, customOptions.levelZOrder);
+                } else {
+                    wnd.setAlwaysOnTop(false, customOptions.levelName, customOptions.levelZOrder);
+                }
             }
             if (customOptions.ignoreMouseEvents) {
                 console.log(`窗口 ${name} 忽略鼠标事件`);
@@ -408,7 +412,7 @@ class WndManager extends Singleton {
     }
 
     // 统一的URL加载逻辑
-    loadUrl (wnd, url) {
+    loadUrl(wnd, url) {
         const listenServerUrl = process.argv[2];
         const targetUrl = process.env.NODE_ENV === 'development'
             ? `${listenServerUrl}/#${url}`
@@ -420,12 +424,12 @@ class WndManager extends Singleton {
     /**
      * 创建测量线窗口
      */
-    createMeasureLineWindow (options = {}) {
+    createMeasureLineWindow(options = {}) {
         return this.createWindow('MeasureLineWnd', options);
     }
 
     // 创建屏幕标尺窗口
-    createScreenRulerWindow (options = {}) {
+    createScreenRulerWindow(options = {}) {
         const wnd = this.createWindow('ScreenRulerWnd', options);
         this.registerEscapeShortcut('ScreenRulerWnd');
         wnd.on('closed', () => {
@@ -435,22 +439,22 @@ class WndManager extends Singleton {
     }
 
     // 创建浮动截屏工具条窗口
-    createScreenshotToolWindow () {
+    createScreenshotToolWindow() {
         return this.createWindow('ScreenshotToolWnd');
     }
 
     // 创建截屏窗口
-    createCaptureWindow (options) {
+    createCaptureWindow(options) {
         return this.createWindow('CaptureWnd', options);
     }
 
-    showCaptureWindow (options) {
+    showCaptureWindow(options) {
         this.hideWindow('ScreenshotToolWnd');
         this.showWindow('CaptureWnd', options);
     }
 
     // ESC快捷键注册逻辑
-    registerEscapeShortcut (wndKey) {
+    registerEscapeShortcut(wndKey) {
         globalShortcut.register('Escape', () => {
             this.closeWindow(wndKey);
             globalShortcut.unregister('Escape');
@@ -462,7 +466,7 @@ class WndManager extends Singleton {
     * @param {string} wndName 窗口名称
     * @param {Object} options 选项参数
     */
-    showWindow (wndName, options = {}) {
+    showWindow(wndName, options = {}) {
         this.activeWnd = wndName;
         const wnd = this.wndMap.get(wndName);
 
@@ -482,7 +486,7 @@ class WndManager extends Singleton {
     }
 
     // 隐藏窗口 -- macOS下无动画效果
-    hideWindow (wndKey) {
+    hideWindow(wndKey) {
         this.activeWnd = "";
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
@@ -493,7 +497,7 @@ class WndManager extends Singleton {
     }
 
     // 最小化窗口
-    minimizeWindow (wndKey) {
+    minimizeWindow(wndKey) {
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
             wnd.minimize();
@@ -503,7 +507,7 @@ class WndManager extends Singleton {
     }
 
     // 最大化窗口
-    maximizeWindow (wndKey) {
+    maximizeWindow(wndKey) {
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
             console.log("最大化窗口 ", wndKey);
@@ -514,7 +518,7 @@ class WndManager extends Singleton {
     }
 
     // 恢复窗口
-    restoreWindow (wndKey) {
+    restoreWindow(wndKey) {
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
             wnd.restore();
@@ -524,7 +528,7 @@ class WndManager extends Singleton {
     }
 
     // 关闭窗口
-    closeWindow (wndKey) {
+    closeWindow(wndKey) {
         this.activeWnd = "";
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
@@ -540,16 +544,16 @@ class WndManager extends Singleton {
         return false;
     }
 
-    getWindow (wndKey) {
+    getWindow(wndKey) {
         return this.wndMap.get(wndKey) || null;
     }
 
     // 获取窗口当前选项
-    getWindowOptions (wndKey) {
+    getWindowOptions(wndKey) {
         return this.windowOptionsCache.get(wndKey) || {};
     }
 
-    cleanup () {
+    cleanup() {
         for (const [wndKey, wnd] of this.wndMap) {
             if (wnd && !wnd.isDestroyed()) {
                 wnd.close();
