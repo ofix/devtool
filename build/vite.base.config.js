@@ -1,6 +1,7 @@
 // vite 基础通用配置
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx' // 导入JSX插件
 
 import { defineConfig } from 'vite'
 
@@ -10,6 +11,7 @@ import { StartElectronPlugin } from './vite.start.electron.js'
 export default defineConfig({
     plugins: [
         vue(),
+        vueJsx(), // 新增JSX插件（一行即可，无需额外配置）
         StartElectronPlugin(),
         VueDevTools({ apply: 'serve' }), // 仅开发环境启用（apply: 'serve'）
     ],
