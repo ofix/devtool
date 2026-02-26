@@ -46,6 +46,8 @@
             :is="getComponentInstance(getCurrentTab(activeKey).componentName)"
             style="width: 100%; height: 100%"
             :key="getCurrentTab(activeKey).key"
+            @file-compare="handleFileCompare"
+            v-bind="getCurrentTab(activeKey).componentProps || {}"
           />
         </div>
       </template>
@@ -118,6 +120,39 @@ const handleTabClose = (key) => {
   }
 };
 
+let tabId = 30;
+const generateTabId = () => {
+  const id = `tab${tabId}`;
+  tabId++; // 生成ID后序号自增，保证全局唯一
+  return id;
+};
+
+const handleFileCompare = (args) => {
+  // 获取当前激活的tab，判断是否是FolderCompare组件触发的事件
+  const currentTab = getCurrentTab(activeKey.value);
+  if (currentTab?.componentName !== "FolderCompare") {
+    return;
+  }
+
+  // 示例：解构参数（根据你子组件实际传递的参数调整）
+  const { side, leftPath, rightPath } = args;
+  console.log("方向", side);
+  console.log("左边文件", leftPath);
+  console.log("右边文件", rightPath);
+  addCompareTab({
+    key: generateTabId(),
+    title: leftPath + " vs " + rightPath,
+    componentName:"FileCompare",
+    icon: "el-icon-file-text",
+    componentProps: {
+      leftPath: leftPath,
+      rightPath: rightPath,
+      // 可添加更多参数，比如side
+      side: side,
+    },
+  });
+};
+
 // ========== 扩展：动态添加标签的方法（外部调用） ==========
 /**
  * 动态添加比对标签
@@ -131,7 +166,11 @@ const addCompareTab = (tabConfig) => {
   // 先移除同key的标签（避免重复）
   tabs.value = tabs.value.filter((tab) => tab.key !== tabConfig.key);
   // 添加新标签
-  tabs.value.push(tabConfig);
+  tabs.value.push({
+    // 默认值兜底
+    componentProps: {},
+    ...tabConfig,
+  });
   // 激活新标签
   activeKey.value = tabConfig.key;
 };

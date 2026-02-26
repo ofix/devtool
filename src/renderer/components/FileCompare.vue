@@ -410,20 +410,18 @@ const visibleLeftSegments = computed(() => {
 // 右侧可视内容段（对比模式）
 const visibleRightSegments = computed(() => {
   if (!isValidDiffResult.value) return [];
-  let lines = realDiffData.value.r.slice(
+  const lines = realDiffData.value.r.slice(
     visibleStartIndex.value,
     visibleEndIndex.value + 1
   );
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].length == 1 && lines[i][0].t == CHAR_SEGMENT_TYPE.EQUAL) {
-      lines[i] =
-        realDiffData.value.l.slice(
-          visibleStartIndex.value + i,
-          visibleStartIndex.value + i + 1
-        )[0] || [];
+
+  // 修复：对于相等行，显示左侧内容
+  return lines.map((line, i) => {
+    if (line.length === 1 && line[0].t === CHAR_SEGMENT_TYPE.EQUAL) {
+      return realDiffData.value.l[visibleStartIndex.value + i] || [];
     }
-  }
-  return lines;
+    return line;
+  });
 });
 
 // 左侧原始内容（非对比模式）
@@ -993,18 +991,13 @@ const selectFile = async (side) => {
   try {
     const result = await window.channel.selectFile(side);
     if (result?.path) {
-      // 立即更新文件路径
+      // 立即更新文件路径+清空原有内容
       if (side === "left") {
         leftFilePath.value = result.path;
-      } else {
-        rightFilePath.value = result.path;
-      }
-
-      // 立即清空原有内容
-      if (side === "left") {
         leftLines.value = [];
         originalLeftLines.value = [];
       } else {
+        rightFilePath.value = result.path;
         rightLines.value = [];
         originalRightLines.value = [];
       }
@@ -1013,41 +1006,7 @@ const selectFile = async (side) => {
       historyStack.value = [];
       historyIndex.value = -1;
 
-      nextTick(() => {
-        initView();
-      });
-
-      // 读取文件内容
-      const contentResult = await window.channel.readFileContent(result.path);
-      if (contentResult.success) {
-        // 保存原始内容和当前内容
-        if (side === "left") {
-          originalLeftLines.value = [...contentResult.lines];
-          leftLines.value = [...contentResult.lines];
-        } else {
-          originalRightLines.value = [...contentResult.lines];
-          rightLines.value = [...contentResult.lines];
-        }
-
-        scrollTopValue.value = 0;
-
-        nextTick(() => {
-          initView();
-
-          if (isDiffMode.value) {
-            calculateDiff();
-          }
-        });
-
-        ElMessage.success(`成功加载${side === "left" ? "左侧" : "右侧"}文件`);
-      } else {
-        if (side === "left") {
-          leftFilePath.value = "";
-        } else {
-          rightFilePath.value = "";
-        }
-        ElMessage.error(`读取文件失败：${contentResult.error}`);
-      }
+      await loadFileContent(result.path, side);
     }
   } catch (error) {
     ElMessage.error(`选择文件异常：${error.message}`);
@@ -1087,12 +1046,33 @@ const calculateDiff = async () => {
   }
 };
 
-const refreshDiff = () => {
-  if (isDiffMode.value) {
-    calculateDiff();
-    ElMessage.info("正在重新计算文件差异...");
+const loadFileContent = async (filePath, side) => {
+  const contentResult = await window.channel.readFileContent(filePath);
+  if (contentResult.success) {
+    if (side === "left") {
+      originalLeftLines.value = [...contentResult.lines];
+      leftLines.value = [...contentResult.lines];
+    } else {
+      originalRightLines.value = [...contentResult.lines];
+      rightLines.value = [...contentResult.lines];
+    }
+
+    scrollTopValue.value = 0;
+
+    nextTick(() => {
+      initView();
+
+      if (isDiffMode.value) {
+        calculateDiff();
+      }
+    });
   } else {
-    ElMessage.warning("请先选择两个文件");
+    if (side === "left") {
+      leftFilePath.value = "";
+    } else {
+      rightFilePath.value = "";
+    }
+    ElMessage.error(`读取文件失败：${contentResult.error}`);
   }
 };
 
@@ -1121,7 +1101,13 @@ const initView = () => {
   });
 };
 
-// 监听内容变化
+const handleResize = () => {
+  clearTimeout(thumbnailDebounceTimer.value);
+  thumbnailDebounceTimer.value = setTimeout(() => {
+    initView();
+  }, 100);
+};
+
 watch(
   [leftLines, rightLines],
   () => {
@@ -1153,6 +1139,13 @@ onMounted(() => {
     initView();
   }, 100);
 
+  if (leftFilePath.value != "") {
+    loadFileContent(leftFilePath.value, "left");
+  }
+  if (rightFilePath.value != "") {
+    loadFileContent(rightFilePath.value, "right");
+  }
+
   window.addEventListener("resize", handleResize);
   // 监听键盘快捷键
   document.addEventListener("keydown", handleKeyDown);
@@ -1165,13 +1158,6 @@ onUnmounted(() => {
     clearTimeout(thumbnailDebounceTimer.value);
   }
 });
-
-const handleResize = () => {
-  clearTimeout(thumbnailDebounceTimer.value);
-  thumbnailDebounceTimer.value = setTimeout(() => {
-    initView();
-  }, 100);
-};
 </script>
 
 <style scoped>

@@ -60,9 +60,8 @@
             :row-height="40"
             :sortable="true"
             :row-class-name="getRowClassName"
-            @cell-click="(row) => handleRowClick('left', row)"
-            :scrollbar-always-on="true"
-            @scroll="handleTableScroll('left', $event)"
+            :scrollbar-always-on="false"
+            :row-event-handlers="leftRowEventHandlers"
           />
         </div>
       </div>
@@ -86,14 +85,33 @@
             :height="tableHeight"
             :row-height="40"
             :row-class-name="getRowClassName"
-            @cell-click="(row) => handleRowClick('right', row)"
             :scrollbar-always-on="true"
             @scroll="handleTableScroll('right', $event)"
+            :row-event-handlers="rightRowEventHandlers"
           />
         </div>
       </div>
     </div>
   </div>
+  <!-- 右键菜单组件 -->
+  <teleport to="body">
+    <div
+      v-show="contextMenu.visible"
+      class="context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      @click.stop
+      @contextmenu.prevent
+    >
+      <div
+        v-for="item in contextMenu.items"
+        :key="item.label"
+        class="context-menu-item"
+        @click="handleContextMenuItemClick(item)"
+      >
+        {{ item.label }}
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <script setup lang="jsx">
@@ -118,11 +136,9 @@ import IconFolder from "@/icons/IconFolder.vue";
 import IconFile from "@/icons/IconFile.vue";
 import IconArrowLeft from "@/icons/IconArrowLeft.vue";
 import IconArrowRight from "@/icons/IconArrowRight.vue";
-import path from "path";
-import _ from "lodash-es";
 
 // 核心修正：提前定义emit
-const emit = defineEmits(["row-click"]);
+const emit = defineEmits(["row-click", "file-compare"]);
 
 // ========== 主题相关 ==========
 const theme = ref("light-theme");
@@ -169,6 +185,7 @@ const tableColumns = ref([
     width: 350,
     sortable: true,
     sortType: null,
+    flexGrow: 1, // 弹性增长
     // 左侧名称列cellRenderer（JSX语法 + 修正cellData）
     cellRenderer: ({ cellData, rowData }) => {
       // 空节点逻辑
@@ -200,6 +217,7 @@ const tableColumns = ref([
     width: 120,
     sortable: true,
     sortType: null,
+    flexGrow: 0,
     // 文件大小列cellRenderer（JSX语法 + 修正cellData）
     cellRenderer: ({ cellData, rowData }) => {
       if (rowData.path === "") {
@@ -215,6 +233,7 @@ const tableColumns = ref([
     width: 200,
     sortable: true,
     sortType: null,
+    flexGrow: 0,
     // 修改时间列cellRenderer（JSX语法 + 修正cellData）
     cellRenderer: ({ cellData, rowData }) => {
       if (rowData.path === "") {
@@ -234,6 +253,7 @@ const rightTableColumns = ref([
     width: 350,
     sortable: true,
     sortType: null,
+    flexGrow: 1, // 弹性增长
     // 右侧名称列cellRenderer（JSX语法）
     cellRenderer: ({ cellData, rowData }) => {
       // 空节点逻辑
@@ -266,6 +286,7 @@ const rightTableColumns = ref([
     width: 120,
     sortable: true,
     sortType: null,
+    flexGrow: 0,
     // 右侧文件大小列cellRenderer（JSX语法）
     cellRenderer: ({ cellData, rowData }) => {
       if (rowData.isEmptyNode) {
@@ -281,6 +302,7 @@ const rightTableColumns = ref([
     width: 200,
     sortable: true,
     sortType: null,
+    flexGrow: 0,
     // 右侧修改时间列cellRenderer（JSX语法）
     cellRenderer: ({ cellData, rowData }) => {
       if (rowData.isEmptyNode) {
@@ -566,11 +588,11 @@ const handleRowClick = (side, row) => {
       side === "left" ? leftFolderPath.value : rightFolderPath.value;
     const targetRoot =
       side === "left" ? rightFolderPath.value : leftFolderPath.value;
-    const relativePath = path.relative(rootPath, row.path);
+    const relativePath = pathUtils.relative(rootPath, row.path);
 
     console.log("文件比对：", {
-      left: side === "left" ? row.path : path.join(targetRoot, relativePath),
-      right: side === "left" ? path.join(targetRoot, relativePath) : row.path,
+      left: side === "left" ? row.path : pathUtils.join(targetRoot, relativePath),
+      right: side === "left" ? pathUtils.join(targetRoot, relativePath) : row.path,
     });
   } catch (error) {
     console.error(`打开文件比对失败：${error.message}`);
@@ -614,15 +636,410 @@ const getLineClass = (row) => {
   return "";
 };
 
-// ========== 生命周期 & 自适应 ==========
+// ========== 右键菜单状态 ==========
+const leftRowEventHandlers = {
+  // 右键菜单事件
+  onContextmenu: (params) => {
+    handleContextMenu(params.event,params.rowData,'left')
+  },
+
+  onDblclick: (params) => {
+    handleLeftRowDblClick(params.rowData);
+  },
+};
+
+const rightRowEventHandlers = {
+  // 右键菜单事件
+  onContextmenu: (params) => {
+    console.log(params);
+    handleContextMenu(params.event,params.rowData,'right')
+  },
+
+  onDblclick: (params) => {
+    handleRightRowDblClick(params.rowData);
+  },
+};
+
+
+const contextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  items: [],
+  side: null,
+  rowData: null,
+});
+
+// ========== 上下文菜单处理 ==========
+const handleContextMenu = (e, row, side) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const menuItems = [];
+
+  // 3.1 比较 - 仅文件显示
+  if (!row.isFolder && !row.isEmptyNode) {
+    menuItems.push({
+      label: "比较",
+      action: "compare",
+      side,
+      row,
+    });
+  }
+
+  // 3.2 重命名 - 文件和文件夹都显示
+  if (!row.isEmptyNode) {
+    menuItems.push({
+      label: "重命名",
+      action: "rename",
+      side,
+      row,
+    });
+  }
+
+  // 3.3 复制到右边 - 仅左侧节点显示
+  if (side === "left" && !row.isEmptyNode) {
+    menuItems.push({
+      label: "复制到右边",
+      action: "copyToRight",
+      side,
+      row,
+    });
+  }
+
+  // 3.4 复制到左边 - 仅右侧节点显示
+  if (side === "right" && !row.isEmptyNode) {
+    menuItems.push({
+      label: "复制到左边",
+      action: "copyToLeft",
+      side,
+      row,
+    });
+  }
+
+  // 3.5 展开所有 - 仅文件夹节点显示
+  if (row.isFolder && !row.isEmptyNode) {
+    menuItems.push({
+      label: "展开所有",
+      action: "expandAll",
+      side,
+      row,
+    });
+  }
+
+  // 3.6 折叠所有 - 仅文件夹节点显示
+  if (row.isFolder && !row.isEmptyNode) {
+    menuItems.push({
+      label: "折叠所有",
+      action: "collapseAll",
+      side,
+      row,
+    });
+  }
+
+  // 添加分隔线（如果有多个菜单项）
+  if (menuItems.length > 0) {
+    contextMenu.value = {
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      items: menuItems,
+      side,
+      rowData: row,
+    };
+  }
+};
+
+// 点击空白处关闭菜单
+const handleClickOutside = (e) => {
+  if (contextMenu.value.visible) {
+    const menuEl = document.querySelector(".context-menu");
+    if (menuEl && !menuEl.contains(e.target)) {
+      contextMenu.value.visible = false;
+    }
+  }
+};
+
+// 右键菜单项点击处理
+const handleContextMenuItemClick = async (item) => {
+  contextMenu.value.visible = false;
+  const { action, side, row } = item;
+
+  switch (action) {
+    case "compare":
+      emit("file-compare", {
+        side,
+        leftPath: side === "left" ? row.path : getMatchingPath(row, "left"),
+        rightPath: side === "right" ? row.path : getMatchingPath(row, "right"),
+      });
+      break;
+
+    case "rename":
+      await handleRename(side, row);
+      break;
+
+    case "copyToRight":
+      await handleCopy(side, row, "right");
+      break;
+
+    case "copyToLeft":
+      await handleCopy(side, row, "left");
+      break;
+
+    case "expandAll":
+      await handleExpandAll(side, row, true);
+      break;
+
+    case "collapseAll":
+      await handleExpandAll(side, row, false);
+      break;
+  }
+};
+
+// 1. 前端兼容的路径工具函数（替代 Node.js path 模块）
+const pathUtils = {
+  // 判断是否为绝对路径（适配 Windows/macOS/Linux）
+  isAbsolute: (p) => {
+    if (!p) return false;
+    // Windows 绝对路径：以盘符开头（如 C:\）或 \\ 开头
+    // if (process.platform === 'win32') {
+    //   return /^[A-Za-z]:\\/.test(p) || /^\\\\/.test(p);
+    // }
+    // macOS/Linux 绝对路径：以 / 开头
+    return p.startsWith('/');
+  },
+  // 计算相对路径（简化版，适配渲染进程）
+  relative: (from, to) => {
+    if (!from || !to) return '';
+    const fromParts = from.split(/[\\/]/).filter(Boolean);
+    const toParts = to.split(/[\\/]/).filter(Boolean);
+    
+    // 找到公共前缀
+    let i = 0;
+    while (i < fromParts.length && i < toParts.length && fromParts[i] === toParts[i]) {
+      i++;
+    }
+    
+    // 生成相对路径
+    const up = '../'.repeat(fromParts.length - i);
+    const down = toParts.slice(i).join('/');
+    return up + down || '.';
+  },
+  // 拼接路径（处理分隔符）
+  join: (...paths) => {
+    return paths.filter(Boolean).join('/').replace(/\/+/g, '/');
+  },
+  // 规范化路径
+  normalize: (p) => {
+    return p.replace(/\\/g, '/').replace(/\/+/g, '/');
+  }
+};
+
+// 2. 适配前端的 getMatchingPath 函数
+const getMatchingPath = (row, targetSide) => {
+  if (!row?.path || !leftFolderPath.value || !rightFolderPath.value) {
+    console.error('路径计算失败：核心参数缺失', {
+      rowPath: row?.path,
+      leftFolder: leftFolderPath.value,
+      rightFolder: rightFolderPath.value
+    });
+    return '';
+  }
+
+  const sourceRoot = row.path;
+  const sourceSide = targetSide === "left" ? "right" : "left";
+  
+  const sourceRootPath = sourceSide === "left" ? leftFolderPath.value : rightFolderPath.value;
+  const targetRootPath = targetSide === "left" ? leftFolderPath.value : rightFolderPath.value;
+
+  try {
+    if (!pathUtils.isAbsolute(sourceRootPath) || !pathUtils.isAbsolute(sourceRoot)) {
+      throw new Error(`路径必须为绝对路径：sourceRootPath=${sourceRootPath}, sourceRoot=${sourceRoot}`);
+    }
+    
+    const relativePath = pathUtils.relative(sourceRootPath, sourceRoot);
+    const targetPath = pathUtils.join(targetRootPath, relativePath);
+    return pathUtils.normalize(targetPath);
+  } catch (err) {
+    console.error('路径计算出错：', err.message);
+    return '';
+  }
+};
+
+// 重命名处理
+const handleRename = async (side, row) => {
+  const newName = prompt("请输入新名称", row.name);
+  if (!newName || newName === row.name) return;
+
+  try {
+    const result = await window.channel.rename({
+      path: row.path,
+      newName,
+      isFolder: row.isFolder,
+    });
+
+    if (result.success) {
+      reloadCompare();
+    } else {
+      ElMessage.error(`重命名失败: ${result.message}`);
+    }
+  } catch (error) {
+    ElMessage.error(`重命名失败: ${error.message}`);
+  }
+};
+
+// 复制处理
+const handleCopy = async (sourceSide, row, targetSide) => {
+  try {
+    const sourcePath = row.path;
+    const targetRoot =
+      targetSide === "left" ? leftFolderPath.value : rightFolderPath.value;
+    const sourceRoot =
+      sourceSide === "left" ? leftFolderPath.value : rightFolderPath.value;
+    const relativePath = pathUtils.relative(sourceRoot, sourcePath);
+    const targetPath = pathUtils.join(targetRoot, relativePath);
+
+    const result = await window.channel.copy({
+      sourcePath,
+      targetPath,
+      isFolder: row.isFolder,
+    });
+
+    if (result.success) {
+      reloadCompare();
+    } else {
+      ElMessage.error(`复制失败: ${result.message}`);
+    }
+  } catch (error) {
+    ElMessage.error(`复制失败: ${error.message}`);
+  }
+};
+
+// ========== 递归展开/折叠 ==========
+const handleExpandAll = async (side, folderNode, expand) => {
+  if (!folderNode.isFolder) return;
+
+  // 收集所有子文件夹ID
+  const collectFolderIds = (node, ids = []) => {
+    if (node.isFolder) {
+      ids.push(node.id);
+      if (node.children) {
+        node.children.forEach((child) => collectFolderIds(child, ids));
+      }
+    }
+    return ids;
+  };
+
+  const folderIds = collectFolderIds(folderNode);
+
+  if (expand) {
+    // 展开
+    const currentKeys = new Set(
+      side === "left" ? leftExpandedRowKeys.value : rightExpandedRowKeys.value
+    );
+    folderIds.forEach((id) => currentKeys.add(id));
+
+    if (side === "left") {
+      leftExpandedRowKeys.value = Array.from(currentKeys);
+    } else {
+      rightExpandedRowKeys.value = Array.from(currentKeys);
+    }
+  } else {
+    // 折叠
+    const currentKeys = (
+      side === "left" ? leftExpandedRowKeys.value : rightExpandedRowKeys.value
+    ).filter((id) => !folderIds.includes(id));
+
+    if (side === "left") {
+      leftExpandedRowKeys.value = currentKeys;
+    } else {
+      rightExpandedRowKeys.value = currentKeys;
+    }
+  }
+};
+
+// ========== 双击处理 ==========
+// 左侧单元格点击（用于区分单击和双击）
+let clickTimer = null;
+const handleLeftRowClick = (row) => {
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+  }
+  clickTimer = setTimeout(() => {
+    handleRowClick("left", row);
+    clickTimer = null;
+  }, 200);
+};
+
+// 左侧单元格双击
+const handleLeftRowDblClick = (row) => {
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+  }
+
+  // 4. 双击文件夹展开/折叠
+  if (row.isFolder) {
+    const expandedKeys = [...leftExpandedRowKeys.value];
+    const index = expandedKeys.indexOf(row.id);
+    if (index === -1) {
+      expandedKeys.push(row.id);
+    } else {
+      expandedKeys.splice(index, 1);
+    }
+    leftExpandedRowKeys.value = expandedKeys;
+  } else {
+    // 5. 双击文件触发比较
+    emit("file-compare", {
+      side: "left",
+      leftPath: row.path,
+      rightPath: getMatchingPath(row, "right"),
+    });
+  }
+};
+
+// 右侧单元格双击
+const handleRightRowDblClick = (row) => {
+  // 4. 双击文件夹展开/折叠
+  if (row.isFolder) {
+    const expandedKeys = [...rightExpandedRowKeys.value];
+    const index = expandedKeys.indexOf(row.id);
+    if (index === -1) {
+      expandedKeys.push(row.id);
+    } else {
+      expandedKeys.splice(index, 1);
+    }
+    rightExpandedRowKeys.value = expandedKeys;
+  } else {
+    // 5. 双击文件触发比较
+    emit("file-compare", {
+      side: "right",
+      leftPath: getMatchingPath(row, "left"),
+      rightPath: row.path,
+    });
+  }
+};
+
+// 右侧单元格点击
+const handleRightCellClick = (row) => {
+  handleRowClick("right", row);
+};
+
+// ========== 自适应宽度计算（修复50%布局） ==========
 const resizeTableWidth = () => {
   nextTick(() => {
     if (leftTableContainer.value) {
-      leftTableWidth.value = leftTableContainer.value.clientWidth - 20;
+      // 左侧宽度 = 容器宽度 - 边框 - 内边距
+      leftTableWidth.value = leftTableContainer.value.clientWidth - 2;
     }
     if (rightTableContainer.value) {
-      rightTableWidth.value = rightTableContainer.value.clientWidth - 20;
+      // 右侧宽度 = 容器宽度 - 边框 - 内边距 - 滚动条宽度
+      const scrollBarWidth = 12; // 滚动条宽度
+      rightTableWidth.value =
+        rightTableContainer.value.clientWidth - 2 - scrollBarWidth;
     }
+
     // 更新表格DOM引用
     if (leftTableContainer.value) {
       leftTableEl.value =
@@ -635,19 +1052,31 @@ const resizeTableWidth = () => {
   });
 };
 
+// ========== 在 onMounted 中添加事件监听 ==========
 onMounted(() => {
   resizeTableWidth();
   window.addEventListener("resize", resizeTableWidth);
+  document.addEventListener("click", handleClickOutside);
 
-  watch([rawLeftTreeData, rawRightTreeData], () => {
-    nextTick(() => {
-      resizeTableWidth();
-    });
-  });
+  watch(
+    [
+      rawLeftTreeData,
+      rawRightTreeData,
+      currentLeftTreeData,
+      currentRightTreeData,
+    ],
+    () => {
+      nextTick(() => {
+        resizeTableWidth();
+      });
+    },
+    { deep: true }
+  );
 });
 
 onUnmounted(() => {
   window.removeEventListener("resize", resizeTableWidth);
+  document.removeEventListener("click", handleClickOutside);
 });
 
 // 监听路径变化
@@ -722,6 +1151,97 @@ watch(
   gap: 16px;
   overflow: hidden;
   flex-wrap: nowrap;
+  width: 100%;
+  min-height: 0;
+}
+
+/* 表格容器 - 各占50% */
+.table-container {
+  flex: 1 1 50%;
+  width: 50%;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  transition: background-color 0.3s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 左侧表格隐藏滚动条 */
+.left-table :deep(.el-table-v2__main) {
+  overflow: hidden !important;
+}
+
+.left-table :deep(.el-table-v2__body) {
+  overflow: hidden !important;
+}
+
+/* 右侧表格正常显示滚动条 */
+.right-table :deep(.el-table-v2__main) {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.right-table :deep(.el-table-v2__body) {
+  overflow: visible !important;
+}
+
+/* 虚拟表格容器 */
+.virtual-table-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+/* 右键菜单样式 */
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 4px 0;
+  min-width: 120px;
+}
+
+.dark-theme .context-menu {
+  background: #2c2c2c;
+  border-color: #444;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.context-menu-item:hover {
+  background-color: #ecf5ff;
+}
+
+.dark-theme .context-menu-item {
+  color: #e0e0e0;
+}
+
+.dark-theme .context-menu-item:hover {
+  background-color: #409eff;
+  color: #fff;
+}
+
+.context-menu-item.disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
+.dark-theme .context-menu-item.disabled {
+  color: #666;
 }
 
 /* 表格容器 */
@@ -764,15 +1284,6 @@ watch(
 }
 .dark-theme .table-placeholder {
   background: #2c2c2c;
-}
-
-/* 虚拟表格容器 */
-.virtual-table-wrapper {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  position: relative;
-  z-index: 2;
 }
 
 /* 单元格样式 */
