@@ -240,7 +240,11 @@ class DevtoolNative {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
         }
         try {
-            return this.nativeModule.lockScreen();
+            return this.nativeModule.lockScreen({
+                message: "",
+                allowEsc: true,
+                backgroundColor: "#000000FF"
+            });
 
         } catch (error) {
             console.error(`Failed to lock screen on ${this.platform}, `, error);

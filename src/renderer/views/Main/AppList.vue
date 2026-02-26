@@ -132,6 +132,13 @@ const allApps = ref([
     disabled: false,
   },
   {
+    key: "ColorPickerWnd",
+    name: "屏幕取色器",
+    category: "截图工具",
+    icon: "ColorPicker",
+    disabled: false,
+  },
+  {
     key: "ScreenRulerWnd",
     name: "屏幕标尺",
     category: "测量工具", // 新增：应用类别

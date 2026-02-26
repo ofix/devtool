@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron/renderer')
 
-function safeStringify (arg) {
+function safeStringify(arg) {
     const seen = new WeakMap();
     try {
         return JSON.stringify(arg, (key, value) => {
@@ -19,7 +19,7 @@ function safeStringify (arg) {
 }
 
 // 封装日志发送到主进程的核心逻辑（加异常捕获+日志打印）
-function sendLogToMainProcess (type, args) {
+function sendLogToMainProcess(type, args) {
     try {
         // 前置校验：ipcRenderer 是否就绪
         if (!ipcRenderer || typeof ipcRenderer.send !== 'function') {
@@ -135,6 +135,10 @@ contextBridge.exposeInMainWorld('channel', {
     enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
     saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
     closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
+    // 屏幕取色器
+    openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
+    cancelColorPicker:()=>ipcRenderer.invoke('color-picker:cancel'),
+    closeColorPicker: () => ipcRenderer.invoke('color-picker:close'),
     // 屏幕标尺
     rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
     rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),

@@ -18,12 +18,14 @@ import IconSFTP from '@/icons/IconSFTP.vue';
 import IconFileCompare from '@/icons/IconFileCompare.vue';
 import IconDesktopTile from '@/icons/IconDesktopTile.vue';
 import IconConsole from '@/icons/IconSSH.vue';
+import IconColorPicker from "@/icons/IconColorPicker.vue";
 
 removeVueDevtoolsContainers();
 
 const app = createApp(App)
 // 注册SVG图标组件
 app.component('IconScreenshot', IconScreenshot);
+app.component('IconColorPicker', IconColorPicker);
 app.component('IconRuler', IconRuler);
 app.component('IconVideoRecord', IconVideoRecord);
 app.component('IconHexEditor', IconHexEditor);

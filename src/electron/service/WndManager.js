@@ -18,6 +18,8 @@ class WndManager extends Singleton {
             'MainWnd': this.getMainWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
+            'ColorPickerWnd': this.getColorPickerWndConfig(),
+            'ColorPaletteWnd': this.getColorPaletteWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
             'ScreenRulerWnd': this.getScreenRulerWndConfig(),
             'ToolConfigWnd': this.getToolConfigWndConfig(),
@@ -66,7 +68,7 @@ class WndManager extends Singleton {
                 url: '/main-app',
                 levelName: 'normal',
                 levelZOrder: 0,
-                devTool: false,
+                devTool: true,
             }
         };
     }
@@ -107,6 +109,38 @@ class WndManager extends Singleton {
                 url: '/screenshot/capture',
                 levelName: 'screen-saver',
                 levelZOrder: 10
+            }
+        };
+    }
+
+    getColorPickerWndConfig() {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        return {
+            browserWindow: {
+                x: 0, y: 0, width, height,
+                alwaysOnTop: true, transparent: true,
+            },
+            custom: {
+                url: '/color-picker',
+                levelName: 'screen-saver',
+                levelZOrder: 20
+            }
+        };
+    }
+
+    getColorPaletteWndConfig() {
+        const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
+        const width = 800;
+        const height = 600;
+        return {
+            browserWindow: {
+                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
+                alwaysOnTop: false, transparent: false,
+            },
+            custom: {
+                url: '/color-palette',
+                levelName: 'normal',
+                levelZOrder: 0
             }
         };
     }

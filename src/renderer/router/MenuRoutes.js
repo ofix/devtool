@@ -132,6 +132,26 @@ const MenuRoutes = [
         }
     },
     {
+        path: '/color-picker',
+        name: 'color-picker',
+        component: () => import(/* webpackChunkName: "chunk-ColorPicker" */ '@/views/ColorPicker/ColorPicker.vue'),
+        meta: {
+            title: '屏幕拾色器',
+            desc: '',
+            chunkGroup: 'colorpicker'
+        }
+    },
+    {
+        path: '/color-palette',
+        name: 'color-palette',
+        component: () => import(/* webpackChunkName: "chunk-ColorPicker" */ '@/views/ColorPicker/ColorPalette.vue'),
+        meta: {
+            title: '调色板',
+            desc: '',
+            chunkGroup: 'colorpicker'
+        }
+    },
+    {
         path: '/screen-ruler',
         name: 'screen-ruler',
         component: () => import(/* webpackChunkName: "chunk-Screenshot/ScreenRuler" */ '@/views/Screenshot/ScreenRuler.vue'),

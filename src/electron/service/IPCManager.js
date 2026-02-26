@@ -258,6 +258,7 @@ class IPCManager extends Singleton {
         });
         // 获取桌面截图
         ipcMain.handle('get-desktop-screenshot', async () => {
+            native.lockScreen();
             // 优先返回缓存，同时异步更新缓存（不阻塞）
             const cached = this.cachedScreenshot;
             // 异步更新缓存（用户无感知）
@@ -520,6 +521,38 @@ class IPCManager extends Singleton {
         ipcMain.handle('unlock-screen', (_) => {
             return native.unlockScreen();
         })
+        // 冻结屏幕并打开屏幕拾色器窗口
+        ipcMain.handle('color-picker:open', (_) => {
+            native.lockScreen();
+            let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            wnd.show();
+        });
+        ipcMain.handle('color-picker:cancel', (_) => {
+            native.unlockScreen();
+            let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
+            if (!wnd || wnd.isDestroyed()) {
+                return false;
+            }
+            wnd.close();
+        });
+        // 取消屏幕并关闭屏幕拾色器窗口
+        ipcMain.handle('color-picker:close', (_) => {
+            native.unlockScreen();
+            let manager = WndManager.getInstance();
+            let wndPicker = manager.getWindow('ColorPickerWnd');
+            if (!wndPicker || wndPicker.isDestroyed()) {
+                return false;
+            }
+            wndPicker.close();
+            let wndPalette = manager.getWindow('ColorPaletteWnd');
+            if (!wndPalette || wndPalette.isDestroyed()) {
+                return false;
+            }
+            wndPalette.show();
+        });
         // 文件比对
         // 监听文件选择请求
         ipcMain.handle('select-file', async (event, side) => {
