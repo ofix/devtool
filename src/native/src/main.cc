@@ -548,13 +548,14 @@ Napi::Value openChannel(const Napi::CallbackInfo &i)
     return Napi::Boolean::New(env, ok);
 }
 
-Napi::Value read(const Napi::CallbackInfo &i)
+Napi::Value readBinary(const Napi::CallbackInfo &i)
 {
     Napi::Env env = i.Env();
-    uint8_t rid = i[0].As<Napi::Number>();
+    Napi::Number num = i[0].As<Napi::Number>();
+    uint8_t rid = static_cast<uint8_t>(num.Int32Value());  // 明确调用 Int32Value()
     ShmMessage msg;
     if (!chan.pop(rid, msg))
-        return Napi::Null::New(env);
+        return env.Null();
 
     Napi::Object o = Napi::Object::New(env);
     o.Set("id", (double)msg.id);
@@ -578,7 +579,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set(Napi::String::New(env, "isScreenLocked"), Napi::Function::New(env, IsScreenLocked));
     exports.Set(Napi::String::New(env, "init"), Napi::Function::New(env, init));
     exports.Set(Napi::String::New(env, "openChannel"), Napi::Function::New(env, openChannel));
-    exports.Set(Napi::String::New(env, "read"), Napi::Function::New(env, read));
+    exports.Set(Napi::String::New(env, "read"), Napi::Function::New(env, readBinary));
     return exports;
 }
 

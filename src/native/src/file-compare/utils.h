@@ -89,7 +89,8 @@ inline std::string calculate_crc32(const std::string& file_path) {
     }
     // 处理剩余字节
     if (file.gcount() > 0) {
-        for (size_t i = 0; i < file.gcount(); ++i) {
+        std::streamsize bytes_read = file.gcount();
+        for (std::streamsize i = 0; i < bytes_read; ++i) {
             crc = (crc >> 8) ^ ((uint32_t)static_cast<uint8_t>(buf[i]) << 24);
             for (int j = 0; j < 8; ++j) {
                 crc = (crc << 1) ^ ((crc & 0x80000000) ? 0x04C11DB7 : 0);
