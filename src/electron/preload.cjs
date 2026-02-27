@@ -123,9 +123,9 @@ contextBridge.exposeInMainWorld('channel', {
     doPatch: (options) => ipcRenderer.invoke("https:patch", options),
     doPut: (options) => ipcRenderer.invoke("https:put", options),
     // 屏幕截图
-    lockScreen: () => ipcRenderer.invoke('lock-screen'),
-    unlockScreen: () => ipcRenderer.invoke('unlock-screen'),
-    isScreenLocked: () => ipcRenderer.invoke('is-screen-locked'),
+    freezeScreen: () => ipcRenderer.invoke('freeze-screen'),
+    unFreezeScreen: () => ipcRenderer.invoke('unfreeze-screen'),
+    isScreenFreezeed: () => ipcRenderer.invoke('is-screen-locked'),
     startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
     cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
@@ -138,7 +138,7 @@ contextBridge.exposeInMainWorld('channel', {
     // 屏幕取色器
     openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
     cancelColorPicker:()=>ipcRenderer.invoke('color-picker:cancel'),
-    closeColorPicker: () => ipcRenderer.invoke('color-picker:close'),
+    closeColorPicker: (color) => ipcRenderer.invoke('color-picker:close',color),
     // 屏幕标尺
     rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
     rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),

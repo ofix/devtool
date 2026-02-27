@@ -235,44 +235,38 @@ class DevtoolNative {
     }
 
     // 冻结屏幕
-    lockScreen() {
+    freezeScreen() {
         if (!this.isLoaded) {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
         }
         try {
-            return this.nativeModule.lockScreen({
-                message: "",
-                allowEsc: true,
-                backgroundColor: "#000000FF"
-            });
-
+            return this.nativeModule.freezeScreen();
         } catch (error) {
-            console.error(`Failed to lock screen on ${this.platform}, `, error);
+            console.error(`Failed to freeze screen on ${this.platform}, `, error);
             return false;
         }
     }
 
     // 解冻屏幕
-    unlockScreen() {
+    unFreezeScreen() {
         if (!this.isLoaded) {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
         }
         try {
-            return this.nativeModule.unlockScreen();
-
+            this.nativeModule.unFreezeScreen();
         } catch (error) {
-            console.error(`Failed to unlock screen on ${this.platform}, `, error);
+            console.error(`Failed to unfreeze screen on ${this.platform}, `, error);
             return false;
         }
     }
 
     // 检查屏幕是否冻结
-    isScreenLocked() {
+    isScreenFreezeed() {
         if (!this.isLoaded) {
             throw new Error(`Native module not loaded for platform ${this.platform}`);
         }
         try {
-            return this.nativeModule.isScreenLocked();
+            return this.nativeModule.isScreenFreezeed();
         } catch (error) {
             console.error(`Failed to check screen lock state on ${this.platform}, `, error);
             return false;

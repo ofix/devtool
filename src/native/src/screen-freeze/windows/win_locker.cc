@@ -1,44 +1,43 @@
-#include "win_locker.h"
+#include "win_freeze.h"
 #include <string>
 #include <sstream>
 
-std::string WinLocker::Lock(const ScreenLockerConfig& config) {
-    if (lock_window_) {
-        return "Window already exists";
+bool WinFreeze::FreezeScreen( {
+    if (frozen_window_) {
+        return true;
     }
 
-    config_ = config;
 
     // 获取屏幕分辨率
     int screen_width = GetSystemMetrics(SM_CXSCREEN);
     int screen_height = GetSystemMetrics(SM_CYSCREEN);
 
     // 创建全屏窗口
-    lock_window_ = CreateWindowEx(
+    frozen_window_ = CreateWindowEx(
         WS_EX_TOPMOST | WS_EX_NOACTIVATE,  // 置顶、不激活
         L"STATIC",
-        L"ScreenLocker",
+        L"ScreenFreeze",
         WS_POPUP | WS_VISIBLE,
         0, 0, screen_width, screen_height,
         nullptr, nullptr, GetModuleHandle(nullptr), nullptr
     );
 
-    if (!lock_window_) {
+    if (!frozen_window_) {
         std::ostringstream oss;
         oss << "CreateWindow failed: " << GetLastError();
-        return oss.str();
+        return false;
     }
 
     // 设置窗口过程
-    SetWindowLongPtr(lock_window_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-    SetWindowLongPtr(lock_window_, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(LockWindowProc));
+    SetWindowLongPtr(frozen_window_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    SetWindowLongPtr(frozen_window_, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(FreezeWindowProc));
 
     // 设置背景色
-    SetClassLongPtr(lock_window_, GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(
+    SetClassLongPtr(frozen_window_, GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(
         CreateSolidBrush(RGB(
-            (config_.backgroundColor >> 16) & 0xFF,
-            (config_.backgroundColor >> 8) & 0xFF,
-            config_.backgroundColor & 0xFF
+            (255) & 0xFF,
+            (255) & 0xFF,
+            255 & 0xFF
         ))
     ));
 
@@ -52,18 +51,18 @@ std::string WinLocker::Lock(const ScreenLockerConfig& config) {
     );
 
     // 捕获所有输入
-    SetCapture(lock_window_);
-    ShowWindow(lock_window_, SW_SHOWMAXIMIZED);
-    UpdateWindow(lock_window_);
+    SetCapture(frozen_window_);
+    ShowWindow(frozen_window_, SW_SHOWMAXIMIZED);
+    UpdateWindow(frozen_window_);
 
-    return "";
+    return true;
 }
 
-void WinLocker::Unlock() {
-    if (lock_window_) {
+void WinFreeze::UnFreezeScreen() {
+    if (frozen_window_) {
         ReleaseCapture();
-        DestroyWindow(lock_window_);
-        lock_window_ = nullptr;
+        DestroyWindow(frozen_window_);
+        frozen_window_ = nullptr;
     }
 
     if (message_font_) {
@@ -72,21 +71,21 @@ void WinLocker::Unlock() {
     }
 }
 
-LRESULT CALLBACK WinLocker::LockWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    WinLocker* locker = reinterpret_cast<WinLocker*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-    if (!locker) {
+LRESULT CALLBACK WinFreeze::FreezeWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    WinFreeze* freeze = reinterpret_cast<WinFreeze*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    if (!freeze) {
         return DefWindowProc(hwnd, msg, wparam, lparam);
     }
 
     switch (msg) {
         case WM_PAINT:
-            locker->DrawMessage(hwnd);
+            freeze->DrawMessage(hwnd);
             return 0;
 
         case WM_KEYDOWN:
             // ESC键解锁（调试）
-            if (locker->config_.allowEsc && wparam == VK_ESCAPE) {
-                locker->Unlock();
+            if (wparam == VK_ESCAPE) {
+                freeze->UnFreeze();
             }
             return 0;
 
@@ -98,7 +97,7 @@ LRESULT CALLBACK WinLocker::LockWindowProc(HWND hwnd, UINT msg, WPARAM wparam, L
             return 0;
 
         case WM_DESTROY:
-            locker->lock_window_ = nullptr;
+            freeze->frozen_window_ = nullptr;
             return 0;
 
         default:
@@ -106,7 +105,7 @@ LRESULT CALLBACK WinLocker::LockWindowProc(HWND hwnd, UINT msg, WPARAM wparam, L
     }
 }
 
-void WinLocker::DrawMessage(HWND hwnd) {
+void WinFreeze::DrawMessage(HWND hwnd) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
 
@@ -120,7 +119,7 @@ void WinLocker::DrawMessage(HWND hwnd) {
     GetClientRect(hwnd, &rect);
     DrawText(
         hdc,
-        std::wstring(config_.message.begin(), config_.message.end()).c_str(),
+        std::wstring("xxx").c_str(),
         -1,
         &rect,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE

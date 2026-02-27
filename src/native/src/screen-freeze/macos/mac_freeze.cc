@@ -1,13 +1,11 @@
-#include "mac_locker.h"
+#include "mac_freeze.h"
 #include <string>
 #include <objc/objc-runtime.h>
 
-std::string MacLocker::Lock(const ScreenLockerConfig& config) {
-    if (lock_window_) {
+bool MacFreeze::FreezeScreen() {
+    if (frozen_window_) {
         return "Window already exists";
     }
-
-    config_ = config;
 
     // 初始化Cocoa
     [NSApplication sharedApplication];
@@ -17,30 +15,30 @@ std::string MacLocker::Lock(const ScreenLockerConfig& config) {
     NSRect screen_frame = [main_screen frame];
 
     // 创建全屏窗口
-    lock_window_ = [[NSWindow alloc] initWithContentRect:screen_frame
+    frozen_window_ = [[NSWindow alloc] initWithContentRect:screen_frame
                                                 styleMask:NSWindowStyleMaskBorderless
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO
                                                    screen:main_screen];
 
-    [lock_window_ setLevel:NSStatusWindowLevel + 1]; // 置顶
-    [lock_window_ setBackgroundColor:[NSColor colorWithRed:((config_.backgroundColor >> 16) & 0xFF)/255.0
-                                                     green:((config_.backgroundColor >> 8) & 0xFF)/255.0
-                                                      blue:(config_.backgroundColor & 0xFF)/255.0
+    [frozen_window_ setLevel:NSStatusWindowLevel + 1]; // 置顶
+    [frozen_window_ setBackgroundColor:[NSColor colorWithRed:(255)/255.0
+                                                     green:(255)/255.0
+                                                      blue:(255)/255.0
                                                      alpha:1.0]];
 
     // 显示窗口
-    [lock_window_ makeKeyAndOrderFront:nil];
+    [frozen_window_ makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
 
     // 简化：屏蔽输入（完整实现需添加事件监听）
-    return "";
+    return true;
 }
 
-void MacLocker::Unlock() {
-    if (lock_window_) {
-        [lock_window_ close];
-        [lock_window_ release];
-        lock_window_ = nullptr;
+void MacFreeze::UnFreezeScreen() {
+    if (frozen_window_) {
+        [frozen_window_ close];
+        [frozen_window_ release];
+        frozen_window_ = nullptr;
     }
 }

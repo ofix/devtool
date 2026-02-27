@@ -5,7 +5,7 @@
       "sources": [
         "src/main.cc",
         "src/file-compare/file_compare.cpp",
-        "src/screen-locker/screen_locker.cc",
+        "src/screen-freeze/screen_freeze.cc",
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
@@ -13,10 +13,10 @@
          "src/window-info/",
          "src/file-compare/",
          "src/cursor/",
-         "src/screen-locker",
-         "src/screen-locker/windows/",
-         "src/screen-locker/linux/",
-         "src/screen-locker/macos/" 
+         "src/screen-freeze",
+         "src/screen-freeze/windows/",
+         "src/screen-freeze/linux/",
+         "src/screen-freeze/macos/" 
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
@@ -24,7 +24,7 @@
       "defines": [ "NAPI_VERSION=8" ],
       "conditions": [
         ["OS=='win'", {
-          "sources": ["src/window-info/windows/window_enumerator.cc","src/screen-locker/windows/win_locker.cc"],
+          "sources": ["src/window-info/windows/window_enumerator.cc","src/screen-freeze/windows/win_freeze.cc"],
           "libraries": [
             "-luser32.lib",
             "-lgdi32.lib",
@@ -44,14 +44,14 @@
           }
         }],
         ["OS=='mac'", {
-          "sources": ["src/window-info/macos/window_enumerator.cc","src/screen-locker/macos/mac_locker.cc"],
+          "sources": ["src/window-info/macos/window_enumerator.cc","src/screen-freeze/macos/mac_freeze.cc"],
           "frameworks": ["Cocoa", "CoreFoundation", "CoreGraphics"],
           "cflags_cc": [ "-std=c++17" ],
           "cflags!": [ "-fno-exceptions" ],
           "cflags_cc!": [ "-fno-exceptions" ]
         }],
         ["OS=='linux'", {
-          "sources": ["src/window-info/linux/window_enumerator.cc","src/cursor/cursor.cc","src/screen-locker/linux/linux_locker.cc"],
+          "sources": ["src/window-info/linux/window_enumerator.cc","src/cursor/cursor.cc","src/screen-freeze/linux/linux_freeze.cc"],
           "include_dirs": [
             "/usr/include/X11",
             "/usr/lib/aarch64-linux-gnu",
