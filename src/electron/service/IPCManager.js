@@ -26,25 +26,47 @@ class IPCManager extends Singleton {
         };;
         this.cachedScreenshot = null; // 预加载的截图数据（base64）
         this.cacheScreenshotExpireTime = 0; // 缓存过期时间
+        this.screenshotPool = new Map();
+    }
+    /**
+     * 格式：screenshot_1740600000000_123456
+     * @returns {string} 唯一截图ID
+     */
+    generateScreenshotId() {
+        // 1. 获取当前毫秒级时间戳（确保不同时间的ID不同）
+        const timestamp = Date.now();
+        // 2. 生成6位随机数（000000-999999，确保同一毫秒内多次调用不重复）
+        const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        // 3. 拼接成唯一ID（加前缀便于识别）
+        return `screenshot_${timestamp}_${random}`;
     }
     // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
     async preloadScreenshot() {
-        // 缓存未过期，直接返回
-        if (this.cachedScreenshot && Date.now() < this.cacheScreenshotExpireTime) {
-            return this.cachedScreenshot;
-        }
-
         try {
             // 使用 screenshot-desktop
-            const imgBuffer = await screenshot({ format: 'png' });
-            const base64 = `data:image/png;base64,${imgBuffer.toString('base64')}`;
-            // 缓存截图，设置 2 秒过期（避免数据太旧）
-            this.cachedScreenshot = base64;
-            this.cacheScreenshotExpireTime = Date.now() + 2000;
-            return base64;
+            const screenshotId = this.generateScreenshotId();
+            const pngBuffer = await screenshot({ format: 'png' });
+            
+            const tempPath = path.join(os.tmpdir(), `${screenshotId}.png`);
+            // 写入PNG Buffer（同步写入，内存文件速度极快）
+            await fs.writeFile(tempPath, pngBuffer);
+
+            this.screenshotPool.set(screenshotId, {
+                buffer: pngBuffer,
+                pngPath: tempPath,
+                createTime: Date.now()
+            });
+            return {
+                success: true,
+                screenshotId,
+                pngPath:tempPath,
+            };
         } catch (error) {
             console.error('预加载截图失败：', error);
-            return null;
+            return {
+                success: false,
+                error: error.message,
+            };
         }
     }
 
@@ -258,12 +280,7 @@ class IPCManager extends Singleton {
         });
         // 获取桌面截图
         ipcMain.handle('get-desktop-screenshot', async () => {
-            native.lockScreen();
-            // 优先返回缓存，同时异步更新缓存（不阻塞）
-            const cached = this.cachedScreenshot;
-            // 异步更新缓存（用户无感知）
-            this.preloadScreenshot();
-            return cached || await this.preloadScreenshot();
+            return await this.preloadScreenshot();
         });
         // 获取平台信息
         ipcMain.handle('get-platform-info', async () => {
@@ -515,15 +532,23 @@ class IPCManager extends Singleton {
             }
             throw new Error(`不支持的操作系统：${platform()}`);
         });
-        ipcMain.handle('lock-screen', (_) => {
-            return native.lockScreen();
+        ipcMain.handle('freeze-screen', (_) => {
+            const startTime = performance.now();
+            let result = native.freezeScreen();
+            const endTime = performance.now();
+            const duration = (endTime - startTime).toFixed(1);
+            console.log("冻结屏幕: ", result, `耗时: ${duration} 毫秒`);
         });
-        ipcMain.handle('unlock-screen', (_) => {
-            return native.unlockScreen();
+        ipcMain.handle('unfreeze-screen', (_) => {
+            const startTime = performance.now();
+            native.unFreezeScreen();
+            const endTime = performance.now();
+            const duration = (endTime - startTime).toFixed(1);
+            console.log("解冻屏幕成功，", `耗时: ${duration} 毫秒`);
         })
         // 冻结屏幕并打开屏幕拾色器窗口
         ipcMain.handle('color-picker:open', (_) => {
-            native.lockScreen();
+            native.freezeScreen();
             let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
             if (!wnd || wnd.isDestroyed()) {
                 return false;
@@ -531,7 +556,6 @@ class IPCManager extends Singleton {
             wnd.show();
         });
         ipcMain.handle('color-picker:cancel', (_) => {
-            native.unlockScreen();
             let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
             if (!wnd || wnd.isDestroyed()) {
                 return false;
@@ -539,8 +563,7 @@ class IPCManager extends Singleton {
             wnd.close();
         });
         // 取消屏幕并关闭屏幕拾色器窗口
-        ipcMain.handle('color-picker:close', (_) => {
-            native.unlockScreen();
+        ipcMain.handle('color-picker:close', (_, color) => {
             let manager = WndManager.getInstance();
             let wndPicker = manager.getWindow('ColorPickerWnd');
             if (!wndPicker || wndPicker.isDestroyed()) {
@@ -620,7 +643,7 @@ class IPCManager extends Singleton {
             }
         })
         ipcMain.handle('is-screen-locked', (_) => {
-            return native.isScreenLocked();
+            return native.isScreenFreezeed();
         })
         ipcMain.on("full-screen", (enent, wndName, flag) => {
             let wnd = WndManager.getInstance().getWindow(wndName);

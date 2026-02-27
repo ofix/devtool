@@ -47,8 +47,10 @@ class WndManager extends Singleton {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
+                webSecurity: false, // 关闭跨域安全检查
                 preload: join(__dirname, '../preload.cjs'),
-                contextIsolation: true
+                contextIsolation: true,
+                maxPayloadSize: 200 // 共享内存Buffer传输限制
             }
         };
     }
@@ -68,7 +70,7 @@ class WndManager extends Singleton {
                 url: '/main-app',
                 levelName: 'normal',
                 levelZOrder: 0,
-                devTool: true,
+                devTool: false,
             }
         };
     }
@@ -123,7 +125,8 @@ class WndManager extends Singleton {
             custom: {
                 url: '/color-picker',
                 levelName: 'screen-saver',
-                levelZOrder: 20
+                levelZOrder: 20,
+                devTool: true
             }
         };
     }
