@@ -27,6 +27,7 @@ class IPCManager extends Singleton {
         this.cachedScreenshot = null; // 预加载的截图数据（base64）
         this.cacheScreenshotExpireTime = 0; // 缓存过期时间
         this.screenshotPool = new Map();
+        this.colorPickerColor = "";
     }
     /**
      * 格式：screenshot_1740600000000_123456
@@ -41,26 +42,49 @@ class IPCManager extends Singleton {
         return `screenshot_${timestamp}_${random}`;
     }
     // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
-    async preloadScreenshot() {
+    async preloadScreenshot(method = 'base64') {
         try {
             // 使用 screenshot-desktop
             const screenshotId = this.generateScreenshotId();
-            const pngBuffer = await screenshot({ format: 'png' });
-            
-            const tempPath = path.join(os.tmpdir(), `${screenshotId}.png`);
-            // 写入PNG Buffer（同步写入，内存文件速度极快）
-            await fs.writeFile(tempPath, pngBuffer);
-
-            this.screenshotPool.set(screenshotId, {
-                buffer: pngBuffer,
-                pngPath: tempPath,
-                createTime: Date.now()
-            });
-            return {
-                success: true,
-                screenshotId,
-                pngPath:tempPath,
-            };
+            if (method == 'base64') {
+                const pngBuffer = await screenshot({ format: 'png' });
+                const base64 = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+                return base64;
+            } else if (method == 'buffer') {
+                const primaryDisplay = screen.getPrimaryDisplay();
+                // 强制转为整数，避免浮点数导致的类型转换失败
+                const screenWidth = Math.floor(primaryDisplay.size.width);
+                const screenHeight = Math.floor(primaryDisplay.size.height);
+                const sources = await desktopCapturer.getSources({
+                    types: ['screen'],
+                    thumbnailSize: { width: screenWidth, height: screenHeight }, // 按需调整分辨率
+                    fetchWindowIcons: false // 关闭窗口图标获取，减少耗时
+                });
+                const mainScreenSource = sources[0];
+                if (!mainScreenSource) return null;
+           
+                // 获取原生 Buffer
+                const imageBuffer = mainScreenSource.thumbnail.toPNG(); // 直接获取 PNG 二进制 Buffer
+                // 直接返回 Buffer 给渲染进程（Electron 支持 IPC 传输 Buffer）
+                // const savePath = path.join(os.homedir(), '桌面', 'test-screenshot.png');
+                // await fs.writeFile(savePath, imageBuffer);
+                // console.log(`PNG 已保存到：${savePath}`);
+                return imageBuffer;
+            } else {
+                const tempPath = path.join(os.tmpdir(), `${screenshotId}.png`);
+                // 写入PNG Buffer（同步写入，内存文件速度极快）
+                await fs.writeFile(tempPath, pngBuffer);
+                this.screenshotPool.set(screenshotId, {
+                    buffer: pngBuffer,
+                    pngPath: tempPath,
+                    createTime: Date.now()
+                });
+                return {
+                    success: true,
+                    screenshotId,
+                    pngPath: tempPath,
+                };
+            }
         } catch (error) {
             console.error('预加载截图失败：', error);
             return {
@@ -216,6 +240,9 @@ class IPCManager extends Singleton {
                 debugWindow.webContents.send('clear-log');
             }
         });
+        ipcMain.handle('debug', (event, ...data) => {
+            console.log(...data);
+        });
         // 连接SFTP服务器
         ipcMain.handle("ssh:connect", async (event, config) => {
             try {
@@ -279,8 +306,8 @@ class IPCManager extends Singleton {
             return await httpsClient.delete(options);
         });
         // 获取桌面截图
-        ipcMain.handle('get-desktop-screenshot', async () => {
-            return await this.preloadScreenshot();
+        ipcMain.handle('get-desktop-screenshot', async (event, method) => {
+            return await this.preloadScreenshot(method);
         });
         // 获取平台信息
         ipcMain.handle('get-platform-info', async () => {
@@ -404,7 +431,7 @@ class IPCManager extends Singleton {
         });
         // 当用户点击截图按钮时
         ipcMain.handle('start-screenshot', async (event, option) => {
-            await this.preloadScreenshot();
+            await this.preloadScreenshot('base64');
             let manager = WndManager.getInstance();
             manager.hideWindow('ScreenshotToolWnd');
             manager.showWindow('CaptureWnd', option);
@@ -564,18 +591,14 @@ class IPCManager extends Singleton {
         });
         // 取消屏幕并关闭屏幕拾色器窗口
         ipcMain.handle('color-picker:close', (_, color) => {
+            this.colorPickerColor = color;
             let manager = WndManager.getInstance();
-            let wndPicker = manager.getWindow('ColorPickerWnd');
-            if (!wndPicker || wndPicker.isDestroyed()) {
-                return false;
-            }
-            wndPicker.close();
-            let wndPalette = manager.getWindow('ColorPaletteWnd');
-            if (!wndPalette || wndPalette.isDestroyed()) {
-                return false;
-            }
-            wndPalette.show();
+            manager.closeWindow('ColorPickerWnd');            
+            manager.showWindow('ColorPaletteWnd');
         });
+        ipcMain.handle('color-picker:get-color',(_)=>{
+            return this.colorPickerColor;
+        })
         // 文件比对
         // 监听文件选择请求
         ipcMain.handle('select-file', async (event, side) => {

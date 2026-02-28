@@ -121,20 +121,21 @@ class WndManager extends Singleton {
             browserWindow: {
                 x: 0, y: 0, width, height,
                 alwaysOnTop: true, transparent: true,
+                backgroundColor: '#00000000',
             },
             custom: {
                 url: '/color-picker',
                 levelName: 'screen-saver',
                 levelZOrder: 20,
-                devTool: true
+                devTool: false
             }
         };
     }
 
     getColorPaletteWndConfig() {
         const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
-        const width = 800;
-        const height = 600;
+        const width = 680;
+        const height = 340;
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
@@ -143,7 +144,7 @@ class WndManager extends Singleton {
             custom: {
                 url: '/color-palette',
                 levelName: 'normal',
-                levelZOrder: 0
+                levelZOrder: 0,
             }
         };
     }

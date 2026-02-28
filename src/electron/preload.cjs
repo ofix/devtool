@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('channel', {
         return () => ipcRenderer.removeListener(channel, wrappedCallback);
     },
     off: (channel, listener) => ipcRenderer.off(channel, listener),
+    // 控制台调试打印
+    debug: (...data) => ipcRenderer.invoke('debug', ...data),
     // 控制窗口
     showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
     hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
@@ -131,14 +133,15 @@ contextBridge.exposeInMainWorld('channel', {
     finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
     sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
     openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),
-    getDesktopScreenshot: () => ipcRenderer.invoke('get-desktop-screenshot'),
+    getDesktopScreenshot: (method = "base64") => ipcRenderer.invoke('get-desktop-screenshot', method),
     enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
     saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
     closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
     // 屏幕取色器
     openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
-    cancelColorPicker:()=>ipcRenderer.invoke('color-picker:cancel'),
-    closeColorPicker: (color) => ipcRenderer.invoke('color-picker:close',color),
+    cancelColorPicker: () => ipcRenderer.invoke('color-picker:cancel'),
+    closeColorPicker: (color) => ipcRenderer.invoke('color-picker:close', color),
+    getColorPickerColor: () => ipcRenderer.invoke('color-picker:get-color'),
     // 屏幕标尺
     rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
     rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),
