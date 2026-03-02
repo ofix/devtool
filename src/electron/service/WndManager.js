@@ -122,6 +122,7 @@ class WndManager extends Singleton {
                 x: 0, y: 0, width, height,
                 alwaysOnTop: true, transparent: true,
                 backgroundColor: '#00000000',
+                show: false, // 初始隐藏
             },
             custom: {
                 url: '/color-picker',
@@ -139,7 +140,7 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
-                alwaysOnTop: false, transparent: false,
+                alwaysOnTop: false, transparent: false, show:false,
             },
             custom: {
                 url: '/color-palette',

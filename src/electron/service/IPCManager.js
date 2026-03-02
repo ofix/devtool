@@ -62,7 +62,7 @@ class IPCManager extends Singleton {
                 });
                 const mainScreenSource = sources[0];
                 if (!mainScreenSource) return null;
-           
+
                 // 获取原生 Buffer
                 const imageBuffer = mainScreenSource.thumbnail.toPNG(); // 直接获取 PNG 二进制 Buffer
                 // 直接返回 Buffer 给渲染进程（Electron 支持 IPC 传输 Buffer）
@@ -593,10 +593,10 @@ class IPCManager extends Singleton {
         ipcMain.handle('color-picker:close', (_, color) => {
             this.colorPickerColor = color;
             let manager = WndManager.getInstance();
-            manager.closeWindow('ColorPickerWnd');            
             manager.showWindow('ColorPaletteWnd');
+            manager.closeWindow('ColorPickerWnd');
         });
-        ipcMain.handle('color-picker:get-color',(_)=>{
+        ipcMain.handle('color-picker:get-color', (_) => {
             return this.colorPickerColor;
         })
         // 文件比对

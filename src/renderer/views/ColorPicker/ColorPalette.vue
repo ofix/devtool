@@ -143,6 +143,7 @@ onMounted(async () => {
     initColor.value = formatColor(initColorData);
     currentColor.value = { ...initColor.value };
     pickerColor.value = initColor.value.rgba;
+    await window.channel.showWindow('ColorPaletteWnd');
   } catch (error) {
     console.error("初始化颜色失败：", error);
   }
