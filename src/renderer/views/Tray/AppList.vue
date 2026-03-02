@@ -308,7 +308,9 @@ function updateCommonApps() {
 // 11. 打开应用窗口（并记录使用频次）
 function openApp(appKey) {
   // 发送IPC给主进程，打开应用窗口
-  if (window.channel?.showWindow) {
+  if (appKey == "ColorPickerWnd") {
+    window.channel.openColorPicker();
+  } else {
     window.channel.showWindow(appKey);
   }
 

@@ -575,25 +575,27 @@ class IPCManager extends Singleton {
         })
         // 冻结屏幕并打开屏幕拾色器窗口
         ipcMain.handle('color-picker:open', (_) => {
-            native.freezeScreen();
-            let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
-            if (!wnd || wnd.isDestroyed()) {
-                return false;
-            }
-            wnd.show();
+            let manager = WndManager.getInstance();
+            manager.hideWindow('MainWnd');
+            manager.showWindow('ColorPickerWnd');
         });
         ipcMain.handle('color-picker:cancel', (_) => {
-            let wnd = WndManager.getInstance().getWindow('ColorPickerWnd');
-            if (!wnd || wnd.isDestroyed()) {
-                return false;
-            }
-            wnd.close();
+            let manager = WndManager.getInstance();
+            manager.closeWindow('ColorPickerWnd');
+            manager.showWindow('MainWnd');
         });
         // 取消屏幕并关闭屏幕拾色器窗口
         ipcMain.handle('color-picker:close', (_, color) => {
             this.colorPickerColor = color;
             let manager = WndManager.getInstance();
+
             manager.showWindow('ColorPaletteWnd');
+            let colorPaletteWnd = manager.getWindow('ColorPaletteWnd');
+            if (colorPaletteWnd && !colorPaletteWnd.isDestroyed()) {
+                colorPaletteWnd.on('closed', () => {
+                    manager.showWindow('MainWnd');
+                });
+            }
             manager.closeWindow('ColorPickerWnd');
         });
         ipcMain.handle('color-picker:get-color', (_) => {

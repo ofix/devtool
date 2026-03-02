@@ -140,7 +140,7 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
-                alwaysOnTop: false, transparent: false, show:false,
+                alwaysOnTop: false, transparent: false, show: false,
             },
             custom: {
                 url: '/color-palette',
@@ -508,7 +508,6 @@ class WndManager extends Singleton {
     showWindow(wndName, options = {}) {
         this.activeWnd = wndName;
         const wnd = this.wndMap.get(wndName);
-
         if (wnd && !wnd.isDestroyed()) {
             // 窗口已存在，更新选项
             this.windowOptionsCache.set(wndName, options);
@@ -549,7 +548,6 @@ class WndManager extends Singleton {
     maximizeWindow(wndKey) {
         const wnd = this.wndMap.get(wndKey);
         if (wnd && !wnd.isDestroyed()) {
-            console.log("最大化窗口 ", wndKey);
             wnd.maximize();
             return true;
         }

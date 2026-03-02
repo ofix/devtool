@@ -304,7 +304,9 @@ function updateCommonApps() {
 // 11. 打开应用窗口（并记录使用频次）
 function openApp(appKey) {
   // 发送IPC给主进程，打开应用窗口
-  if (window.channel?.showWindow) {
+  if (appKey == "ColorPickerWnd") {
+    window.channel.openColorPicker();
+  } else {
     window.channel.showWindow(appKey);
   }
 
@@ -368,7 +370,7 @@ function handlePinApp() {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder),
+    JSON.stringify(customOrder)
   );
 
   // 更新常见应用列表
@@ -389,7 +391,7 @@ function handleUnpinApp() {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder),
+    JSON.stringify(customOrder)
   );
 
   // 更新常见应用列表
@@ -419,7 +421,7 @@ function handleDrop(dropIndex) {
   // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEYS.COMMON_APPS_ORDER,
-    JSON.stringify(customOrder),
+    JSON.stringify(customOrder)
   );
 
   // 更新常见应用列表

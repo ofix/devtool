@@ -12,6 +12,7 @@
         id="minimize-box"
         class="control-btn"
         aria-label="最小化"
+        @click="handleMinimize"
       >
         <IconMinimizeBox />
       </button>
@@ -20,6 +21,7 @@
         id="close-box"
         class="control-btn close"
         aria-label="关闭"
+        @click="handleClose"
       >
         <IconCloseBox />
       </button>
@@ -103,31 +105,20 @@ const handleMouseUp = () => {
   window.removeEventListener("mouseup", handleMouseUp);
 };
 // 同步最大化/还原状态
-const onMax = () => {
+const handleClose = () => {
   isMaximized.value = true;
   isMaxState.value = true; // 同步缓存状态
-  emit("maximized");
+  window.channel.closeWindow("MainWnd");
 };
-const onUnmax = () => {
+const handleMinimize = () => {
   isMaximized.value = false;
   isMaxState.value = false; // 同步缓存状态
-  emit("unmaximized");
+  window.channel.minimizeWindow("MainWnd");
 };
 
 onMounted(() => {
   // 绑定标题栏拖拽事件
   titleBarRef.value?.addEventListener("mousedown", handleMouseDown);
-
-  // 绑定窗口控制按钮事件
-  minBtn.value?.addEventListener("click", () =>
-    window.channel.minimize("MainWnd"),
-  );
-  closeBtn.value?.addEventListener("click", () =>
-    window.channel.closeWindow("MainWnd"),
-  );
-
-  window.channel.on("maximized", onMax);
-  window.channel.on("unmaximized", onUnmax);
 });
 
 onUnmounted(() => {
@@ -135,9 +126,6 @@ onUnmounted(() => {
   titleBarRef.value?.removeEventListener("mousedown", handleMouseDown);
   window.removeEventListener("mousemove", handleMouseMove);
   window.removeEventListener("mouseup", handleMouseUp);
-
-  window.channel.off("maximized", onMax);
-  window.channel.off("unmaximized", onUnmax);
 });
 
 // 供父组件读取

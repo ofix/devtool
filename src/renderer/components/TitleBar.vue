@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, defineProps } from "vue";
+import { ref, onMounted } from "vue";
 import MacTitleBar from "./MacTitleBar.vue";
 import VSCodeTitleBar from "./VSCodeTitleBar.vue";
 
@@ -64,7 +64,6 @@ const handleWindowMaximize = () => {
 };
 
 const handleWindowRestore = () => {
-  console.log(`还原窗口 ${props.wndKey}`);
   window.channel.restoreWindow(props.wndKey);
 };
 </script>
