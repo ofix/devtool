@@ -80,7 +80,12 @@ onMounted(async () => {
     const startTime = performance.now();
     if (1) {
       const pngBuffer = await window.channel.getDesktopScreenshot("buffer");
-      drawPngBuffer(bgCtx, pngBuffer);
+      drawPngBuffer(
+        bgCtx,
+        pngBuffer,
+        window.screen.width,
+        window.screen.height
+      );
     } else {
       const base64 = await window.channel.getDesktopScreenshot("base64");
       await drawScreenshot(
@@ -109,16 +114,25 @@ async function drawPngBuffer(ctx, buffer, width, height) {
   const dpr = window.devicePixelRatio || 1;
   //   ctx.scale(dpr, dpr);
   // 4. 强制关闭半像素渲染（解决边缘模糊）
-  ctx.translate(0.5, 0.5);
+  // 重置画布变换矩阵（避免之前的 translate/scale 残留）
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
   // 5. 提升图像绘制质量
   ctx.imageSmoothingEnabled = false;
-  //   ctx.imageSmoothingQuality = "high";
   ctx.imageSmoothingEnabled = false;
   ctx.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
   ctx.mozImageSmoothingEnabled = false; // 兼容Firefox
   ctx.msImageSmoothingEnabled = false; // 兼容IE/Edge
-  const imageBitmap = await createImageBitmap(new Blob([buffer]));
-  ctx.drawImage(imageBitmap, 0, 0);
+  const imageBitmap = await createImageBitmap(new Blob([buffer]), {
+    resizeQuality: "pixelated", // 强制像素化缩放，无模糊
+  });
+  ctx.drawImage(
+    imageBitmap,
+    0,
+    0,
+    imageBitmap.width,
+    imageBitmap.height, // 源区域（原始像素
+  );
   screenImage.value = imageBitmap;
   // imageBitmap.close(); // 释放内存
 }
@@ -178,6 +192,8 @@ const drawZoomArea = () => {
   if (!screenImage.value) return;
 
   const zoomCtx = zoomCanvas.value.getContext("2d");
+  zoomCtx.setTransform(1, 0, 0, 1, 0, 0);
+  zoomCtx.scale(dpr, dpr);
   zoomCtx.clearRect(0, 0, ZOOM_CANVAS_WIDTH, ZOOM_CANVAS_HEIGHT);
 
   // 关闭Canvas的平滑插值，启用像素化缩放
@@ -240,8 +256,8 @@ const drawZoomArea = () => {
   // 绘制中心方块的颜色
   const bgCtx = bgCanvas.value.getContext("2d");
   // 获取单个像素的颜色数据
-  const pixelData = bgCtx.getImageData(mouseX.value, mouseY.value, 1, 1).data;
-  const rgbaColor = `rgba(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]}, ${pixelData[3] / 255})`;
+  getColorAtPosition();
+  const rgbaColor = `rgb(${r.value}, ${g.value}, ${b.value})`;
   const blockX = Math.floor(ZOOM_CANVAS_WIDTH / 2 - ZOOM_SCALE / 2);
   const blockY = Math.floor(ZOOM_CANVAS_HEIGHT / 2 - ZOOM_SCALE / 2);
   zoomCtx.fillStyle = rgbaColor; // 正确赋值
@@ -271,7 +287,7 @@ const getColorAtPosition = () => {
 
   const bgCtx = bgCanvas.value.getContext("2d");
   // 获取单个像素的颜色数据
-  const pixelData = bgCtx.getImageData(mouseX.value, mouseY.value, 1, 1).data;
+  const pixelData = bgCtx.getImageData(mouseX.value-1, mouseY.value-1, 1, 1).data;
 
   // 更新RGB值
   r.value = pixelData[0];
@@ -441,7 +457,7 @@ onUnmounted(() => {
   height: 100vh;
   border: none;
   cursor:
-    url("./assets/sucker.cur") 0 25,
+    url("./assets/sucker.cur") 0 24,
     crosshair !important;
   z-index: 5;
 }
