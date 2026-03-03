@@ -143,6 +143,11 @@ const MenuRoutes = [
         props:true,
     },
     {
+        path:'/video-record',
+        name: 'VideoRecord',
+        component:()=>import(/* webpackChunkName: 'chunk-VideoRecord/VideoRecord */ '@/views/VideoRecord/VideoRecord.vue'),
+    },
+    {
         path: '/color-picker',
         name: 'color-picker',
         component: () => import(/* webpackChunkName: "chunk-ColorPicker" */ '@/views/ColorPicker/ColorPicker.vue'),

@@ -150,7 +150,7 @@ const allApps = ref([
     name: "视频录制",
     category: "录制工具", // 新增：应用类别
     icon: "VideoRecord",
-    disabled: true,
+    disabled: false,
   },
   {
     key: "FileCompareWnd",

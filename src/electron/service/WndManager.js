@@ -18,6 +18,7 @@ class WndManager extends Singleton {
             'MainWnd': this.getMainWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
+            'VideoRecordWnd': this.getVideoRecordWndConfig(),
             'ColorPickerWnd': this.getColorPickerWndConfig(),
             'ColorPaletteWnd': this.getColorPaletteWndConfig(),
             'MeasureLineWnd': this.getMeasureLineWndConfig(),
@@ -113,6 +114,22 @@ class WndManager extends Singleton {
                 levelZOrder: 10
             }
         };
+    }
+
+    getVideoRecordWndConfig() {
+        const width = 240;
+        const height = 120;
+        return {
+            browserWindow: {
+                x: 0, y: 0, width, height,
+                alwaysOnTop: true,
+            },
+            custom: {
+                url: '/screenshot/video-record',
+                levelName: 'normal',
+                levelZOrder: 0
+            }
+        }
     }
 
     getColorPickerWndConfig() {
