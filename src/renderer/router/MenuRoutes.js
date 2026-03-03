@@ -130,6 +130,17 @@ const MenuRoutes = [
             desc: '',
             chunkGroup: 'screenshot'
         }
+    },{
+        path: '/screenshot/pin-wnd/:pinId',
+        name:'PinWnd',
+        component:()=>import(/* webpackChunkName: 'chunk-Screenshot/PinWnd */ '@/views/Screenshot/PinWnd.vue'),
+        props:true,
+    },
+    {
+        path: '/screenshot/pin-history',
+        name:'PinHistory',
+        component:()=>import(/* webpackChunkName: 'chunk-Screenshot/PinHistory */ '@/views/Screenshot/PinHistory.vue'),
+        props:true,
     },
     {
         path: '/color-picker',

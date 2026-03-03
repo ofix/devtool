@@ -38,6 +38,7 @@
     "7zip-bin": "^5.2.0",
     "basic-ftp": "^5.0.5",
     "electron-squirrel-startup": "^1.0.1",
+    "electron-store": "^11.0.2",
     "element-plus": "^2.11.8",
     "iconv-lite": "^0.7.2",
     "monaco-editor": "^0.55.1",
