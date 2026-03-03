@@ -166,18 +166,28 @@ export default class Screenshot {
         });
     }
 
-    async init(base64Image) {
-        try {
-            this.screenImage = await this._base64ToImage(base64Image);
-            // 绘制背景图：物理坐标（全屏绘制）
-            this.ctxBg.drawImage(
-                this.screenImage,
-                0, 0, this.screenImage.width, this.screenImage.height, // 图片原始尺寸
-                0, 0, this.physicalSize.width, this.physicalSize.height // 物理全屏
-            );
-        } catch (e) {
-            console.log(e);
-        }
+    async init(buffer) {
+        const dpr = window.devicePixelRatio || 1;
+        ctxBg.setTransform(1, 0, 0, 1, 0, 0);
+        ctxBg.scale(dpr, dpr);
+        // 5. 提升图像绘制质量
+        ctxBg.imageSmoothingEnabled = false;
+        ctxBg.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
+        ctxBg.mozImageSmoothingEnabled = false; // 兼容Firefox
+        ctxBg.msImageSmoothingEnabled = false; // 兼容IE/Edge
+        const imageBitmap = await createImageBitmap(new Blob([buffer]), {
+            resizeQuality: "pixelated", // 强制像素化缩放，无模糊
+        });
+        ctxBg.drawImage(
+            imageBitmap,
+            0, 0,
+            imageBitmap.width,
+            imageBitmap.height, // 源区域（原始像素
+            0, 0,
+            this.physicalSize.width,
+            this.physicalSize.height // 物理全屏
+        );
+        this.screenImage = imageBitmap;
     }
 
     setWindowList(windowList) {

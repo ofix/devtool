@@ -61,9 +61,8 @@ onMounted(async () => {
   }
 
   // 初始化截图（传入全屏截图图片，按需实现）
-  window.channel.getDesktopScreenshot().then((fullScreenImage) => {
-    screenshot.init(fullScreenImage);
-  }); // 自行实现截图逻辑
+  const pngBuffer = await window.channel.getDesktopScreenshot("buffer");
+  screenshot.init(pngBuffer);
 
   // 注册事件监听（接收类内部的状态通知）
   screenshot.on("showMagnifier", (show) => {

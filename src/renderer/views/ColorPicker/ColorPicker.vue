@@ -119,7 +119,6 @@ async function drawPngBuffer(ctx, buffer, width, height) {
   ctx.scale(dpr, dpr);
   // 5. 提升图像绘制质量
   ctx.imageSmoothingEnabled = false;
-  ctx.imageSmoothingEnabled = false;
   ctx.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
   ctx.mozImageSmoothingEnabled = false; // 兼容Firefox
   ctx.msImageSmoothingEnabled = false; // 兼容IE/Edge
