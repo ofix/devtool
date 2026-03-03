@@ -1,72 +1,76 @@
 {
-  "name": "devtool",
-  "version": "1.0.0",
-  "private": true,
-  "productName": "DevTool",
-  "author": {
-    "name": "songhuabiao",
-    "email": "981326632@qq.com"
-  },
-  "description": "development tool for electron",
-  "license": "MIT",
-  "type": "module",
-  "main": "dist/electron/main.js",
-  "scripts": {
-    "dev": "vite --port=8080",
-    "preview": "vite preview",
-    "start": "electron-forge start",
-    "copy:electron": "node build/copy.electron.js",
-    "build": "vite build && npm run copy:electron",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "build:mac": "electron-builder --mac"
-  },
-  "build": {
-    "appId": "com.ofix.devtool",
-    "productName": "devtool",
-    "mac": {
-      "icon": "renderer/assets/devtool.icns",
-      "target": [
-        "dmg"
-      ]
+    "name": "devtool",
+    "version": "1.0.0",
+    "private": true,
+    "productName": "DevTool",
+    "author": {
+        "name": "songhuabiao",
+        "email": "981326632@qq.com"
+    },
+    "description": "development tool for electron",
+    "license": "MIT",
+    "type": "module",
+    "main": "dist/electron/main.js",
+    "scripts": {
+        "dev": "vite --port=8080",
+        "preview": "vite preview",
+        "start": "electron-forge start",
+        "copy:electron": "node build/copy.electron.js",
+        "build": "vite build && npm run copy:electron",
+        "package": "electron-forge package",
+        "make": "electron-forge make",
+        "build:mac": "electron-builder --mac"
+    },
+    "build": {
+        "appId": "com.ofix.devtool",
+        "productName": "devtool",
+        "mac": {
+            "icon": "renderer/assets/devtool.icns",
+            "target": [
+                "dmg"
+            ]
+        },
+        "asarUnpack": [
+            "node_modules/@ffmpeg-installer/ffmpeg/**/*"
+        ]
+    },
+    "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "@prettier/plugin-php": "^0.24.0",
+        "@prettier/plugin-python": "^0.0.0-development",
+        "@prettier/plugin-ruby": "^4.0.4",
+        "7zip-bin": "^5.2.0",
+        "basic-ftp": "^5.0.5",
+        "electron-squirrel-startup": "^1.0.1",
+        "electron-store": "^11.0.2",
+        "element-plus": "^2.11.8",
+        "iconv-lite": "^0.7.2",
+        "monaco-editor": "^0.55.1",
+        "node-7z": "^3.0.0",
+        "node-ssh": "^13.2.1",
+        "pinia": "^2.2.6",
+        "prettier": "^3.7.4",
+        "screenshot-desktop": "^1.15.3",
+        "ssh2": "^1.17.0",
+        "vue": "^3.5.12",
+        "vue-json-pretty": "^2.6.0",
+        "vue-router": "^4.4.5"
+    },
+    "devDependencies": {
+        "@electron-forge/cli": "^7.10.2",
+        "@electron-forge/maker-deb": "^7.10.2",
+        "@electron-forge/maker-rpm": "^7.10.2",
+        "@electron-forge/maker-squirrel": "^7.10.2",
+        "@electron-forge/maker-wix": "^7.10.2",
+        "@electron-forge/maker-zip": "^7.10.2",
+        "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
+        "@electron-forge/plugin-fuses": "^7.10.2",
+        "@electron/fuses": "^1.8.0",
+        "@vitejs/plugin-vue": "^5.1.4",
+        "@vitejs/plugin-vue-jsx": "^4.2.0",
+        "electron": "^33.2.1",
+        "sass-embedded": "^1.93.3",
+        "vite": "^5.4.10",
+        "vite-plugin-vue-devtools": "^7.5.4"
     }
-  },
-  "dependencies": {
-    "@prettier/plugin-php": "^0.24.0",
-    "@prettier/plugin-python": "^0.0.0-development",
-    "@prettier/plugin-ruby": "^4.0.4",
-    "7zip-bin": "^5.2.0",
-    "basic-ftp": "^5.0.5",
-    "electron-squirrel-startup": "^1.0.1",
-    "electron-store": "^11.0.2",
-    "element-plus": "^2.11.8",
-    "iconv-lite": "^0.7.2",
-    "monaco-editor": "^0.55.1",
-    "node-7z": "^3.0.0",
-    "node-ssh": "^13.2.1",
-    "pinia": "^2.2.6",
-    "prettier": "^3.7.4",
-    "screenshot-desktop": "^1.15.3",
-    "ssh2": "^1.17.0",
-    "vue": "^3.5.12",
-    "vue-json-pretty": "^2.6.0",
-    "vue-router": "^4.4.5"
-  },
-  "devDependencies": {
-    "@electron-forge/cli": "^7.10.2",
-    "@electron-forge/maker-deb": "^7.10.2",
-    "@electron-forge/maker-rpm": "^7.10.2",
-    "@electron-forge/maker-squirrel": "^7.10.2",
-    "@electron-forge/maker-wix": "^7.10.2",
-    "@electron-forge/maker-zip": "^7.10.2",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
-    "@electron-forge/plugin-fuses": "^7.10.2",
-    "@electron/fuses": "^1.8.0",
-    "@vitejs/plugin-vue": "^5.1.4",
-    "@vitejs/plugin-vue-jsx": "^4.2.0",
-    "electron": "^33.2.1",
-    "sass-embedded": "^1.93.3",
-    "vite": "^5.4.10",
-    "vite-plugin-vue-devtools": "^7.5.4"
-  }
 }

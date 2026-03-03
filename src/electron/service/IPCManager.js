@@ -13,6 +13,7 @@ import native from "./DevtoolNative.js";
 import debugLogger from './DebugLogger.js';
 import { diffFileContent } from '../core/FileDiff.js';
 import { DirDiff } from '../core/DirDiff.js';
+import VideoRecorder from './VideoRecorder.js'
 
 // 日志缓存上限
 
@@ -449,6 +450,42 @@ class IPCManager extends Singleton {
         });
         // 暂存滚动截图
         ipcMain.on('save-scroll-screenshot', (event, screenshotBase64) => {
+        });
+        // 开始视频录制
+        ipcMain.handle('video-record:start', (event, options) => {
+            if (options.type == 'region') {
+                return VideoRecorder.startRecording({
+                    type: 'region',
+                    savePath,
+                    bounds: options.bounds, // {x: 100, y: 100, width: 800, height: 600}
+                    config: { fps: 30 }
+                })
+            } else if (options.type == 'window') {
+                return VideoRecorder.startRecording({
+                    type: 'window',
+                    savePath,
+                    windowId: option.windowId, // 录制主窗口
+                    config: { format: 'mkv' }
+                })
+            } else if (options.type == 'fullscreen') {
+                return VideoRecorder.startRecording({
+                    type: 'fullscreen',
+                    savePath,
+                    config: { fps: 60, preset: 'ultrafast' }
+                })
+            }
+        });
+        // 暂停视频录制
+        ipcMain.handle('video-record:pause', (event, id) => {
+            return VideoRecorder.pauseRecording();
+        });
+        // 恢复视频录制
+        ipcMain.handle('vide-record:resume',(event,id)=>{
+            return VideoRecorder.resumeRecording();
+        });
+        // 停止视频录制
+        ipcMain.handle('video-record:stop', (event, id) => {
+            return VideoRecorder.stopRecording();
         });
         // 切换标尺方向（调整窗口尺寸）
         ipcMain.handle('ruler:toggle-type', () => {

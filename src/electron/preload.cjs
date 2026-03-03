@@ -137,6 +137,7 @@ contextBridge.exposeInMainWorld('channel', {
     enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
     saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
     closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
+    // 贴图
     createPinImage: (imageBuffer) => ipcRenderer.invoke('pin-image:create', imageBuffer),
     getAllPinImages: () => ipcRenderer.invoke('pin-image:get-all'),
     getPinImage: (pinId) => ipcRenderer.invoke('pin-image:get-one', pinId),
@@ -146,6 +147,11 @@ contextBridge.exposeInMainWorld('channel', {
     closePinWnd: (pinId) => ipcRenderer.invoke('pin-image:close-wnd', pinId),
     closeAllPinWnd: () => ipcRenderer.invoke('pin-image:close-all-wnd'),
     setPinWndBounds: (x, y, width, height) => ipcRenderer.invoke('pin-image:set-wnd-bounds', x, y, width, height),
+    // 视频录制
+    startVideoRecord:(options)=>ipcRenderer.invoke('video-record:start',options),
+    pauseVideoRecord:(id)=>ipcRenderer.invoke('video-record:pause',id),
+    resumeVideoRecord:(id)=>ipcRenderer.invoke('video-record:resume',id),
+    stopVideoRecord:(id,path)=> ipcRenderer.invoke('video-record:stop',id,path),
     // 屏幕取色器
     openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
     cancelColorPicker: () => ipcRenderer.invoke('color-picker:cancel'),
