@@ -106,12 +106,13 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: 0, y: 0, width, height,
-                alwaysOnTop: true,
+                alwaysOnTop: true, show: false,
             },
             custom: {
                 url: '/screenshot/capture',
                 levelName: 'screen-saver',
-                levelZOrder: 10
+                levelZOrder: 10,
+                devTool:false,
             }
         };
     }

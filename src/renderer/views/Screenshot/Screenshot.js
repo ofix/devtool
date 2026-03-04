@@ -70,6 +70,7 @@ export default class Screenshot {
 
         this.magnifierTimer = null;
         this.renderThrottleDelay = 16;
+        this.captureFinish = false;
 
         // 核心状态：所有坐标都是物理像素！
         this.state = {
@@ -95,6 +96,7 @@ export default class Screenshot {
         this.screenImage = null;
         this.windowList = [];
         this.captureWindow = null;
+        this.isRefreshing = false;
 
         // 初始化
         this._initCanvas();
@@ -122,6 +124,10 @@ export default class Screenshot {
         };
     }
 
+    getMarkManager() {
+        return this.state.markManager;
+    }
+
     // ========== 初始化Canvas：纯物理尺寸 ==========
     _initCanvas() {
         // 所有Canvas仅设置物理尺寸，不设置CSS尺寸（Electron全屏窗口中，Canvas会自动填满）
@@ -131,7 +137,6 @@ export default class Screenshot {
         this.canvasCapture.height = this.physicalSize.height;
         this.canvasOffscreen.width = this.physicalSize.width;
         this.canvasOffscreen.height = this.physicalSize.height;
-
         // 放大镜Canvas（纯物理尺寸）
         if (this.canvasMagnifier) {
             this.canvasMagnifier.width = Screenshot.CONFIG.MAGNIFIER_SIZE;
@@ -168,17 +173,17 @@ export default class Screenshot {
 
     async init(buffer) {
         const dpr = window.devicePixelRatio || 1;
-        ctxBg.setTransform(1, 0, 0, 1, 0, 0);
-        ctxBg.scale(dpr, dpr);
+        this.ctxBg.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctxBg.scale(dpr, dpr);
         // 5. 提升图像绘制质量
-        ctxBg.imageSmoothingEnabled = false;
-        ctxBg.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
-        ctxBg.mozImageSmoothingEnabled = false; // 兼容Firefox
-        ctxBg.msImageSmoothingEnabled = false; // 兼容IE/Edge
+        this.ctxBg.imageSmoothingEnabled = false;
+        this.ctxBg.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
+        this.ctxBg.mozImageSmoothingEnabled = false; // 兼容Firefox
+        this.ctxBg.msImageSmoothingEnabled = false; // 兼容IE/Edge
         const imageBitmap = await createImageBitmap(new Blob([buffer]), {
             resizeQuality: "pixelated", // 强制像素化缩放，无模糊
         });
-        ctxBg.drawImage(
+        this.ctxBg.drawImage(
             imageBitmap,
             0, 0,
             imageBitmap.width,
@@ -188,6 +193,10 @@ export default class Screenshot {
             this.physicalSize.height // 物理全屏
         );
         this.screenImage = imageBitmap;
+    }
+
+    getCaptureRect() {
+        return this.state.currentSelection;
     }
 
     setWindowList(windowList) {
@@ -315,7 +324,7 @@ export default class Screenshot {
             }
         } else {
             // 鼠标按下时的逻辑（物理坐标）
-            if (this.state.drawingState >= 30) {
+            if (this.state.drawingState >= Screenshot.DrawingState.DRAW_LINE) {
                 // 标注绘制（物理坐标）
                 this.state.markManager.updateDrawing(mouseX, mouseY);
             } else {
@@ -332,7 +341,7 @@ export default class Screenshot {
                 } else {
                     this._moveSelection(mouseX, mouseY);
                 }
-                this._emit("showToolbar", false);
+
             }
         }
         this.refresh(e);
@@ -343,26 +352,59 @@ export default class Screenshot {
             this._emit("showMagnifier", false);
             clearTimeout(this.magnifierTimer);
         }
-        this.state.isMouseDown = false;
-        this.canvasCapture.style.cursor = "crosshair";
 
-        if (this.state.drawingState >= 30) {
+        if (this.state.drawingState >= Screenshot.DrawingState.DRAW_LINE) { // 标注完成
             this.state.markManager.finishDrawing();
             this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
-            return;
         }
 
+        /*开始标注 */
         if (this.state.drawingState >= 11 && this.state.drawingState <= 20) {
-            this._calculateToolbarPos();
-            this.state.showCtrlPoints = true;
             this.refresh(e);
         }
-        this._emit("showToolbar", true);
-        this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
+        // 绘制完成，需要修改选区cavnas的宽高、
+        // 原因：transform 不会触发重排，动画更流畅，且和之前的居中动画兼容
+        if (this.state.isMouseDown) {
+            this.state.isMouseDown = false;
+            this.canvasCapture.style.cursor = "arrow";
+            if (this.state.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+                const { x, y, width, height } = this.state.currentSelection;
+
+                const dpr = this.dpr; // 设备像素比（如 2 表示高清屏）
+                // ========== 第一步：保存选框的逻辑坐标（供动画使用） ==========
+                this.captureStartPos = {
+                    x: x / dpr, // 选框左上角X（逻辑坐标）
+                    y: y / dpr, // 选框左上角Y（逻辑坐标）
+                    width: width / dpr, // 选框宽度（逻辑坐标）
+                    height: height / dpr // 选框高度（逻辑坐标）
+                };
+
+                // 2. 设置 canvas 绘图缓冲区尺寸（物理像素）
+                this.canvasCapture.width = width;
+                this.canvasCapture.height = height;
+                // 3. 设置 CSS 显示尺寸（逻辑像素，保证视觉大小正确）
+                this.canvasCapture.style.width = `${this.captureStartPos.width}px`;
+                this.canvasCapture.style.height = `${this.captureStartPos.height}px`;
+                // 4. 定位到选框位置（绝对定位）
+                this.canvasCapture.style.position = "fixed";
+                this.canvasCapture.style.left = `${this.captureStartPos.x}px`;
+                this.canvasCapture.style.top = `${this.captureStartPos.y}px`;
+                this.canvasCapture.style.right = "auto";
+                this.canvasCapture.style.bottom = "auto";
+                this.captureFinish = true;
+                this.refresh(e);
+                setTimeout(() => {
+                    this._emit("CaptureFinish", true);
+                }, 320);
+
+                this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
+            }
+        }
     }
 
     onMouseLeave() {
-        dt.log("mouse leave");
+        // this.state.isMouseDown = false;
+        window.channel.debug("mouse leave");
     }
 
     onKeyDown(e) {
@@ -461,8 +503,11 @@ export default class Screenshot {
         newX = Math.max(0, Math.min(newX, this.physicalSize.width - width));
         newY = Math.max(0, Math.min(newY, this.physicalSize.height - height));
 
-        this.state.currentSelection.x = newX;
-        this.state.currentSelection.y = newY;
+        let left = Math.floor(newX / this.dpr);
+        let top = Math.floor(newY / this.dpr);
+
+        this.canvasCapture.style.left = `${left}px`;
+        this.canvasCapture.style.top = `${top}px`;
     }
 
     _adjustSelection(mouseX, mouseY) {
@@ -602,40 +647,59 @@ export default class Screenshot {
     // ========== 绘制选区：纯物理像素 ==========
     _drawCurrentSelection() {
         const { x, y, width, height } = this.state.currentSelection;
-
-        this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
-        this.ctxOffscreen.lineWidth = 2; // 物理像素线宽
-        // 物理坐标绘制，取整避免亚像素模糊
-        this.ctxOffscreen.strokeRect(
-            Math.floor(x),
-            Math.floor(y),
-            Math.floor(width),
-            Math.floor(height)
-        );
+        if (this.captureFinish) {
+            this.ctxOffscreen.imageSmoothingEnabled = false;
+            this.ctxOffscreen.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
+            this.ctxOffscreen.mozImageSmoothingEnabled = false; // 兼容Firefox
+            this.ctxOffscreen.msImageSmoothingEnabled = false; // 兼容IE/Edge
+            this.ctxOffscreen.drawImage(this.screenImage,
+                Math.floor(x),
+                Math.floor(y),
+                Math.floor(width),
+                Math.floor(height),
+                0, 0,
+                Math.floor(width),
+                Math.floor(height)
+            )
+        } else {
+            this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
+            this.ctxOffscreen.lineWidth = 2; // 物理像素线宽
+            // 物理坐标绘制，取整避免亚像素模糊
+            this.ctxOffscreen.strokeRect(
+                Math.floor(x),
+                Math.floor(y),
+                Math.floor(width),
+                Math.floor(height)
+            );
+        }
     }
 
     // ========== 重绘：纯物理像素 ==========
     refresh(e) {
-        // 清除上一次选区
-        this._clearLastSelection();
-        // 绘制当前选区
-        this._drawCurrentSelection();
-        // 绘制标注和控制点
-        this.state.markManager.redraw();
-        if (this.state.showCtrlPoints) this._drawControlPoints();
-        // 刷新主画布（物理坐标）
-        this.ctxCapture.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
-        this.ctxCapture.drawImage(this.canvasOffscreen, 0, 0);
+        try {
+            // 清除上一次选区
+            this._clearLastSelection();
+            // 绘制当前选区
+            this._drawCurrentSelection();
+            // 绘制标注和控制点
+            this.state.markManager.redraw();
+            if (this.state.showCtrlPoints) this._drawControlPoints();
+            // 刷新主画布（物理坐标）
+            this.ctxCapture.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
+            this.ctxCapture.drawImage(this.canvasOffscreen, 0, 0);
 
-        // 更新放大镜
-        if (!this.magnifierTimer && e) {
-            this.magnifierTimer = setTimeout(() => {
-                this._updateMagnifierRender(e);
-                this.magnifierTimer = null;
-            }, this.renderThrottleDelay);
+            // 更新放大镜（仅在非拖拽状态下执行，减少开销）
+            if (!this.isDragging && !this.magnifierTimer && e) {
+                this.magnifierTimer = setTimeout(() => {
+                    this._updateMagnifierRender(e);
+                    this.magnifierTimer = null;
+                }, this.renderThrottleDelay);
+            }
+            // 记录上一次选区
+            this.state.lastSelection = { ...this.state.currentSelection };
+        } catch (error) {
+            window.channel.debug(error);
         }
-        // 记录上一次选区
-        this.state.lastSelection = { ...this.state.currentSelection };
     }
 
     _updateMagnifierRender(e) {

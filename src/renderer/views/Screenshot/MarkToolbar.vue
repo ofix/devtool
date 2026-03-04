@@ -1,6 +1,6 @@
 <template>
   <!-- 截图编辑标注工具条 -->
-  <div :style="toolbarStyle" class="mark-toolbar" v-show="visible">
+  <div class="mark-toolbar">
     <div class="edit-toolbar-content">
       <BtnSelect
         @click="onSelect"
@@ -107,19 +107,7 @@ const props = defineProps({
 });
 
 // 暴露事件给父组件
-const emit = defineEmits(["cancel", "finish", "toolChange"]);
-
-// 工具栏样式
-const toolbarStyle = computed(() => ({
-  position: "fixed",
-  zIndex: 10001,
-  backgroundColor: "rgba(30, 30, 30, 0.95)",
-  borderRadius: "2px",
-  padding: "8px",
-  margin: 0,
-  left: `${props.position.x}px`,
-  top: `${props.position.y}px`,
-}));
+const emit = defineEmits(["cancel", "finish", "markToolChange"]);
 
 // 响应式数据
 const currentTool = ref(ShapeType.NONE); // 当前工具
@@ -128,20 +116,20 @@ const currentTool = ref(ShapeType.NONE); // 当前工具
 function onSelect() {
   if (currentTool.value == ShapeType.SELECT) {
     currentTool.value = ShapeType.NONE;
-    emit("toolChange", ShapeType.NONE);
+    emit("markToolChange", ShapeType.NONE);
   } else {
     currentTool.value = ShapeType.SELECT;
-    emit("toolChange", ShapeType.SELECT);
+    emit("markToolChange", ShapeType.SELECT);
   }
 }
 
 function onClickTool(tool) {
   if (currentTool.value == tool) {
     currentTool.value = ShapeType.NONE;
-    emit("toolChange", ShapeType.NONE);
+    emit("markToolChange", ShapeType.NONE);
   } else {
     currentTool.value = tool;
-    emit("toolChange", tool);
+    emit("markToolChange", tool);
   }
 }
 
@@ -202,6 +190,9 @@ onMounted(() => {
 <style scoped>
 .mark-toolbar {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  background: rgba(33,33,33,0.85);
+  border-radius:4px;
+  padding:6px;
 }
 
 .edit-toolbar-content {
@@ -215,8 +206,8 @@ onMounted(() => {
 }
 
 .edit-toolbar-content svg {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   fill: #ffffff;
   padding: 4px;
   border-radius: 4px;
@@ -235,7 +226,7 @@ onMounted(() => {
 
 .toolbar-divider {
   width: 1px;
-  height: 24px;
+  height: 36px;
   background: rgba(255, 255, 255, 0.2);
   margin: 0 4px;
 }
@@ -243,8 +234,8 @@ onMounted(() => {
 /* 撤销/重做按钮样式 */
 .undo-btn,
 .redo-btn {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.1);
