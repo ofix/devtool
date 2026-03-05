@@ -1,23 +1,27 @@
 <template>
   <div class="screenshot-container">
     <!-- 桌面背景 -->
-    <canvas ref="canvasScreen" class="screen-canvas"></canvas>
-    <!-- 中间遮罩层（添加动画类控制）-->
+    <canvas ref="layerDesktop" class="layer-desktop"></canvas>
+    <!-- 中间遮罩层 -->
     <div
-      ref="canvasMask"
-      class="mask-area"
-      :class="{ 'mask-animate': isCaptured }"
+      ref="layerMask"
+      class="layer-mask"
+      :class="{ 'mask-animate': captureFinished }"
     ></div>
-    <!-- 用户的截图区域（添加动画类控制）-->
+    <!-- 用户截图层 -->
     <canvas
-      ref="canvasCapture"
-      class="capture-canvas"
-      :class="{ 'capture-animate': isCaptured }"
+      ref="layerCapture"
+      class="layer-capture"
+      v-show="showCapture"
+      :class="{ 'capture-animate': captureFinished }"
       :style="{
         '--translate-x': translateX + 'px',
         '--translate-y': translateY + 'px',
       }"
-    ></canvas>
+    >
+    </canvas>
+    <!-- 用户编辑操作层-->
+    <canvas ref="layerOperation" class="layer-operation"></canvas>
 
     <!-- 放大窗（仅截图截断显示） -->
     <div
@@ -25,14 +29,14 @@
       class="magnifier-box"
       :style="{ left: `${magnifierPos.x}px`, top: `${magnifierPos.y}px` }"
     >
-      <canvas ref="canvasMagnifier" :width="200" :height="200"></canvas>
+      <canvas ref="layerMagnifierBox" :width="200" :height="200"></canvas>
     </div>
     <!-- 标注工具栏（添加动画类控制）-->
     <MarkToolbar
       ref="toolbarRef"
       :position="toolbarPos"
-      :class="{ 'toolbar-animate': isCaptured }"
-      :markManager="markManager"
+      :class="{ 'toolbar-animate': captureFinished }"
+      :markToolManager="markToolManager"
       @markToolChange="onMarkToolChange"
     />
   </div>
@@ -40,27 +44,26 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
-import { useRoute } from "vue-router";
 import Screenshot from "./Screenshot.js";
 import MarkToolbar from "./MarkToolbar.vue";
 
-// ========== 仅渲染相关的响应式变量 ==========
-const route = useRoute();
-const canvasScreen = ref(null);
-const canvasCapture = ref(null);
-const canvasMagnifier = ref(null);
+const layerDesktop = ref(null);
+const layerCapture = ref(null);
+const layerOperation = ref(null);
+const layerMagnifierBox = ref(null);
+const showCapture = ref(false);
+const showOperation = ref(true);
 const showMagnifier = ref(true);
 const showToolbar = ref(false);
 const magnifierPos = ref({ x: -1000, y: -1000 });
-let toolbarX = Math.floor((window.screen.width - 500) / 2);
-// 工具栏初始y坐标：屏幕高度+200（屏幕外）
-let toolbarY = window.screen.height + 200;
-
-const toolbarPos = ref({ x: toolbarX, y: toolbarY });
-const markManager = ref(null); // 标注管理器实例
-// 新增：标记截图完成状态，控制动画触发
-const isCaptured = ref(false);
-// 核心：存储需要移动的位移值（初始为0，无位移）
+const toolbarPos = ref({
+  x: Math.floor((window.screen.width - 500) / 2),
+  y: window.screen.height + 200,
+});
+const markToolManager = ref(null); // 标注管理器实例
+// 标记截图完成状态，控制动画触发
+const captureFinished = ref(false);
+// 存储需要移动的位移值
 const translateX = ref(0);
 const translateY = ref(0);
 
@@ -72,9 +75,10 @@ onMounted(async () => {
   // 初始化截图类实例
   let captureMode = await window.channel.getWindowOptions("ScreenshotToolWnd");
   screenshot = new Screenshot(
-    canvasScreen.value,
-    canvasCapture.value,
-    canvasMagnifier.value,
+    layerDesktop.value,
+    layerCapture.value,
+    layerOperation.value,
+    layerMagnifierBox.value,
     captureMode
   );
 
@@ -96,29 +100,42 @@ onMounted(async () => {
   });
 
   screenshot.on("CaptureFinish", async () => {
-    showToolbar.value = false;
+    showOperation.value = false;
+    showCapture.value = true;
+    showToolbar.value = true;
+    setTimeout(async () => {
+      const captureRect = screenshot.getCaptureRect(); // 假设返回 {x, y, width, height}
+      if (captureRect) {
+        // 平移X = 屏幕中心X - 选中区域中心X
+        translateX.value =
+          window.innerWidth / 2 - (captureRect.x + captureRect.width / 2);
+        // 平移Y = 屏幕中心Y - 选中区域中心Y
+        translateY.value =
+          window.innerHeight / 2 - (captureRect.y + captureRect.height / 2);
+      }
 
-    const captureRect = screenshot.getCaptureRect(); // 假设返回 {x, y, width, height}
-    if (captureRect) {
-      // 平移X = 屏幕中心X - 选中区域中心X
-      translateX.value =
-        window.innerWidth / 2 - (captureRect.x + captureRect.width / 2);
-      // 平移Y = 屏幕中心Y - 选中区域中心Y
-      translateY.value =
-        window.innerHeight / 2 - (captureRect.y + captureRect.height / 2);
-    }
+      toolbarPos.value = {
+        x: Math.floor((window.screen.width - 500) / 2), // x保持居中不变
+        y: window.screen.height - 40,
+      };
+      // 2. 等待DOM更新后触发动画
+      await nextTick();
+      captureFinished.value = true;
+      setTimeout(() => {
+        // 动画结束，需要将 layerCapture 和 layerOperation 都搞成全屏的canvas才行，
+        // 否则缩放和移动的操作同步会很麻烦
+        // 1. 将用户选区移动到屏幕中央
+        screenshot.moveCaptureRect(translateX.value,translateY.value);
+        screenshot.beginEdit();
+        // 2. 将layerCapture 调整为全屏并重新渲染图像，保持图像在中央不变
+        showOperation.value = true;
 
-    toolbarPos.value = {
-      x: toolbarX, // x保持居中不变
-      y: window.screen.height - 40,
-    };
-    // 2. 等待DOM更新后触发动画
-    await nextTick();
-    isCaptured.value = true;
+      }, 1000);
+    }, 120);
   });
 
   // 绑定鼠标事件,以下代码在全透明的canvas中移动鼠标过程中，会出现频繁触发 mouseleave 事件的问题
-  // const canvas = canvasCapture.value;
+  // const canvas = layerOperation.value;
   // canvas.addEventListener("mousedown", screenshot.onMouseDown);
   // canvas.addEventListener("mousemove", screenshot.onMouseMove);
   // canvas.addEventListener("mouseup", screenshot.onMouseUp);
@@ -131,7 +148,7 @@ onMounted(async () => {
   window.addEventListener("mouseleave", screenshot.onMouseLeave);
   window.addEventListener("keydown", screenshot.onKeyDown);
 
-  markManager.value = screenshot.getMarkManager();
+  markToolManager.value = screenshot.getMarkManager();
   window.channel.showWindow("CaptureWnd");
 });
 
@@ -159,7 +176,7 @@ canvas {
   will-change: transform; /* 告诉浏览器提前优化 */
   backface-visibility: hidden; /* 防止闪烁 */
 }
-.screen-canvas {
+.layer-desktop {
   position: fixed;
   top: 0;
   left: 0;
@@ -168,7 +185,7 @@ canvas {
   cursor: crosshair;
 }
 /* 遮罩层基础样式 + 优化动画 */
-.mask-area {
+.layer-mask {
   position: fixed; /* 补充定位，确保全屏覆盖 */
   top: 0;
   left: 0;
@@ -204,7 +221,8 @@ canvas {
 }
 
 /* 截图区域 */
-.capture-canvas {
+.layer-capture,
+.layer-operation {
   position: fixed;
   top: 0;
   left: 0;
@@ -214,6 +232,11 @@ canvas {
   transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   will-change: transform;
 }
+
+.layer-operation{
+    border:1px solid #FF0000;
+}
+
 /* 截图区域动画类：移动到屏幕居中*/
 .capture-animate {
   transform: translate(var(--translate-x), var(--translate-y)) !important;

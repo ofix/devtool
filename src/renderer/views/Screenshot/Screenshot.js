@@ -1,7 +1,7 @@
 import MarkManager from "./MarkManager.js"
-import PerformanceMonitor from "../../common/PerformanceMonitor.js";
 import { ShapeType } from "./Shapes/ShapeFactory.js";
 import ShapeFactory from "./Shapes/ShapeFactory.js";
+import TransformMatrix from "./TransformMatrix.js";
 
 export default class Screenshot {
     static DrawingState = Object.freeze({
@@ -43,23 +43,24 @@ export default class Screenshot {
         },
     };
 
-    constructor(canvasScreen, canvasCapture, canvasMagnifier, captureMode) {
+    constructor(layerDesktop, layerCapture, layerOperation, layerMagnifierBox, captureMode) {
         // DOM 元素
-        this.canvasBg = canvasScreen;
-        this.canvasCapture = canvasCapture;
-        this.canvasMagnifier = canvasMagnifier;
+        this.layerDesktop = layerDesktop;
+        this.layerCapture = layerCapture;
+        this.layerOperation = layerOperation;
+        this.layerMagnifierBox = layerMagnifierBox;
 
-        // Canvas 上下文（不调用scale，纯物理绘制）
-        this.ctxBg = this.canvasBg?.getContext("2d");
-        this.ctxCapture = this.canvasCapture?.getContext("2d");
-        this.ctxMagnifier = this.canvasMagnifier?.getContext("2d");
+        // Canvas 上下文
+        this.ctxDesktop = this.layerDesktop?.getContext("2d");
+        this.ctxCapture = this.layerCapture?.getContext("2d");
+        this.ctxOperation = this.layerOperation?.getContext("2d");
+        this.ctxMagnifierBox = this.layerMagnifierBox?.getContext("2d");
 
-        // 离屏 Canvas（纯物理尺寸）
+        // 离屏 Canvas
         this.canvasOffscreen = document.createElement("canvas");
         this.ctxOffscreen = this.canvasOffscreen.getContext("2d");
 
-        this.perf = new PerformanceMonitor();
-        // 核心：DPR仅用于坐标转换，不用于缩放上下文
+        // DPR仅用于坐标转换，不用于缩放上下文
         this.dpr = window.devicePixelRatio || 1;
 
         // ========== 全程使用物理尺寸 ==========
@@ -73,33 +74,29 @@ export default class Screenshot {
         this.captureFinish = false;
 
         // 核心状态：所有坐标都是物理像素！
-        this.state = {
-            isMouseDown: false,
-            drawingState: Screenshot.DrawingState.NO_ACTION,
-            currentSelection: { x: 0, y: 0, width: 0, height: 0 },  // 物理坐标
-            lastSelection: { x: 0, y: 0, width: 0, height: 0 },     // 物理坐标
-            startPos: { x: 0, y: 0 },                               // 物理坐标
-            initialMoveOffset: { x: 0, y: 0 },                      // 物理坐标
-            magnifierPos: { x: 0, y: 0 },                           // 物理坐标
-            toolbarPos: { x: 0, y: 0 },                             // 物理坐标
-            currentMarkTool: ShapeType.NONE,
-            markManager: null,
-            showCtrlPoints: false,
-        };
-        if (captureMode == "window") {
-            this.state.drawingState = Screenshot.DrawingState.WINDOW_CAPTURE;
-        } else if (captureMode == 'rect') {
-            this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
-        } else if (captureMode == 'scroll') {
-            this.state.drawingState = Screenshot.DrawingState.SCROLL_CAPTURE;
-        }
-        this.screenImage = null;
-        this.windowList = [];
-        this.captureWindow = null;
-        this.isRefreshing = false;
+        this.markManager = null;
+        this.currentMarkTool = ShapeType.NONE;
+        this.showCtrlPoints = false;
+        this.isMouseDown = false;
+        this.drawingState = this._getDrawingState(captureMode);
+        this.captureRect = { x: 0, y: 0, width: 0, height: 0 };       // 当前选区
+        this.lastCaptureRect = { x: 0, y: 0, width: 0, height: 0 };   // 上一个选区
+        this.captureStart = { x: 0, y: 0 };                           // 选区起始坐标
+        this.captureRectMoveOffset = { x: 0, y: 0 };                  // 选区移动偏移
+        this.magnifierBoxPos = { x: 0, y: 0 };                        // 放大镜起始XY位置
+        this.magnifierBoxCenter = { x: 0, y: 0 };                          // 放大镜中心坐标
+        this.toolbarPos = { x: 0, y: 0 };                             // 物理坐标
+        this.inEdit = false;                                          // 当前是否处于编辑状态
 
-        // 初始化
-        this._initCanvas();
+        this.imageDesktop = null; // 桌面背景图
+        this.imageCapture = null; // 用户选区图
+        this.windowList = [];     // 窗口截图模式下的窗口列表
+        this.history = [];        // 撤销和重做历史
+        this.historyIndex = -1;   // 当前操作序列
+        this.transform = new TransformMatrix(); // 变换矩阵，只在inEdit 模式下起作用
+        this.transform.identity();
+
+        this._initLayers();
         // 绑定事件
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
@@ -108,82 +105,50 @@ export default class Screenshot {
         this.onKeyDown = this.onKeyDown.bind(this);
     }
 
-    // ========== 逻辑坐标 → 物理坐标（核心转换） ==========
-    _logicalToPhysical(logicalX, logicalY) {
-        return {
-            x: Math.floor(logicalX * this.dpr), // 取整避免亚像素绘制
-            y: Math.floor(logicalY * this.dpr)
-        };
-    }
-
-    // ========== 物理坐标 → 逻辑坐标（仅用于对外输出） ==========
-    _physicalToLogical(physicalX, physicalY) {
-        return {
-            x: physicalX / this.dpr,
-            y: physicalY / this.dpr
-        };
-    }
-
-    getMarkManager() {
-        return this.state.markManager;
-    }
-
     // ========== 初始化Canvas：纯物理尺寸 ==========
-    _initCanvas() {
+    _initLayers() {
         // 所有Canvas仅设置物理尺寸，不设置CSS尺寸（Electron全屏窗口中，Canvas会自动填满）
-        this.canvasBg.width = this.physicalSize.width;
-        this.canvasBg.height = this.physicalSize.height;
-        this.canvasCapture.width = this.physicalSize.width;
-        this.canvasCapture.height = this.physicalSize.height;
+        this.layerDesktop.width = this.physicalSize.width;
+        this.layerDesktop.height = this.physicalSize.height;
+        this.layerCapture.width = this.physicalSize.width;
+        this.layerCapture.height = this.physicalSize.height;
+        this.layerOperation.width = this.physicalSize.width;
+        this.layerOperation.height = this.physicalSize.height;
         this.canvasOffscreen.width = this.physicalSize.width;
         this.canvasOffscreen.height = this.physicalSize.height;
         // 放大镜Canvas（纯物理尺寸）
-        if (this.canvasMagnifier) {
-            this.canvasMagnifier.width = Screenshot.CONFIG.MAGNIFIER_SIZE;
-            this.canvasMagnifier.height = Screenshot.CONFIG.MAGNIFIER_SIZE;
-            // 放大镜不scale，直接物理绘制
-            this.ctxMagnifier.imageSmoothingEnabled = false;
+        if (this.layerMagnifierBox) {
+            this.layerMagnifierBox.width = Screenshot.CONFIG.MAGNIFIER_SIZE;
+            this.layerMagnifierBox.height = Screenshot.CONFIG.MAGNIFIER_SIZE;
+            this.ctxMagnifierBox.imageSmoothingEnabled = false;
         }
 
         // 清空画布（物理坐标）
         this.ctxOffscreen.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
         this.ctxCapture.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
+        this.ctxOperation.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
 
         // 初始化标注管理器（传递物理尺寸）
-        this.state.markManager = new MarkManager(
-            this.canvasCapture,
+        this.markManager = new MarkManager(
+            this.layerOperation,
             this.canvasOffscreen,
             this.physicalSize // 标注也用物理像素绘制
         );
     }
 
-    _base64ToImage(base64Str) {
-        return new Promise((resolve, reject) => {
-            if (!base64Str || !base64Str.startsWith('data:image/')) {
-                reject(new Error('无效的 Base64 图片字符串'));
-                return;
-            }
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = (err) => reject(new Error(`图片加载失败：${err.message}`));
-            img.src = base64Str;
-        });
-    }
-
     async init(buffer) {
         const dpr = window.devicePixelRatio || 1;
-        this.ctxBg.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctxBg.scale(dpr, dpr);
+        this.ctxDesktop.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctxDesktop.scale(dpr, dpr);
         // 5. 提升图像绘制质量
-        this.ctxBg.imageSmoothingEnabled = false;
-        this.ctxBg.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
-        this.ctxBg.mozImageSmoothingEnabled = false; // 兼容Firefox
-        this.ctxBg.msImageSmoothingEnabled = false; // 兼容IE/Edge
+        this.ctxDesktop.imageSmoothingEnabled = false;
+        this.ctxDesktop.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
+        this.ctxDesktop.mozImageSmoothingEnabled = false; // 兼容Firefox
+        this.ctxDesktop.msImageSmoothingEnabled = false; // 兼容IE/Edge
         const imageBitmap = await createImageBitmap(new Blob([buffer]), {
             resizeQuality: "pixelated", // 强制像素化缩放，无模糊
         });
-        this.ctxBg.drawImage(
+        this.ctxDesktop.drawImage(
             imageBitmap,
             0, 0,
             imageBitmap.width,
@@ -192,11 +157,120 @@ export default class Screenshot {
             this.physicalSize.width,
             this.physicalSize.height // 物理全屏
         );
-        this.screenImage = imageBitmap;
+        this.imageDesktop = imageBitmap;
     }
 
+    // 保存状态用于撤销
+    saveState() {
+        // 只保存到当前索引之前
+        this.history = this.history.slice(0, this.historyIndex + 1);
+        this.history.push(this.transform.clone());
+        this.historyIndex++;
+    }
+
+    // 撤销
+    undo() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.transform.matrix = [...this.history[this.historyIndex]];
+            this.refresh();
+        }
+    }
+
+    // 重做
+    redo() {
+        if (this.historyIndex < this.history.length - 1) {
+            this.historyIndex++;
+            this.transform.matrix = [...this.history[this.historyIndex]];
+            this.refresh();
+        }
+    }
+
+    // 用户操作：平移
+    pan(dx, dy) {
+        this.saveState();
+        this.transform.translate(dx, dy);
+        this.refresh();
+    }
+
+    // 用户操作：缩放（以点为中心）
+    zoomAt(factor, centerX, centerY) {
+        this.saveState();
+
+        // 将屏幕中心点转换为图像坐标（变换前）
+        const imagePos = this.transform.inverseTransformPoint(centerX, centerY);
+
+        // 应用缩放
+        this.transform.scale(factor, factor);
+
+        // 计算新的平移，使中心点保持不变
+        const newScreenPos = this.transform.transformPoint(imagePos.x, imagePos.y);
+        const dx = centerX - newScreenPos.x;
+        const dy = centerY - newScreenPos.y;
+        this.transform.translate(dx, dy);
+
+        this.refresh();
+    }
+
+    // 用户操作：旋转
+    rotate(angle, centerX, centerY) {
+        this.saveState();
+
+        // 将旋转中心转换为图像坐标
+        const imagePos = this.transform.inverseTransformPoint(centerX, centerY);
+
+        // 平移到原点 -> 旋转 -> 平移回来
+        this.transform.translate(-centerX, -centerY);
+        this.transform.rotate(angle);
+        this.transform.translate(centerX, centerY);
+
+        this.refresh();
+    }
+
+    // 逻辑坐标 → 物理坐标
+    _logicalToPhysical(logicalX, logicalY) {
+        return {
+            x: Math.floor(logicalX * this.dpr), // 取整避免亚像素绘制
+            y: Math.floor(logicalY * this.dpr)
+        };
+    }
+
+    _getDrawingState(captureMode) {
+        if (captureMode == "window") {
+            return Screenshot.DrawingState.WINDOW_CAPTURE;
+        } else if (captureMode == 'rect') {
+            return Screenshot.DrawingState.DRAG_CAPTURE_AREA;
+        } else if (captureMode == 'scroll') {
+            return Screenshot.DrawingState.SCROLL_CAPTURE;
+        }
+        return Screenshot.DrawingState.NO_ACTION;
+    }
+
+    // 物理坐标 → 逻辑坐标（仅用于对外输出）
+    _physicalToLogical(physicalX, physicalY) {
+        return {
+            x: physicalX / this.dpr,
+            y: physicalY / this.dpr
+        };
+    }
+
+    getMarkManager() {
+        return this.markManager;
+    }
+
+    // 返回逻辑坐标
     getCaptureRect() {
-        return this.state.currentSelection;
+        return {
+            x: this.captureRect.x / this.dpr,
+            y: this.captureRect.y / this.dpr,
+            width: this.captureRect.width / this.dpr,
+            height: this.captureRect.height / this.dpr
+        };
+    }
+
+    // 截图动画完成，进入编辑模式(各种标注)
+    beginEdit() {
+        this.inEdit = true;
     }
 
     setWindowList(windowList) {
@@ -204,11 +278,11 @@ export default class Screenshot {
     }
 
     /**
-  * 判断鼠标是否在指定窗口的矩形区域内
-  * @param {Object} window - 窗口对象（包含x/y/width/height）
-  * @param {Object} mousePos - 鼠标坐标 {x, y}
-  * @returns {Boolean}
-  */
+     * 判断鼠标是否在指定窗口的矩形区域内
+     * @param {Object} window - 窗口对象（包含x/y/width/height）
+     * @param {Object} mousePos - 鼠标坐标 {x, y}
+     * @returns {Boolean}
+     */
     isMouseInWindow(window, mousePos) {
         const { x, y, width, height } = window;
         return (
@@ -220,7 +294,7 @@ export default class Screenshot {
     }
 
     /**
-     * 快速获取鼠标当前所在的窗口（核心方法）
+     * 快速获取鼠标当前所在的窗口
      * @returns {Object|null} 鼠标所在的窗口对象，无则返回null
      */
     getMouseHoverWindow(mousePos) {
@@ -245,53 +319,55 @@ export default class Screenshot {
         return candidateWindows[0];
     }
 
-    // ========== 鼠标按下事件 ==========
+    // 鼠标按下事件
     onMouseDown(e) {
-        this.state.isMouseDown = true;
+        this.isMouseDown = true;
         // 鼠标clientX/Y是逻辑坐标 → 转物理坐标
         const physicalPos = this._logicalToPhysical(e.clientX, e.clientY);
         const mouseX = physicalPos.x;
         const mouseY = physicalPos.y;
 
-        if (this.state.currentMarkTool === ShapeType.SELECT) {
+        if (this.currentMarkTool === ShapeType.SELECT) {
             return;
-        } else if (this.state.currentMarkTool !== ShapeType.NONE) {
-            const key = `DRAW_${ShapeFactory.typeToStr(this.state.currentMarkTool).toUpperCase()}`;
-            this.state.drawingState = Screenshot.DrawingState[key] || Screenshot.DrawingState.NO_ACTION;
+        } else if (this.currentMarkTool !== ShapeType.NONE) {
+            const key = `DRAW_${ShapeFactory.typeToStr(this.currentMarkTool).toUpperCase()}`;
+            this.drawingState = Screenshot.DrawingState[key] || Screenshot.DrawingState.NO_ACTION;
             // 标注也传递物理坐标
-            this.state.markManager.startDrawing(this.state.currentMarkTool, mouseX, mouseY);
+            this.markManager.startDrawing(this.currentMarkTool, mouseX, mouseY);
             return;
         }
 
         // 选区模式（全程物理坐标）
-        if (this.state.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) { // 物理像素的最小宽度
-            this.state.startPos = { x: mouseX, y: mouseY };
-            this.state.currentSelection = { x: mouseX, y: mouseY, width: 0, height: 0 };
-            this.state.showCtrlPoints = false;
-        } else if (this.state.drawingState == Screenshot.DrawingState.WINDOW_CAPTURE) {
+        if (this.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) { // 物理像素的最小宽度
+            this.captureStart = { x: mouseX, y: mouseY };
+            this.captureRect = { x: mouseX, y: mouseY, width: 0, height: 0 };
+        } else if (this.drawingState == Screenshot.DrawingState.WINDOW_CAPTURE) {
             // 检查当前鼠标所在方块
             if (this.captureWindow == null) {
-                this.state.showCtrlPoints = true;
-                this.captureWindow = this.state.currentSelection;
+                this.captureWindow = this.captureRect;
             }
         } else {
-            const controlPoint = this._isInControlPoint(mouseX, mouseY);
-            if (controlPoint) {
-                this.state.drawingState = controlPoint.state;
-                this.canvasCapture.style.cursor = controlPoint.cursor;
-            } else if (this._isInsideSelection(mouseX, mouseY)) {
-                this.state.drawingState = Screenshot.DrawingState.MOVE_CAPTURE_AREA;
-                this.canvasCapture.style.cursor = "move";
+            // const controlPoint = this._isInControlPoint(mouseX, mouseY);
+            // if (controlPoint) {
+            //     this.drawingState = controlPoint.state;
+            //     this.layerOperation.style.cursor = controlPoint.cursor;
+            // }
+
+            // 情形1 没有选区（用户开始拖拽选区）
+            // 情形2 选区已经存在
+            if (this._isInsideSelection(mouseX, mouseY)) {
+                this.drawingState = Screenshot.DrawingState.MOVE_CAPTURE_AREA;
+                this.layerOperation.style.cursor = "move";
                 // 物理坐标计算偏移
-                this.state.initialMoveOffset = {
-                    x: mouseX - this.state.currentSelection.x,
-                    y: mouseY - this.state.currentSelection.y,
+                this.captureRectMoveOffset = {
+                    x: mouseX - this.captureRect.x,
+                    y: mouseY - this.captureRect.y,
                 };
             } else {
-                this.state.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
-                this.state.startPos = { x: mouseX, y: mouseY };
-                this.state.currentSelection = { x: mouseX, y: mouseY, width: 0, height: 0 };
-                this.state.showCtrlPoints = false;
+                this.drawingState = Screenshot.DrawingState.DRAG_CAPTURE_AREA;
+                this.captureStart = { x: mouseX, y: mouseY };
+                this.captureRect = { x: mouseX, y: mouseY, width: 0, height: 0 };
+                this.showCtrlPoints = false;
             }
         }
     }
@@ -302,108 +378,87 @@ export default class Screenshot {
         const mouseX = physicalPos.x;
         const mouseY = physicalPos.y;
 
-        if (!this.state.isMouseDown) {
-            // 非拖动时检测控制点（物理坐标）
-            if (this.state.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
-                const controlPoint = this._isInControlPoint(mouseX, mouseY);
-                this.canvasCapture.style.cursor = controlPoint
-                    ? controlPoint.cursor
-                    : (this._isInsideSelection(mouseX, mouseY) ? "move" : "crosshair");
-            } else if (this.state.drawingState === Screenshot.DrawingState.WINDOW_CAPTURE) {
-                if (this.captureWindow == null) {
-                    let captureWindow = this.getMouseHoverWindow(physicalPos);
-                    if (captureWindow != null) {
-                        this.state.currentSelection = {
-                            x: captureWindow.x,
-                            y: captureWindow.y,
-                            width: captureWindow.width,
-                            height: captureWindow.height,
-                        };
-                    }
+        if (!this.isMouseDown) {
+            // 非拖动时检测控制点
+            if (this.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+                this.magnifierBoxCenter.x = mouseX;
+                this.magnifierBoxCenter.y = mouseY;
+                // const controlPoint = this._isInControlPoint(mouseX, mouseY);
+                // this.layerOperation.style.cursor = controlPoint
+                //     ? controlPoint.cursor
+                //     : (this._isInsideSelection(mouseX, mouseY) ? "move" : "crosshair");
+            }
+
+            if (this.drawingState === Screenshot.DrawingState.WINDOW_CAPTURE) {
+                let captureWindow = this.getMouseHoverWindow(physicalPos);
+                if (captureWindow != null) {
+                    this.captureRect = {
+                        x: captureWindow.x,
+                        y: captureWindow.y,
+                        width: captureWindow.width,
+                        height: captureWindow.height,
+                    };
                 }
             }
         } else {
             // 鼠标按下时的逻辑（物理坐标）
-            if (this.state.drawingState >= Screenshot.DrawingState.DRAW_LINE) {
+            if (this.drawingState >= Screenshot.DrawingState.DRAW_LINE) {
                 // 标注绘制（物理坐标）
-                this.state.markManager.updateDrawing(mouseX, mouseY);
+                this.markManager.updateDrawing(mouseX, mouseY);
             } else {
                 // 选区操作（纯物理坐标）
-                if (this.state.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
-                    this.state.currentSelection = {
-                        x: Math.min(this.state.startPos.x, mouseX),
-                        y: Math.min(this.state.startPos.y, mouseY),
-                        width: Math.abs(mouseX - this.state.startPos.x),
-                        height: Math.abs(mouseY - this.state.startPos.y),
+                if (this.drawingState === Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+                    this.magnifierBoxCenter.x = mouseX;
+                    this.magnifierBoxCenter.y = mouseY;
+                    this.captureRect = {
+                        x: Math.min(this.captureStart.x, mouseX),
+                        y: Math.min(this.captureStart.y, mouseY),
+                        width: Math.abs(mouseX - this.captureStart.x),
+                        height: Math.abs(mouseY - this.captureStart.y),
                     };
-                } else if (this.state.drawingState >= 10 && this.state.drawingState <= 20) {
+                } else if (this.drawingState >= 10 && this.drawingState <= 20) {
                     this._adjustSelection(mouseX, mouseY);
                 } else {
-                    this._moveSelection(mouseX, mouseY);
+                    this._moveCaptureRect(mouseX, mouseY);
                 }
 
             }
         }
-        this.refresh(e);
+        this.refresh();
     }
 
     onMouseUp(e) {
-        if (this.state.isMouseDown) {
+        if (this.isMouseDown) {
             this._emit("showMagnifier", false);
             clearTimeout(this.magnifierTimer);
         }
 
-        if (this.state.drawingState >= Screenshot.DrawingState.DRAW_LINE) { // 标注完成
-            this.state.markManager.finishDrawing();
-            this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
+        if (this.drawingState >= Screenshot.DrawingState.DRAW_LINE) { // 标注完成
+            this.markManager.finishDrawing();
+            this.drawingState = Screenshot.DrawingState.NO_ACTION;
         }
 
         /*开始标注 */
-        if (this.state.drawingState >= 11 && this.state.drawingState <= 20) {
-            this.refresh(e);
+        if (this.drawingState >= 11 && this.drawingState <= 20) {
+            this.refresh();
         }
         // 绘制完成，需要修改选区cavnas的宽高、
         // 原因：transform 不会触发重排，动画更流畅，且和之前的居中动画兼容
-        if (this.state.isMouseDown) {
-            this.state.isMouseDown = false;
-            this.canvasCapture.style.cursor = "arrow";
-            if (this.state.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
-                const { x, y, width, height } = this.state.currentSelection;
-
-                const dpr = this.dpr; // 设备像素比（如 2 表示高清屏）
-                // ========== 第一步：保存选框的逻辑坐标（供动画使用） ==========
-                this.captureStartPos = {
-                    x: x / dpr, // 选框左上角X（逻辑坐标）
-                    y: y / dpr, // 选框左上角Y（逻辑坐标）
-                    width: width / dpr, // 选框宽度（逻辑坐标）
-                    height: height / dpr // 选框高度（逻辑坐标）
-                };
-
-                // 2. 设置 canvas 绘图缓冲区尺寸（物理像素）
-                this.canvasCapture.width = width;
-                this.canvasCapture.height = height;
-                // 3. 设置 CSS 显示尺寸（逻辑像素，保证视觉大小正确）
-                this.canvasCapture.style.width = `${this.captureStartPos.width}px`;
-                this.canvasCapture.style.height = `${this.captureStartPos.height}px`;
-                // 4. 定位到选框位置（绝对定位）
-                this.canvasCapture.style.position = "fixed";
-                this.canvasCapture.style.left = `${this.captureStartPos.x}px`;
-                this.canvasCapture.style.top = `${this.captureStartPos.y}px`;
-                this.canvasCapture.style.right = "auto";
-                this.canvasCapture.style.bottom = "auto";
+        if (this.isMouseDown) {
+            this.isMouseDown = false;
+            this.layerOperation.style.cursor = "arrow";
+            if (this.drawingState == Screenshot.DrawingState.DRAG_CAPTURE_AREA) {
+                this.drawCaptureImage();
                 this.captureFinish = true;
                 this.refresh(e);
-                setTimeout(() => {
-                    this._emit("CaptureFinish", true);
-                }, 320);
-
-                this.state.drawingState = Screenshot.DrawingState.NO_ACTION;
+                this._emit("CaptureFinish", true);
+                this.drawingState = Screenshot.DrawingState.NO_ACTION;
             }
         }
     }
 
     onMouseLeave() {
-        // this.state.isMouseDown = false;
+        // this.isMouseDown = false;
         window.channel.debug("mouse leave");
     }
 
@@ -421,7 +476,7 @@ export default class Screenshot {
     _handleArrowKey(key, step) {
         this._updateSelection(key, step);
         this._updateMagnifier(key, step);
-        this.refresh({ clientX: this.state.currentSelection.x / this.dpr, clientY: this.state.currentSelection.y / this.dpr });
+        this.refresh({ clientX: this.captureRect.x / this.dpr, clientY: this.captureRect.y / this.dpr });
     }
 
     _updateMagnifier(direction, step) {
@@ -431,20 +486,20 @@ export default class Screenshot {
         const maxX = this.physicalSize.width - totalMagnifierSize;
         const maxY = this.physicalSize.height - totalMagnifierSize;
 
-        let { x, y } = this.state.magnifierPos;
+        let { x, y } = this.magnifierBoxPos;
         switch (direction) {
             case "ArrowUp": y = Math.max(0, y - step); break;
             case "ArrowDown": y = Math.min(maxY, y + step); break;
             case "ArrowLeft": x = Math.max(0, x - step); break;
             case "ArrowRight": x = Math.min(maxX, x + step); break;
         }
-        this.state.magnifierPos = { x, y };
+        this.magnifierBoxPos = { x, y };
         // 对外输出时转逻辑坐标
         this._emit("magnifierNewPos", this._physicalToLogical(x, y));
     }
 
     _updateSelection(direction, step) {
-        const selection = this.state.currentSelection;
+        const selection = this.captureRect;
         const maxX = this.physicalSize.width;
         const maxY = this.physicalSize.height;
 
@@ -477,7 +532,7 @@ export default class Screenshot {
         const height = Math.abs(newEndY - newStartY);
 
         // 更新选择区域
-        this.state.currentSelection = {
+        this.captureRect = {
             x: newStartX,
             y: newStartY,
             width: width,
@@ -491,9 +546,9 @@ export default class Screenshot {
     }
 
     // ========== 移动选区：纯物理坐标边界检查 ==========
-    _moveSelection(mouseX, mouseY) {
-        const { width, height } = this.state.currentSelection;
-        const { x: offsetX, y: offsetY } = this.state.initialMoveOffset;
+    _moveCaptureRect(mouseX, mouseY) {
+        const { width, height } = this.captureRect;
+        const { x: offsetX, y: offsetY } = this.captureRectMoveOffset;
 
         // 物理坐标计算新位置
         let newX = mouseX - offsetX;
@@ -506,15 +561,20 @@ export default class Screenshot {
         let left = Math.floor(newX / this.dpr);
         let top = Math.floor(newY / this.dpr);
 
-        this.canvasCapture.style.left = `${left}px`;
-        this.canvasCapture.style.top = `${top}px`;
+        this.layerOperation.style.left = `${left}px`;
+        this.layerOperation.style.top = `${top}px`;
+    }
+
+    moveCaptureRect(x, y) {
+        this.captureRect.x = x * this.dpr;
+        this.captureRect.y = y * this.dpr;
     }
 
     _adjustSelection(mouseX, mouseY) {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         const newSelection = { x, y, width, height };
 
-        switch (this.state.drawingState) {
+        switch (this.drawingState) {
             case Screenshot.DrawingState.DRAG_CAPTURE_CORNER_TOP_LEFT:
                 newSelection.x = mouseX; newSelection.y = mouseY;
                 newSelection.width = x + width - mouseX; newSelection.height = y + height - mouseY;
@@ -560,12 +620,12 @@ export default class Screenshot {
         newSelection.width = Math.min(newSelection.width, this.physicalSize.width - newSelection.x);
         newSelection.height = Math.min(newSelection.height, this.physicalSize.height - newSelection.y);
 
-        this.state.currentSelection = newSelection;
+        this.captureRect = newSelection;
     }
 
     // ========== 检测控制点：纯物理像素 ==========
     _isInControlPoint(mouseX, mouseY) {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS + 2 * this.dpr;
         const points = [
             { x, y, cursor: "nwse-resize", state: 3 },
@@ -590,13 +650,13 @@ export default class Screenshot {
 
     // ========== 检测选区内部：纯物理像素 ==========
     _isInsideSelection(mouseX, mouseY) {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
     }
 
     // ========== 计算工具栏位置：纯物理像素 ==========
     _calculateToolbarPos() {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         const { width: tbW, height: tbH } = Screenshot.CONFIG.TOOLBAR_SIZE;
 
         let tbX = x + width - tbW;
@@ -606,21 +666,66 @@ export default class Screenshot {
         tbX = Math.max(0, Math.min(tbX, this.physicalSize.width - tbW));
         tbY = Math.max(0, Math.min(tbY, this.physicalSize.height - tbH));
 
-        this.state.toolbarPos = { x: tbX, y: tbY };
+        this.toolbarPos = { x: tbX, y: tbY };
         // 对外输出转逻辑坐标
         this._emit("toolbarPosChange", this._physicalToLogical(tbX, tbY));
     }
 
-    // ========== 清除上一次选区：纯物理像素 ==========
-    _clearLastSelection() {
-        const { x, y, width, height } = this.state.lastSelection;
+    // 绘制静态图片
+    drawCaptureImage() {
+        if (!this.inEdit) {
+            // 截图完成CSS3动画，需要调整layerCapture 的大小和起始位置
+            const { x, y, width, height } = this.captureRect;
+            const dpr = this.dpr;
+            // 保存选框的逻辑坐标（供动画使用）
+            let rect = {
+                x: x / dpr, // 选框左上角X（逻辑坐标）
+                y: y / dpr, // 选框左上角Y（逻辑坐标）
+                width: width / dpr, // 选框宽度（逻辑坐标）
+                height: height / dpr // 选框高度（逻辑坐标）
+            };
+
+            // 设置 canvas 绘图缓冲区尺寸（物理像素）
+            this.layerCapture.width = width;
+            this.layerCapture.height = height;
+            // 设置 CSS 显示尺寸（逻辑像素，保证视觉大小正确）
+            this.layerCapture.style.width = `${rect.width}px`;
+            this.layerCapture.style.height = `${rect.height}px`;
+            // 定位到选框位置（绝对定位）
+            this.layerCapture.style.position = "fixed";
+            this.layerCapture.style.left = `${rect.x}px`;
+            this.layerCapture.style.top = `${rect.y}px`;
+            this.layerCapture.style.right = "auto";
+            this.layerCapture.style.bottom = "auto";
+
+            this.ctxCapture.imageSmoothingEnabled = false;
+            this.ctxCapture.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
+            this.ctxCapture.mozImageSmoothingEnabled = false; // 兼容Firefox
+            this.ctxCapture.msImageSmoothingEnabled = false; // 兼容IE/Edge
+            this.ctxCapture.drawImage(this.imageDesktop,
+                Math.floor(x),
+                Math.floor(y),
+                Math.floor(width),
+                Math.floor(height),
+                0, 0,
+                Math.floor(width),
+                Math.floor(height)
+            )
+        } else {
+
+        }
+    }
+
+    // 清除上一次选区：纯物理像素
+    _clearLastCaptureRect() {
+        const { x, y, width, height } = this.lastCaptureRect;
         const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS;
         this.ctxOffscreen.clearRect(x - radius * 2, y - radius * 2, width + radius * 4, height + radius * 4);
     }
 
-    // ========== 绘制控制点：纯物理像素 ==========
+    // 绘制控制点：纯物理像素
     _drawControlPoints() {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         const radius = Screenshot.CONFIG.CONTROL_POINT_RADIUS;
         const points = [
             { x, y, cursor: "nwse-resize", state: 3 },
@@ -644,24 +749,10 @@ export default class Screenshot {
         });
     }
 
-    // ========== 绘制选区：纯物理像素 ==========
-    _drawCurrentSelection() {
-        const { x, y, width, height } = this.state.currentSelection;
-        if (this.captureFinish) {
-            this.ctxOffscreen.imageSmoothingEnabled = false;
-            this.ctxOffscreen.webkitImageSmoothingEnabled = false; // 兼容webkit内核浏览器
-            this.ctxOffscreen.mozImageSmoothingEnabled = false; // 兼容Firefox
-            this.ctxOffscreen.msImageSmoothingEnabled = false; // 兼容IE/Edge
-            this.ctxOffscreen.drawImage(this.screenImage,
-                Math.floor(x),
-                Math.floor(y),
-                Math.floor(width),
-                Math.floor(height),
-                0, 0,
-                Math.floor(width),
-                Math.floor(height)
-            )
-        } else {
+    // 绘制选区：纯物理像素
+    _drawCurrentCaptureRect() {
+        if (!this.captureFinish) {
+            const { x, y, width, height } = this.captureRect;
             this.ctxOffscreen.strokeStyle = "rgba(0, 122, 255, 1)";
             this.ctxOffscreen.lineWidth = 2; // 物理像素线宽
             // 物理坐标绘制，取整避免亚像素模糊
@@ -675,38 +766,39 @@ export default class Screenshot {
     }
 
     // ========== 重绘：纯物理像素 ==========
-    refresh(e) {
-        try {
+    refresh() {
+        if (!this.inEdit) {
             // 清除上一次选区
-            this._clearLastSelection();
+            this._clearLastCaptureRect();
             // 绘制当前选区
-            this._drawCurrentSelection();
-            // 绘制标注和控制点
-            this.state.markManager.redraw();
-            if (this.state.showCtrlPoints) this._drawControlPoints();
-            // 刷新主画布（物理坐标）
-            this.ctxCapture.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
-            this.ctxCapture.drawImage(this.canvasOffscreen, 0, 0);
+            this._drawCurrentCaptureRect();
+            // 绘制标注
+            this.markManager.redraw();
+            // 选区拖拽控制点
+            if (this.showCtrlPoints) {
+                this._drawControlPoints();
+            }
+            // 刷新画布（物理坐标）
+            this.ctxOperation.clearRect(0, 0, this.physicalSize.width, this.physicalSize.height);
+            this.ctxOperation.drawImage(this.canvasOffscreen, 0, 0);
 
             // 更新放大镜（仅在非拖拽状态下执行，减少开销）
-            if (!this.isDragging && !this.magnifierTimer && e) {
+            if (!this.isDragging && !this.magnifierTimer) {
                 this.magnifierTimer = setTimeout(() => {
-                    this._updateMagnifierRender(e);
+                    this._updateMagnifierRender();
                     this.magnifierTimer = null;
                 }, this.renderThrottleDelay);
             }
             // 记录上一次选区
-            this.state.lastSelection = { ...this.state.currentSelection };
-        } catch (error) {
-            window.channel.debug(error);
+            this.lastCaptureRect = { ...this.captureRect };
         }
+
     }
 
-    _updateMagnifierRender(e) {
+    _updateMagnifierRender() {
         // 逻辑坐标转物理坐标
-        const physicalPos = this._logicalToPhysical(e.clientX, e.clientY);
-        const mouseX = physicalPos.x;
-        const mouseY = physicalPos.y;
+        const mouseX = this.magnifierBoxCenter.x;
+        const mouseY = this.magnifierBoxCenter.y;
 
         const magnifierSize = 15; // 物理像素
         const pixelSize = 10;     // 物理像素
@@ -719,14 +811,14 @@ export default class Screenshot {
         if (magY + totalSize > this.physicalSize.height) magY = mouseY - totalSize - 20 * this.dpr;
         magX = Math.max(0, magX);
         magY = Math.max(0, magY);
-        this.state.magnifierPos = { x: magX, y: magY };
+        this.magnifierBoxPos = { x: magX, y: magY };
 
         // 清空放大镜（物理坐标）
-        this.ctxMagnifier.clearRect(0, 0, totalSize, totalSize);
+        this.ctxMagnifierBox.clearRect(0, 0, totalSize, totalSize);
 
         // 绘制放大区域（纯物理像素）
-        this.ctxMagnifier.drawImage(
-            this.canvasBg,
+        this.ctxMagnifierBox.drawImage(
+            this.layerDesktop,
             mouseX - Math.floor(magnifierSize / 2),
             mouseY - Math.floor(magnifierSize / 2),
             magnifierSize, magnifierSize,
@@ -735,37 +827,37 @@ export default class Screenshot {
         );
 
         // 绘制网格（物理像素）
-        this.ctxMagnifier.strokeStyle = "#ccc";
-        this.ctxMagnifier.lineWidth = 1; // 物理像素
-        this.ctxMagnifier.globalAlpha = 0.6;
-        this.ctxMagnifier.beginPath();
+        this.ctxMagnifierBox.strokeStyle = "#ccc";
+        this.ctxMagnifierBox.lineWidth = 1; // 物理像素
+        this.ctxMagnifierBox.globalAlpha = 0.6;
+        this.ctxMagnifierBox.beginPath();
         for (let i = 0; i <= magnifierSize; i++) {
             const pos = i * pixelSize;
-            this.ctxMagnifier.moveTo(pos, 0);
-            this.ctxMagnifier.lineTo(pos, totalSize);
-            this.ctxMagnifier.moveTo(0, pos);
-            this.ctxMagnifier.lineTo(totalSize, pos);
+            this.ctxMagnifierBox.moveTo(pos, 0);
+            this.ctxMagnifierBox.lineTo(pos, totalSize);
+            this.ctxMagnifierBox.moveTo(0, pos);
+            this.ctxMagnifierBox.lineTo(totalSize, pos);
         }
-        this.ctxMagnifier.stroke();
-        this.ctxMagnifier.globalAlpha = 1;
+        this.ctxMagnifierBox.stroke();
+        this.ctxMagnifierBox.globalAlpha = 1;
 
         // 绘制中心十字线（物理像素）
-        this.ctxMagnifier.strokeStyle = "rgba(0, 122, 255, 1)";
-        this.ctxMagnifier.lineWidth = pixelSize; // 物理像素
+        this.ctxMagnifierBox.strokeStyle = "rgba(0, 122, 255, 1)";
+        this.ctxMagnifierBox.lineWidth = pixelSize; // 物理像素
         const center = totalSize / 2;
-        this.ctxMagnifier.beginPath();
-        if (this.state.currentSelection.width <= 10 && this.state.currentSelection.height <= 10) {
-            this.ctxMagnifier.moveTo(0, center);
-            this.ctxMagnifier.lineTo(totalSize, center);
-            this.ctxMagnifier.moveTo(center, 0);
-            this.ctxMagnifier.lineTo(center, totalSize);
+        this.ctxMagnifierBox.beginPath();
+        if (this.captureRect.width <= 10 && this.captureRect.height <= 10) {
+            this.ctxMagnifierBox.moveTo(0, center);
+            this.ctxMagnifierBox.lineTo(totalSize, center);
+            this.ctxMagnifierBox.moveTo(center, 0);
+            this.ctxMagnifierBox.lineTo(center, totalSize);
         } else {
-            this.ctxMagnifier.moveTo(0, center);
-            this.ctxMagnifier.lineTo(center + pixelSize / 2, center);
-            this.ctxMagnifier.moveTo(center, 0);
-            this.ctxMagnifier.lineTo(center, center);
+            this.ctxMagnifierBox.moveTo(0, center);
+            this.ctxMagnifierBox.lineTo(center + pixelSize / 2, center);
+            this.ctxMagnifierBox.moveTo(center, 0);
+            this.ctxMagnifierBox.lineTo(center, center);
         }
-        this.ctxMagnifier.stroke();
+        this.ctxMagnifierBox.stroke();
         // 对外输出逻辑坐标
         this._emit("magnifierNewPos", this._physicalToLogical(magX, magY));
     }
@@ -783,12 +875,12 @@ export default class Screenshot {
     }
 
     setMarkTool(tool) {
-        this.state.currentMarkTool = tool;
+        this.currentMarkTool = tool;
     }
 
     // 对外暴露的选区信息：转成逻辑坐标
     getCurrentSelection() {
-        const { x, y, width, height } = this.state.currentSelection;
+        const { x, y, width, height } = this.captureRect;
         return {
             x: x / this.dpr,
             y: y / this.dpr,
@@ -800,6 +892,6 @@ export default class Screenshot {
     destroy() {
         this.state = null;
         this.eventListeners = null;
-        this.ctxBg = this.ctxCapture = this.ctxOffscreen = this.ctxMagnifier = null;
+        this.ctxDesktop = this.ctxOperation = this.ctxOffscreen = this.ctxMagnifierBox = null;
     }
 }
