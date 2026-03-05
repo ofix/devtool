@@ -117,10 +117,17 @@ onMounted(async () => {
     isCaptured.value = true;
   });
 
-  // 绑定鼠标事件（仅转发，无逻辑）
-  document.addEventListener("mousedown", screenshot.onMouseDown);
-  document.addEventListener("mousemove", screenshot.onMouseMove);
-  document.addEventListener("mouseup", screenshot.onMouseUp);
+  // 绑定鼠标事件,以下代码在全透明的canvas中移动鼠标过程中，会出现频繁触发 mouseleave 事件的问题
+  // const canvas = canvasCapture.value;
+  // canvas.addEventListener("mousedown", screenshot.onMouseDown);
+  // canvas.addEventListener("mousemove", screenshot.onMouseMove);
+  // canvas.addEventListener("mouseup", screenshot.onMouseUp);
+  // canvas.addEventListener("mouseleave", screenshot.onMouseLeave);
+  // canvas.addEventListener("keydown", screenshot.onKeyDown);
+
+  window.addEventListener("mousedown", screenshot.onMouseDown);
+  window.addEventListener("mousemove", screenshot.onMouseMove);
+  window.addEventListener("mouseup", screenshot.onMouseUp);
   window.addEventListener("mouseleave", screenshot.onMouseLeave);
   window.addEventListener("keydown", screenshot.onKeyDown);
 
@@ -132,14 +139,12 @@ onUnmounted(() => {
   if (screenshot) {
     screenshot.destroy();
   }
-  const canvas = canvasCapture.value; // 修复原代码变量名错误：screenshotCanvas -> canvasCapture
-  if (canvas) {
-    document.removeEventListener("mousedown", screenshot?.onMouseDown);
-    document.removeEventListener("mousemove", screenshot?.onMouseMove);
-    document.removeEventListener("mouseup", screenshot?.onMouseUp);
-    window.removeEventListener("mouseleave", screenshot?.onMouseLeave);
-    window.removeEventListener("keydown", screenshot?.onKeyDown);
-  }
+
+  window.removeEventListener("mousedown", screenshot?.onMouseDown);
+  window.removeEventListener("mousemove", screenshot?.onMouseMove);
+  window.removeEventListener("mouseup", screenshot?.onMouseUp);
+  window.removeEventListener("mouseleave", screenshot?.onMouseLeave);
+  window.removeEventListener("keydown", screenshot?.onKeyDown);
 });
 
 const onMarkToolChange = (tool) => {
@@ -148,7 +153,7 @@ const onMarkToolChange = (tool) => {
 };
 </script>
 
-<style>
+<style scoped>
 canvas {
   transform: translateZ(0); /* 触发 GPU 加速 */
   will-change: transform; /* 告诉浏览器提前优化 */

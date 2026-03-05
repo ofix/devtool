@@ -1,66 +1,71 @@
+<!-- 截图编辑标注工具条 -->
 <template>
-  <!-- 截图编辑标注工具条 -->
-  <div class="mark-toolbar">
+  <div
+    class="mark-toolbar"
+    @mousedown.stop.prevent="handleToolbarMouseDown"
+    @mouseup.stop.prevent
+    @click.stop.prevent
+  >
     <div class="edit-toolbar-content">
       <BtnSelect
-        @click="onSelect"
+        @click.stop="onSelect"
         :class="{ active: currentTool === ShapeType.SELECT }"
         title="选择"
       />
       <div class="toolbar-divider"></div>
       <BtnArrow
-        @click="onClickTool(ShapeType.ARROW)"
+        @click.stop="onClickTool(ShapeType.ARROW)"
         :class="{ active: currentTool === ShapeType.ARROW }"
         title="箭头/线条"
       />
       <BtnRect
-        @click="onClickTool(ShapeType.RECT)"
+        @click.stop="onClickTool(ShapeType.RECT)"
         :class="{ active: currentTool === ShapeType.RECT }"
         title="矩形"
       />
       <BtnEclipse
-        @click="onClickTool(ShapeType.ELLIPSE)"
+        @click.stop="onClickTool(ShapeType.ELLIPSE)"
         :class="{ active: currentTool === ShapeType.ELLIPSE }"
         title="椭圆"
       />
       <BtnStar
-        @click="onClickTool(ShapeType.STAR)"
+        @click.stop="onClickTool(ShapeType.STAR)"
         :class="{ active: currentTool === ShapeType.STAR }"
         title="五角星"
       />
       <BtnIncrementNumber
-        @click="onClickTool(ShapeType.INCREMENT_NUMBER)"
+        @click.stop="onClickTool(ShapeType.INCREMENT_NUMBER)"
         :class="{ active: currentTool === ShapeType.INCREMENT_NUMBER }"
         title="数字"
       />
       <BtnText
-        @click="onClickTool(ShapeTYpe.TEXT)"
+        @click.stop="onClickTool(ShapeType.TEXT)"
         :class="{ active: currentTool === ShapeType.TEXT }"
         title="文字"
       />
       <BtnPencil
-        @click="onClickTool(ShapeType.PENCIL)"
+        @click.stop="onClickTool(ShapeType.PENCIL)"
         :class="{ active: currentTool === ShapeType.PENCIL }"
         title="铅笔"
       />
       <BtnHilighter
-        @click="onClickTool(ShapeType.HIGHLIGHTER)"
+        @click.stop="onClickTool(ShapeType.HIGHLIGHTER)"
         :class="{ active: currentTool === ShapeType.HIGHLIGHTER }"
         title="荧光笔"
       />
       <BtnEraser
-        @click="onClickTool(ShapeType.ERASER)"
+        @click.stop="onClickTool(ShapeType.ERASER)"
         :class="{ active: currentTool === ShapeType.ERASER }"
         title="荧光笔"
       />
       <BtnMosaic
-        @click="onClickTool(ShapeType.MOSAIC)"
+        @click.stop="onClickTool(ShapeType.MOSAIC)"
         :class="{ active: currentTool === ShapeType.MOSAIC }"
         title="马赛克"
       />
       <div class="toolbar-divider"></div>
-      <BtnCancel @click="onClickCancel" title="取消" />
-      <BtnFinish @click="onClickFinish" title="完成" />
+      <BtnCancel @click.stop="onClickCancel" title="取消" />
+      <BtnFinish @click.stop="onClickFinish" title="完成" />
     </div>
   </div>
 </template>
@@ -123,7 +128,13 @@ function onSelect() {
   }
 }
 
+// 阻止mousedown事件的处理函数
+const handleToolbarMouseDown = (e) => {
+  // 这里可以留空，主要靠事件修饰符stop.prevent起作用
+};
+
 function onClickTool(tool) {
+  window.channel.debug("click toolbar ", tool);
   if (currentTool.value == tool) {
     currentTool.value = ShapeType.NONE;
     emit("markToolChange", ShapeType.NONE);
@@ -190,9 +201,9 @@ onMounted(() => {
 <style scoped>
 .mark-toolbar {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-  background: rgba(33,33,33,0.85);
-  border-radius:4px;
-  padding:6px;
+  background: rgba(33, 33, 33, 0.85);
+  border-radius: 4px;
+  padding: 6px;
 }
 
 .edit-toolbar-content {
