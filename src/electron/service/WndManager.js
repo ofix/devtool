@@ -77,7 +77,7 @@ class WndManager extends Singleton {
     }
     // 窗口配置预设 - 返回分离的配置对象
     getScreenshotToolWndConfig() {
-        const icons = 13;
+        const icons = 6;
         const iconSize = 32;
         const iconGap = 12;
         const toolbarWidth = icons * iconSize + (icons - 1) * iconGap;

@@ -8,7 +8,7 @@ import themePlugin from './theme/ThemePlugin';
 import App from './App.vue'
 import { removeVueDevtoolsContainers } from "./vite.remove.js";
 // SVG 图标组件
-import IconScreenshot from '@/icons/IconCapture.vue';
+import IconScreenshot from '@/icons/IconCaptureWindow.vue';
 import IconRuler from '@/icons/IconScreenRuler.vue';
 import IconVideoRecord from '@/icons/IconRecordVideo.vue';
 import IconHexEditor from '@/icons/IconHexEditor.vue';

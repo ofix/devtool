@@ -21,21 +21,6 @@
       title="滚动截图 (Ctrl+Shift+S)"
       @click="onClickCaptureScroll"
     />
-    <RecordVideo
-      class="tool-button"
-      title="视频录制 (Ctrl+Shift+R)"
-      @click="onClickRecordVideo"
-    />
-    <ScreenRuler
-      class="tool-button"
-      title="屏幕标尺 (Ctrl+Shift+L)"
-      @click="onClickScreenRuler"
-    />
-    <ColorPicker
-      class="tool-button"
-      title="拾色器 (Ctrl+Shift+P)"
-      @click="onClickColorPicker"
-    />
     <Settings
       class="tool-button"
       title="拾色器 (Ctrl+Shift+P)"
@@ -52,9 +37,6 @@ import Capture from "@/icons/IconCapture.vue";
 import CaptureWindow from "@/icons/IconCaptureWindow.vue";
 import CaptureRect from "@/icons/IconCaptureRect.vue";
 import CaptureScroll from "@/icons/IconCaptureScroll.vue";
-import RecordVideo from "@/icons/IconRecordVideo.vue";
-import ScreenRuler from "@/icons/IconScreenRuler.vue";
-import ColorPicker from "@/icons/IconColorPicker.vue";
 import Close from "@/icons/IconCloseBox.vue";
 import { ElMessage } from "element-plus";
 
@@ -107,9 +89,6 @@ function showShortcuts() {
     { key: "Ctrl+Shift+A", desc: "矩形截图" },
     { key: "Ctrl+Shift+W", desc: "窗口截图" },
     { key: "Ctrl+Shift+S", desc: "滚动截图" },
-    { key: "Ctrl+Shift+R", desc: "录制视频" },
-    { key: "Ctrl+Shift+L", desc: "屏幕标尺" },
-    { key: "Ctrl+Shift+P", desc: "拾色器" },
   ];
 
   let message = "<strong>快捷键列表：</strong><br>";
@@ -125,19 +104,11 @@ function showShortcuts() {
   });
 }
 
-// 显示关于
-function showAbout() {
-  ElMessage.info("FastStone 截图工具模拟 v1.0.0");
-}
-
 // 全局快捷键映射
 const shortcuts = {
   "Control+Shift+A": () => onClickCaptureRect(),
   "Control+Shift+W": () => onClickCaptureWindow(),
   "Control+Shift+S": () => onClickCaptureScroll(),
-  "Control+Shift+R": () => onClickRecordVideo(),
-  "Control+Shift+L": () => onClickScreenRuler(),
-  "Control+Shift+P": () => onClickColorPicker(),
   "Control+Shift+H": () => hideToolbar(),
   "Control+Shift+E": () => showToolbar(),
 };
@@ -172,41 +143,6 @@ async function onClickCaptureScroll() {
   } catch (error) {
     console.error("启动滚动截图失败:", error);
     ElMessage.error("启动滚动截图失败");
-  }
-}
-
-// 开始视频录制
-async function onClickRecordVideo() {
-  try {
-    activeTool.value = "record";
-    await window.channel.sendToolCmd("record-video", {
-      quality: "high",
-      fps: 30,
-    });
-  } catch (error) {
-    console.error("启动视频录制失败:", error);
-    ElMessage.error("启动视频录制失败");
-  }
-}
-
-// 打开屏幕标尺
-async function onClickScreenRuler() {
-  try {
-    activeTool.value = "ruler";
-    await window.channel.showWindow("ScreenRulerWnd", {});
-  } catch (error) {
-    console.error("打开屏幕标尺失败:", error);
-  }
-}
-
-// 打开拾色器
-async function onClickColorPicker() {
-  try {
-    activeTool.value = "color";
-    await window.channel.sendToolCmd("color-picker", {});
-  } catch (error) {
-    console.error("打开拾色器失败:", error);
-    ElMessage.error("打开拾色器失败");
   }
 }
 
