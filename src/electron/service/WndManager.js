@@ -16,6 +16,7 @@ class WndManager extends Singleton {
         // 分离BrowserWindow配置和自定义配置
         this.windowPresets = {
             'MainWnd': this.getMainWndConfig(),
+            'HexEditorWnd': this.getHexEditorWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
             'VideoRecordWnd': this.getVideoRecordWndConfig(),
@@ -101,6 +102,22 @@ class WndManager extends Singleton {
         };
     }
 
+    getHexEditorWndConfig() {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        return {
+            browserWindow: {
+                x: 0, y: 0, width, height, transparent:false,
+                alwaysOnTop: false, show: true,
+            },
+            custom: {
+                url: '/hex-editor',
+                levelName: 'normal',
+                levelZOrder: 0,
+                devTool: true,
+            }
+        };
+    }
+
     getCaptureWndConfig() {
         const { width, height } = screen.getPrimaryDisplay().size;
         return {
@@ -112,7 +129,7 @@ class WndManager extends Singleton {
                 url: '/screenshot/capture',
                 levelName: 'screen-saver',
                 levelZOrder: 10,
-                devTool:false,
+                devTool: false,
             }
         };
     }

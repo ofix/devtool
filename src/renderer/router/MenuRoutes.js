@@ -249,6 +249,15 @@ const MenuRoutes = [
                 }
             },
         ]
+    },{
+        path: '/hex-editor',
+        name: 'Hex Editor',
+        component: () => import(/* webpackChunkName: "chunk-Misc/HexEditor" */ '@/views/HexEditor/HexEditor.vue'),
+        meta: {
+            title: '二进制编辑器',
+            desc: '',
+            chunkGroup: 'misc'
+        }
     }
 ];
 

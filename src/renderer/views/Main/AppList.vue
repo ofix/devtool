@@ -164,7 +164,7 @@ const allApps = ref([
     name: "十六进制编辑器",
     category: "编辑工具", // 新增：应用类别
     icon: "HexEditor",
-    disabled: true,
+    disabled: false,
   },
   {
     key: "UnitConvertWnd",
