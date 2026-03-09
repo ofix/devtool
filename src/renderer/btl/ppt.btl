@@ -1,0 +1,26 @@
+# PPTX 模板（OOXML）
+#little_endian=true
+#sector_size=4
+#encoding=utf8
+
+/PPTXFile[list]
+  @loop
+     signature == 0x504B0304 && count < 100
+     >ZIPLocalFileHeader
+  @endloop
+
+/PPTXPresentation[card]
+  .str title, 演示文稿标题|Title
+  .str author, 作者|Author
+  .str created, 创建时间|Creation Time
+  .str modified, 修改时间|Modification Time
+  .u32 slide_count, 幻灯片数|Slide Count
+  .u32 layout_count, 布局数|Layout Count
+  .str theme, 主题|Theme
+
+/PPTXSlide[table]
+  .u32 slide_num, 幻灯片编号|Slide Number
+  .str title, 幻灯片标题|Slide Title
+  .u32 shape_count, 形状数|Shape Count
+  .u32 image_count, 图片数|Image Count
+  .u32 text_count, 文本框数|Text Box Count

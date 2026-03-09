@@ -1,0 +1,54 @@
+# ISO9660 模板
+#little_endian=false
+#sector_size=2048
+#encoding=ascii
+
+/ISOImage[list]
+  @loop
+     type != 0xFF && count < 100
+     >VolumeDescriptor
+  @endloop
+
+/VolumeDescriptor[table]
+  1  .u8 type, 描述符类型|Descriptor Type
+    > 0x00: UnusedDescriptor
+    > 0x01: PrimaryVolumeDescriptor
+    > 0x02: JolietVolumeDescriptor
+    > 0xFF: VolumeDescriptorTerminator
+  2047 <skip:Reserved|保留>
+
+/PrimaryVolumeDescriptor[card]
+  1   .u8 type, 类型|Type
+  5   <skip:Unused|未使用>
+  32  .str system_id, 系统ID|System ID
+  32  .str volume_id, 卷标|Volume ID
+  8   <skip:Reserved|保留>
+  4   .u32.be volume_space_size, 卷空间大小|Volume Space Size
+  32  <skip:Reserved|保留>
+  4   .u32.be root_dir_lba, 根目录LBA|Root Directory LBA
+  4   .u32.be root_dir_size, 根目录大小|Root Directory Size
+
+/DirEntry[tree]
+  1   .u8 entry_len, 目录项长度|Entry Length
+  1   .u8 ext_attr_len, 扩展属性长度|Extended Attr Length
+  4   .u32.be data_lba, 数据LBA|Data LBA
+  4   .u32.be file_size, 文件大小|File Size
+  7   .u8[7] record_time, 记录时间|Record Time
+  1   .u8 flags, 文件标志|File Flags
+    > 0x01: ReadOnly
+    > 0x02: Hidden
+    > 0x04: Directory
+    > 0x20: File
+  1   .u8 file_unit, 文件单元|File Unit
+  1   .u8 interleave, 交错因子|Interleave Factor
+  2   .u16.le seq_num, 序列号|Sequence Number
+  1   .u8 name_len, 文件名长度|File Name Length
+  0   .str:name_len filename, 文件名|File Name
+
+  @loop
+     entry_len != 0 && count < 1000 && pos < sector_end
+     >DirEntry
+  @endloop
+
+  ?flags == 0x04:
+    >data_lba: DirEntry

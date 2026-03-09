@@ -1,0 +1,35 @@
+# RAR 模板
+#little_endian=true
+#sector_size=4
+#encoding=ascii
+
+/RARFile[list]
+  7   .u8[7] signature, RAR签名|RAR Signature
+  1   .u8 version, RAR版本|RAR Version
+  @loop
+     block_type != 0x7B && count < 1000
+     >RARBlock
+  @endloop
+
+/RARBlock[table]
+  2   .u16.le crc, 块CRC|Block CRC
+  1   .u8 type, 块类型|Block Type
+    > 0x74: File Header
+    > 0x70: Archive Header
+    > 0x7B: End of Archive
+  1   .u8 flags, 块标志|Block Flags
+  4   .u32.le size, 块大小|Block Size
+  0   <skip:BlockData|块数据>
+
+/RARFileHeader[card]
+  4   .u32.le crc32, 文件CRC32|File CRC32
+  4   .u32.le comp_size, 压缩后大小|Compressed Size
+  4   .u32.le uncomp_size, 解压后大小|Uncompressed Size
+  4   .u32.le mod_time, 修改时间戳|Modification Time
+  2   .u16.le os_type, 操作系统类型|OS Type
+  2   .u16.le file_attr, 文件属性|File Attributes
+  1   .u8 name_len, 文件名长度|File Name Length
+  0   .str:name_len filename, 文件名|File Name
+  1   .u8 compression, 压缩方法|Compression Method
+  1   .u8 priority, 优先级|Priority
+  4   .u32.le start_block, 起始块|Start Block

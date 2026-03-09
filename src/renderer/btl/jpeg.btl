@@ -1,0 +1,36 @@
+# JPEG 模板
+#little_endian=false
+#sector_size=2
+#encoding=ascii
+
+/JPEGFile[card]
+  2   .u16.be signature, JPEG签名|JPEG Signature
+  @loop
+     marker != 0xD9 && count < 100
+     >JPEGMarker
+  @endloop
+
+/JPEGMarker[table]
+  2   .u16.be marker, 标记码|Marker Code
+    > 0xFFD8: SOI (Start of Image)
+    > 0xFFC0: SOF0 (Start of Frame 0)
+    > 0xFFC2: SOF2 (Start of Frame 2)
+    > 0xFFDA: SOS (Start of Scan)
+    > 0xFFD9: EOI (End of Image)
+  2   .u16.be length, 段长度|Segment Length
+  0   .u8[]:length segment_data, 段数据|Segment Data
+
+/SOF0Frame[card]
+  1   .u8 precision, 精度|Precision
+  2   .u16.be height, 高度|Height
+  2   .u16.be width, 宽度|Width
+  1   .u8 components, 组件数|Component Count
+  @loop
+     count < components && count < 4
+     >JPEGComponent
+  @endloop
+
+/JPEGComponent[text]
+  1   .u8 id, 组件ID|Component ID
+  1   .u8 sampling, 采样因子|Sampling Factor
+  1   .u8 quant_table, 量化表ID|Quantization Table ID

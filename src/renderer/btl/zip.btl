@@ -1,0 +1,57 @@
+# ZIP 模板
+#little_endian=true
+#sector_size=4
+#encoding=ascii
+
+/ZIPFile[list]
+  @loop
+     signature == 0x504B0304 && count < 1000
+     >ZIPLocalFileHeader
+  @endloop
+
+/ZIPLocalFileHeader[table]
+  4   .u32 signature, 本地头签名|Local Header Signature
+  2   .u16.le version_needed, 需要的版本|Version Needed
+  2   .u16.le general_flags, 通用标志|General Purpose Flags
+  2   .u16.le compression, 压缩方法|Compression Method
+  2   .u16.le mod_time, 修改时间|Modification Time
+  2   .u16.le mod_date, 修改日期|Modification Date
+  4   .u32.le crc32, CRC32校验|CRC32 Checksum
+  4   .u32.le comp_size, 压缩后大小|Compressed Size
+  4   .u32.le uncomp_size, 解压后大小|Uncompressed Size
+  2   .u16.le name_len, 文件名长度|File Name Length
+  2   .u16.le extra_len, 额外字段长度|Extra Field Length
+  0   .str:name_len filename, 文件名|File Name
+  0   .u8[]:extra_len extra_field, 额外字段|Extra Field
+  0   .u8[]:comp_size file_data, 文件数据|File Data
+
+/ZIPCentralDir[card]
+  4   .u32 signature, 中心目录签名|Central Directory Signature
+  2   .u16.le version_made, 创建版本|Version Made By
+  2   .u16.le version_needed, 需要的版本|Version Needed
+  2   .u16.le general_flags, 通用标志|General Purpose Flags
+  2   .u16.le compression, 压缩方法|Compression Method
+  2   .u16.le mod_time, 修改时间|Modification Time
+  2   .u16.le mod_date, 修改日期|Modification Date
+  4   .u32.le crc32, CRC32校验|CRC32 Checksum
+  4   .u32.le comp_size, 压缩后大小|Compressed Size
+  4   .u32.le uncomp_size, 解压后大小|Uncompressed Size
+  2   .u16.le name_len, 文件名长度|File Name Length
+  2   .u16.le extra_len, 额外字段长度|Extra Field Length
+  2   .u16.le comment_len, 注释长度|Comment Length
+  2   .u16.le disk_num, 磁盘号|Disk Number
+  2   .u16.le int_attr, 内部属性|Internal Attributes
+  4   .u32.le ext_attr, 外部属性|External Attributes
+  4   .u32.le local_offset, 本地头偏移|Local Header Offset
+  0   .str:name_len filename, 文件名|File Name
+
+/ZIPEndRecord[text]
+  4   .u32 signature, 结束记录签名|End of Central Dir Signature
+  2   .u16.le disk_num, 磁盘号|Disk Number
+  2   .u16.le dir_disk_num, 目录磁盘号|Directory Disk Number
+  2   .u16.le dir_entries, 本磁盘目录项数|Directory Entries
+  2   .u16.le total_entries, 总目录项数|Total Entries
+  4   .u32.le dir_size, 中心目录大小|Central Directory Size
+  4   .u32.le dir_offset, 中心目录偏移|Central Directory Offset
+  2   .u16.le comment_len, 注释长度|Comment Length
+  0   .str:comment_len comment, 注释|Comment

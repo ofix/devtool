@@ -1,0 +1,26 @@
+# DOCX 模板（OOXML）
+#little_endian=true
+#sector_size=4
+#encoding=utf8
+
+/DOCXFile[list]
+  @loop
+     signature == 0x504B0304 && count < 100
+     >ZIPLocalFileHeader
+  @endloop
+
+/DOCXContentTypes[text]
+  2   .u16.le name_len, 文件名长度|File Name Length
+  0   .str.utf8:name_len filename, 文件名|File Name
+  4   .u32.le size, 文件大小|File Size
+  0   .str.utf8:size content, 内容类型|Content Type
+
+/DOCXDocument[card]
+  .str title, 文档标题|Title
+  .str author, 作者|Author
+  .str creator, 创建者|Creator
+  .str created, 创建时间|Creation Time
+  .str modified, 修改时间|Modification Time
+  .u32 page_count, 页数|Page Count
+  .u32 word_count, 字数|Word Count
+  .u32 char_count, 字符数|Character Count

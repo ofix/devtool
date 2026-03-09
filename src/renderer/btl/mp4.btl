@@ -1,0 +1,35 @@
+// ========== MP4 模板 ==========
+const MP4_TEMPLATE = `
+#little_endian=false
+#encoding=utf8
+
+// MP4 顶级结构
+/MP4_File
+  4  ftyp_size, FTYP大小|FTYP Size
+  4  ?box_type, 盒子类型|Box Type
+    > ftyp: FTYP_Box
+    > moov: MOOV_Box
+    > mdat: MDAT_Box
+    > *: Unknown_Box
+
+// FTYP 盒子
+/FTYP_Box
+  4  major_brand, 主格式标识|Major Brand
+  4  minor_version, 版本号|Minor Version
+  8  compatible_brands, 兼容格式|Compatible Brands
+
+// MOOV 盒子
+/MOOV_Box
+  1  version, 版本|Version
+  3  flags, 标志位|Flags
+  4  time_scale, 时间基准|Time Scale
+  4  duration, 时长|Duration
+
+// MDAT 盒子
+/MDAT_Box
+  0  .str(hex) media_data, 媒体数据|Media Data
+
+// 未知盒子
+/Unknown_Box
+  0  .str(ascii,\x00) raw_data, 原始数据|Raw Data
+`;

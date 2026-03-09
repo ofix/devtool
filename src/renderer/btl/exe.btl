@@ -1,0 +1,43 @@
+# EXE (PE) 模板
+#little_endian=true
+#sector_size=4
+#encoding=ascii
+
+/PEFile[card]
+  2   .u16.le dos_magic, DOS魔术值|DOS Magic
+  60  .u8[60] dos_header, DOS头|DOS Header
+  4   .u32.le pe_offset, PE偏移|PE Offset
+  4   .u8[4] pe_magic, PE魔术值|PE Magic
+  2   .u16.le machine, 机器类型|Machine Type
+  2   .u16.le sections, 节数|Section Count
+  4   .u32.le time_date, 时间戳|Time Date Stamp
+  4   .u32.le sym_table, 符号表偏移|Symbol Table Offset
+  4   .u32.le sym_count, 符号数|Symbol Count
+  2   .u16.le opt_header_size, 可选头大小|Optional Header Size
+  2   .u16.le characteristics, 特征值|Characteristics
+
+/PEOptionalHeader[table]
+  2   .u16.le magic, 可选头魔术值|Optional Header Magic
+  1   .u8 major_linker, 链接器主版本|Major Linker Version
+  1   .u8 minor_linker, 链接器次版本|Minor Linker Version
+  4   .u32.le code_size, 代码大小|Code Size
+  4   .u32.le data_size, 初始化数据大小|Initialized Data Size
+  4   .u32.le bss_size, 未初始化数据大小|Uninitialized Data Size
+  4   .u32.le entry_point, 入口点|Entry Point
+  4   .u32.le code_base, 代码基址|Code Base
+  4   .u32.le data_base, 数据基址|Data Base
+
+/PESection[table]
+  8   .str name, 节名|Section Name
+
+
+  
+  4   .u32.le virtual_size, 虚拟大小|Virtual Size
+  4   .u32.le virtual_addr, 虚拟地址|Virtual Address
+  4   .u32.le raw_size, 原始大小|Raw Size
+  4   .u32.le raw_ptr, 原始数据指针|Raw Data Pointer
+  4   .u32.le reloc_ptr, 重定位指针|Relocation Pointer
+  4   .u32.le linenum_ptr, 行号指针|Line Number Pointer
+  2   .u16.le reloc_count, 重定位数|Relocation Count
+  2   .u16.le linenum_count, 行号数|Line Number Count
+  4   .u32.le characteristics, 节特征|Section Characteristics

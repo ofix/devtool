@@ -1,0 +1,31 @@
+# PNG 模板
+#little_endian=true
+#sector_size=8
+#encoding=ascii
+
+/PNGFile[card]
+  8   .u8[8] signature, PNG签名|PNG Signature
+  @loop
+     chunk_type != 'IEND' && count < 100
+     >PNGChunk
+  @endloop
+
+/PNGChunk[table]
+  4   .u32.be chunk_len, 数据长度|Chunk Data Length
+  4   .str chunk_type, 块类型|Chunk Type
+  0   .u8[]:chunk_len chunk_data, 块数据|Chunk Data
+  4   .u32.be crc, CRC校验|CRC Checksum
+
+/IHDRChunk[card]
+  4   .u32.be width, 宽度|Width
+  4   .u32.be height, 高度|Height
+  1   .u8 bit_depth, 位深度|Bit Depth
+  1   .u8 color_type, 颜色类型|Color Type
+    > 0: Grayscale
+    > 2: Truecolor
+    > 3: Indexed-color
+    > 4: Grayscale with alpha
+    > 6: Truecolor with alpha
+  1   .u8 compression, 压缩方法|Compression Method
+  1   .u8 filter, 过滤方法|Filter Method
+  1   .u8 interlace, 隔行扫描|Interlace Method

@@ -1,5 +1,5 @@
 <template>
-     <AppTitleBar title="DevTool" />
+  <TitleBar title="DevTool" />
   <div class="hex-editor-container">
     <!-- 顶部菜单 -->
     <HexMenuBar

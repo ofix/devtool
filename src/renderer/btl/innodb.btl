@@ -1,0 +1,48 @@
+# InnoDB 多版本模板（真正可用）
+#little_endian=false
+#sector_size=16384
+#encoding=utf8
+
+/InnoDBFile[tree]
+  8   .u64.be  magic,        魔数|Magic
+  4   .u32.be  format_version,格式版本|Format Version
+  4   .u32.be  page_size,    页大小(动态)|Page Size
+
+  # 根据版本自动跳转
+  ?format_version == 0x00: >InnoDB_V56
+  ?format_version == 0x01: >InnoDB_V57
+  ?format_version == 0x02: >InnoDB_V80
+
+# ------------------------------
+# InnoDB 5.6 结构
+# ------------------------------
+/InnoDB_V56[card]
+#override sector_size=16384
+  2   .u16.be  type,         页类型|Page Type
+  4   .u32.be  space_id,     空间ID|Space ID
+  8   .u64.be  lsn,          LSN|Log Sequence Number
+  0   .str.utf8:64 name,     表名|Table Name
+
+# ------------------------------
+# InnoDB 5.7 结构
+# ------------------------------
+/InnoDB_V57[card]
+#override sector_size=16384
+  2   .u16.be  type
+  4   .u32.be  space_id
+  8   .u64.be  lsn
+  8   .u64.be  fsp_space_id
+  0   .str.utf8:64 name
+
+# ------------------------------
+# InnoDB 8.0 结构（最复杂）
+# ------------------------------
+/InnoDB_V80[card]
+#override sector_size=16384
+  2   .u16.be  type
+  4   .u32.be  space_id
+  8   .u64.be  lsn
+  8   .u64.be  fsp_space_id
+  1   .u8      encrypted,    是否加密|Encrypted
+  1   .u8      compression,  压缩类型|Compression
+  0   .str.utf8:64 name

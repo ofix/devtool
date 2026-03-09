@@ -1,0 +1,29 @@
+# PDF 模板
+#little_endian=false
+#sector_size=4
+#encoding=ascii
+
+/PDFFile[card]
+  4   .u8[4] signature, PDF签名|PDF Signature
+  .str version, PDF版本|PDF Version
+  @loop
+     obj_type != 'xref' && count < 100
+     >PDFObject
+  @endloop
+
+/PDFObject[table]
+  .u32 obj_num, 对象号|Object Number
+  .u32 gen_num, 生成号|Generation Number
+  .str obj_type, 对象类型|Object Type
+    > /Catalog: 目录
+    > /Pages: 页面集
+    > /Page: 页面
+    > /Stream: 流
+  .str obj_data, 对象数据|Object Data
+
+/PageObject[card]
+  .str media_box, 媒体框|Media Box
+  .str crop_box, 裁剪框|Crop Box
+  .u32 rotate, 旋转角度|Rotation
+  .u32 contents, 内容对象|Contents Object
+  .u32 resources, 资源对象|Resources Object
