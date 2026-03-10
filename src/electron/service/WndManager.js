@@ -106,14 +106,14 @@ class WndManager extends Singleton {
         const { width, height } = screen.getPrimaryDisplay().size;
         return {
             browserWindow: {
-                x: 0, y: 0, width, height, transparent:false,
-                alwaysOnTop: false, show: true,
+                x: 0, y: 0, width, height, transparent: false,
+                alwaysOnTop: false, show: true, frame: false,
+                resizable: true,
             },
             custom: {
                 url: '/hex-editor',
                 levelName: 'normal',
                 levelZOrder: 0,
-                devTool: true,
             }
         };
     }

@@ -29,7 +29,7 @@
       <HexTreePanel
         :tree-data="treeData"
         :locked-nodes="lockedNodes"
-        @node-click="handleTreeClick"
+        @hex-row-click="handleTreeRowClick"
         @lock-node="handleLockNode"
         @edit-node="handleEditNode"
         @delete-node="handleDeleteNode"
@@ -37,6 +37,7 @@
 
       <!-- 中间16进制展示区 -->
       <HexContentView
+        ref="hexViewRef"
         :hex-data="hexData"
         :ascii-data="asciiData"
         :locked-nodes="lockedNodes"
@@ -87,6 +88,7 @@ const ROW_HEIGHT = 30;
 
 // ===================== 全局状态 =====================
 // 数据相关
+const hexViewRef = ref(null);
 const hexData = ref([]);
 const asciiData = ref([]);
 const totalDataLength = ref(1024);
@@ -118,6 +120,24 @@ const currentHistoryIndex = ref(-1);
 // 弹窗控制
 const showJumpDialog = ref(false);
 
+const HEX_COLORS = [
+  "#FCE4EC",
+  "#FF9900",
+  "#FFFF00",
+  "#00FF00",
+  "#00FFFF",
+  "#0099FF",
+  "#0000FF",
+  "#9900FF",
+  "#FF00FF",
+  "#FF0099",
+  "#666666",
+  "#999999",
+  "#333333",
+  "#0066CC",
+  "#669900",
+  "#CC3300",
+];
 // 树数据
 const treeData = ref([
   {
@@ -126,6 +146,7 @@ const treeData = ref([
     addrStart: 0x00,
     addrEnd: 0x1f,
     type: "block",
+    color: HEX_COLORS[0],
     children: [
       { id: 11, name: "Magic", addrStart: 0x00, addrEnd: 0x03, type: "string" },
       {
@@ -140,9 +161,10 @@ const treeData = ref([
   {
     id: 2,
     name: "Data",
-    addrStart: 0x20,
-    addrEnd: 0xff,
+    addrStart: 0x27,
+    addrEnd: 0x32,
     type: "table",
+    color: HEX_COLORS[1],
     children: [
       { id: 21, name: "Flags", addrStart: 0x20, addrEnd: 0x23, type: "bit" },
       { id: 22, name: "Length", addrStart: 0x24, addrEnd: 0x27, type: "digit" },
@@ -157,9 +179,6 @@ const displayHistory = computed(() => {
     isDisabled: index > currentHistoryIndex.value,
   }));
 });
-
-const totalRows = computed(() => Math.ceil(hexData.value.length / HEX_PER_ROW));
-const totalRowHeight = computed(() => totalRows.value * ROW_HEIGHT);
 
 // ===================== 核心方法 =====================
 // 初始化数据
@@ -221,6 +240,7 @@ const handleOpenFile = () => {
           addrStart: 0x00,
           addrEnd: totalDataLength.value - 1,
           type: "file",
+          color: HEX_COLORS[0],
           children: [],
         },
       ];
@@ -265,9 +285,15 @@ const handleJump = (addrStr) => {
 };
 
 // 树节点操作
-const handleTreeClick = (data) => {
-  selectedNode.value = data;
-  ElMessage.success(`选中：${data.name}`);
+const handleTreeRowClick = (data) => {
+  // 方式3：使用setColorRanges直接传入数组
+  hexViewRef.value?.setColorRanges([
+    {
+      start: data.addrStart,
+      end: data.addrEnd,
+      color: data.color ? data.color : HEX_COLORS[0],
+    },
+  ]);
 };
 
 const handleLockNode = (node) => {
@@ -546,7 +572,6 @@ const formatChangeData = (type, change, addrRange) => {
   return formatted;
 };
 
-// ===================== 生命周期 =====================
 onMounted(() => {
   initHexData();
 });

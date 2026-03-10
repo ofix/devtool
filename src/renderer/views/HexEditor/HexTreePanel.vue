@@ -1,72 +1,28 @@
 <template>
-  <el-splitter-panel :size="300" :min-size="200">
+  <el-splitter-panel :size="490" :min-size="450" :resizable="false">
     <div class="hex-tree-panel">
-      <el-tree
+      <el-table-v2
+        :columns="columns"
         :data="treeData"
-        :props="treeProps"
-        node-key="id"
-        @node-click="handleNodeClick"
-        @node-mouseenter="(e, data) => (hoveredNodeId = data.id)"
-        @node-mouseleave="() => (hoveredNodeId = '')"
-        :render-after-expand="false"
-      >
-        <template #default="{ node, data }">
-          <div class="tree-node-content" :data-node-id="data.id">
-            <span>{{ data.name }}</span>
-            <span class="addr-tag"
-              >0x{{ data.addrStart.toString(16).toUpperCase() }}-0x{{
-                data.addrEnd.toString(16).toUpperCase()
-              }}</span
-            >
-            <span class="type-tag" :class="`type-${data.type}`">{{
-              data.type
-            }}</span>
-            <!-- 悬浮操作按钮 -->
-            <div class="tree-node-actions" v-show="hoveredNodeId === data.id">
-              <button
-                class="action-btn lock-btn"
-                @click.stop="handleLockNode(data)"
-                :style="{
-                  backgroundColor: lockedNodes[data.id]?.color || '#666',
-                }"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                  <path
-                    d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"
-                  />
-                </svg>
-              </button>
-              <button
-                class="action-btn edit-btn"
-                @click.stop="handleEditNode(data)"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                  <path
-                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                  />
-                </svg>
-              </button>
-              <button
-                class="action-btn delete-btn"
-                @click.stop="handleDeleteNode(data)"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                  <path
-                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </template>
-      </el-tree>
+        :width="530"
+        :height="height"
+        :row-height="40"
+        :tree-props="{
+          children: 'children',
+          hasChildren: (row) => !!(row.children && row.children.length > 0),
+        }"
+        :expand-column-key="'name'"
+        row-key="id"
+      />
     </div>
   </el-splitter-panel>
 </template>
 
-<script setup>
+<script setup lang="jsx">
 import { ref } from "vue";
-
+import IconLock from "@/icons/IconLock.vue";
+import IconUnlock from "@/icons/IconUnlock.vue";
+import IconEdit from "@/icons/IconEdit.vue";
 // 定义Props
 const props = defineProps({
   treeData: {
@@ -80,36 +36,138 @@ const props = defineProps({
 });
 
 // 定义事件
-const emit = defineEmits([
-  "node-click",
-  "lock-node",
-  "edit-node",
-  "delete-node",
-]);
+const emit = defineEmits(["hex-row-click", "lock-node", "edit-node"]);
 
 // 响应式数据
 const hoveredNodeId = ref("");
-const treeProps = {
-  children: "children",
-  label: "name",
+const height = ref(600);
+
+// 处理行点击
+const handleRowClick = (rowData, e) => {
+  if (e.target.closest(".action-btn")) return;
+  emit("hex-row-click", rowData);
 };
 
-// 事件处理
-const handleNodeClick = (data) => {
-  emit("node-click", data);
+// 处理鼠标进入行
+const handleRowMouseEnter = (rowData) => {
+  hoveredNodeId.value = rowData.id;
 };
 
-const handleLockNode = (data) => {
-  emit("lock-node", data);
+// 处理鼠标离开行
+const handleRowMouseLeave = () => {
+  hoveredNodeId.value = "";
 };
 
-const handleEditNode = (data) => {
-  emit("edit-node", data);
+// 格式化地址为十六进制
+// 格式化地址为十六进制，支持指定位数（默认3位）
+const formatHexAddress = (addr, width = 3) => {
+  // 将地址转换为十六进制字符串，并转为大写
+  const hex = addr.toString(16).toUpperCase();
+  // 使用 padStart 确保至少 width 位，不足时左侧补0
+  return `0x${hex.padStart(width, "0")}`;
 };
 
-const handleDeleteNode = (data) => {
-  emit("delete-node", data);
-};
+// 列定义 - 使用 JSX 语法
+const columns = [
+  {
+    key: "name",
+    title: "名称",
+    dataKey: "name",
+    width: 150,
+    fixed: true,
+    cellRenderer: ({ rowData }) => (
+      <div
+        class="tree-node-name"
+        onMouseenter={() => handleRowMouseEnter(rowData)}
+        onMouseleave={handleRowMouseLeave}
+        onClick={(e) => handleRowClick(rowData, e)}
+      >
+        {rowData.name}
+      </div>
+    ),
+  },
+  {
+    key: "addrStart",
+    title: "起始地址",
+    width: 100,
+    align: "center",
+    cellRenderer: ({ rowData }) => (
+      <span
+        class="address-cell"
+        onMouseenter={() => handleRowMouseEnter(rowData)}
+        onMouseleave={handleRowMouseLeave}
+        onClick={(e) => handleRowClick(rowData, e)}
+      >
+        {formatHexAddress(rowData.addrStart)}
+      </span>
+    ),
+  },
+  {
+    key: "addrEnd",
+    title: "结束地址",
+    width: 100,
+    align: "center",
+    cellRenderer: ({ rowData }) => (
+      <span
+        class="address-cell"
+        onMouseenter={() => handleRowMouseEnter(rowData)}
+        onMouseleave={handleRowMouseLeave}
+        onClick={(e) => handleRowClick(rowData, e)}
+      >
+        {formatHexAddress(rowData.addrEnd)}
+      </span>
+    ),
+  },
+  {
+    key: "type",
+    title: "类型",
+    width: 80,
+    align: "center",
+    cellRenderer: ({ rowData }) => (
+      <span
+        class={["type-tag", `type-${rowData.type}`]}
+        onMouseenter={() => handleRowMouseEnter(rowData)}
+        onMouseleave={handleRowMouseLeave}
+      >
+        {rowData.type}
+      </span>
+    ),
+  },
+  {
+    key: "actions",
+    title: "操作",
+    width: 100,
+    align: "center",
+    fixed: "right",
+    cellRenderer: ({ rowData }) => {
+      //   if (hoveredNodeId.value !== rowData.id) return null;
+      return (
+        <div
+          class="tree-node-actions"
+          onMouseenter={() => handleRowMouseEnter(rowData)}
+          onMouseleave={handleRowMouseLeave}
+        >
+          <IconLock
+            class="action-btn lock-btn"
+            onClick={(event) => {
+              event.stopPropagation();
+              emit("lock-node", rowData);
+            }}
+            title="锁定节点"
+          />
+          <IconEdit
+            class="action-btn edit-btn"
+            onClick={(event) => {
+              event.stopPropagation();
+              emit("edit-node", rowData);
+            }}
+            title="编辑节点"
+          />
+        </div>
+      );
+    },
+  },
+];
 </script>
 
 <style scoped>
@@ -119,92 +177,121 @@ const handleDeleteNode = (data) => {
   overflow-y: auto;
 }
 
-.hex-tree {
-  --el-tree-node-content-height: 40px;
+/* 覆盖表格默认样式，让树形缩进更明显 */
+/* :deep(.el-table-v2__row) {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  cursor: pointer;
+} */
+
+/* :deep(.el-table-v2__row:hover) {
+  background-color: var(--el-fill-color-light);
 }
 
-.tree-node-content {
+:deep(el-table-v2__row-cell) {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  height: 40px;
+  padding: 0 8px;
+  font-size: 13px;
+} */
+
+/* 树形缩进样式 - 只在第一列（名称列）生效 */
+/* :deep(.el-table-v2__cell:first-child) {
+  padding-left: calc(8px + var(--el-table-v2-tree-level) * 20px);
+} */
+
+.tree-node-name {
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 2px 5px;
-  position: relative;
+  height: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+.address-cell {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
 }
 
 .tree-node-actions {
   display: flex;
-  gap: 2px;
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-}
-
-.action-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
+  gap: 4px;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  width: 100%;
+  height: 100%;
 }
 
-.action-btn:hover {
-  transform: scale(1.1);
+:deep(.action-btn) {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  color: #0066cc;
+}
+:deep(.lock-btn) {
+  margin-right: 4px;
 }
 
-.lock-btn {
-  background-color: #666;
+:deep(.type-tag) {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  width: fit-content;
+  margin: 0 auto;
+  display: inline-block;
 }
 
-.edit-btn {
-  background-color: #0066cc;
-}
-
-.delete-btn {
-  background-color: #cc3300;
-}
-
-.addr-tag {
-  font-size: 12px;
-  color: #666;
-  margin-right: 5px;
-}
-
-.type-tag {
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  margin-right: 10px;
-}
-
-.type-table {
+/* 类型标签颜色样式 - 保持与原Tree组件一致 */
+:deep(.type-tag.type-table) {
   background: #e1f5fe;
   color: #01579b;
 }
-.type-string {
+
+:deep(.type-tag.type-string) {
   background: #f3e5f5;
   color: #4a148c;
 }
-.type-digit {
+
+:deep(.type-tag.type-digit) {
   background: #e8f5e8;
   color: #1b5e20;
 }
-.type-bit {
+
+:deep(.type-tag.type-bit) {
   background: #fff3e0;
   color: #e65100;
 }
-.type-block {
+
+:deep(.type-tag.type-block) {
   background: #fce4ec;
   color: #880e4f;
 }
-.type-file {
+
+:deep(.type-tag.type-file) {
   background: #e0f7fa;
   color: #00695c;
+}
+
+/* 确保表格容器可以滚动 */
+:deep(.el-table-v2__main) {
+  overflow: auto !important;
+}
+
+/* 表头样式 */
+:deep(.el-table-v2__header-cell) {
+  background-color: var(--el-fill-color-light);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
 }
 </style>
