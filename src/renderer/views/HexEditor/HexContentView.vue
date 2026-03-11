@@ -1,6 +1,18 @@
 <template>
   <el-splitter-panel :size="800" :min-size="700">
     <div class="hex-view-panel" ref="hexViewRef">
+      <!-- 加载进度条 -->
+      <div v-if="isLoading" class="loading-mask">
+        <el-progress
+          :percentage="loadingProgress"
+          status="success"
+          style="width: 300px"
+        />
+        <span class="loading-text"
+          >正在读取文件：{{ loadingProgress.toFixed(1) }}%</span
+        >
+      </div>
+
       <!-- 顶部列头 -->
       <div class="hex-header" ref="hexHeaderRef">
         <div
@@ -17,7 +29,7 @@
         <div class="ascii-col header-ascii">ASCII</div>
       </div>
 
-      <!-- 16进制内容区（仅保留容器和单个Canvas） -->
+      <!-- 16进制内容区 -->
       <div
         class="hex-content"
         ref="hexContentRef"
@@ -44,25 +56,29 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { ElMessage } from "element-plus";
+
 import HexContextMenu from "./HexContextMenu.vue";
-import HexRenderer from "./HexRenderer.js"; // 引入独立的渲染类
+import HexRenderer from "./HexRenderer.js";
 
 // 常量定义
 const HEX_PER_ROW = 16;
-const ROW_HEIGHT = 30;
+const ROW_HEIGHT = 18;
 
 // Props定义
 const props = defineProps({
   hexData: {
-    type: Array,
+    type: Object,
     required: true,
   },
   asciiData: {
-    type: Array,
+    type: Object,
     required: true,
   },
-  treeNodes: {
-    // 树状结构化数据
+  totalBytes: {
+    type: Number,
+    required: true,
+  },
+  lockedNodes: {
     type: Object,
     default: () => ({}),
   },
@@ -78,6 +94,15 @@ const props = defineProps({
     type: Object,
     default: () => ({ start: -1, end: -1 }),
   },
+  // 新增：加载状态（从父组件传递）
+  isLoading: {
+    type: Boolean,
+    default: false,
+  },
+  loadingProgress: {
+    type: Number,
+    default: 0,
+  },
 });
 
 // 事件定义
@@ -89,6 +114,7 @@ const emit = defineEmits([
   "delete",
   "edit",
   "node-click",
+  "visible-range-change", // 新增：通知父组件可视区域变化
 ]);
 
 // 响应式数据
@@ -96,7 +122,8 @@ const hexViewRef = ref(null);
 const hexHeaderRef = ref(null);
 const hexContentRef = ref(null);
 const hexCanvas = ref(null);
-const addrColWidth = computed(() => 8 * 12 + 10); // 地址列宽度
+const addrColWidth = computed(() => 8 * 12 + 10);
+const totalHeight = ref(0);
 
 const showContextMenu = ref(false);
 const menuX = ref(0);
@@ -108,22 +135,24 @@ let hexRenderer = null;
 // 初始化渲染器
 const initRenderer = () => {
   if (!hexContentRef.value || !hexCanvas.value) return;
-
+  totalHeight.value = Math.ceil(props.totalBytes / 16) * ROW_HEIGHT;
   hexRenderer = new HexRenderer({
     canvas: hexCanvas.value,
     container: hexContentRef.value,
     hexPerRow: HEX_PER_ROW,
     rowHeight: ROW_HEIGHT,
     addrColWidth: addrColWidth.value,
+    totalBytes: props.totalBytes
   });
+
+  // 监听可视区域变化，通知父组件
+  hexRenderer.onVisibleRangeChange = (startAddr, endAddr) => {
+    emit("visible-range-change", startAddr, endAddr);
+  };
 
   // 绑定回调事件
   hexRenderer.onClick = (addr) => {
-    // 查找点击地址所在的树节点
-    const clickedNode = findNodeByAddr(addr);
-    if (clickedNode) {
-      emit("node-click", clickedNode);
-    }
+    emit("node-click", addr);
     emit("selection-change", { start: addr, end: addr });
   };
 
@@ -135,21 +164,32 @@ const initRenderer = () => {
     emit("selection-change", range);
   };
 
-  // 设置初始数据
-  hexRenderer.setData(props.hexData, props.asciiData);
-  hexRenderer.setTreeNodes(props.treeNodes);
-  hexRenderer.setEditMode(props.isEditing, props.editRange);
-  hexRenderer.setSelectedRange(props.selectedAddrRange);
+  // 设置初始数据（适配新的数据结构）
+  hexRenderer.setData(
+    {
+      get: (addr) => props.hexData.get(addr),
+      length: props.hexData.length,
+    },
+    {
+      get: (addr) => props.asciiData.get(addr),
+      length: props.asciiData.length,
+    }
+  );
+
+  hexRenderer.init();
 };
 
-// 根据地址查找节点
-const findNodeByAddr = (addr) => {
-  for (const [id, node] of Object.entries(props.treeNodes)) {
-    if (addr >= node.start && addr <= node.end) {
-      return { id, ...node };
-    }
-  }
-  return null;
+// 滚动到指定地址（供父组件调用）
+const scrollToAddr = (addr) => {
+  if (!hexContentRef.value || !hexRenderer) return;
+
+  const row = Math.floor(addr / HEX_PER_ROW);
+  const scrollTop = row * ROW_HEIGHT;
+  hexContentRef.value.scrollTop = scrollTop;
+
+  // 强制更新可视区域并渲染
+  hexRenderer.calcVisibleRange();
+  hexRenderer.render();
 };
 
 // 右键菜单处理
@@ -180,74 +220,69 @@ const handleEdit = () => {
   showContextMenu.value = false;
 };
 
-// 设置颜色区块（高亮范围）
-const setColorRanges = (ranges) => {
-  if (hexRenderer) {
-    hexRenderer.setColorRanges(ranges);
-  }
-};
-
-// 根据节点ID高亮
-const highlightNodeById = (nodeId) => {
-  if (!hexRenderer || !nodeId || !props.treeNodes[nodeId]) return;
-
-  const node = props.treeNodes[nodeId];
-  setColorRanges([
-    {
-      start: node.start,
-      end: node.end,
-      color: "rgba(255, 0, 0, 0.2)", // 默认颜色
-    },
-  ]);
-};
-
-// 根据节点数据高亮
-const highlightNode = (nodeData) => {
-  if (!hexRenderer || !nodeData) return;
-
-  setColorRanges([
-    {
-      start: nodeData.start || nodeData.startAddr,
-      end: nodeData.end || nodeData.endAddr,
-      color: nodeData.color || "rgba(255, 0, 0, 0.2)",
-    },
-  ]);
-};
-
-// 高亮多个节点
-const highlightNodes = (nodesData) => {
-  if (!hexRenderer || !nodesData) return;
-
-  const ranges = nodesData.map((node) => ({
-    start: node.start || node.startAddr,
-    end: node.end || node.endAddr,
-    color: node.color || "rgba(255, 0, 0, 0.2)",
-  }));
-
-  setColorRanges(ranges);
-};
-
-// 清除所有高亮
-const clearHighlights = () => {
-  if (hexRenderer) {
-    hexRenderer.setColorRanges([]);
-  }
-};
-
 // 暴露方法给父组件
 defineExpose({
-  setColorRanges,
-  highlightNodeById,
-  highlightNode,
-  highlightNodes,
-  clearHighlights,
+  // 设置颜色区块（高亮范围）
+  setColorRanges: (ranges) => {
+    if (hexRenderer) {
+      hexRenderer.setColorRanges(ranges);
+    }
+  },
+  // 根据节点ID高亮
+  highlightNodeById: (nodeId) => {
+    if (!hexRenderer || !nodeId || !props.treeNodes[nodeId]) return;
+    const node = props.treeNodes[nodeId];
+    setColorRanges([
+      {
+        start: node.start,
+        end: node.end,
+        color: "rgba(255, 0, 0, 0.2)", // 默认颜色
+      },
+    ]);
+  },
+  // 根据节点数据高亮
+  highlightNode: (nodeData) => {
+    if (!hexRenderer || !nodeData) return;
+    setColorRanges([
+      {
+        start: nodeData.start || nodeData.startAddr,
+        end: nodeData.end || nodeData.endAddr,
+        color: nodeData.color || "rgba(255, 0, 0, 0.2)",
+      },
+    ]);
+  },
+  // 高亮多个节点
+  highlightNodes: (nodesData) => {
+    if (!hexRenderer || !nodesData) return;
+    const ranges = nodesData.map((node) => ({
+      start: node.start || node.startAddr,
+      end: node.end || node.endAddr,
+      color: node.color || "rgba(255, 0, 0, 0.2)",
+    }));
+    setColorRanges(ranges);
+  },
+  // 清除所有高亮
+  clearHighlights: () => {
+    if (hexRenderer) {
+      hexRenderer.setColorRanges([]);
+    }
+  },
+  scrollToAddr, // 新增：暴露滚动方法
 });
-// ============ 新增结束 ============
 
 // 生命周期
 onMounted(() => {
-  nextTick(() => {
-    initRenderer();
+  // 延迟初始化，确保容器尺寸正确
+  const initTimer = setTimeout(() => {
+    nextTick(() => {
+      initRenderer();
+    });
+  }, 100);
+
+  onUnmounted(() => {
+    clearTimeout(initTimer);
+    hexRenderer?.destroy();
+    document.removeEventListener("mouseup", () => {});
   });
 });
 
@@ -258,17 +293,20 @@ onUnmounted(() => {
 
 // 监听数据变化，更新渲染器
 watch(
-  () => props.hexData,
+  () => [props.hexData, props.asciiData],
   () => {
-    hexRenderer?.setData(props.hexData, props.asciiData);
-  },
-  { deep: true }
-);
-
-watch(
-  () => props.treeNodes,
-  (newNodes) => {
-    hexRenderer?.setTreeNodes(newNodes);
+    if (hexRenderer) {
+      hexRenderer.setData(
+        {
+          get: (addr) => props.hexData.get(addr),
+          length: props.hexData.length,
+        },
+        {
+          get: (addr) => props.asciiData.get(addr),
+          length: props.asciiData.length,
+        }
+      );
+    }
   },
   { deep: true }
 );
@@ -276,23 +314,37 @@ watch(
 watch(
   () => props.isEditing,
   () => {
-    hexRenderer?.setEditMode(props.isEditing, props.editRange);
+    if (hexRenderer) {
+      hexRenderer.setEditMode(props.isEditing, props.editRange);
+    }
+  }
+);
+
+watch(
+  () => props.totalBytes,
+  () => {
+    if (hexRenderer) {
+      hexRenderer.updateTotalBytes(props.totalBytes);
+    }
   }
 );
 
 watch(
   () => props.editRange,
   () => {
-    hexRenderer?.setEditMode(props.isEditing, props.editRange);
+    if (hexRenderer) {
+      hexRenderer.setEditMode(props.isEditing, props.editRange);
+    }
   },
   { deep: true }
 );
 
-// 监听选中范围变化，同步到渲染器
 watch(
   () => props.selectedAddrRange,
   (newRange) => {
-    // hexRenderer?.setSelectedRange(newRange);
+    if (hexRenderer) {
+      hexRenderer.setSelectedRange(newRange);
+    }
   },
   { deep: true }
 );
@@ -303,6 +355,27 @@ watch(
   height: 100%;
   position: relative;
   overflow: hidden;
+}
+
+/* 加载进度样式 */
+.loading-mask {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #666;
 }
 
 .hex-header {
@@ -333,7 +406,7 @@ watch(
 }
 
 .hex-col {
-  width: 30px;
+  width: 24px;
   text-align: center;
   font-family: monospace;
   user-select: none;
@@ -350,13 +423,10 @@ watch(
   padding: 0 10px;
   box-sizing: border-box;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
 }
 
 .hex-content {
-  height: calc(100% - 30px);
+  height: 100%;
   position: relative;
   overflow-y: auto;
   scrollbar-width: thin;

@@ -2,21 +2,22 @@ export default class HexRenderer {
     constructor(options) {
         // 配置项
         this.canvas = options.canvas;
-        this.container = options.container; // 滚动容器
+        this.container = options.container;
         this.hexPerRow = options.hexPerRow || 16;
-        this.rowHeight = options.rowHeight || 30;
-        this.addrColWidth = options.addrColWidth || 106; // 地址列宽度 (8*12+10)
-        this.hexColWidth = 30; // 每个16进制字符宽度
-        this.asciiColWidth = 12; // 每个ASCII字符宽度
+        this.rowHeight = options.rowHeight || 18;
+        this.addrColWidth = options.addrColWidth || 106;
+        this.totalBytes = options.totalBytes;
+        this.hexColWidth = 24;
+        this.asciiColWidth = 12;
         this.asciiStartX = this.addrColWidth + this.hexPerRow * this.hexColWidth + 10;
-
-        // 数据状态
-        this.hexData = [];
-        this.asciiData = [];
-        this.colorRanges= []; // 新增：高亮区块数组 [{start, end, color, borderColor?, textColor?}]
-        this.selectedRange = { start: -1, end: -1 }; // 选中范围
-        this.hoverAddr = -1; // hover的地址
-        this.editRange = { start: -1, end: -1 }; // 编辑范围
+        this.totalHeight = Math.ceil(this.totalBytes / this.hexPerRow) * this.rowHeight;
+        // 数据状态（适配新的数据结构）
+        this.hexData = { get: () => '--', length: 0 };
+        this.asciiData = { get: () => '.', length: 0 };
+        this.colorRanges = [];
+        this.selectedRange = { start: -1, end: -1 };
+        this.hoverAddr = -1;
+        this.editRange = { start: -1, end: -1 };
         this.isEditing = false;
 
         // 渲染状态
@@ -26,31 +27,53 @@ export default class HexRenderer {
         this.isDragging = false;
         this.selectionStartAddr = -1;
 
+        // 事件回调
+        this.onClick = null;
+        this.onDblClick = null;
+        this.onSelectionChange = null;
+        this.onVisibleRangeChange = null;
+
         // 绑定事件
         this.bindEvents();
-        // 初始化Canvas + 首次计算可视区域
-        this.initCanvas();
-        // 初始化可视区域
-        this.calcVisibleRange();
     }
 
-    // 初始化Canvas尺寸 + 计算容器高度
-    initCanvas() {
+    init() {
         if (!this.canvas || !this.container) return;
-        const rect = this.container.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
-        this.containerHeight = rect.height; // 记录容器可视高度
-        this.canvas.style.width = `${rect.width}px`;
-        this.canvas.style.height = `${rect.height}px`;
+        this.updateCanvasSize();
+        this.calcVisibleRange();
+        this.render();
     }
 
-    // 计算可视区域范围
+    updateTotalBytes(totalBytes) {
+        this.totalBytes = totalBytes;
+        this.totalHeight = Math.ceil(this.totalBytes / this.hexPerRow) * this.rowHeight;
+        this.calcVisibleRange();
+        this.render();
+    }
+
+    updateCanvasSize() {
+        if (!this.canvas || !this.container) return;
+
+        const containerWidth = this.container.offsetWidth || 800;
+        const containerHeight = this.container.offsetHeight || 600;
+
+        if (this.canvas.width !== containerWidth || this.canvas.height !== containerHeight) {
+            this.canvas.width = containerWidth;
+            this.canvas.height = containerHeight;
+            this.containerHeight = containerHeight;
+            this.canvas.style.width = `${containerWidth}px`;
+            this.canvas.style.height = `${containerHeight}px`;
+            this.render();
+        }
+    }
+
     calcVisibleRange() {
         if (!this.container) return;
         const scrollTop = this.container.scrollTop || 0;
+        const containerHeight = this.containerHeight || this.container.offsetHeight || 600;
+
         this.visibleStartRow = Math.max(0, Math.floor(scrollTop / this.rowHeight));
-        const visibleRowCount = Math.max(1, Math.ceil(this.containerHeight / this.rowHeight) + 2);
+        const visibleRowCount = Math.max(1, Math.ceil(containerHeight / this.rowHeight) + 2);
         const totalRows = Math.max(1, Math.ceil(this.hexData.length / this.hexPerRow));
         this.visibleEndRow = Math.min(this.visibleStartRow + visibleRowCount, totalRows);
 
@@ -60,13 +83,21 @@ export default class HexRenderer {
         }
     }
 
-    // 绑定事件（滚动、鼠标交互）
     bindEvents() {
+        // 滚动事件（核心：触发可视区域变化回调）
         this.container?.addEventListener('scroll', (e) => {
+            console.log("容器开始滚动了");
             this.calcVisibleRange();
+            const startAddr = this.visibleStartRow * this.hexPerRow;
+            const endAddr = Math.min((this.visibleEndRow * this.hexPerRow) - 1, this.hexData.length - 1);
+
+            if (this.onVisibleRangeChange) {
+                this.onVisibleRangeChange(startAddr, endAddr);
+            }
             this.render();
         });
 
+        // 其他事件（保留原有逻辑）
         this.canvas?.addEventListener('mousemove', (e) => {
             const addr = this.getAddrFromMousePos(e);
             if (addr !== this.hoverAddr) {
@@ -123,13 +154,10 @@ export default class HexRenderer {
         });
 
         window.addEventListener('resize', () => {
-            this.initCanvas();
-            this.calcVisibleRange();
-            this.render();
+            this.init();
         });
     }
 
-    // 根据鼠标位置计算对应的地址
     getAddrFromMousePos(e) {
         if (!this.canvas || !this.container) return -1;
         const rect = this.canvas.getBoundingClientRect();
@@ -152,7 +180,6 @@ export default class HexRenderer {
         return addr < this.hexData.length ? addr : -1;
     }
 
-    // 更新选中范围
     updateSelection(endAddr) {
         if (this.selectionStartAddr === -1 || endAddr === -1) return;
         this.selectedRange = {
@@ -163,98 +190,63 @@ export default class HexRenderer {
         this.render();
     }
 
-    // 设置数据
+    // 适配新的数据结构
     setData(hexData, asciiData) {
-        this.hexData = hexData || [];
-        this.asciiData = asciiData || [];
+        this.hexData = hexData || { get: () => '--', length: 0 };
+        this.asciiData = asciiData || { get: () => '.', length: 0 };
         this.calcVisibleRange();
         this.render();
     }
 
-    // 设置树状节点数据
-    setTreeNodes(treeNodes) {
-        this.treeNodes = treeNodes || {};
-        this.render();
-    }
-
-    // 设置高亮颜色区块
     setColorRanges(ranges) {
-        // 统一转为数组格式
-        if (Array.isArray(ranges)) {
-            this.colorRanges = ranges;
-        } else if (ranges && typeof ranges === 'object') {
-            // 如果传入单个对象，转为数组
-            this.colorRanges = [ranges];
-        } else {
-            this.colorRanges = [];
-        }
+        this.colorRanges = Array.isArray(ranges) ? ranges : (ranges ? [ranges] : []);
         this.render();
     }
 
-    // 设置编辑状态
     setEditMode(isEditing, editRange) {
         this.isEditing = isEditing;
         this.editRange = editRange || { start: -1, end: -1 };
         this.render();
     }
 
-    // 设置选中范围（外部控制）
     setSelectedRange(range) {
         this.selectedRange = range || { start: -1, end: -1 };
         this.render();
     }
 
-    // 获取地址对应的树节点
-    getTreeNodeByAddr(addr) {
-        return Object.values(this.treeNodes).find(node =>
-            addr >= node.start && addr <= node.end
-        );
-    }
-
-    // 新增：获取地址对应的高亮区块（可能有多个重叠）
-    getColorRangesByAddr(addr) {
-        return this.colorRanges.filter(range =>
-            addr >= range.start && addr <= range.end
-        );
-    }
-
-    // 核心渲染方法
+    // 核心渲染方法（适配新的数据读取方式）
     render() {
         if (!this.canvas) return;
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 预定义通用样式
-        const defaultFont = '14px monospace';
+        const defaultFont = '12px monospace';
         const defaultFgColor = '#000';
         const addrFgColor = '#999';
         const selectedBgRgba = 'rgba(0, 153, 255, 0.2)';
         const selectedStrokeColor = this.toRGB(selectedBgRgba, '#FFF');
         const editBgColor = 'rgba(147, 112, 219, 0.1)';
 
-        // 步骤1：绘制所有背景层（特殊状态背景）
-        // 1.1 绘制高亮区块背景（底层）
+        // 绘制背景层
         this.drawColorRangesBackground(ctx);
 
-        // 1.2 绘制编辑区域背景
         if (this.isEditing && this.editRange.start !== -1 && this.editRange.end !== -1) {
             ctx.fillStyle = editBgColor;
             this.drawRangeBackground(ctx, this.editRange.start, this.editRange.end, false);
         }
 
-        // 1.3 绘制选中区域背景
         if (this.selectedRange.start !== -1 && this.selectedRange.end !== -1) {
             ctx.fillStyle = selectedBgRgba;
             this.drawRangeBackground(ctx, this.selectedRange.start, this.selectedRange.end, true);
         }
 
-        // 步骤2：渲染基础文本内容（在背景之上）
+        // 渲染文本内容
         for (let row = this.visibleStartRow; row < this.visibleEndRow; row++) {
             const rowTop = (row - this.visibleStartRow) * this.rowHeight;
             const startAddr = row * this.hexPerRow;
             const endAddr = Math.min(startAddr + this.hexPerRow, this.hexData.length);
 
-            // 渲染地址列
+            // 地址列
             ctx.fillStyle = addrFgColor;
             ctx.font = defaultFont;
             ctx.textAlign = 'center';
@@ -262,69 +254,57 @@ export default class HexRenderer {
             const addrText = `0x${startAddr.toString(16).padStart(8, '0').toUpperCase()}`;
             ctx.fillText(addrText, this.addrColWidth / 2, rowTop + this.rowHeight / 2);
 
-            // 渲染16进制列
             ctx.fillStyle = defaultFgColor;
+            // 16进制列
             for (let col = 0; col < this.hexPerRow; col++) {
                 const addr = startAddr + col;
                 if (addr >= endAddr) break;
-                
-                // 优先使用高亮区块的文本颜色
+
                 let textColor = defaultFgColor;
                 const colorRange = this.getColorRangesByAddr(addr).pop();
-                if (colorRange?.textColor) {
-                    textColor = colorRange.textColor;
-                }
-                
-                // 选中区域文本颜色
+                if (colorRange?.textColor) textColor = colorRange.textColor;
                 if (this.selectedRange.start !== -1 && addr >= this.selectedRange.start && addr <= this.selectedRange.end) {
                     textColor = '#000';
                 }
-                
+
                 ctx.fillStyle = textColor;
                 const x = this.addrColWidth + col * this.hexColWidth;
-                const y = rowTop;
-                const hexText = (this.hexData[addr] || '--').toUpperCase();
-                ctx.fillText(hexText, x + this.hexColWidth / 2, y + this.rowHeight / 2);
+                // 适配新的数据读取方式
+                const hexText = this.hexData.get(addr).toUpperCase();
+                ctx.fillText(hexText, x + this.hexColWidth / 2, rowTop + this.rowHeight / 2);
             }
 
-            // 渲染ASCII列
+            // ASCII列
             ctx.fillStyle = defaultFgColor;
             for (let col = 0; col < this.hexPerRow; col++) {
                 const addr = startAddr + col;
                 if (addr >= endAddr) break;
-                
-                // 优先使用高亮区块的文本颜色
+
                 let textColor = defaultFgColor;
                 const colorRange = this.getColorRangesByAddr(addr).pop();
-                if (colorRange?.textColor) {
-                    textColor = colorRange.textColor;
-                }
-                
-                // 选中区域文本颜色
+                if (colorRange?.textColor) textColor = colorRange.textColor;
                 if (this.selectedRange.start !== -1 && addr >= this.selectedRange.start && addr <= this.selectedRange.end) {
                     textColor = '#000';
                 }
-                
+
                 ctx.fillStyle = textColor;
                 const x = this.asciiStartX + col * this.asciiColWidth;
-                const y = rowTop;
-                const asciiText = this.asciiData[addr] || '.';
-                ctx.fillText(asciiText, x + this.asciiColWidth / 2, y + this.rowHeight / 2);
+                // 适配新的数据读取方式
+                const asciiText = this.asciiData.get(addr);
+                ctx.fillText(asciiText, x + this.asciiColWidth / 2, rowTop + this.rowHeight / 2);
             }
         }
 
-        // 步骤3：绘制边框层（在文本之上）
-        // 3.1 绘制选中区域边框
+        // 绘制边框层
         if (this.selectedRange.start !== -1 && this.selectedRange.end !== -1) {
             ctx.strokeStyle = selectedStrokeColor;
             ctx.lineWidth = 2;
             this.drawRangeBorder(ctx, this.selectedRange.start, this.selectedRange.end);
         }
 
-        // 3.2 绘制高亮区块边框
         this.drawColorRangesBorder(ctx);
 
-        // 步骤4：绘制hover状态（优先级最低）
+        // 绘制hover状态
         if (this.hoverAddr !== -1) {
             const isInSelected = this.selectedRange.start !== -1 &&
                 this.hoverAddr >= this.selectedRange.start &&
@@ -338,16 +318,17 @@ export default class HexRenderer {
             );
 
             if (!isInSelected && !isInEdit && !isInColor) {
-                const treeNode = this.getTreeNodeByAddr(this.hoverAddr);
-                if (treeNode) {
-                    // 绘制hover背景（半透明）
-                    ctx.fillStyle = treeNode.bgColor;
-                    this.drawSingleCellBackground(ctx, this.hoverAddr);
-                    // 重绘hover文本
-                    this.redrawSingleCellText(ctx, this.hoverAddr, treeNode.fgColor);
-                }
+                this.drawSingleCellBackground(ctx, this.hoverAddr);
+                this.redrawSingleCellText(ctx, this.hoverAddr, '#000');
             }
         }
+    }
+
+    // 以下方法保留原有逻辑，仅适配数据读取方式
+    getColorRangesByAddr(addr) {
+        return this.colorRanges.filter(range =>
+            addr >= range.start && addr <= range.end
+        );
     }
 
     /**
@@ -359,13 +340,13 @@ export default class HexRenderer {
         // 遍历每个高亮区块
         for (const range of this.colorRanges) {
             if (range.start === -1 || range.end === -1) continue;
-            
+
             // 排除选中/编辑区域的判断
-            const isRangeInSelected = this.selectedRange.start !== -1 && 
+            const isRangeInSelected = this.selectedRange.start !== -1 &&
                 !(range.end < this.selectedRange.start || range.start > this.selectedRange.end);
             const isRangeInEdit = this.isEditing && this.editRange.start !== -1 &&
                 !(range.end < this.editRange.start || range.start > this.editRange.end);
-            
+
             if (isRangeInSelected || isRangeInEdit) continue;
 
             // 绘制区块整体背景（无间隔）
@@ -383,13 +364,13 @@ export default class HexRenderer {
         // 遍历每个高亮区块
         for (const range of this.colorRanges) {
             if (range.start === -1 || range.end === -1) continue;
-            
+
             // 排除选中/编辑区域的判断
-            const isRangeInSelected = this.selectedRange.start !== -1 && 
+            const isRangeInSelected = this.selectedRange.start !== -1 &&
                 !(range.end < this.selectedRange.start || range.start > this.selectedRange.end);
             const isRangeInEdit = this.isEditing && this.editRange.start !== -1 &&
                 !(range.end < this.editRange.start || range.start > this.editRange.end);
-            
+
             if (isRangeInSelected || isRangeInEdit) continue;
 
             // 绘制区块边框（和selectedRange样式对齐）
@@ -472,24 +453,24 @@ export default class HexRenderer {
         const endRow = Math.min(this.visibleEndRow - 1, Math.floor(endAddr / this.hexPerRow));
 
         ctx.beginPath();
-        
+
         // 处理16进制列边框
         // 首行
         const firstRowTop = (startRow - this.visibleStartRow) * this.rowHeight;
         const firstRowStartAddr = startRow * this.hexPerRow;
         const firstCol = Math.max(startAddr - firstRowStartAddr, 0);
         const firstEndCol = Math.min(endAddr - firstRowStartAddr, this.hexPerRow - 1);
-        
+
         // 首行左边框
         const firstLeftX = this.addrColWidth + firstCol * this.hexColWidth;
         ctx.moveTo(firstLeftX, firstRowTop);
         ctx.lineTo(firstLeftX, firstRowTop + this.rowHeight);
-        
+
         // 首行上边框
         ctx.moveTo(firstLeftX, firstRowTop);
         const firstRightX = this.addrColWidth + (firstEndCol + 1) * this.hexColWidth;
         ctx.lineTo(firstRightX, firstRowTop);
-        
+
         // 中间行
         for (let row = startRow + 1; row < endRow; row++) {
             const rowTop = (row - this.visibleStartRow) * this.rowHeight;
@@ -500,41 +481,41 @@ export default class HexRenderer {
             ctx.moveTo(firstRightX, rowTop);
             ctx.lineTo(firstRightX, rowTop + this.rowHeight);
         }
-        
+
         // 末行
         const lastRowTop = (endRow - this.visibleStartRow) * this.rowHeight;
         const lastRowStartAddr = endRow * this.hexPerRow;
         const lastCol = Math.min(endAddr - lastRowStartAddr, this.hexPerRow - 1);
         const lastRightX = this.addrColWidth + (lastCol + 1) * this.hexColWidth;
-        
+
         // 末行下边框
         ctx.moveTo(firstLeftX, lastRowTop + this.rowHeight);
         ctx.lineTo(lastRightX, lastRowTop + this.rowHeight);
-        
+
         // 末行右边框
         ctx.moveTo(lastRightX, lastRowTop);
         ctx.lineTo(lastRightX, lastRowTop + this.rowHeight);
-        
+
         // 处理ASCII列边框
         // 首行ASCII左边框
         const asciiFirstLeftX = this.asciiStartX + firstCol * this.asciiColWidth;
         ctx.moveTo(asciiFirstLeftX, firstRowTop);
         ctx.lineTo(asciiFirstLeftX, firstRowTop + this.rowHeight);
-        
+
         // 首行ASCII上边框
         ctx.moveTo(asciiFirstLeftX, firstRowTop);
         const asciiFirstRightX = this.asciiStartX + (firstEndCol + 1) * this.asciiColWidth;
         ctx.lineTo(asciiFirstRightX, firstRowTop);
-        
+
         // 末行ASCII下边框
         ctx.moveTo(asciiFirstLeftX, lastRowTop + this.rowHeight);
         const asciiLastRightX = this.asciiStartX + (lastCol + 1) * this.asciiColWidth;
         ctx.lineTo(asciiLastRightX, lastRowTop + this.rowHeight);
-        
+
         // 末行ASCII右边框
         ctx.moveTo(asciiLastRightX, lastRowTop);
         ctx.lineTo(asciiLastRightX, lastRowTop + this.rowHeight);
-        
+
         // 中间行ASCII边框
         for (let row = startRow + 1; row < endRow; row++) {
             const rowTop = (row - this.visibleStartRow) * this.rowHeight;
@@ -545,7 +526,7 @@ export default class HexRenderer {
             ctx.moveTo(asciiFirstRightX, rowTop);
             ctx.lineTo(asciiFirstRightX, rowTop + this.rowHeight);
         }
-        
+
         ctx.stroke();
     }
 
