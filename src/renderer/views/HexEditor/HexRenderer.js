@@ -59,9 +59,6 @@ export class HexRenderer {
         this.renderScheduled = false;
         this.lastRenderTime = 0;
 
-        // 测试数据
-        this.testData = this.generateTestData();
-
         // 绑定方法
         this.boundCanvasMouseMove = this.handleCanvasMouseMove.bind(this);
         this.boundDocumentMouseMove = this.handleDocumentMouseMove.bind(this);
@@ -89,27 +86,6 @@ export class HexRenderer {
         // 更新滚动速度
         this.baseScrollSpeed = this.rowHeight * 2;
         this.maxScrollSpeed = this.rowHeight * 20;
-    }
-
-    generateTestData() {
-        const data = [];
-        for (let i = 0; i < 256; i++) {
-            data.push({
-                hex: (i % 256).toString(16).padStart(2, '0').toUpperCase(),
-                ascii: (i >= 32 && i <= 126) ? String.fromCharCode(i) : '.'
-            });
-        }
-        return data;
-    }
-
-    getTestHex(addr) {
-        if (addr >= 256) return '--';
-        return this.testData[addr].hex;
-    }
-
-    getTestAscii(addr) {
-        if (addr >= 256) return '.';
-        return this.testData[addr].ascii;
     }
 
     init() {
