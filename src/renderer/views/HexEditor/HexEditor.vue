@@ -23,7 +23,7 @@
     <!-- 主体内容 -->
     <el-splitter
       layout="horizontal"
-      style="height: calc(100vh - 40px); width: 100vw"
+      style="height: 100vh; width: 100vw"
     >
       <!-- 左侧树面板 -->
       <HexTreePanel
@@ -38,16 +38,13 @@
       <!-- 中间16进制展示区 -->
       <HexContentView
         ref="hexViewRef"
-        :hex-data="hexData"
-        :ascii-data="asciiData"
+        :data-manager="dataManager"
         :total-bytes="totalDataBytes"
         :locked-nodes="lockedNodes"
         :is-editing="isEditing"
         :edit-range="editRange"
         :selected-addr-range="selectedAddrRange"
-        @edit-change="handleEditChange"
         @selection-change="handleSelectionChange"
-        @visible-range-change="handleVisibleRangeChange"
         @copy="handleCopy"
         @cut="handleCut"
         @delete="handleDelete"
@@ -61,7 +58,7 @@
       />
     </el-splitter>
 
-    <!-- 颜色选择器（全局单例） -->
+    <!-- 颜色选择器 -->
     <HexColorPicker
       v-model="showColorPicker"
       :color="selectedColor"
@@ -72,9 +69,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import TitleBar from "@/components/TitleBar.vue";
+import { hexDataManager } from "./HexDataManager.js";
 
 // 导入子组件
 import HexMenuBar from "./HexMenuBar.vue";
@@ -84,41 +82,20 @@ import HexHistoryPanel from "./HexHistoryPanel.vue";
 import HexJumpDialog from "./HexJumpDialog.vue";
 import HexColorPicker from "./HexColorPicker.vue";
 
-// ===================== 全局常量 =====================
+// ===================== 常量 =====================
 const HEX_PER_ROW = 16;
 const ROW_HEIGHT = 30;
 
-// ===================== 超大文件配置 =====================
-const CHUNK_SIZE = 1024 * 1024; // 1MB/分片（可根据性能调整）
-const BUFFER_ROWS = 50; // 可视区域外缓冲行数
-const CHUNK_CACHE_LIMIT = 5; // 最大缓存分片数（防止内存溢出）
-
-// ===================== 全局状态 =====================
-// 数据相关（核心优化：分片缓存 + 仅存储当前可视数据）
+// ===================== 状态 =====================
 const hexViewRef = ref(null);
-const totalDataBytes = ref(0); // 文件总字节数（仅记录，不存储数据）
-const currentChunkData = ref({
-  // 当前可视区域的分片数据
-  hex: {}, // 格式：{ 地址: 16进制值 }
-  ascii: {},
-});
-const currentFileSize = ref(0);
-const chunkCache = ref(new Map()); // 分片缓存：key=分片起始地址，value={hex, ascii}
-const currentLoadedChunkRange = ref({ start: -1, end: -1 }); // 当前加载的分片范围
-const maxAddrLength = ref(8);
 
-// 分片读取相关
-const fileHandle = ref(null); // 文件句柄
-const fileReader = ref(null); // FileReader实例
-const loadingProgress = ref(0);
-const isLoading = ref(false);
-const isJumping = ref(false); // 标记是否是跳转操作（避免滚动冲突）
+const dataManager = hexDataManager; // 直接引用单例
 
-// 其他状态（保留原有）
+// 其他状态
+const totalDataBytes = ref(0);
 const deletedAddrs = ref(new Set());
 const isEditing = ref(false);
 const editRange = ref({ start: 0, end: 0 });
-const originalHexData = ref([]);
 const jumpAddr = ref("");
 const selectedAddrRange = ref({ start: -1, end: -1 });
 const selectedNode = ref(null);
@@ -127,10 +104,10 @@ const showColorPicker = ref(false);
 const selectedColor = ref("#666666");
 const colorPickerX = ref(0);
 const colorPickerY = ref(0);
-let lockedNodeTemp = null;
 const editHistory = ref([]);
 const currentHistoryIndex = ref(-1);
 const showJumpDialog = ref(false);
+
 const HEX_COLORS = [
   "#FCE4EC",
   "#FF9900",
@@ -233,191 +210,26 @@ const initHexData = (startAddr = 0, length = 1024) => {
   maxAddrLength.value = (startAddr + length - 1).toString(16).length;
 };
 
-// 打开文件（核心优化：分片读取 + 缓存）
+// 打开文件
 const handleOpenFile = () => {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "*";
+  input.accept = "*/*";
   input.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     // 重置状态
-    chunkCache.value.clear();
-    currentChunkData.value = { hex: {}, ascii: {} };
-    currentLoadedChunkRange.value = { start: -1, end: -1 };
-    totalDataBytes.value = file.size;
-    fileHandle.value = file;
-    loadingProgress.value = 0;
-    isLoading.value = true;
     deletedAddrs.value.clear();
+    editHistory.value = [];
+    currentHistoryIndex.value = -1;
 
-    try {
-      maxAddrLength.value = (totalDataBytes.value - 1).toString(16).length;
+    // 通过数据管理器加载文件
+    dataManager.loadFile(file);
 
-      // 更新树节点
-      treeData.value = [
-        {
-          id: 1,
-          name: file.name,
-          addrStart: 0x00,
-          addrEnd: totalDataBytes.value - 1,
-          type: "file",
-          color: HEX_COLORS[0],
-          children: [],
-        },
-      ];
-
-      // 初始加载前1000字节
-      const initialEndAddr = Math.min(1000, totalDataBytes.value - 1);
-      await loadFileChunk(0, initialEndAddr);
-
-      ElMessage.success(
-        `成功加载文件：${file.name} (${formatFileSize(file.size)})`
-      );
-    } catch (error) {
-      ElMessage.error(`加载文件失败：${error.message}`);
-    } finally {
-      isLoading.value = false;
-    }
+    ElMessage.success(`开始加载文件：${file.name}`);
   };
   input.click();
-};
-
-// 格式化文件大小
-const formatFileSize = (bytes) => {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-  if (bytes < 1024 * 1024 * 1024)
-    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-};
-
-// 分片读取文件（核心优化：缓存 + 稀疏存储）
-const loadFileChunk = async (targetStartAddr, targetEndAddr) => {
-  if (!fileHandle.value || targetStartAddr > targetEndAddr) return;
-
-  // 计算实际需要加载的分片范围（包含缓冲）
-  const chunkStart = Math.max(0, targetStartAddr - BUFFER_ROWS * HEX_PER_ROW);
-  const chunkEnd = Math.min(
-    totalDataBytes.value - 1,
-    targetEndAddr + BUFFER_ROWS * HEX_PER_ROW
-  );
-
-  // 如果当前分片已加载，直接使用缓存
-  if (
-    chunkCache.value.has(chunkStart) &&
-    chunkCache.value.get(chunkStart).end >= chunkEnd
-  ) {
-    const cached = chunkCache.value.get(chunkStart);
-    currentChunkData.value = { hex: cached.hex, ascii: cached.ascii };
-    currentLoadedChunkRange.value = { start: chunkStart, end: chunkEnd };
-    return;
-  }
-
-  // 中断正在进行的读取
-  if (fileReader.value) {
-    fileReader.value.abort();
-  }
-
-  isLoading.value = true;
-  loadingProgress.value = 0;
-
-  try {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      fileReader.value = reader;
-
-      // 读取指定范围的文件片段
-      const blob = fileHandle.value.slice(chunkStart, chunkEnd + 1);
-      reader.readAsArrayBuffer(blob);
-
-      // 进度回调
-      reader.onprogress = (e) => {
-        if (e.lengthComputable) {
-          loadingProgress.value = (e.loaded / e.total) * 100;
-        }
-      };
-
-      // 读取完成
-      reader.onload = (e) => {
-        const arrayBuffer = e.target.result;
-        const uint8Array = new Uint8Array(arrayBuffer);
-
-        // 存储分片数据（仅存储当前分片，非全量）
-        const chunkHex = {};
-        const chunkAscii = {};
-
-        for (let i = 0; i < uint8Array.length; i++) {
-          const absoluteAddr = chunkStart + i;
-          // 跳过已删除的地址
-          if (deletedAddrs.value.has(absoluteAddr)) continue;
-
-          const hex = uint8Array[i].toString(16).padStart(2, "0");
-          chunkHex[absoluteAddr] = hex;
-
-          const charCode = uint8Array[i];
-          const ascii =
-            charCode >= 32 && charCode <= 126
-              ? String.fromCharCode(charCode)
-              : ".";
-          chunkAscii[absoluteAddr] = ascii;
-        }
-
-        // 更新当前分片数据
-        currentChunkData.value = { hex: chunkHex, ascii: chunkAscii };
-        currentLoadedChunkRange.value = { start: chunkStart, end: chunkEnd };
-
-        // 加入缓存并清理超出限制的缓存
-        chunkCache.value.set(chunkStart, {
-          hex: chunkHex,
-          ascii: chunkAscii,
-          end: chunkEnd,
-          timestamp: Date.now(),
-        });
-
-        // 缓存超过限制时，删除最久未使用的分片
-        if (chunkCache.value.size > CHUNK_CACHE_LIMIT) {
-          const sortedKeys = Array.from(chunkCache.value.keys()).sort(
-            (a, b) =>
-              chunkCache.value.get(a).timestamp -
-              chunkCache.value.get(b).timestamp
-          );
-          chunkCache.value.delete(sortedKeys[0]);
-        }
-
-        loadingProgress.value = 100;
-        isLoading.value = false;
-        resolve();
-      };
-
-      // 读取失败
-      reader.onerror = (error) => {
-        reject(error);
-        isLoading.value = false;
-      };
-    });
-  } catch (error) {
-    ElMessage.error(`读取文件分片失败：${error.message}`);
-    isLoading.value = false;
-    throw error;
-  }
-};
-
-// 处理可视区域变化（由子组件触发）
-const handleVisibleRangeChange = async (startAddr, endAddr) => {
-  // 跳转操作时跳过（避免重复加载）
-  if (isJumping.value) {
-    isJumping.value = false;
-    return;
-  }
-
-  // 检查当前分片是否覆盖可视区域
-  const { start: currentStart, end: currentEnd } =
-    currentLoadedChunkRange.value;
-  if (currentStart === -1 || startAddr < currentStart || endAddr > currentEnd) {
-    await loadFileChunk(startAddr, endAddr);
-  }
 };
 
 // 跳转地址（核心优化：直接加载目标分片）
@@ -680,10 +492,6 @@ const handleRedo = () => {
   }
 };
 
-const handleSelectionChange = (range) => {
-  selectedAddrRange.value = range;
-};
-
 const createHistoryItem = (type, change, addrRange = null) => {
   const formattedChange = formatChangeData(type, change, addrRange);
 
@@ -769,17 +577,35 @@ const formatChangeData = (type, change, addrRange) => {
   return formatted;
 };
 
+const handleSelectionChange = (range) => {
+  selectedAddrRange.value = range;
+};
+
+// 生命周期
 onMounted(() => {
-  initHexData();
+  // 监听数据管理器事件
+  dataManager.addListener(handleDataEvent);
 });
 
 onUnmounted(() => {
-  // 清理文件读取器
-  if (fileReader.value) {
-    fileReader.value.abort();
-  }
-  chunkCache.value.clear();
+  dataManager.removeListener(handleDataEvent);
 });
+
+const handleDataEvent = (event) => {
+  switch (event.type) {
+    case "file-loaded":
+      totalDataBytes.value = event.totalBytes;
+      console.log(`文件加载完成，共 ${event.totalBytes} 字节`);
+      break;
+    case "progress":
+      // 可以在这里更新进度条
+      break;
+    case "data-updated":
+      // 触发视图更新
+      hexViewRef.value?.requestRender();
+      break;
+  }
+};
 </script>
 
 <style scoped>

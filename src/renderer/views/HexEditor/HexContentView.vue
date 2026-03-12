@@ -1,41 +1,34 @@
 <template>
   <el-splitter-panel :size="800" :min-size="700">
-    <div class="hex-view-panel" ref="hexViewRef">
-      <!-- 加载进度条 -->
-      <div v-if="isLoading" class="loading-mask">
-        <el-progress
-          :percentage="loadingProgress"
-          status="success"
-          style="width: 300px"
-        />
-        <span class="loading-text"
-          >正在读取文件：{{ loadingProgress.toFixed(1) }}%</span
-        >
-      </div>
-
+    <div class="hex-view-panel">
       <!-- 顶部列头 -->
       <div class="hex-header" ref="hexHeaderRef">
-        <div
-          class="addr-col header-addr"
-          :style="{ width: `${addrColWidth}px` }"
-        >
-          ADDR
-        </div>
+        <div class="addr-col" :style="{ width: `${addrColWidth}px` }">ADDR</div>
         <div class="hex-cols">
-          <div v-for="col in 16" :key="col" class="hex-col header-col">
+          <div v-for="col in 16" :key="col" class="hex-col">
             {{ (col - 1).toString(16).toUpperCase() }}
           </div>
         </div>
-        <div class="ascii-col header-ascii">ASCII</div>
+        <div class="ascii-col">ASCII</div>
       </div>
 
-      <!-- 16进制内容区 -->
+      <!-- 内容区 -->
       <div
-        class="hex-content"
-        ref="hexContentRef"
-        @contextmenu.prevent="handleContextMenu"
+        class="hex-content-wrapper"
+        ref="hexWrapperRef"
+        @scroll="handleScroll"
+        @mouseenter="showScrollbar = true"
+        @mouseleave="showScrollbar = false"
       >
-        <canvas ref="hexCanvas" class="hex-canvas"></canvas>
+        <canvas
+          ref="hexCanvas"
+          class="hex-canvas"
+          :class="{ 'scrollbar-visible': showScrollbar }"
+        ></canvas>
+        <div
+          class="scroll-placeholder"
+          :style="{ height: totalHeight + 'px' }"
+        ></div>
       </div>
 
       <!-- 右键菜单 -->
@@ -55,22 +48,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { ElMessage } from "element-plus";
-
 import HexContextMenu from "./HexContextMenu.vue";
-import HexRenderer from "./HexRenderer.js";
+import { HexRenderer } from "./HexRenderer.js";
 
-// 常量定义
-const HEX_PER_ROW = 16;
-const ROW_HEIGHT = 18;
-
-// Props定义
 const props = defineProps({
-  hexData: {
-    type: Object,
-    required: true,
-  },
-  asciiData: {
+  dataManager: {
     type: Object,
     required: true,
   },
@@ -94,112 +76,112 @@ const props = defineProps({
     type: Object,
     default: () => ({ start: -1, end: -1 }),
   },
-  // 新增：加载状态（从父组件传递）
-  isLoading: {
-    type: Boolean,
-    default: false,
-  },
-  loadingProgress: {
-    type: Number,
-    default: 0,
-  },
 });
 
-// 事件定义
 const emit = defineEmits([
-  "edit-change",
   "selection-change",
+  "visible-range-change",
   "copy",
   "cut",
   "delete",
   "edit",
-  "node-click",
-  "visible-range-change", // 新增：通知父组件可视区域变化
 ]);
 
-// 响应式数据
-const hexViewRef = ref(null);
-const hexHeaderRef = ref(null);
-const hexContentRef = ref(null);
-const hexCanvas = ref(null);
-const addrColWidth = computed(() => 8 * 12 + 10);
-const totalHeight = ref(0);
+// 常量
+const HEX_PER_ROW = 16;
+const ROW_HEIGHT = 18;
+const addrColWidth = 8 * 12 + 10;
 
+// 响应式数据
+const hexWrapperRef = ref(null);
+const hexCanvas = ref(null);
+const showScrollbar = ref(false);
 const showContextMenu = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
+const isLoading = ref(false);
+
+// 计算属性
+const totalHeight = computed(() => {
+  console.log("totalBytes = ", props.totalBytes);
+  let totalHeight = Math.ceil(props.totalBytes / 16) * ROW_HEIGHT;
+  console.log("totalHeight = ", totalHeight);
+  return totalHeight;
+});
 
 // 渲染器实例
-let hexRenderer = null;
+let renderer = null;
+
+// 处理滚动
+const handleScroll = async (e) => {
+  const scrollTop = e.target.scrollTop;
+  const visibleStartRow = Math.floor(scrollTop / ROW_HEIGHT);
+  const visibleEndRow = Math.ceil(
+    (scrollTop + e.target.clientHeight) / ROW_HEIGHT
+  );
+  const startAddr = visibleStartRow * HEX_PER_ROW;
+  const endAddr = Math.min(
+    visibleEndRow * HEX_PER_ROW - 1,
+    props.totalBytes - 1
+  );
+  // 确保数据已加载
+  await props.dataManager.ensureRangeLoaded(startAddr, endAddr);
+  // 更新渲染器
+  if (renderer) {
+    renderer.setScrollTop(scrollTop);
+  }
+};
 
 // 初始化渲染器
 const initRenderer = () => {
-  if (!hexContentRef.value || !hexCanvas.value) return;
-  totalHeight.value = Math.ceil(props.totalBytes / 16) * ROW_HEIGHT;
-  hexRenderer = new HexRenderer({
+  if (!hexWrapperRef.value || !hexCanvas.value) return;
+
+  renderer = new HexRenderer({
     canvas: hexCanvas.value,
-    container: hexContentRef.value,
+    wrapper: hexWrapperRef.value,
+    dataManager: props.dataManager,
     hexPerRow: HEX_PER_ROW,
     rowHeight: ROW_HEIGHT,
-    addrColWidth: addrColWidth.value,
-    totalBytes: props.totalBytes
+    addrColWidth,
   });
 
-  // 监听可视区域变化，通知父组件
-  hexRenderer.onVisibleRangeChange = (startAddr, endAddr) => {
-    emit("visible-range-change", startAddr, endAddr);
-  };
-
-  // 绑定回调事件
-  hexRenderer.onClick = (addr) => {
-    emit("node-click", addr);
+  // 绑定事件
+  renderer.onClick = (addr) => {
     emit("selection-change", { start: addr, end: addr });
   };
 
-  hexRenderer.onDblClick = (addr) => {
-    emit("edit", { start: addr, end: addr });
-  };
-
-  hexRenderer.onSelectionChange = (range) => {
+  renderer.onSelectionChange = (range) => {
     emit("selection-change", range);
   };
 
-  // 设置初始数据（适配新的数据结构）
-  hexRenderer.setData(
-    {
-      get: (addr) => props.hexData.get(addr),
-      length: props.hexData.length,
-    },
-    {
-      get: (addr) => props.asciiData.get(addr),
-      length: props.asciiData.length,
-    }
-  );
-
-  hexRenderer.init();
+  renderer.init();
 };
 
-// 滚动到指定地址（供父组件调用）
+// 滚动到指定地址
 const scrollToAddr = (addr) => {
-  if (!hexContentRef.value || !hexRenderer) return;
+  if (!hexWrapperRef.value || !renderer) return;
 
   const row = Math.floor(addr / HEX_PER_ROW);
   const scrollTop = row * ROW_HEIGHT;
-  hexContentRef.value.scrollTop = scrollTop;
+  hexWrapperRef.value.scrollTop = scrollTop;
 
-  // 强制更新可视区域并渲染
-  hexRenderer.calcVisibleRange();
-  hexRenderer.render();
+  // 手动触发一次滚动
+  handleScroll({ target: hexWrapperRef.value });
 };
 
-// 右键菜单处理
+// 请求重新渲染
+const requestRender = () => {
+  renderer?.requestRender();
+};
+
+// 右键菜单
 const handleContextMenu = (e) => {
   showContextMenu.value = true;
   menuX.value = e.clientX;
   menuY.value = e.clientY;
 };
 
-// 菜单操作处理
+// 菜单操作
 const handleCopy = () => {
   emit("copy");
   showContextMenu.value = false;
@@ -220,224 +202,142 @@ const handleEdit = () => {
   showContextMenu.value = false;
 };
 
-// 暴露方法给父组件
+// 暴露方法
 defineExpose({
-  // 设置颜色区块（高亮范围）
+  scrollToAddr,
+  requestRender,
   setColorRanges: (ranges) => {
-    if (hexRenderer) {
-      hexRenderer.setColorRanges(ranges);
-    }
+    renderer?.setColorRanges(ranges);
   },
-  // 根据节点ID高亮
-  highlightNodeById: (nodeId) => {
-    if (!hexRenderer || !nodeId || !props.treeNodes[nodeId]) return;
-    const node = props.treeNodes[nodeId];
-    setColorRanges([
-      {
-        start: node.start,
-        end: node.end,
-        color: "rgba(255, 0, 0, 0.2)", // 默认颜色
-      },
-    ]);
-  },
-  // 根据节点数据高亮
-  highlightNode: (nodeData) => {
-    if (!hexRenderer || !nodeData) return;
-    setColorRanges([
-      {
-        start: nodeData.start || nodeData.startAddr,
-        end: nodeData.end || nodeData.endAddr,
-        color: nodeData.color || "rgba(255, 0, 0, 0.2)",
-      },
-    ]);
-  },
-  // 高亮多个节点
-  highlightNodes: (nodesData) => {
-    if (!hexRenderer || !nodesData) return;
-    const ranges = nodesData.map((node) => ({
-      start: node.start || node.startAddr,
-      end: node.end || node.endAddr,
-      color: node.color || "rgba(255, 0, 0, 0.2)",
-    }));
-    setColorRanges(ranges);
-  },
-  // 清除所有高亮
-  clearHighlights: () => {
-    if (hexRenderer) {
-      hexRenderer.setColorRanges([]);
-    }
-  },
-  scrollToAddr, // 新增：暴露滚动方法
 });
 
-// 生命周期
+// 监听数据管理器事件
 onMounted(() => {
-  // 延迟初始化，确保容器尺寸正确
-  const initTimer = setTimeout(() => {
-    nextTick(() => {
-      initRenderer();
-    });
-  }, 100);
+  nextTick(() => {
+    initRenderer();
+  });
 
-  onUnmounted(() => {
-    clearTimeout(initTimer);
-    hexRenderer?.destroy();
-    document.removeEventListener("mouseup", () => {});
+  props.dataManager.addListener((event) => {
+    if (event.type === "data-updated" || event.type === "single-update") {
+      requestRender();
+    } else if (event.type === "progress") {
+      console.log("数据加载进度 > ", event.progress);
+    }
   });
 });
 
 onUnmounted(() => {
-  hexRenderer?.destroy();
-  document.removeEventListener("mouseup", () => {});
+  renderer?.destroy();
 });
 
-// 监听数据变化，更新渲染器
-watch(
-  () => [props.hexData, props.asciiData],
-  () => {
-    if (hexRenderer) {
-      hexRenderer.setData(
-        {
-          get: (addr) => props.hexData.get(addr),
-          length: props.hexData.length,
-        },
-        {
-          get: (addr) => props.asciiData.get(addr),
-          length: props.asciiData.length,
-        }
-      );
-    }
-  },
-  { deep: true }
-);
-
+// 监听props变化
 watch(
   () => props.isEditing,
   () => {
-    if (hexRenderer) {
-      hexRenderer.setEditMode(props.isEditing, props.editRange);
-    }
+    renderer?.setEditMode(props.isEditing, props.editRange);
   }
 );
 
-watch(
-  () => props.totalBytes,
-  () => {
-    if (hexRenderer) {
-      hexRenderer.updateTotalBytes(props.totalBytes);
-    }
-  }
-);
-
-watch(
-  () => props.editRange,
-  () => {
-    if (hexRenderer) {
-      hexRenderer.setEditMode(props.isEditing, props.editRange);
-    }
-  },
-  { deep: true }
-);
-
-watch(
-  () => props.selectedAddrRange,
-  (newRange) => {
-    if (hexRenderer) {
-      hexRenderer.setSelectedRange(newRange);
-    }
-  },
-  { deep: true }
-);
+// watch(
+//   () => props.selectedAddrRange,
+//   (range) => {
+//     renderer?.setSelectedRange(range);
+//   },
+//   { deep: true }
+// );
 </script>
 
 <style scoped>
 .hex-view-panel {
+  width: 100%;
+  padding-right:4px;
   height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-/* 加载进度样式 */
-.loading-mask {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 9999;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 20px;
-  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.loading-text {
-  font-size: 14px;
-  color: #666;
+  background: white;
 }
 
 .hex-header {
   display: flex;
   height: 30px;
-  line-height: 30px;
   background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
   border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .addr-col {
   text-align: center;
   color: #999;
-  user-select: none;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 100px;
+  line-height: 30px;
+  border-right: 1px solid #e5e7eb;
 }
 
 .hex-cols {
   display: flex;
-  height: 100%;
+  border-right: 1px solid #e5e7eb;
 }
 
 .hex-col {
   width: 24px;
   text-align: center;
+  line-height: 30px;
   font-family: monospace;
-  user-select: none;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #666;
+  border-right: 1px solid #f0f0f0;
 }
 
 .ascii-col {
   width: 200px;
   text-align: center;
-  user-select: none;
-  padding: 0 10px;
-  box-sizing: border-box;
-  height: 100%;
+  line-height: 30px;
+  color: #666;
 }
 
-.hex-content {
-  height: 100%;
+.hex-content-wrapper {
+  flex: 1;
   position: relative;
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+.hex-content-wrapper:hover {
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.hex-content-wrapper::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+
+.hex-content-wrapper::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.hex-content-wrapper:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+.hex-content-wrapper:hover::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
 .hex-canvas {
-  position: absolute;
+  position: sticky;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  cursor: default;
+  background-color:#FFF;
+  will-change: transform;
+}
+
+.scroll-placeholder {
+  width: 1px;
+  pointer-events: none;
+  position: relative;
+  z-index: 0;
 }
 </style>
