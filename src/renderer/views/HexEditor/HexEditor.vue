@@ -1,5 +1,5 @@
 <template>
-  <TitleBar title="DevTool" />
+  <TitleBar title="DevTool" wndKey="HexEditorWnd"/>
   <div class="hex-editor-container">
     <!-- 顶部菜单 -->
     <HexMenuBar
@@ -610,7 +610,7 @@ const handleDataEvent = (event) => {
 
 <style scoped>
 .hex-editor-container {
-  height: 100vh;
+  height: calc(100vh - var(--dt-titlebar-height));
   width: 100vw;
   overflow: hidden;
   display: flex;
