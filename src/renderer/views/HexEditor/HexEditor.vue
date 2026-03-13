@@ -109,9 +109,9 @@ const currentHistoryIndex = ref(-1);
 const showJumpDialog = ref(false);
 
 const HEX_COLORS = [
-  "#FCE4EC",
-  "#FF9900",
-  "#FFFF00",
+  "#EC889A",
+  "#AAF6A5",
+  "#F9F9A6",
   "#00FF00",
   "#00FFFF",
   "#0099FF",
@@ -172,43 +172,12 @@ const hexData = computed(() => ({
   length: totalDataBytes.value,
 }));
 
-const asciiData = computed(() => ({
-  get: (addr) => {
-    if (deletedAddrs.value.has(addr)) return ".";
-    if (currentChunkData.value.ascii[addr] !== undefined)
-      return currentChunkData.value.ascii[addr];
-    return ".";
-  },
-  length: totalDataBytes.value,
-}));
-
 const displayHistory = computed(() => {
   return editHistory.value.map((item, index) => ({
     ...item,
     isDisabled: index > currentHistoryIndex.value,
   }));
 });
-
-// ===================== 核心方法 =====================
-// 初始化测试数据
-const initHexData = (startAddr = 0, length = 1024) => {
-  totalDataBytes.value = length;
-  currentChunkData.value = { hex: {}, ascii: {} };
-  chunkCache.value.clear();
-
-  for (let i = startAddr; i < startAddr + length; i++) {
-    const hex = Math.floor(Math.random() * 256)
-      .toString(16)
-      .padStart(2, "0");
-    currentChunkData.value.hex[i] = hex;
-    const charCode = parseInt(hex, 16);
-    const ascii =
-      charCode >= 32 && charCode <= 126 ? String.fromCharCode(charCode) : ".";
-    currentChunkData.value.ascii[i] = ascii;
-  }
-
-  maxAddrLength.value = (startAddr + length - 1).toString(16).length;
-};
 
 // 打开文件
 const handleOpenFile = () => {
@@ -226,8 +195,6 @@ const handleOpenFile = () => {
 
     // 通过数据管理器加载文件
     dataManager.loadFile(file);
-
-    ElMessage.success(`开始加载文件：${file.name}`);
   };
   input.click();
 };
@@ -262,8 +229,6 @@ const handleJump = (addrStr) => {
   loadFileChunk(addr, addr + HEX_PER_ROW * 10).then(() => {
     // 更新选中范围并通知子组件滚动
     selectedAddrRange.value = { start: addr, end: addr };
-    hexViewRef.value?.scrollToAddr(addr);
-    ElMessage.success(`已跳转到地址 0x${addr.toString(16).toUpperCase()}`);
   });
 
   showJumpDialog.value = false;
@@ -424,8 +389,6 @@ const handleCut = () => {
   });
   editHistory.value.push(historyItem);
   currentHistoryIndex.value = editHistory.value.length - 1;
-
-  ElMessage.success("已剪切选中的16进制数据");
 };
 
 const handleDelete = () => {
@@ -457,8 +420,6 @@ const handleDelete = () => {
   });
   editHistory.value.push(historyItem);
   currentHistoryIndex.value = editHistory.value.length - 1;
-
-  ElMessage.success("已删除选中的16进制数据");
 };
 
 const handleEdit = () => {
@@ -467,7 +428,6 @@ const handleEdit = () => {
 
   isEditing.value = true;
   editRange.value = { start, end };
-  ElMessage.info("进入编辑模式");
 };
 
 const handleHistoryClick = (row) => {
@@ -595,7 +555,6 @@ const handleDataEvent = (event) => {
   switch (event.type) {
     case "file-loaded":
       totalDataBytes.value = event.totalBytes;
-      console.log(`文件加载完成，共 ${event.totalBytes} 字节`);
       break;
     case "progress":
       // 可以在这里更新进度条

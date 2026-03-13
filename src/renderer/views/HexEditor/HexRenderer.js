@@ -4,18 +4,26 @@ export class HexRenderer {
         this.canvas = options.canvas;
         this.wrapper = options.wrapper;
         this.dataManager = options.dataManager;
-        this.hexPerRow = options.hexPerRow || 16;
-        this.rowHeight = options.rowHeight || 18;
-        this.addrColWidth = options.addrColWidth || 106;
+        this.hexCols = options.hexCols || 16; // 16 进制每行列数
 
-        // 字体大小相关
-        this.baseFontSize = 12;
-        this.currentFontSize = 12;
-        this.minFontSize = 12;
-        this.maxFontSize = 20;
-
-        // 根据字体大小动态计算列宽
-        this.updateDimensions();
+        // 预设尺寸配置（按从小到大排序）
+        // 格式: [ADDR_CELL_WIDTH, HEX_CELL_WIDTH, ASCII_CELL_WIDTH, ROW_HEIGHT，FONT_SIZE]
+        this.presetSizes = Object.freeze([
+            // 小号 - 紧凑模式
+            [100, 18, 8, 20, 12],
+            // 中号 - 标准模式（默认）
+            [120, 24, 16, 22, 14],
+            // 大号 - 舒适模式
+            [130, 28, 18, 24, 16],
+            // 特大号 - 大屏模式
+            [140, 32, 20, 26, 18],
+            // 超大号 - 高清模式
+            // [160, 36, 22, 28, 20]
+        ]);
+        // 当前尺寸索引（默认使用标准模式）
+        this.currentSizeIndex = 1;
+        // 尺寸等级名称（用于显示/调试）
+        this.sizeLevels = Object.freeze(['紧凑', '标准', '舒适', '大屏', '高清']);
 
         // 滚动状态
         this.scrollTop = 0;
@@ -24,6 +32,7 @@ export class HexRenderer {
 
         // 高亮数据
         this.colorRanges = [];
+        this.colorRangeKeys = new Map();
         this.selectedRange = { start: -1, end: -1 };
         this.editRange = { start: -1, end: -1 };
         this.isEditing = false;
@@ -70,28 +79,81 @@ export class HexRenderer {
         this.boundWheel = this.handleWheel.bind(this);
         this.boundScroll = this.handleScroll.bind(this);
 
+        // 根据当前序号计算绘制高度
+        this.updateDimensions();
+        this.updateVisibleRows();
         this.bindEvents();
     }
 
     // 根据字体大小更新尺寸
     updateDimensions() {
-        // 字体大小影响行高和列宽
-        this.rowHeight = this.currentFontSize + 6;
-        this.hexColWidth = this.currentFontSize + 12;
-        this.asciiColWidth = this.currentFontSize + 0;
+        const current = this.presetSizes[this.currentSizeIndex];
+        this.addrCellWidth = current[0];
+        this.hexCellWidth = current[1];
+        this.asciiCellWidth = current[2];
+        this.rowHeight = current[3];
+        this.cellFontSize = current[4];
 
         // 重新计算 ASCII 起始位置
-        this.asciiStartX = this.addrColWidth + this.hexPerRow * this.hexColWidth + 10;
-
-        // 更新滚动速度
-        this.baseScrollSpeed = this.rowHeight * 2;
-        this.maxScrollSpeed = this.rowHeight * 20;
+        this.asciiStartX = this.addrCellWidth + this.hexCols * this.hexCellWidth + 10;
+        if (this.onDimensionChanged) {
+            this.onDimensionChanged({
+                addrWidth: this.addrCellWidth,
+                hexWidth: this.hexCellWidth * this.hexCols,
+                asciiWidth: this.asciiCellWidth * this.hexCols,
+                rowHeight: this.rowHeight,
+                cellFontSize: this.cellFontSize,
+            });
+        }
     }
 
-    init() {
-        console.log('HexRenderer init');
-        this.updateCanvasSize();
+    onFileSizeChanged() {
+        this.updateVisibleRows();
+        this.requestRender();
+    }
 
+    /**
+     * 放大：切换到下一个更大的预设尺寸
+     * @returns {boolean} 是否放大成功（false表示已到最大）
+     */
+    zoomIn() {
+        if (this.currentSizeIndex < this.presetSizes.length - 1) {
+            this.currentSizeIndex++;
+            this.updateDimensions();
+            this.updateVisibleRows();
+            this.requestRender();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 缩小：切换到下一个更小的预设尺寸
+     * @returns {boolean} 是否缩小成功（false表示已到最小）
+     */
+    zoomOut() {
+        if (this.currentSizeIndex > 0) {
+            this.currentSizeIndex--;
+            this.updateDimensions();
+            this.updateVisibleRows();
+            this.requestRender();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 重置为默认尺寸（标准模式）
+     */
+    resetToDefault() {
+        this.currentSizeIndex = 1;
+        this.updateDimensions();
+    }
+
+
+    init() {
+        this.updateCanvasSize();
+        this.updateVisibleRows();
         // 初始化焦点为第一个地址
         if (this.currentFocusAddr === -1) {
             this.setFocus(0);
@@ -117,18 +179,18 @@ export class HexRenderer {
     ensureFocusVisible() {
         try {
             if (this.currentFocusAddr === -1) return;
-            
+
             // 检查 wrapper 是否存在
             if (!this.wrapper) return;
-            
-            const focusRow = Math.floor(this.currentFocusAddr / this.hexPerRow);
+
+            const focusRow = Math.floor(this.currentFocusAddr / this.hexCols);
             const currentScrollTop = this.wrapper.scrollTop || 0;
             const containerHeight = this.containerHeight || 600;
-            
+
             // 计算当前可视行范围
             const currentStartRow = Math.floor(currentScrollTop / this.rowHeight);
             const currentEndRow = currentStartRow + Math.ceil(containerHeight / this.rowHeight);
-            
+
             // 只有当焦点真正不在可视区域内时才滚动
             if (focusRow < currentStartRow) {
                 // 焦点在当前可视区域上方
@@ -154,9 +216,9 @@ export class HexRenderer {
 
         // 触发可视区域变化回调，用于加载数据
         if (this.onVisibleRangeChange) {
-            const startAddr = this.visibleRows.start * this.hexPerRow;
+            const startAddr = this.visibleRows.start * this.hexCols;
             const endAddr = Math.min(
-                (this.visibleRows.end * this.hexPerRow) - 1,
+                (this.visibleRows.end * this.hexCols) - 1,
                 this.dataManager?.totalBytes || 256
             );
             this.onVisibleRangeChange(startAddr, endAddr);
@@ -165,21 +227,15 @@ export class HexRenderer {
         this.requestRender();
     }
 
+
+
     handleWheel(e) {
         if (e.ctrlKey) {
             e.preventDefault();
-
-            const delta = e.deltaY > 0 ? -1 : 1;
-            const newSize = this.currentFontSize + delta;
-
-            if (newSize >= this.minFontSize && newSize <= this.maxFontSize) {
-                this.currentFontSize = newSize;
-                this.updateDimensions();
-                this.updateCanvasSize();
-                this.updateVisibleRows();
-                this.requestRender();
-
-                console.log(`字体大小: ${this.currentFontSize}px`);
+            if (e.deltaY > 0) {
+                this.zoomIn();
+            } else {
+                this.zoomOut();
             }
         }
     }
@@ -209,8 +265,7 @@ export class HexRenderer {
             this.visibleRows = { start: startRow, end: endRow };
             return;
         }
-
-        const totalRows = Math.ceil(this.dataManager.totalBytes / this.hexPerRow);
+        const totalRows = Math.ceil(this.dataManager.totalBytes / this.hexCols);
         const startRow = Math.max(0, Math.floor(this.scrollTop / this.rowHeight));
         const visibleCount = Math.ceil(this.containerHeight / this.rowHeight) + 2;
         const endRow = Math.min(startRow + visibleCount, totalRows);
@@ -250,27 +305,155 @@ export class HexRenderer {
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.updateCanvasSize();
-        this.updateVisibleRows();
-
-        ctx.fillStyle = '#f0f0f0';
+        ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // ========== 优化1：全局Canvas渲染配置（关键！） ==========
+        // 开启像素对齐，关闭模糊的插值渲染
+        ctx.imageSmoothingEnabled = false;
+        // 设置文字抗锯齿模式（精细渲染）
+        ctx.fontSmoothingEnabled = true;
+        ctx.textRendering = 'geometricPrecision'; // 几何精确渲染（针对等宽字体）
+        ctx.lineWidth = 1; // 确保线条宽度为1px（避免默认粗线条）
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
 
         const hasData = this.dataManager && this.dataManager.totalBytes > 0;
 
         if (hasData) {
-            this.renderHexData(ctx);
+            // 精准匹配 010 Editor 的跨平台等宽字体配置
+            const font = `${this.cellFontSize}px 'WenQuanYi Micro Hei Mono', 'DejaVu Sans Mono', 'Consolas', 'Menlo', 'Monaco', 'Courier New', monospace`;
+            ctx.font = font;
+            ctx.textBaseline = 'middle';
+
+            this.renderAddressBar(ctx, font);
+            this.renderHexArea(ctx, font);
+            this.renderAsciiArea(ctx, font);
+
+            this.renderInteractionLayers(ctx);
             this.drawSelection(ctx);
-            // 始终绘制焦点行高亮（如果有焦点）
             if (this.currentFocusAddr !== -1) {
                 this.drawFocusHighlight(ctx);
             }
         }
     }
 
+    /**
+     * 优化后的地址栏渲染（像素对齐 + 精细绘制）
+     */
+    renderAddressBar(ctx, font) {
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'left';
+
+        for (let row = this.visibleRows.start; row < this.visibleRows.end; row++) {
+            const rowTop = (row - this.visibleRows.start) * this.rowHeight;
+            const rowData = this.dataManager.getRowData(row);
+            const addrText = `0x${rowData.startAddr.toString(16).padStart(8, '0').toUpperCase()}`;
+
+            // ========== 优化2：坐标取整（像素对齐） ==========
+            // 把小数坐标转为整数，避免跨像素渲染
+            const textX = Math.floor(4); // 地址栏左侧偏移，强制取整
+            const textY = Math.floor(rowTop + this.rowHeight / 2); // 垂直居中坐标取整
+
+            ctx.fillText(addrText, textX, textY);
+        }
+    }
+
+    /**
+     * 优化后的HEX区域渲染（核心精细优化）
+     */
+    renderHexArea(ctx, font) {
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+
+        for (let row = this.visibleRows.start; row < this.visibleRows.end; row++) {
+            const rowTop = (row - this.visibleRows.start) * this.rowHeight;
+            const rowData = this.dataManager.getRowData(row);
+
+            for (let col = 0; col < this.hexCols; col++) {
+                const addr = rowData.startAddr + col;
+                // ========== 优化2：坐标取整（关键） ==========
+                const x = Math.floor(this.addrCellWidth + col * this.hexCellWidth);
+                const rowTopInt = Math.floor(rowTop); // 行顶部坐标取整
+
+                // 高亮背景绘制（同样像素对齐）
+                if (addr < this.dataManager.totalBytes && this.shouldHighlight(addr)) {
+                    ctx.fillStyle = this.getHighlightColor(addr);
+                    // 矩形坐标/尺寸全部取整，避免模糊
+                    ctx.fillRect(
+                        x,
+                        rowTopInt,
+                        Math.floor(this.hexCellWidth),
+                        Math.floor(this.rowHeight)
+                    );
+                    ctx.fillStyle = '#000';
+                }
+
+                const hexValue = rowData.hex[col] || '--';
+                // ========== 优化3：文字坐标精确居中 + 取整 ==========
+                const textX = Math.floor(x + this.hexCellWidth / 2);
+                const textY = Math.floor(rowTopInt + this.rowHeight / 2);
+
+                // ========== 优化4：避免重复绘制（可选） ==========
+                // 先判断文字是否在可视区域，再绘制
+                if (textX > 0 && textX < this.canvas.width && textY > 0 && textY < this.canvas.height) {
+                    ctx.fillText(hexValue, textX, textY);
+                }
+            }
+        }
+    }
+
+    /**
+     * 渲染ASCII数据区域（单独拆分）
+     * @param {CanvasRenderingContext2D} ctx - Canvas上下文
+     * @param {string} font - 字体样式
+     */
+    renderAsciiArea(ctx, font) {
+        // ASCII区域基础样式
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+
+        for (let row = this.visibleRows.start; row < this.visibleRows.end; row++) {
+            const rowTop = (row - this.visibleRows.start) * this.rowHeight;
+            const rowData = this.dataManager.getRowData(row);
+
+            for (let col = 0; col < this.hexCols; col++) {
+                const addr = rowData.startAddr + col;
+                const x = this.asciiStartX + col * this.asciiCellWidth;
+
+                // 高亮背景（仅在需要时切换样式）
+                if (addr < this.dataManager.totalBytes && this.shouldHighlight(addr)) {
+                    ctx.fillStyle = this.getHighlightColor(addr);
+                    ctx.fillRect(x, rowTop, this.asciiCellWidth, this.rowHeight);
+                    ctx.fillStyle = '#000'; // 恢复默认文字颜色
+                }
+
+                // 绘制ASCII值
+                const asciiValue = rowData.ascii[col] || '.';
+                ctx.fillText(asciiValue, x + this.asciiCellWidth / 2, rowTop + this.rowHeight / 2);
+            }
+        }
+    }
+
+    /**
+     * 渲染交互层（选中/悬浮）
+     * @param {CanvasRenderingContext2D} ctx - Canvas上下文
+     */
+    renderInteractionLayers(ctx) {
+        // 选中区域
+        if (this.selectedRange.start !== -1) {
+            this.drawSelection(ctx);
+        }
+
+        // 悬浮效果（仅在非高亮时绘制）
+        if (this.hoverAddr !== -1 && !this.shouldHighlight(this.hoverAddr)) {
+            this.drawHover(ctx);
+        }
+    }
+
     drawFocusHighlight(ctx) {
-        const focusRow = Math.floor(this.currentFocusAddr / this.hexPerRow);
-        const focusCol = this.currentFocusAddr % this.hexPerRow;
+        const focusRow = Math.floor(this.currentFocusAddr / this.hexCols);
+        const focusCol = this.currentFocusAddr % this.hexCols;
 
         // 只绘制可见行内的焦点
         if (focusRow >= this.visibleRows.start && focusRow < this.visibleRows.end) {
@@ -280,85 +463,22 @@ export class HexRenderer {
 
             // 绘制整行半透明背景
             ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
-            ctx.fillRect(this.addrColWidth, rowTop, this.hexPerRow * this.hexColWidth, this.rowHeight);
-            ctx.fillRect(this.asciiStartX, rowTop, this.hexPerRow * this.asciiColWidth, this.rowHeight);
+            ctx.fillRect(this.addrCellWidth, rowTop, this.hexCols * this.hexCellWidth, this.rowHeight);
+            ctx.fillRect(this.asciiStartX, rowTop, this.hexCols * this.asciiCellWidth, this.rowHeight);
 
             // 绘制当前字符边框
             ctx.strokeStyle = '#ffaa00';
             ctx.lineWidth = 2;
 
             // 十六进制字符边框
-            const hexX = this.addrColWidth + focusCol * this.hexColWidth;
-            ctx.strokeRect(hexX, rowTop, this.hexColWidth, this.rowHeight);
+            const hexX = this.addrCellWidth + focusCol * this.hexCellWidth;
+            ctx.strokeRect(hexX, rowTop, this.hexCellWidth, this.rowHeight);
 
             // ASCII字符边框
-            const asciiX = this.asciiStartX + focusCol * this.asciiColWidth;
-            ctx.strokeRect(asciiX, rowTop, this.asciiColWidth, this.rowHeight);
+            const asciiX = this.asciiStartX + focusCol * this.asciiCellWidth;
+            ctx.strokeRect(asciiX, rowTop, this.asciiCellWidth, this.rowHeight);
 
             ctx.restore();
-        }
-    }
-
-    renderHexData(ctx) {
-        const addrColor = '#999';
-        const defaultColor = '#000';
-        const font = `${this.currentFontSize}px monospace`;
-
-        for (let row = this.visibleRows.start; row < this.visibleRows.end; row++) {
-            const rowTop = (row - this.visibleRows.start) * this.rowHeight;
-
-            let rowData = this.dataManager.getRowData(row);
-
-            ctx.fillStyle = addrColor;
-            ctx.font = font;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const addrText = `0x${rowData.startAddr.toString(16).padStart(8, '0').toUpperCase()}`;
-            ctx.fillText(addrText, this.addrColWidth / 2, rowTop + this.rowHeight / 2);
-
-            for (let col = 0; col < this.hexPerRow; col++) {
-                const addr = rowData.startAddr + col;
-                const x = this.addrColWidth + col * this.hexColWidth;
-
-                if (addr < this.dataManager.totalBytes && this.shouldHighlight(addr)) {
-                    ctx.fillStyle = this.getHighlightColor(addr);
-                    ctx.fillRect(x, rowTop, this.hexColWidth, this.rowHeight);
-                }
-
-                ctx.fillStyle = defaultColor;
-                ctx.font = font;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                const hexValue = rowData.hex[col] || '--';
-                ctx.fillText(hexValue, x + this.hexColWidth / 2, rowTop + this.rowHeight / 2);
-            }
-
-            for (let col = 0; col < this.hexPerRow; col++) {
-                const addr = rowData.startAddr + col;
-                const x = this.asciiStartX + col * this.asciiColWidth;
-
-                if (addr < this.dataManager.totalBytes && this.shouldHighlight(addr)) {
-                    ctx.fillStyle = this.getHighlightColor(addr);
-                    ctx.fillRect(x, rowTop, this.asciiColWidth, this.rowHeight);
-                }
-
-                ctx.fillStyle = defaultColor;
-                ctx.font = font;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                const asciiValue = rowData.ascii[col] || '.';
-                ctx.fillText(asciiValue, x + this.asciiColWidth / 2, rowTop + this.rowHeight / 2);
-            }
-        }
-
-        if (this.selectedRange.start !== -1) {
-            this.drawSelection(ctx);
-        }
-
-        if (this.hoverAddr !== -1 && !this.shouldHighlight(this.hoverAddr)) {
-            this.drawHover(ctx);
         }
     }
 
@@ -405,30 +525,84 @@ export class HexRenderer {
     drawSelection(ctx) {
         if (this.selectedRange.start === -1) return;
 
-        const startRow = Math.max(this.visibleRows.start, Math.floor(this.selectedRange.start / this.hexPerRow));
-        const endRow = Math.min(this.visibleRows.end - 1, Math.floor(this.selectedRange.end / this.hexPerRow));
+        // 计算选区的核心参数
+        const { start: selStart, end: selEnd } = this.selectedRange;
+        const startRow = Math.max(this.visibleRows.start, Math.floor(selStart / this.hexCols));
+        const endRow = Math.min(this.visibleRows.end - 1, Math.floor(selEnd / this.hexCols));
+
+        // 提前计算固定尺寸（减少重复计算）
+        const { hexCellWidth, asciiCellWidth, rowHeight, addrCellWidth, asciiStartX } = this;
+        const fullHexRowWidth = this.hexCols * hexCellWidth; // 整行HEX宽度
+        const fullAsciiRowWidth = this.hexCols * asciiCellWidth; // 整行ASCII宽度
 
         ctx.save();
         ctx.fillStyle = 'rgba(0,153,255,0.1)';
         ctx.strokeStyle = '#0099ff';
         ctx.lineWidth = 1;
 
-        for (let row = startRow; row <= endRow; row++) {
-            const rowTop = (row - this.visibleRows.start) * this.rowHeight;
-            const rowStartAddr = row * this.hexPerRow;
+        // 合并矩形，仅3次 fillRect 调用
+        // 情况1：顶部不完整行（如果首行不是整行选中）
+        if (startRow <= endRow) {
+            const rowStartAddr = startRow * this.hexCols;
+            const startCol = Math.max(selStart - rowStartAddr, 0);
+            const endCol = (startRow === endRow)
+                ? Math.min(selEnd - rowStartAddr, this.hexCols - 1)
+                : this.hexCols - 1;
 
-            const startCol = Math.max(this.selectedRange.start - rowStartAddr, 0);
-            const endCol = Math.min(this.selectedRange.end - rowStartAddr, this.hexPerRow - 1);
+            // 仅当首行不是整行时绘制（否则合并到中间行）
+            if (startCol > 0 || (startRow !== endRow && endCol < this.hexCols - 1)) {
+                // HEX区域顶部不完整行
+                const hexX = addrCellWidth + startCol * hexCellWidth;
+                const hexW = (endCol - startCol + 1) * hexCellWidth;
+                const rowTop = (startRow - this.visibleRows.start) * rowHeight;
+                ctx.fillRect(hexX, rowTop, hexW, rowHeight);
 
-            const hexStartX = this.addrColWidth + startCol * this.hexColWidth;
-            const hexEndX = this.addrColWidth + (endCol + 1) * this.hexColWidth;
-            ctx.fillRect(hexStartX, rowTop, hexEndX - hexStartX, this.rowHeight);
-            // ctx.strokeRect(hexStartX, rowTop, hexEndX - hexStartX, this.rowHeight);
+                // ASCII区域顶部不完整行
+                const asciiX = asciiStartX + startCol * asciiCellWidth;
+                const asciiW = (endCol - startCol + 1) * asciiCellWidth;
+                ctx.fillRect(asciiX, rowTop, asciiW, rowHeight);
+            }
 
-            const asciiStartX = this.asciiStartX + startCol * this.asciiColWidth;
-            const asciiEndX = this.asciiStartX + (endCol + 1) * this.asciiColWidth;
-            ctx.fillRect(asciiStartX, rowTop, asciiEndX - asciiStartX, this.rowHeight);
-            // ctx.strokeRect(asciiStartX, rowTop, asciiEndX - asciiStartX, this.rowHeight);
+            // 情况2：中间完整行（批量合并为一个大矩形）
+            const middleStartRow = startRow + 1;
+            const middleEndRow = endRow - 1;
+            if (middleStartRow <= middleEndRow) {
+                const firstMiddleRowTop = (middleStartRow - this.visibleRows.start) * rowHeight;
+                const middleHeight = (middleEndRow - middleStartRow + 1) * rowHeight;
+
+                // HEX区域中间完整行（一个大矩形覆盖所有完整行）
+                ctx.fillRect(addrCellWidth, firstMiddleRowTop, fullHexRowWidth, middleHeight);
+                // ASCII区域中间完整行（一个大矩形覆盖所有完整行）
+                ctx.fillRect(asciiStartX, firstMiddleRowTop, fullAsciiRowWidth, middleHeight);
+            }
+
+            // 情况3：底部不完整行（如果末行不是整行，且末行≠首行）
+            if (endRow > startRow) {
+                const rowStartAddr = endRow * this.hexCols;
+                const startCol = Math.max(selStart - rowStartAddr, 0);
+                const endCol = Math.min(selEnd - rowStartAddr, this.hexCols - 1);
+
+                // 仅当末行不是整行时绘制
+                if (endCol < this.hexCols - 1 || startCol > 0) {
+                    const rowTop = (endRow - this.visibleRows.start) * rowHeight;
+                    // HEX区域底部不完整行
+                    const hexX = addrCellWidth + startCol * hexCellWidth;
+                    const hexW = (endCol - startCol + 1) * hexCellWidth;
+                    ctx.fillRect(hexX, rowTop, hexW, rowHeight);
+
+                    // ASCII区域底部不完整行
+                    const asciiX = asciiStartX + startCol * asciiCellWidth;
+                    const asciiW = (endCol - startCol + 1) * asciiCellWidth;
+                    ctx.fillRect(asciiX, rowTop, asciiW, rowHeight);
+                }
+            }
+
+            // 特殊情况：选区只有一行（直接绘制这一行）
+            if (startRow === endRow && (startCol === 0 && endCol === this.hexCols - 1)) {
+                const rowTop = (startRow - this.visibleRows.start) * rowHeight;
+                ctx.fillRect(addrCellWidth, rowTop, fullHexRowWidth, rowHeight);
+                ctx.fillRect(asciiStartX, rowTop, fullAsciiRowWidth, rowHeight);
+            }
         }
 
         ctx.restore();
@@ -437,24 +611,22 @@ export class HexRenderer {
     drawHover(ctx) {
         if (this.hoverAddr === -1) return;
 
-        const row = Math.floor(this.hoverAddr / this.hexPerRow);
+        const row = Math.floor(this.hoverAddr / this.hexCols);
         if (row < this.visibleRows.start || row >= this.visibleRows.end) return;
 
         const rowTop = (row - this.visibleRows.start) * this.rowHeight;
-        const col = this.hoverAddr - row * this.hexPerRow;
+        const col = this.hoverAddr - row * this.hexCols;
 
         ctx.save();
         ctx.fillStyle = 'rgba(200, 200, 200, 0.3)';
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 1;
 
-        const hexX = this.addrColWidth + col * this.hexColWidth;
-        ctx.fillRect(hexX, rowTop, this.hexColWidth, this.rowHeight);
-        ctx.strokeRect(hexX, rowTop, this.hexColWidth, this.rowHeight);
+        const hexX = this.addrCellWidth + col * this.hexCellWidth;
+        ctx.fillRect(hexX, rowTop, this.hexCellWidth, this.rowHeight);
 
-        const asciiX = this.asciiStartX + col * this.asciiColWidth;
-        ctx.fillRect(asciiX, rowTop, this.asciiColWidth, this.rowHeight);
-        ctx.strokeRect(asciiX, rowTop, this.asciiColWidth, this.rowHeight);
+        const asciiX = this.asciiStartX + col * this.asciiCellWidth;
+        ctx.fillRect(asciiX, rowTop, this.asciiCellWidth, this.rowHeight);
 
         ctx.restore();
     }
@@ -517,34 +689,34 @@ export class HexRenderer {
                 break;
             case 'ArrowUp':
                 e.preventDefault();
-                if (this.currentFocusAddr >= this.hexPerRow) {
-                    newAddr = this.currentFocusAddr - this.hexPerRow;
+                if (this.currentFocusAddr >= this.hexCols) {
+                    newAddr = this.currentFocusAddr - this.hexCols;
                 }
                 break;
             case 'ArrowDown':
                 e.preventDefault();
-                if (this.currentFocusAddr + this.hexPerRow < totalBytes) {
-                    newAddr = this.currentFocusAddr + this.hexPerRow;
+                if (this.currentFocusAddr + this.hexCols < totalBytes) {
+                    newAddr = this.currentFocusAddr + this.hexCols;
                 }
                 break;
             case 'Home':
                 e.preventDefault();
-                newAddr = Math.floor(this.currentFocusAddr / this.hexPerRow) * this.hexPerRow;
+                newAddr = Math.floor(this.currentFocusAddr / this.hexCols) * this.hexCols;
                 break;
             case 'End':
                 e.preventDefault();
                 newAddr = Math.min(
-                    Math.floor(this.currentFocusAddr / this.hexPerRow) * this.hexPerRow + this.hexPerRow - 1,
+                    Math.floor(this.currentFocusAddr / this.hexCols) * this.hexCols + this.hexCols - 1,
                     totalBytes - 1
                 );
                 break;
             case 'PageUp':
                 e.preventDefault();
-                newAddr = Math.max(0, this.currentFocusAddr - this.hexPerRow * 10);
+                newAddr = Math.max(0, this.currentFocusAddr - this.hexCols * 10);
                 break;
             case 'PageDown':
                 e.preventDefault();
-                newAddr = Math.min(totalBytes - 1, this.currentFocusAddr + this.hexPerRow * 10);
+                newAddr = Math.min(totalBytes - 1, this.currentFocusAddr + this.hexCols * 10);
                 break;
         }
 
@@ -695,26 +867,26 @@ export class HexRenderer {
             targetRow = this.visibleRows.start + Math.floor(y / this.rowHeight);
         }
 
-        const maxRow = Math.ceil((this.dataManager?.totalBytes || 256) / this.hexPerRow) - 1;
+        const maxRow = Math.ceil((this.dataManager?.totalBytes || 256) / this.hexCols) - 1;
         targetRow = Math.max(0, Math.min(targetRow, maxRow));
 
         const x = clientX - rect.left;
 
-        if (x < this.addrColWidth) {
+        if (x < this.addrCellWidth) {
             targetCol = 0;
-        } else if (x >= this.addrColWidth && x < this.addrColWidth + this.hexPerRow * this.hexColWidth) {
-            targetCol = Math.floor((x - this.addrColWidth) / this.hexColWidth);
-        } else if (x >= this.asciiStartX && x < this.asciiStartX + this.hexPerRow * this.asciiColWidth) {
-            targetCol = Math.floor((x - this.asciiStartX) / this.asciiColWidth);
-        } else if (x >= this.addrColWidth + this.hexPerRow * this.hexColWidth) {
-            targetCol = this.hexPerRow - 1;
+        } else if (x >= this.addrCellWidth && x < this.addrCellWidth + this.hexCols * this.hexCellWidth) {
+            targetCol = Math.floor((x - this.addrCellWidth) / this.hexCellWidth);
+        } else if (x >= this.asciiStartX && x < this.asciiStartX + this.hexCols * this.asciiCellWidth) {
+            targetCol = Math.floor((x - this.asciiStartX) / this.asciiCellWidth);
+        } else if (x >= this.addrCellWidth + this.hexCols * this.hexCellWidth) {
+            targetCol = this.hexCols - 1;
         } else {
             targetCol = 0;
         }
 
-        targetCol = Math.max(0, Math.min(targetCol, this.hexPerRow - 1));
+        targetCol = Math.max(0, Math.min(targetCol, this.hexCols - 1));
 
-        const addr = targetRow * this.hexPerRow + targetCol;
+        const addr = targetRow * this.hexCols + targetCol;
 
         if (this.dataManager && this.dataManager.totalBytes) {
             return addr < this.dataManager.totalBytes ? addr : -1;
@@ -800,15 +972,15 @@ export class HexRenderer {
         if (row < 0) return -1;
 
         let col = -1;
-        if (x >= this.addrColWidth && x < this.addrColWidth + this.hexPerRow * this.hexColWidth) {
-            col = Math.floor((x - this.addrColWidth) / this.hexColWidth);
-        } else if (x >= this.asciiStartX && x < this.asciiStartX + this.hexPerRow * this.asciiColWidth) {
-            col = Math.floor((x - this.asciiStartX) / this.asciiColWidth);
+        if (x >= this.addrCellWidth && x < this.addrCellWidth + this.hexCols * this.hexCellWidth) {
+            col = Math.floor((x - this.addrCellWidth) / this.hexCellWidth);
+        } else if (x >= this.asciiStartX && x < this.asciiStartX + this.hexCols * this.asciiCellWidth) {
+            col = Math.floor((x - this.asciiStartX) / this.asciiCellWidth);
         }
 
-        if (col < 0 || col >= this.hexPerRow) return -1;
+        if (col < 0 || col >= this.hexCols) return -1;
 
-        const addr = row * this.hexPerRow + col;
+        const addr = row * this.hexCols + col;
 
         if (this.dataManager && this.dataManager.totalBytes) {
             return addr < this.dataManager.totalBytes ? addr : -1;
@@ -836,15 +1008,15 @@ export class HexRenderer {
     preloadAroundAddr(addr) {
         if (!this.dataManager || !this.dataManager.totalBytes) return;
 
-        const row = Math.floor(addr / this.hexPerRow);
+        const row = Math.floor(addr / this.hexCols);
         const startRow = Math.max(0, row - this.preloadBuffer);
         const endRow = Math.min(
-            Math.ceil(this.dataManager.totalBytes / this.hexPerRow) - 1,
+            Math.ceil(this.dataManager.totalBytes / this.hexCols) - 1,
             row + this.preloadBuffer
         );
 
-        const startAddr = startRow * this.hexPerRow;
-        const endAddr = Math.min((endRow + 1) * this.hexPerRow - 1, this.dataManager.totalBytes - 1);
+        const startAddr = startRow * this.hexCols;
+        const endAddr = Math.min((endRow + 1) * this.hexCols - 1, this.dataManager.totalBytes - 1);
 
         // 触发数据加载
         if (this.onVisibleRangeChange) {
@@ -858,7 +1030,7 @@ export class HexRenderer {
     smoothScrollTo(addr) {
         if (addr < 0 || addr >= (this.dataManager?.totalBytes || 256)) return;
 
-        const targetRow = Math.floor(addr / this.hexPerRow);
+        const targetRow = Math.floor(addr / this.hexCols);
         const targetScrollTop = targetRow * this.rowHeight;
         const maxScroll = this.wrapper.scrollHeight - this.containerHeight;
         const clampedTarget = Math.max(0, Math.min(targetScrollTop, maxScroll));
@@ -871,7 +1043,7 @@ export class HexRenderer {
 
             if (addr < 0 || addr >= (this.dataManager?.totalBytes || 256)) return;
 
-            const targetRow = Math.floor(addr / this.hexPerRow);
+            const targetRow = Math.floor(addr / this.hexCols);
             const targetScrollTop = targetRow * this.rowHeight;
             const maxScroll = this.wrapper.scrollHeight - this.containerHeight;
             const clampedTarget = Math.max(0, Math.min(targetScrollTop, maxScroll));
@@ -899,17 +1071,43 @@ export class HexRenderer {
      * 设置颜色范围并平滑滚动到第一个范围
      */
     setColorRanges(ranges) {
-        this.colorRanges = ranges || [];
+        for (let i = 0; i < ranges.length; i++) {
+            const range = ranges[i];
+            const key = `${range.start}_${range.end}`;
+            if (!this.colorRangeKeys.has(key)) {
+                this.colorRanges.push(range);
+                this.colorRangeKeys.set(key, range);
+            }
+        }
 
         // 如果有颜色范围，平滑滚动到第一个范围
         if (ranges && ranges.length > 0) {
             const firstRange = ranges[0];
             if (firstRange && firstRange.start !== -1) {
-                this.smoothScrollTo(firstRange.start);
+                if (!this.isRangeVisible(firstRange)) {
+                    this.smoothScrollTo(firstRange.start);
+                }
+
             }
         }
 
         this.requestRender();
+    }
+
+    /**
+     * 判断地址范围是否可见
+     */
+    isRangeVisible(range) {
+        const startAddr = this.visibleRows.start * this.hexCols;
+        const endAddr = Math.min(
+            (this.visibleRows.end * this.hexCols) - 1,
+            this.dataManager?.totalBytes || 256
+        );
+
+        if (range.end <= startAddr || range.start >= endAddr) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -918,7 +1116,7 @@ export class HexRenderer {
     scrollToAddr(addr) {
         if (addr < 0 || addr >= (this.dataManager?.totalBytes || 256)) return;
 
-        const row = Math.floor(addr / this.hexPerRow);
+        const row = Math.floor(addr / this.hexCols);
         const scrollTop = row * this.rowHeight;
 
         this.preloadAroundAddr(addr);

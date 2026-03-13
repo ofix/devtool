@@ -3,13 +3,18 @@
     <div class="hex-view-panel">
       <!-- 顶部列头 -->
       <div class="hex-header" ref="hexHeaderRef">
-        <div class="addr-col" :style="{ width: `${addrColWidth}px` }">ADDR</div>
-        <div class="hex-cols">
+        <div class="addr-col" :style="{ width: `${addrWidth}px` }"></div>
+        <div
+          class="hex-cols"
+          :style="{
+            width: `${hexWidth}px`,
+          }"
+        >
           <div v-for="col in 16" :key="col" class="hex-col">
             {{ (col - 1).toString(16).toUpperCase() }}
           </div>
         </div>
-        <div class="ascii-col">ASCII</div>
+        <div class="ascii-col" :style="{ width: `${asciiWidth}px` }"></div>
       </div>
 
       <!-- 内容区 -->
@@ -87,49 +92,39 @@ const emit = defineEmits([
   "edit",
 ]);
 
-// 常量
-const HEX_PER_ROW = 16;
-const ROW_HEIGHT = 18;
-const addrColWidth = 8 * 12 + 10;
+const HEX_COLS = 16; // 每行渲染的16进制数据列数
 
 // 响应式数据
 const hexWrapperRef = ref(null);
 const hexCanvas = ref(null);
 const showScrollbar = ref(false);
 const showContextMenu = ref(false);
+const addrWidth = ref(120);
+const hexWidth = ref(384);
+const asciiWidth = ref(256);
+const rowHeight = ref(22);
 const menuX = ref(0);
 const menuY = ref(0);
-const isLoading = ref(false);
+// 渲染器实例
+let renderer = null;
 
 // 计算属性
 const totalHeight = computed(() => {
-  console.log("totalBytes = ", props.totalBytes);
-  let totalHeight = Math.ceil(props.totalBytes / 16) * ROW_HEIGHT;
-  console.log("totalHeight = ", totalHeight);
+  let totalHeight = Math.ceil(props.totalBytes / 16) * rowHeight.value;
   return totalHeight;
 });
-
-// 渲染器实例
-let renderer = null;
 
 // 处理滚动
 const handleScroll = async (e) => {
   const scrollTop = e.target.scrollTop;
-  const visibleStartRow = Math.floor(scrollTop / ROW_HEIGHT);
+  const visibleStartRow = Math.floor(scrollTop / rowHeight.value);
   const visibleEndRow = Math.ceil(
-    (scrollTop + e.target.clientHeight) / ROW_HEIGHT
+    (scrollTop + e.target.clientHeight) / rowHeight.value
   );
-  const startAddr = visibleStartRow * HEX_PER_ROW;
-  const endAddr = Math.min(
-    visibleEndRow * HEX_PER_ROW - 1,
-    props.totalBytes - 1
-  );
+  const startAddr = visibleStartRow * HEX_COLS;
+  const endAddr = Math.min(visibleEndRow * HEX_COLS - 1, props.totalBytes - 1);
   // 确保数据已加载
   await props.dataManager.ensureRangeLoaded(startAddr, endAddr);
-  // 更新渲染器
-  if (renderer) {
-    renderer.setScrollTop(scrollTop);
-  }
 };
 
 // 初始化渲染器
@@ -140,9 +135,7 @@ const initRenderer = () => {
     canvas: hexCanvas.value,
     wrapper: hexWrapperRef.value,
     dataManager: props.dataManager,
-    hexPerRow: HEX_PER_ROW,
-    rowHeight: ROW_HEIGHT,
-    addrColWidth,
+    hexPerRow: HEX_COLS,
   });
 
   // 绑定事件
@@ -154,20 +147,16 @@ const initRenderer = () => {
     emit("selection-change", range);
   };
 
+  renderer.onDimensionChanged = (newSize) => {
+    addrWidth.value = newSize.addrWidth;
+    hexWidth.value = newSize.hexWidth;
+    asciiWidth.value = newSize.asciiWidth;
+    rowHeight.value = newSize.rowHeight;
+  };
+
   renderer.init();
 };
 
-// 滚动到指定地址
-const scrollToAddr = (addr) => {
-  if (!hexWrapperRef.value || !renderer) return;
-
-  const row = Math.floor(addr / HEX_PER_ROW);
-  const scrollTop = row * ROW_HEIGHT;
-  hexWrapperRef.value.scrollTop = scrollTop;
-
-  // 手动触发一次滚动
-  handleScroll({ target: hexWrapperRef.value });
-};
 
 // 请求重新渲染
 const requestRender = () => {
@@ -204,7 +193,6 @@ const handleEdit = () => {
 
 // 暴露方法
 defineExpose({
-  scrollToAddr,
   requestRender,
   setColorRanges: (ranges) => {
     renderer?.setColorRanges(ranges);
@@ -238,19 +226,19 @@ watch(
   }
 );
 
-// watch(
-//   () => props.selectedAddrRange,
-//   (range) => {
-//     renderer?.setSelectedRange(range);
-//   },
-//   { deep: true }
-// );
+watch(
+  () => props.totalBytes,
+  () => {
+    console.log("fileSizedChanged: ", props.totalBytes);
+    renderer?.onFileSizeChanged();
+  }
+);
 </script>
 
 <style scoped>
 .hex-view-panel {
   width: 100%;
-  padding-right:4px;
+  padding-right: 4px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -260,36 +248,36 @@ watch(
 .hex-header {
   display: flex;
   height: 30px;
-  background: #f8f9fa;
   border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
+  overflow:hidden;
+  width: fit-content; /* 容器宽度适配子元素总宽度 */
 }
 
 .addr-col {
-  text-align: center;
+  padding-left:4px;
   color: #999;
   line-height: 30px;
-  border-right: 1px solid #e5e7eb;
+  box-sizing: border-box;
 }
 
 .hex-cols {
   display: flex;
-  border-right: 1px solid #e5e7eb;
+  box-sizing:border-box;
 }
 
 .hex-col {
-  width: 24px;
+  flex: 1;
   text-align: center;
   line-height: 30px;
   font-family: monospace;
-  color: #666;
-  border-right: 1px solid #f0f0f0;
+  color: #999;
+  box-sizing: border-box;
 }
 
 .ascii-col {
-  width: 200px;
   text-align: center;
   line-height: 30px;
+  overflow:hidden;
   color: #666;
 }
 
@@ -330,7 +318,7 @@ watch(
   left: 0;
   width: 100%;
   height: 100%;
-  background-color:#FFF;
+  background-color: #fff;
   will-change: transform;
 }
 
