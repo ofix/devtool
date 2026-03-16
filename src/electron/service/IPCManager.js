@@ -42,6 +42,7 @@ class IPCManager extends Singleton {
         // 3. 拼接成唯一ID（加前缀便于识别）
         return `screenshot_${timestamp}_${random}`;
     }
+
     // 预加载全屏截图（核心：提前获取，减少渲染进程等待）
     async preloadScreenshot(method = 'base64') {
         try {
@@ -64,12 +65,16 @@ class IPCManager extends Singleton {
                 const mainScreenSource = sources[0];
                 if (!mainScreenSource) return null;
 
+                await new Promise(resolve => setTimeout(resolve, 30));
                 // 获取原生 Buffer
                 const imageBuffer = mainScreenSource.thumbnail.toPNG(); // 直接获取 PNG 二进制 Buffer
                 // 直接返回 Buffer 给渲染进程（Electron 支持 IPC 传输 Buffer）
                 // const savePath = path.join(os.homedir(), '桌面', 'test-screenshot.png');
                 // await fs.writeFile(savePath, imageBuffer);
                 // console.log(`PNG 已保存到：${savePath}`);
+                if (mainScreenSource.thumbnail) {
+                    mainScreenSource.thumbnail = null;
+                }
                 return imageBuffer;
             } else {
                 const tempPath = path.join(os.tmpdir(), `${screenshotId}.png`);
@@ -480,7 +485,7 @@ class IPCManager extends Singleton {
             return VideoRecorder.pauseRecording();
         });
         // 恢复视频录制
-        ipcMain.handle('vide-record:resume',(event,id)=>{
+        ipcMain.handle('vide-record:resume', (event, id) => {
             return VideoRecorder.resumeRecording();
         });
         // 停止视频录制

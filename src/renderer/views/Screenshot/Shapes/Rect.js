@@ -1,33 +1,42 @@
-
+// Rect.js
 import Shape from "./Shape.js";
-// 矩形标注类
+import Matrix from "./Matrix.js"; // 新增
+
 export default class Rect extends Shape {
     constructor(x, y, options = {}) {
         super(x, y);
         this.type = 'rect';
-        this.strokeStyle = options.strokeStyle || '#00ff00'; // 边框色
-        this.fillStyle = options.fillStyle || 'transparent'; // 填充色/背景色
+        this.strokeStyle = options.strokeStyle || '#00ff00';
+        this.fillStyle = options.fillStyle || 'transparent';
         this.lineWidth = options.lineWidth || 2;
         this.dashed = options.dashed || false;
         this.cornerRadius = options.cornerRadius || 0;
-        this.backgroundColor = options.backgroundColor || this.fillStyle; // 背景色
-        this.foregroundColor = options.foregroundColor || '#ffffff'; // 前景色（用于文字等）
+        this.backgroundColor = options.backgroundColor || this.fillStyle;
+        this.foregroundColor = options.foregroundColor || '#ffffff';
+        
+        if (options.transform) {
+            this.transform = new Matrix();
+            this.transform.matrix = [...options.transform];
+        }
     }
 
     draw(ctx) {
+        // 应用变换矩阵
         const transformedCtx = this.applyTransform(ctx);
-        // 绘制背景/填充
-        if (this.backgroundColor) {
+        
+        // 绘制背景
+        if (this.backgroundColor && this.backgroundColor !== 'transparent') {
             transformedCtx.fillStyle = this.selected ? 
                 this.applyAlpha('#ff0000', 0.3) : this.backgroundColor;
             
             if (this.cornerRadius > 0) {
-                this.drawRoundedRect(transformedCtx, this.x, this.y, this.width, this.height, 
+                this.drawRoundedRect(transformedCtx, 0, 0, this.width, this.height, 
                     this.cornerRadius, true);
             } else {
-                transformedCtx.fillRect(this.x, this.y, this.width, this.height);
+                transformedCtx.fillRect(0, 0, this.width, this.height);
             }
         }
+        
         // 绘制边框
         transformedCtx.strokeStyle = this.selected ? '#ff0000' : this.strokeStyle;
         transformedCtx.lineWidth = this.lineWidth;
@@ -39,13 +48,13 @@ export default class Rect extends Shape {
         }
         
         if (this.cornerRadius > 0) {
-            this.drawRoundedRect(transformedCtx, this.x, this.y, this.width, this.height, 
+            this.drawRoundedRect(transformedCtx, 0, 0, this.width, this.height, 
                 this.cornerRadius, false);
         } else {
-            transformedCtx.strokeRect(this.x, this.y, this.width, this.height);
+            transformedCtx.strokeRect(0, 0, this.width, this.height);
         }
         
-        // 绘制旋转中心点（用于调试）
+        // 绘制旋转中心点
         if (this.selected) {
             this.drawRotationHandle(transformedCtx);
         }
@@ -76,8 +85,10 @@ export default class Rect extends Shape {
     }
 
     drawRotationHandle(ctx) {
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y - 20; // 在矩形上方绘制旋转手柄
+        // 🟩 修改：使用变换后的坐标
+        const bbox = this.getBoundingBox();
+        const centerX = bbox.x + bbox.width / 2;
+        const centerY = bbox.y - 20;
         
         ctx.save();
         ctx.fillStyle = '#ff0000';
@@ -89,9 +100,8 @@ export default class Rect extends Shape {
         ctx.fill();
         ctx.stroke();
         
-        // 绘制连接线
         ctx.beginPath();
-        ctx.moveTo(centerX, this.y);
+        ctx.moveTo(centerX, bbox.y);
         ctx.lineTo(centerX, centerY);
         ctx.strokeStyle = '#ff0000';
         ctx.stroke();
@@ -99,32 +109,24 @@ export default class Rect extends Shape {
         ctx.restore();
     }
 
+    // 🟩 修改：点检测考虑矩阵变换
     containsPoint(x, y) {
-        // 考虑旋转后的点检测
-        if (this.rotate === 0) {
-            return x >= this.x && x <= this.x + this.width &&
-                   y >= this.y && y <= this.y + this.height;
-        }
+        // 将世界坐标转换到局部坐标
+        const invTransform = this.transform.getInverse();
+        const local = invTransform.transformPoint(x, y);
         
-        // 计算旋转后的点相对于矩形的坐标
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
-        
-        // 将点转换到矩形坐标系
-        const cos = Math.cos(-this.rotate);
-        const sin = Math.sin(-this.rotate);
-        
-        const tx = x - centerX;
-        const ty = y - centerY;
-        
-        const rotatedX = tx * cos - ty * sin;
-        const rotatedY = tx * sin + ty * cos;
-        
-        const rectX = rotatedX + this.width / 2;
-        const rectY = rotatedY + this.height / 2;
-        
-        return rectX >= 0 && rectX <= this.width && 
-               rectY >= 0 && rectY <= this.height;
+        return local.x >= 0 && local.x <= this.width &&
+               local.y >= 0 && local.y <= this.height;
+    }
+
+    // 🟩 新增：获取边界框
+    getBoundingBox() {
+        return super.getBoundingBox();
+    }
+
+    // 🟩 修改：平移
+    translate(dx, dy) {
+        super.translate(dx, dy);
     }
 
     static fromJSON(json) {
@@ -135,14 +137,19 @@ export default class Rect extends Shape {
             foregroundColor: json.foregroundColor,
             lineWidth: json.lineWidth,
             dashed: json.dashed,
-            cornerRadius: json.cornerRadius
+            cornerRadius: json.cornerRadius,
+            // 🟩 新增：从JSON恢复变换矩阵
+            transform: json.transform
         });
         rect.id = json.id;
         rect.width = json.width;
         rect.height = json.height;
-        rect.rotate = json.rotate || 0;
-        rect.scale = json.scale || 1;
+        // 🟩 新增：恢复矩阵
+        if (json.transform) {
+            rect.transform.matrix = [...json.transform];
+        }
         rect.opacity = json.opacity || 1;
+        rect.groupId = json.groupId || null;
         return rect;
     }
 

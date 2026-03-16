@@ -117,7 +117,7 @@ const shortcuts = {
 async function onClickCaptureRect() {
   try {
     activeTool.value = "rectangle";
-    await window.channel.startScreenshot("rectangle");
+    await window.channel.startScreenshot("rect");
   } catch (error) {
     console.error("启动矩形截图失败:", error);
     ElMessage.error("启动截图失败：" + error);

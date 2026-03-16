@@ -10,68 +10,72 @@ export default class Ellipse extends Shape {
         this.foregroundColor = options.foregroundColor || '#000000';
         this.lineWidth = options.lineWidth || 2;
         this.dashed = options.dashed || false;
+        if (options.transform) {
+            this.transform = new Matrix();
+            this.transform.matrix = [...options.transform];
+        }
     }
 
     draw(ctx) {
         const transformedCtx = this.applyTransform(ctx);
-        
+
         const centerX = this.x + this.width / 2;
         const centerY = this.y + this.height / 2;
         const radiusX = this.width / 2;
         const radiusY = this.height / 2;
-        
+
         // 绘制背景/填充
         if (this.backgroundColor) {
-            transformedCtx.fillStyle = this.selected ? 
+            transformedCtx.fillStyle = this.selected ?
                 this.applyAlpha('#ff0000', 0.3) : this.backgroundColor;
             transformedCtx.beginPath();
             transformedCtx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
             transformedCtx.fill();
         }
-        
+
         // 绘制边框
         transformedCtx.strokeStyle = this.selected ? '#ff0000' : this.strokeStyle;
         transformedCtx.lineWidth = this.lineWidth;
-        
+
         if (this.dashed) {
             transformedCtx.setLineDash([5, 5]);
         } else {
             transformedCtx.setLineDash([]);
         }
-        
+
         transformedCtx.beginPath();
         transformedCtx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
         transformedCtx.stroke();
-        
+
         // 绘制旋转中心点
         if (this.selected) {
             this.drawRotationHandle(transformedCtx);
         }
-        
+
         this.restoreTransform(transformedCtx);
     }
 
     drawRotationHandle(ctx) {
         const centerX = this.x + this.width / 2;
         const centerY = this.y - 20; // 在椭圆上方绘制旋转手柄
-        
+
         ctx.save();
         ctx.fillStyle = '#ff0000';
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
-        
+
         ctx.beginPath();
         ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
+
         // 绘制连接线
         ctx.beginPath();
         ctx.moveTo(centerX, this.y);
         ctx.lineTo(centerX, centerY);
         ctx.strokeStyle = '#ff0000';
         ctx.stroke();
-        
+
         ctx.restore();
     }
 
@@ -81,32 +85,32 @@ export default class Ellipse extends Shape {
             const centerY = this.y + this.height / 2;
             const radiusX = this.width / 2;
             const radiusY = this.height / 2;
-            
+
             const normalizedX = (x - centerX) / radiusX;
             const normalizedY = (y - centerY) / radiusY;
             return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
         }
-        
+
         // 计算旋转后的点相对于椭圆的坐标
         const centerX = this.x + this.width / 2;
         const centerY = this.y + this.height / 2;
-        
+
         // 将点转换到椭圆坐标系
         const cos = Math.cos(-this.rotate);
         const sin = Math.sin(-this.rotate);
-        
+
         const tx = x - centerX;
         const ty = y - centerY;
-        
+
         const rotatedX = tx * cos - ty * sin;
         const rotatedY = tx * sin + ty * cos;
-        
+
         const radiusX = this.width / 2;
         const radiusY = this.height / 2;
-        
+
         const normalizedX = rotatedX / radiusX;
         const normalizedY = rotatedY / radiusY;
-        
+
         return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
     }
 

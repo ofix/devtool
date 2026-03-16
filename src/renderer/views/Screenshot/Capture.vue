@@ -51,7 +51,7 @@ const layerDesktop = ref(null);
 const layerCapture = ref(null);
 const layerOperation = ref(null);
 const layerMagnifierBox = ref(null);
-const showCapture = ref(false);
+const showCapture = ref(true);
 const showOperation = ref(true);
 const showMagnifier = ref(true);
 const showToolbar = ref(false);
@@ -73,7 +73,7 @@ let screenshot = null;
 // ========== 生命周期 ==========
 onMounted(async () => {
   // 初始化截图类实例
-  let captureMode = await window.channel.getWindowOptions("ScreenshotToolWnd");
+  let captureMode = await window.channel.getWindowOptions("CaptureWnd");
   screenshot = new Screenshot(
     layerDesktop.value,
     layerCapture.value,
@@ -90,6 +90,10 @@ onMounted(async () => {
   // 初始化截图
   const pngBuffer = await window.channel.getDesktopScreenshot("buffer");
   screenshot.init(pngBuffer);
+
+  if (captureMode == "rect") {
+    showMagnifier.value = true;
+  }
 
   // 注册事件监听（接收类内部的状态通知）
   screenshot.on("showMagnifier", (show) => {
@@ -125,11 +129,18 @@ onMounted(async () => {
         // 动画结束，需要将 layerCapture 和 layerOperation 都搞成全屏的canvas才行，
         // 否则缩放和移动的操作同步会很麻烦
         // 1. 将用户选区移动到屏幕中央
-        screenshot.moveCaptureRect(translateX.value,translateY.value);
-        screenshot.beginEdit();
+        translateX.value = 0;
+        translateY.value = 0;
+        const newX = window.innerWidth / 2 - captureRect.width / 2;
+        const newY = window.innerHeight / 2 - captureRect.height / 2;
+        window.channel.debug("newX,newY = ", newX, newY);
+        try {
+          screenshot.resetCaptureArea(newX, newY);
+        } catch (e) {
+          console.log(e);
+        }
         // 2. 将layerCapture 调整为全屏并重新渲染图像，保持图像在中央不变
-        showOperation.value = true;
-
+        showOperation.value = false;
       }, 1000);
     }, 120);
   });
@@ -210,14 +221,14 @@ canvas {
     0 0,
     20px 20px;
   /* 优化动画曲线：先慢后快再慢，时长0.6s更舒适 */
-  transition:
-    opacity 1s cubic-bezier(0.25, 0.1, 0.25, 1),
-    background-color 1s cubic-bezier(0.25, 0.1, 0.25, 1);
+  /* iOS 默认动画曲线：cubic-bezier(0.4, 0.0, 0.2, 1) */
+  transition: none; /* 默认无动画 */
   will-change: opacity;
 }
-/* 遮罩层动画类：透明度变为不透明 */
-.mask-animate {
-  opacity: 0.95; /* 更细腻的透明度值 */
+
+.layer-mask.mask-animate {
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.95;
 }
 
 /* 截图区域 */
@@ -229,12 +240,22 @@ canvas {
   width: 100vw;
   height: 100vh;
   transform: translate(0, 0);
-  transition: transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: none; /* 默认无动画 */
   will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  pointer-events: none; /* 动画期间不响应事件 */
 }
 
-.layer-operation{
-    border:1px solid #FF0000;
+/* 只有添加动画类时才启用过渡 */
+.layer-capture.capture-animate {
+  transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1); /* 延迟0.1s开始 */
+  transform: translate(var(--translate-x), var(--translate-y)) !important;
+}
+
+.layer-capture {
+  border: 1px solid #ff0000;
 }
 
 /* 截图区域动画类：移动到屏幕居中*/
@@ -260,24 +281,18 @@ canvas {
   top: calc(100vh + 40px);
   transform: translateX(-50%) scale(0.95); /* 初始稍微缩小 */
   opacity: 0; /* 初始透明度0 */
-  transition:
-    top 1s cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 1s cubic-bezier(0.19, 1, 0.22, 1),
-    transform 1s cubic-bezier(0.19, 1, 0.22, 1);
+  transition: none; /* 默认无动画 */
   will-change: top, opacity, transform;
   backface-visibility: hidden;
 }
 /* 工具栏动画类 */
-.toolbar-animate {
-  top: calc(100vh - 40px);
+.mark-toolbar.toolbar-animate {
+  top: calc(100vh - 50px);
   opacity: 1;
+  transition:
+    top 1s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 1s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateX(-50%) scale(1); /* 缩放恢复，增加弹性 */
-}
-
-#log-viewer {
-  position: fixed;
-  z-index: 10003;
-  top: 20px;
-  right: 20px;
 }
 </style>
