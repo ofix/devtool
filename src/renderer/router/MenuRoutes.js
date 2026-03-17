@@ -130,22 +130,22 @@ const MenuRoutes = [
             desc: '',
             chunkGroup: 'screenshot'
         }
-    },{
+    }, {
         path: '/screenshot/pin-wnd/:pinId',
-        name:'PinWnd',
-        component:()=>import(/* webpackChunkName: 'chunk-Screenshot/PinWnd */ '@/views/Screenshot/PinWnd.vue'),
-        props:true,
+        name: 'PinWnd',
+        component: () => import(/* webpackChunkName: 'chunk-Screenshot/PinWnd */ '@/views/Screenshot/PinWnd.vue'),
+        props: true,
     },
     {
         path: '/screenshot/pin-history',
-        name:'PinHistory',
-        component:()=>import(/* webpackChunkName: 'chunk-Screenshot/PinHistory */ '@/views/Screenshot/PinHistory.vue'),
-        props:true,
+        name: 'PinHistory',
+        component: () => import(/* webpackChunkName: 'chunk-Screenshot/PinHistory */ '@/views/Screenshot/PinHistory.vue'),
+        props: true,
     },
     {
-        path:'/video-record',
+        path: '/video-record',
         name: 'VideoRecord',
-        component:()=>import(/* webpackChunkName: 'chunk-VideoRecord/VideoRecord */ '@/views/VideoRecord/VideoRecord.vue'),
+        component: () => import(/* webpackChunkName: 'chunk-VideoRecord/VideoRecord */ '@/views/VideoRecord/VideoRecord.vue'),
     },
     {
         path: '/color-picker',
@@ -249,12 +249,21 @@ const MenuRoutes = [
                 }
             },
         ]
-    },{
+    }, {
         path: '/hex-editor',
         name: 'Hex Editor',
         component: () => import(/* webpackChunkName: "chunk-Misc/HexEditor" */ '@/views/HexEditor/HexEditor.vue'),
         meta: {
             title: '二进制编辑器',
+            desc: '',
+            chunkGroup: 'misc'
+        }
+    }, {
+        path: '/visualize',
+        name: 'Visualizer',
+        component: () => import(/* webpackChunkName: "chunk-Misc/Visualizer" */ '@/views/Visualize/VisualizeEntry.vue'),
+        meta: {
+            title: '可视化组件',
             desc: '',
             chunkGroup: 'misc'
         }

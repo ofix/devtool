@@ -127,7 +127,7 @@ const allApps = ref([
   {
     key: "ScreenshotToolWnd",
     name: "截图",
-    category: "截图工具", // 新增：应用类别
+    category: "截图工具",
     icon: "Screenshot",
     disabled: false,
   },
@@ -141,65 +141,72 @@ const allApps = ref([
   {
     key: "ScreenRulerWnd",
     name: "屏幕标尺",
-    category: "测量工具", // 新增：应用类别
+    category: "测量工具",
     icon: "Ruler",
     disabled: false,
   },
   {
     key: "VideoRecordWnd",
     name: "视频录制",
-    category: "录制工具", // 新增：应用类别
+    category: "录制工具",
     icon: "VideoRecord",
     disabled: false,
   },
   {
     key: "FileCompareWnd",
     name: "文件对比",
-    category: "文件工具", // 新增：应用类别
+    category: "文件工具",
     icon: "FileCompare",
     disabled: false,
   },
   {
     key: "HexEditorWnd",
     name: "十六进制编辑器",
-    category: "编辑工具", // 新增：应用类别
+    category: "编辑工具",
     icon: "HexEditor",
     disabled: false,
   },
   {
     key: "UnitConvertWnd",
     name: "单位换算",
-    category: "计算工具", // 新增：应用类别
+    category: "计算工具",
     icon: "UnitConvert",
     disabled: false,
   },
   {
     key: "PostWomanWnd",
     name: "postman",
-    category: "接口测试", // 新增：应用类别
+    category: "接口测试",
     icon: "Postman",
     disabled: false,
   },
   {
     key: "SFTPWnd",
     name: "sftp",
-    category: "文件传输", // 新增：应用类别
+    category: "文件传输",
     icon: "SFTP",
     disabled: false,
   },
   {
     key: "DesktopTileWnd",
     name: "桌面磁贴",
-    category: "桌面工具", // 新增：应用类别
+    category: "桌面工具",
     icon: "DesktopTile",
     disabled: true,
   },
   {
     key: "SSHWnd",
     name: "控制台",
-    category: "终端工具", // 新增：应用类别
+    category: "终端工具",
     icon: "Console",
     disabled: true,
+  },
+  {
+    key: "VisualizeWnd",
+    name: "可视化",
+    category: "组件",
+    icon: "Visualize",
+    disabled: false,
   },
 ]);
 

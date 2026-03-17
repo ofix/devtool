@@ -203,6 +203,13 @@ const allApps = ref([
     icon: "Console",
     disabled: true,
   },
+  {
+    key: "VisualizeWnd",
+    name: "可视化",
+    category: "组件",
+    icon: "Visualize",
+    disabled: false,
+  },
 ]);
 
 // 2. 新增：搜索关键词（响应式）

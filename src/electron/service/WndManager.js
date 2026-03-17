@@ -17,6 +17,7 @@ class WndManager extends Singleton {
         this.windowPresets = {
             'MainWnd': this.getMainWndConfig(),
             'HexEditorWnd': this.getHexEditorWndConfig(),
+            'VisualizeWnd': this.getVisualizeWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
             'VideoRecordWnd': this.getVideoRecordWndConfig(),
@@ -112,6 +113,22 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/hex-editor',
+                levelName: 'normal',
+                levelZOrder: 0,
+            }
+        };
+    }
+
+    getVisualizeWndConfig() {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        return {
+            browserWindow: {
+                x: 0, y: 0, width, height, transparent: false,
+                alwaysOnTop: false, show: true, frame: false,
+                resizable: true,
+            },
+            custom: {
+                url: '/visualize',
                 levelName: 'normal',
                 levelZOrder: 0,
             }
