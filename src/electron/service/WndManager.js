@@ -18,6 +18,7 @@ class WndManager extends Singleton {
             'MainWnd': this.getMainWndConfig(),
             'HexEditorWnd': this.getHexEditorWndConfig(),
             'VisualizeWnd': this.getVisualizeWndConfig(),
+            'MiniStockWnd': this.getMiniStockWndConfig(),
             'ScreenshotToolWnd': this.getScreenshotToolWndConfig(),
             'CaptureWnd': this.getCaptureWndConfig(),
             'VideoRecordWnd': this.getVideoRecordWndConfig(),
@@ -129,6 +130,24 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/visualize',
+                levelName: 'normal',
+                levelZOrder: 0,
+            }
+        };
+    }
+
+    getMiniStockWndConfig() {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        const miniWidth = 800;
+        const miniHeight = 600;
+        return {
+            browserWindow: {
+                x: width - miniWidth, y: height - miniHeight, width: miniWidth, height: miniHeight, transparent: false,
+                alwaysOnTop: false, show: true, frame: false,
+                resizable: true,
+            },
+            custom: {
+                url: '/mini-stock',
                 levelName: 'normal',
                 levelZOrder: 0,
             }

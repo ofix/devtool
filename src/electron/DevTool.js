@@ -25,6 +25,22 @@ class DevTool {
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
             }, {
+                shortcut: "CommandOrControl+0",
+                callback: () => {
+                    const wndManager = WndManager.getInstance();
+                    let wnd = wndManager.getWindow('MiniStockWnd');
+                    if (wnd === null) {
+                        wndManager.showWindow("MiniStockWnd");
+                    } else {
+                        if (wnd.isVisible()) {
+                            wndManager.hideWindow('MiniStockWnd');
+                        } else {
+                            wndManager.showWindow("MiniStockWnd");
+                        }
+                    }
+                },
+                description: "显示/隐藏迷你股票窗口"
+            }, {
                 shortcut: "F10",
                 callback: () => {
                     const wndManager = WndManager.getInstance();
@@ -58,13 +74,13 @@ class DevTool {
         ];
     }
 
-    init () {
+    init() {
         const ipcManager = IPCManager.getInstance();
         ipcManager.startListen();
         this.registerAppShortcuts();
     }
 
-    createMainWnd () {
+    createMainWnd() {
         this.mainWnd = new BrowserWindow({
             width: 1280,
             height: 960,
@@ -117,7 +133,7 @@ class DevTool {
         });
     }
 
-    registerAppShortcuts () {
+    registerAppShortcuts() {
         // 获取快捷键管理器单例
         const shortcutManager = ShortcutManager.getInstance();
         shortcutManager.init();

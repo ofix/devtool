@@ -267,6 +267,15 @@ const MenuRoutes = [
             desc: '',
             chunkGroup: 'misc'
         }
+    }, {
+        path: '/mini-sotck',
+        name: 'MiniStock',
+        component: () => import(/* webpackChunkName: "chunk-Misc/MiniStock" */ '@/views/MiniStock/MiniStockEntry.vue'),
+        meta: {
+            title: 'mini股票组件',
+            desc: '',
+            chunkGroup: 'misc'
+        }
     }
 ];
 
