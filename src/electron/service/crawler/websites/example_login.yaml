@@ -1,0 +1,108 @@
+# configs/sites/example-site.yaml
+site:
+  id: example_news
+  name: "示例新闻网站"
+  base_url: "https://news.example.com"
+  encoding: "utf-8"
+  need_login: false
+  
+  # 登录配置（如果需要）
+  login:
+    url: "/login"
+    method: "post"
+    form_data:
+      username: "{{username}}"
+      password: "{{password}}"
+    success_indicators:
+      - "登录成功"
+  
+  # 反爬配置
+  anti_block:
+    delay: 1000-3000
+    user_agents:
+      - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..."
+    use_proxy: false
+    rotate_ip: false
+  
+  # 列表页配置
+  list_page:
+    url: "/news/list?page={{page}}"
+    type: "pagination"  # pagination | scroll | ajax
+    start_page: 1
+    max_pages: 10
+    selector: ".news-item"
+    
+    # 分页配置
+    pagination:
+      param_name: "page"
+      page_size: 20
+    
+    # 下一页选择器
+    next_page:
+      selector: ".next-page"
+      attribute: "href"
+    
+    # 条目选择器
+    item:
+      link: "a.title@href"
+      title: "a.title@text"
+      date: ".date@text"
+      thumbnail: "img@src"
+  
+  # 详情页配置
+  detail_page:
+    fields:
+      - name: "title"
+        selector: "h1.article-title"
+        type: "text"
+      - name: "content"
+        selector: ".article-content"
+        type: "html"
+      - name: "author"
+        selector: ".author@text"
+        type: "text"
+      - name: "publish_date"
+        selector: ".publish-time@datetime"
+        type: "datetime"
+      - name: "images"
+        selector: ".content img@src"
+        type: "array"
+      - name: "videos"
+        selector: "video source@src"
+        type: "array"
+  
+  # 文件下载配置
+  download:
+    enabled: true
+    types: [".mp4", ".pdf", ".jpg"]
+    save_path: "./downloads/{{site}}/{{date}}"
+    naming_rule: "{{title}}_{{timestamp}}"
+    
+  # 增量爬取配置
+  incremental:
+    enabled: true
+    strategy: "url_hash"  # url_hash | content_hash | timestamp
+    expire_days: 30
+  
+  # 熔断配置
+  circuit_breaker:
+    enabled: true
+    max_failures: 3
+    reset_timeout: 300000  # 5分钟
+    exceptions: ["timeout", "403", "404"]
+  
+  # 存储配置
+  storage:
+    database: true
+    json_file: true
+    export_formats: ["csv", "excel"]
+  
+  # 预处理/后处理
+  processors:
+    before_crawl:
+      - type: "replace"
+        pattern: "\\s+"
+        replacement: " "
+    after_crawl:
+      - type: "clean_html"
+      - type: "extract_keywords"

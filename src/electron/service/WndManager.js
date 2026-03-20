@@ -142,7 +142,7 @@ class WndManager extends Singleton {
         const miniHeight = 600;
         return {
             browserWindow: {
-                x: width - miniWidth, y: height - miniHeight, width: miniWidth, height: miniHeight, transparent: false,
+                x: (width - miniWidth)/2, y: height - miniHeight, width: miniWidth, height: miniHeight, transparent: false,
                 alwaysOnTop: false, show: true, frame: false,
                 resizable: true,
             },

@@ -13,6 +13,21 @@ export const isWin = process.platform === 'win32'
 export const isMac = process.platform === 'darwin'
 export const isLinux = process.platform === 'linux'
 
+function handleCtrl0() {
+    console.log("Ctrl+0 pressed");
+    const wndManager = WndManager.getInstance();
+    let wnd = wndManager.getWindow('MiniStockWnd');
+    if (wnd === null) {
+        wndManager.showWindow("MiniStockWnd");
+    } else {
+        if (wnd.isVisible()) {
+            wndManager.hideWindow('MiniStockWnd');
+        } else {
+            wndManager.showWindow("MiniStockWnd");
+        }
+    }
+}
+
 class DevTool {
     constructor() {
         this.mainWnd = null;
@@ -25,20 +40,12 @@ class DevTool {
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
             }, {
-                shortcut: "CommandOrControl+0",
-                callback: () => {
-                    const wndManager = WndManager.getInstance();
-                    let wnd = wndManager.getWindow('MiniStockWnd');
-                    if (wnd === null) {
-                        wndManager.showWindow("MiniStockWnd");
-                    } else {
-                        if (wnd.isVisible()) {
-                            wndManager.hideWindow('MiniStockWnd');
-                        } else {
-                            wndManager.showWindow("MiniStockWnd");
-                        }
-                    }
-                },
+                shortcut: "Ctrl+0",
+                callback: handleCtrl0,
+                description: "显示/隐藏迷你股票窗口"
+            }, {
+                shortcut: "Ctrl+Numpad0",
+                callback: handleCtrl0,
                 description: "显示/隐藏迷你股票窗口"
             }, {
                 shortcut: "F10",

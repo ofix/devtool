@@ -3,9 +3,9 @@ import axios from 'axios';
 class EastMoneySource {
   constructor() {
     this.baseURL = 'http://push2.eastmoney.com/api/qt/';
-    this.headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    };
+    // this.headers = {
+    //   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    // };
   }
 
   // 获取市场涨幅前100
@@ -25,7 +25,7 @@ class EastMoneySource {
           fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23',
           fields: 'f12,f14,f2,f3,f13,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87,f204,f205,f124'
         },
-        headers: this.headers
+        // headers: this.headers
       });
 
       if (response.data && response.data.data) {

@@ -268,7 +268,7 @@ const MenuRoutes = [
             chunkGroup: 'misc'
         }
     }, {
-        path: '/mini-sotck',
+        path: '/mini-stock',
         name: 'MiniStock',
         component: () => import(/* webpackChunkName: "chunk-Misc/MiniStock" */ '@/views/MiniStock/MiniStockEntry.vue'),
         meta: {

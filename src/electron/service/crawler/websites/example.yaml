@@ -1,0 +1,51 @@
+# 示例网站配置
+name: example_news
+enabled: true
+headless: true
+timeout: 30000
+requestDelay: 2000
+maxConcurrent: 1
+
+# 反爬配置
+antiSpider:
+  useProxy: false
+  randomDelay: true
+  rotateUserAgent: true
+
+# 列表页配置
+listPage:
+  url: "https://example.com/news/page/{page}"
+  itemSelector: ".news-item"
+  titleSelector: ".title"
+  linkSelector: "a"
+  thumbnailSelector: "img"
+  paginationType: "pagination"
+  maxPages: 10
+  nextPageSelector: ".next-page"
+  pageDelay: 2000
+
+# 详情页配置
+detailPage:
+  titleSelector: "h1"
+  contentSelector: ".content"
+  timeSelector: ".time"
+  authorSelector: ".author"
+  downloadSelectors:
+    - ".download-link"
+    - "video source"
+    - "img.article-image"
+  m3u8Selector: "video[src*='.m3u8']"
+  waitForSelector: ".content"
+  autoScroll: true
+
+# 熔断器配置
+circuitBreaker:
+  failureThreshold: 3
+  timeout: 60000
+  halfOpenTimeout: 5000
+
+# 下载配置
+download:
+  maxConcurrent: 3
+  retryCount: 3
+  timeout: 60000

@@ -86,6 +86,7 @@
       loading.value = true;
       const data = await DataSourceAdapter.getMarketTop100();
       marketData.value = data;
+      console.log(data);
     } catch (error) {
       console.error('获取市场数据失败:', error);
       ElMessage.error('获取市场数据失败');
