@@ -77,13 +77,12 @@ export default class CrawlerManager extends EventEmitter {
         // 注册内置处理器（支持更多类型）
         this._registerBuiltInProcessors();
 
-        // ✅ 新版：设置调度器的任务处理器（接收 Task 实例）
+        // 设置调度器的任务处理器
         this.scheduler.setTaskProcessor(async (task, context) => {
             const engine = this.sites.get(task.siteName);
             if (!engine) {
                 throw new Error(`Site engine not found: ${task.siteName}`);
             }
-            // task 是 Task 实例，直接传给 WorkflowEngine
             return await engine.processTask(task, context);
         });
     }

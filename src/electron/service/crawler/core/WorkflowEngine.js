@@ -93,7 +93,6 @@ export default class WorkflowEngine extends EventEmitter {
             
             // 4. 执行处理器
             const result = await processor.execute({
-                task: task,
                 url: task.url,
                 config: step.config,
                 authContext: this.authContext,

@@ -10,7 +10,8 @@ export default class GraphQLProcessor {
         while (hasNextPage && page < (config.max_pages || 10)) {
             const variables = { ...config.variables, cursor };
             const response = await resourceFetcher.fetch(config.url, {
-                dynamic: false, method: 'POST',
+                dynamic: false,
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...config.headers },
                 data: { query: config.query, variables }
             });
@@ -37,15 +38,20 @@ export default class GraphQLProcessor {
     _buildData(items, fields) {
         const result = { items, count: items.length, _subTasks: [] };
         if (!fields) return result;
+
         for (const [name, def] of Object.entries(fields)) {
             result[name] = items.map(item => this._getNested(item, def.selector) || null);
-            if (def.subTask) {
+
+            if (def.subTask && typeof def.subTask === 'string') {
                 for (const item of items) {
                     const url = this._getNested(item, def.selector);
-                    if (url) result._subTasks.push({
-                        type: 'page', model: def.subTask.stepRef || def.subTask,
-                        url, context: { sourceField: name }
-                    });
+                    if (url) {
+                        result._subTasks.push({
+                            type: def.subTask,
+                            url: url,
+                            context: { sourceField: name }
+                        });
+                    }
                 }
             }
         }
