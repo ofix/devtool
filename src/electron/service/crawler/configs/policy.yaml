@@ -1,0 +1,163 @@
+# 全局策略配置，所有爬虫共享
+version: "1.0"
+
+# 全局默认策略（所有爬虫的基线）
+default:
+  # 限流策略
+  rate_limit:
+    enabled: true
+    qps: 10 # 默认每秒10个请求
+    burst: 15 # 峰值15个
+    algorithm: token_bucket # 令牌桶算法
+    group_by: domain # 按域名分组限流
+    action: wait # 超限时等待
+
+  # 代理策略
+  proxy:
+    enabled: false
+    type: pool
+    pool:
+      urls: []
+      health_check: true
+      health_check_interval: 300
+    rotation: round_robin
+    retry_on_fail: true
+    max_retries: 3
+
+  # 熔断器策略
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 10
+    failure_rate_threshold: 0.3
+    sliding_window_size: 60
+    timeout: 60000 # 熔断60秒
+    half_open_max_attempts: 3
+    recovery_strategy: half_open
+    fallback:
+      type: cache
+      ttl: 3600
+
+  # 缓存策略
+  cache:
+    enabled: true
+    type: redis
+    redis:
+      host: localhost
+      port: 6379
+      ttl: 3600
+    strategy: lru
+
+  # 重试策略
+  retry:
+    max_attempts: 3
+    backoff: exponential
+    delay: 1000
+    max_delay: 30000
+    retry_on_status: [429, 500, 502, 503, 504]
+    retry_on_errors: ["ECONNRESET", "ETIMEDOUT"]
+
+  # 延迟策略
+  delay:
+    type: adaptive
+    min: 100
+    max: 5000
+    adaptive:
+      enabled: true
+      target_rate: 10
+      adjustment_factor: 0.1
+
+  # 超时策略
+  timeout: 30000
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# 预定义策略模板（可被站点继承）
+templates:
+  # 高并发策略
+  high_concurrency:
+    rate_limit:
+      qps: 50
+      burst: 80
+    delay:
+      adaptive:
+        target_rate: 50
+
+  # 低优先级策略
+  low_priority:
+    rate_limit:
+      qps: 2
+    delay:
+      type: fixed
+      value: 2000
+
+  # 反爬策略
+  anti_crawl:
+    proxy:
+      enabled: true
+      rotation: random
+    rate_limit:
+      qps: 5
+      algorithm: leaky_bucket
+    delay:
+      type: random
+      min: 1000
+      max: 3000
+    retry:
+      max_attempts: 5
+    circuit_breaker:
+      failure_threshold: 5
+      timeout: 30000
+
+  # 稳定站点策略
+  stable_site:
+    rate_limit:
+      qps: 20
+    retry:
+      max_attempts: 1
+    circuit_breaker:
+      failure_threshold: 20
+      timeout: 120000
+
+# 全局代理池（所有站点共享）
+proxy_pools:
+  default:
+    urls:
+      - "http://proxy1.com:8080"
+      - "http://proxy2.com:8080"
+    auth:
+      username: "user"
+      password: "pass"
+
+  premium:
+    urls:
+      - "http://premium-proxy1.com:8080"
+      - "http://premium-proxy2.com:8080"
+    health_check: true
+
+  china:
+    urls:
+      - "http://cn-proxy1.com:8080"
+      - "http://cn-proxy2.com:8080"
+
+# 全局缓存配置
+cache_servers:
+  redis:
+    host: localhost
+    port: 6379
+    password: null
+    db: 0
+
+  redis_slave:
+    host: slave.redis.com
+    port: 6379
+
+# 全局监控配置
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30
+  alert:
+    webhook: "https://alert.example.com/webhook"
+    conditions:
+      - metric: "circuit_breaker_open_count"
+        threshold: 5
+        window: 60

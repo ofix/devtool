@@ -1,0 +1,49 @@
+# 反爬严格站点策略
+
+name: "anti_crawl_policy"
+extends: "anti_crawl"
+
+# 强化反爬策略
+rate_limit:
+  qps: 3
+  algorithm: leaky_bucket
+  burst: 5
+
+proxy:
+  enabled: true
+  pool: "china"
+  rotation: random
+  retry_on_fail: true
+  max_retries: 5
+  health_check: true
+
+delay:
+  type: random
+  min: 2000
+  max: 5000
+
+retry:
+  max_attempts: 3
+  delay: 3000
+  retry_on_status: [403, 429, 500, 502, 503, 504]
+  retry_on_errors: ["ECONNRESET", "ETIMEDOUT", "EPIPE"]
+
+circuit_breaker:
+  failure_threshold: 3
+  timeout: 120000
+  half_open_max_attempts: 2
+
+cache:
+  enabled: true
+  ttl: 7200
+  stale_while_revalidate: true      # 允许返回过期数据并后台更新
+
+user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# 请求头策略
+headers:
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+  Accept-Language: "zh-CN,zh;q=0.9,en;q=0.8"
+  Accept-Encoding: "gzip, deflate, br"
+  Connection: "keep-alive"
+  Upgrade-Insecure-Requests: "1"

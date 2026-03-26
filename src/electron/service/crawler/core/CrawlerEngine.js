@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import CrawlerManager from './core/CrawlerManager.js';
-import Logger from './utils/Logger.js';
+import SiteRunner from './SiteRunner.js';
+import Logger from '../utils/Logger.js';
 
 class CrawlerEngine extends EventEmitter {
     constructor(options = {}) {
@@ -8,6 +8,7 @@ class CrawlerEngine extends EventEmitter {
 
         this.options = {
             configPath: options.configPath || './configs/sites',
+            policyPath: options.policyPath || './configs/policies',
             dataPath: options.dataPath || './data',
             downloadPath: options.downloadPath || './data/downloads',
             dbPath: options.dbPath || './data/crawler.db',
@@ -16,7 +17,7 @@ class CrawlerEngine extends EventEmitter {
             ...options
         };
 
-        this.manager = null;
+        this.siteRunner = null;
         this.logger = new Logger('CrawlerEngine');
         this.isRunning = false;
     }
@@ -24,8 +25,9 @@ class CrawlerEngine extends EventEmitter {
     async initialize() {
         this.logger.info('Initializing crawler engine...');
 
-        this.manager = new CrawlerManager({
+        this.siteRunner = new SiteRunner({
             configPath: this.options.configPath,
+            policyPath: this.options.policyPath,
             dataPath: this.options.dataPath,
             downloadPath: this.options.downloadPath,
             dbPath: this.options.dbPath,
@@ -34,11 +36,11 @@ class CrawlerEngine extends EventEmitter {
         });
 
         // 转发事件
-        this.manager.on('*', (event, data) => {
+        this.siteRunner.on('*', (event, data) => {
             this.emit(event, data);
         });
 
-        await this.manager.initialize();
+        await this.siteRunner.initialize();
 
         this.logger.info('Crawler engine initialized');
         return this;
@@ -51,7 +53,7 @@ class CrawlerEngine extends EventEmitter {
         }
 
         this.isRunning = true;
-        await this.manager.startAll();
+        await this.siteRunner.runAll();
         this.emit('started');
     }
 
@@ -59,44 +61,44 @@ class CrawlerEngine extends EventEmitter {
         if (!this.isRunning) return;
 
         this.isRunning = false;
-        await this.manager.shutdown();
+        await this.siteRunner.shutdown();
         this.emit('stopped');
     }
 
     async pauseSite(siteName) {
-        return this.manager.pauseSite(siteName);
+        return this.siteRunner.pauseSite(siteName);
     }
 
     async resumeSite(siteName) {
-        return this.manager.resumeSite(siteName);
+        return this.siteRunner.resumeSite(siteName);
     }
 
-    async startSite(siteName) {
-        return this.manager.startSite(siteName);
+    async runSite(siteName) {
+        return this.siteRunner.runSite(siteName);
     }
 
     async stopSite(siteName) {
-        return this.manager.stopSite(siteName);
+        return this.siteRunner.stopSite(siteName);
     }
 
     getStatus(siteName) {
-        return this.manager.getStatus(siteName);
+        return this.siteRunner.getStatus(siteName);
     }
 
     getAllStatus() {
-        return this.manager.getAllStatus();
+        return this.siteRunner.getAllStatus();
     }
 
     getStats() {
-        return this.manager.getStats();
+        return this.siteRunner.getStats();
     }
 
     async addTask(siteName, url, options = {}) {
-        return this.manager.addTask(siteName, url, options);
+        return this.siteRunner.addTask(siteName, url, options);
     }
 
     async reloadConfig(siteName) {
-        return this.manager.reloadConfig(siteName);
+        return this.siteRunner.reloadConfig(siteName);
     }
 }
 

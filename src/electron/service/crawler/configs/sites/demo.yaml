@@ -3,6 +3,21 @@ version: 1.0 # 版本号
 name: techcrunch # 爬虫的名字，一般是网站的名称
 url: https://www.baidu.com/ # 请求的初始网址
 # 比如限流，爬取间隔，超时配置，IP代理等等
+
+# 策略引用（关键）
+policy: "critical_site_policy"      # 引用站点策略文件
+# 或者直接内联策略
+# policy:
+#   rate_limit:
+#     qps: 50
+
+# 爬虫特定配置
+url: "https://news-site.com"
+startUrls:
+  - "https://news-site.com/latest"
+  - "https://news-site.com/popular"
+
+
 # 限流配置
 rate_limit:
   qps: 10                    # 每秒10个请求

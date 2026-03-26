@@ -16,8 +16,10 @@ import DelayManager from '../policy/DelayManager.js';
  * 集成：限流、代理池、熔断器、缓存、重试策略、动态延迟
  */
 export default class ResourceFetcher extends EventEmitter {
-    constructor(options = {}) {
+    constructor(policyConfig, options = {}) {
         super();
+        // 策略配置（已经合并好）
+        this.policyConfig = policyConfig;
 
         // 基础配置
         this.browserManager = options.browserManager;
@@ -27,8 +29,8 @@ export default class ResourceFetcher extends EventEmitter {
         this.maxRetries = options.maxRetries || 3;
         this.retryDelay = options.retryDelay || 1000;
 
-        // 初始化各个功能模块
-        this._initModules(options);
+        // 根据策略初始化各模块
+        this._initModulesFromPolicy();
 
         // HTTP 客户端配置
         this.httpClient = axios.create({
@@ -47,57 +49,41 @@ export default class ResourceFetcher extends EventEmitter {
         this._setupInterceptors();
     }
 
-    /**
-     * 初始化各个功能模块
-     */
-    _initModules(options) {
+    _initModulesFromPolicy() {
         // 限流器
-        if (options.rate_limit) {
-            this.rateLimiter = new RateLimiter(options.rate_limit);
+        if (this.policyConfig.rate_limit?.enabled !== false) {
+            this.rateLimiter = new RateLimiter(this.policyConfig.rate_limit);
         }
 
         // 代理池
-        if (options.proxy) {
-            this.proxyPool = new ProxyPool(options.proxy);
+        if (this.policyConfig.proxy?.enabled) {
+            this.proxyPool = new ProxyPool(this.policyConfig.proxy);
         }
 
         // 熔断器
-        if (options.circuit_breaker && options.circuit_breaker.enabled !== false) {
+        if (this.policyConfig.circuit_breaker?.enabled !== false) {
             this.circuitBreakers = new Map();
-            this._initCircuitBreaker(options.circuit_breaker);
+            this._initCircuitBreaker(this.policyConfig.circuit_breaker);
         }
 
         // 缓存管理器
-        if (options.cache) {
-            this.cacheManager = new CacheManager(options.cache);
+        if (this.policyConfig.cache?.enabled !== false) {
+            this.cacheManager = new CacheManager(this.policyConfig.cache);
         }
 
         // 重试处理器
-        if (options.retry) {
-            this.retryHandler = new RetryHandler(options.retry);
-        } else {
-            // 默认重试配置
-            this.retryHandler = new RetryHandler({
-                maxAttempts: this.maxRetries,
-                delay: this.retryDelay
-            });
+        this.retryHandler = new RetryHandler(this.policyConfig.retry);
+
+        // 延迟管理器
+        if (this.policyConfig.delay) {
+            this.delayManager = new DelayManager(this.policyConfig.delay);
         }
 
-        // 动态延迟管理器
-        if (options.delay) {
-            this.delayManager = new DelayManager(options.delay);
-        }
-
-        // 存储配置供其他方法使用
-        this.config = {
-            rate_limit: options.rate_limit,
-            proxy: options.proxy,
-            circuit_breaker: options.circuit_breaker,
-            cache: options.cache,
-            retry: options.retry,
-            delay: options.delay
-        };
+        // 其他配置
+        this.timeout = this.policyConfig.timeout || 30000;
+        this.userAgent = this.policyConfig.user_agent;
     }
+
 
     /**
      * 初始化熔断器（支持多组）

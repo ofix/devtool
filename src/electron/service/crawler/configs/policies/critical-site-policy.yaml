@@ -1,0 +1,50 @@
+# 高优先级站点专用策略
+
+name: "critical_site_policy"
+extends: "high_concurrency"        # 继承全局模板
+
+# 覆盖或扩展配置
+rate_limit:
+  qps: 100                          # 覆盖为100
+  burst: 150
+  groups:
+    api:
+      pattern: ".*/api/.*"
+      qps: 50                       # API单独限流
+    static:
+      pattern: ".*/static/.*"
+      qps: 200
+
+circuit_breaker:
+  failure_threshold: 3              # 更敏感
+  timeout: 30000
+  groups:
+    payment:
+      pattern: ".*/payment/.*"
+      failure_threshold: 2
+      timeout: 10000
+    list:
+      pattern: ".*/list/.*"
+      failure_threshold: 10
+
+proxy:
+  enabled: true
+  pool: "premium"                   # 使用 premium 代理池
+  rotation: least_used
+
+cache:
+  ttl: 1800                         # 缓存30分钟
+
+retry:
+  max_attempts: 5
+
+delay:
+  adaptive:
+    target_rate: 100
+
+# 站点特定的认证配置
+auth:
+  type: cookie
+  cookies:
+    - name: "session_id"
+      value: "${SESSION_ID}"        # 从环境变量读取
