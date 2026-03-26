@@ -1,44 +1,111 @@
 # 静态网站
 version: 1.0 # 版本号
 name: techcrunch # 爬虫的名字，一般是网站的名称
+url: https://www.baidu.com/ # 请求的初始网址
+# 比如限流，爬取间隔，超时配置，IP代理等等
+# 限流配置
+rate_limit:
+  qps: 10                    # 每秒10个请求
+  burst: 15                  # 允许峰值15个
+  algorithm: token_bucket    # 令牌桶算法
+  action: wait               # 超限时等待
+  group_by: domain           # 按域名分组限流
 
-# 爬虫的一些配置，比如限流，爬取间隔，超时配置，IP代理等等
+# 代理池配置
+proxy:
+  type: pool                 # 使用代理池
+  pool:
+    urls:
+      - "http://proxy1.com:8080"
+      - "http://proxy2.com:8080"
+      - "http://proxy3.com:8080"
+    auth:
+      username: "user"
+      password: "pass"
+    refresh: periodic        # 定期刷新
+    refresh_interval: 600    # 10分钟刷新一次
+    health_check: true       # 健康检查
+  rotation: round_robin      # 轮询使用
+  retry_on_fail: true        # 失败时重试
+  match_urls: 
+    - "https://target-site.com/*"  # 只对特定域名使用代理
 
-# 爬虫的工作流
-workflow:
-  # API登录(登录第1种登录方式，多种登录方式一般不会同时出现)
-  - login.api:
-      url: https://www.test.com/login
-      encrypt: false  # false 表示不加密，其他支持的加密方式为 md5/base64/ md5 表示调用内置的自定义加密函数
-      headers: # 可选字段
-        "Content-Type": "application/json"
-        "X-API-Key": "{{api_key}}"
-      body: # 可选字段
-        username: user@email.com # 动态参数以$开头,实际传递的参数名为 username
-        pwd: password
-        remember: true
-  # 表单登录(登录第2种登录方式，多种登录方式一般不会同时出现)
-  - login.form:
-      # 动态参数以$开头,实际传递的参数名为 username,值是写死的
-      username: user@email.com 
+# 或使用代理API
+# proxy:
+#   type: api
+#   api:
+#     url: "https://proxy-provider.com/api/get"
+#     method: "GET"
+#     response_path: "data.proxies"
+#     refresh_interval: 300
+
+# 重试策略
+retry:
+  max_attempts: 5
+  backoff: exponential       # 指数退避
+  delay: 1000                # 初始1秒
+  max_delay: 60000           # 最大60秒
+  factor: 2                  # 每次翻倍
+  retry_on_status: [429, 500, 502, 503, 504]
+  retry_on_errors: ["ECONNRESET", "ETIMEDOUT"]
+
+# 缓存配置
+cache:
+  enabled: true
+  type: redis                # 使用Redis缓存
+  redis:
+    host: localhost
+    port: 6379
+    ttl: 3600                # 缓存1小时
+  strategy: lru              # LRU淘汰策略
+  methods: ["GET"]           # 只缓存GET请求
+  key_generator: url         # 使用URL作为缓存键
+
+# 动态延迟
+delay:
+  type: random               # 随机延迟
+  min: 500                   # 最小500ms
+  max: 2000                  # 最大2000ms
+  adaptive:                  # 自适应调整
+    enabled: true
+    target_rate: 5           # 目标每秒5个请求
+    adjustment_factor: 0.1   # 调整因子
+
+# 登录配置
+# API登录(登录第1种登录方式，多种登录方式一般不会同时出现)
+login.api:
+  url: https://www.test.com/login
+  encrypt: false  # false 表示不加密，其他支持的加密方式为 md5/base64/ md5 表示调用内置的自定义加密函数
+  headers: # 可选字段
+    "Content-Type": "application/json"
+    "X-API-Key": "{{api_key}}"
+    body: # 可选字段
+      username: user@email.com # 动态参数以$开头,实际传递的参数名为 username
       pwd: password
       remember: true
-      # 动态参数（从页面提取）
-      csrf: "csrf"              # 从上下文获取 csrf
-      timestamp: "timestamp"    # 从上下文获取 timestamp
-      nonce: "nonce"            # 从上下文获取 nonce
+  # 表单登录(登录第2种登录方式，多种登录方式一般不会同时出现)
+login.form:
+  # 动态参数以$开头,实际传递的参数名为 username,值是写死的
+  username: user@email.com 
+  pwd: password
+  remember: true
+  # 动态参数（从页面提取）
+  csrf: "csrf"              # 从上下文获取 csrf
+  timestamp: "timestamp"    # 从上下文获取 timestamp
+  nonce: "nonce"            # 从上下文获取 nonce
   # oAuth2 登录第3种登录方式，多种登录方式一般不会同时出现)
-  - login.oauth2:
-      provider: "github"  # 或 "google", "wechat"
-      client_id: "xxx"
-      client_secret: "xxx"
-      redirect_uri: "http://localhost:8080/callback"
-      scope: "user:email"
-      # 授权端点
-      auth_url: "https://github.com/login/oauth/authorize"
-      token_url: "https://github.com/login/oauth/access_token"
-      userinfo_url: "https://api.github.com/user"
-      
+login.oauth2:
+  provider: "github"  # 或 "google", "wechat"
+  client_id: "xxx"
+  client_secret: "xxx"
+  redirect_uri: "http://localhost:8080/callback"
+  scope: "user:email"
+  # 授权端点
+  auth_url: "https://github.com/login/oauth/authorize"
+  token_url: "https://github.com/login/oauth/access_token"
+  userinfo_url: "https://api.github.com/user"
+# 爬虫的工作流
+workflow:     
   - list.normal: # 所有列表项出现在完整的页面中
     
   - list.tab: # Tab标签页，有些网站分类了，但是每个类别都是类似的列表，需要支持这种情况
