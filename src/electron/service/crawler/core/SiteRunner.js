@@ -1,7 +1,7 @@
 // src/crawler/core/SiteRunner.js
 import EventEmitter from 'events';
 import fs from 'fs-extra';
-import ConfigLoader from '../config/ConfigLoader.js';
+import SiteConfigManager from './SiteConfigManager.js';
 import GlobalScheduler from '../scheduler/GlobalScheduler.js';
 import WorkflowExecutor from './WorkflowExecutor.js';  // 改名
 import Task from './Task.js';
@@ -11,7 +11,6 @@ import DownloadManager from '../infrastructure/DownloadManager.js';
 import StorageManager from '../infrastructure/StorageManager.js';
 import IncrementalManager from '../infrastructure/IncrementalManager.js';
 import ResourceFetcher from '../infrastructure/ResourceFetcher.js';
-import PolicyManager from '../infrastructure/PolicyManager.js';
 import Logger from '../utils/Logger.js';
 
 // 列表处理器
@@ -68,33 +67,43 @@ export default class SiteRunner extends EventEmitter {
         this.dbPath = options.dbPath || './data/crawler.db';
         this.globalConcurrency = options.globalConcurrency || 5;
         this.headless = options.headless !== false;
-        
+
         // 策略配置路径（新增）
         this.policyPath = options.policyPath || './configs/policies';
 
         // 初始化核心组件
-        this.configLoader = new ConfigLoader({ configPath: this.configPath });
-        this.policyManager = new PolicyManager({ policyPath: this.policyPath });
+        // 统一配置管理器
+        this.configManager = new SiteConfigManager({
+            sitesDir: this.configPath,
+            policiesDir: this.policyPath,
+            defaultPolicy: options.defaultPolicy || 'default',
+            logger: new Logger('SiteConfigManager')
+        });
+        // 任务队列（支持全局并发控制）
         this.scheduler = new GlobalScheduler({ globalConcurrency: this.globalConcurrency });
+        // 响应解析器注册中心
         this.processorRegistry = new ProcessorRegistry();
+        // 浏览器管理（支持动态页面）
         this.browserManager = new BrowserManager({ headless: this.headless });
+        // 下载管理器
         this.downloadManager = new DownloadManager({ basePath: this.downloadPath });
+        // 存储管理器
         this.storageManager = new StorageManager({ basePath: this.dataPath });
+        // 增量下载管理器
         this.incrementalManager = new IncrementalManager({ dbPath: this.dbPath });
+        // 日志类
         this.logger = new Logger('SiteRunner');
 
         // ResourceFetcher 延迟初始化（需要策略配置）
         this.resourceFetcher = null;
-        
+
         // 站点映射
-        this.runners = new Map();           // siteName -> WorkflowExecutor
-        this.siteConfigs = new Map();       // siteName -> config
-        this.sitePolicies = new Map();      // siteName -> policyConfig
+        this.executors = new Map();           // siteName -> WorkflowExecutor
 
         // 运行状态
         this.isRunning = false;
         this.startTime = null;
-        
+
         // 运行指标
         this.metrics = {
             totalSites: 0,
@@ -130,7 +139,7 @@ export default class SiteRunner extends EventEmitter {
         await fs.ensureDir(this.policyPath);
 
         // 初始化策略管理器
-        await this.policyManager.initialize();
+        await this.configManager.initialize();
 
         // 初始化 ResourceFetcher（全局实例，策略由各站点独立）
         this.resourceFetcher = new ResourceFetcher({
@@ -141,17 +150,18 @@ export default class SiteRunner extends EventEmitter {
         });
 
         // 加载所有站点配置
-        const configs = await this.configLoader.loadAll();
+        const configs = await this.configManager.loadAllSites();
 
+        // 注册每个站点
         for (const config of configs) {
             await this._registerSite(config);
         }
-
         this.metrics.totalSites = configs.length;
 
         this.emit('initialized', {
             count: configs.length,
-            sites: Array.from(this.runners.keys())
+            sites: Array.from(this.runners.keys()),
+            stats: this.configManager.getStats()
         });
 
         this.logger.info(`SiteRunner initialized with ${configs.length} sites`);
@@ -162,9 +172,6 @@ export default class SiteRunner extends EventEmitter {
      * 注册单个站点
      */
     async _registerSite(config) {
-        // 加载该站点的策略配置
-        const policyConfig = await this.policyManager.getPolicyForSite(config);
-        this.sitePolicies.set(config.name, policyConfig);
 
         // 创建工作流执行器（改名）
         const executor = new WorkflowExecutor(config, {
@@ -174,7 +181,7 @@ export default class SiteRunner extends EventEmitter {
             downloadManager: this.downloadManager,
             storageManager: this.storageManager,
             incrementalManager: this.incrementalManager,
-            policyManager: this.policyManager,
+            configManager: this.configManager,
             logger: new Logger(config.name)
         });
 
@@ -189,8 +196,7 @@ export default class SiteRunner extends EventEmitter {
             proxy: policyConfig.proxy
         });
 
-        this.runners.set(config.name, executor);
-        this.siteConfigs.set(config.name, config);
+        this.executors.set(config.name, executor);
 
         this.emit('siteRegistered', { name: config.name, config });
         this.logger.info(`Site registered: ${config.name}`);
@@ -212,15 +218,15 @@ export default class SiteRunner extends EventEmitter {
         this.emit('runStart', { timestamp: Date.now() });
 
         const results = [];
-
-        for (const [name, config] of this.siteConfigs) {
+        const sites = this.configManager.getAllSiteConfigs();
+        for (const config of sites) {
             if (config.enabled !== false) {
                 try {
-                    const result = await this._runSite(name);
+                    const result = await this._runSite(config.name);
                     results.push(result);
                 } catch (error) {
-                    this.logger.error(`Failed to run site ${name}: ${error.message}`);
-                    results.push({ site: name, success: false, error: error.message });
+                    this.logger.error(`Failed to run site ${config.name}: ${error.message}`);
+                    results.push({ site: config.name, success: false, error: error.message });
                 }
             }
         }
@@ -235,10 +241,10 @@ export default class SiteRunner extends EventEmitter {
      * 运行单个站点
      */
     async runSite(siteName) {
-        const config = this.siteConfigs.get(siteName);
+        const config = this.configManager.getSiteConfig(siteName);
         if (!config) throw new Error(`Site ${siteName} not found`);
         if (config.enabled === false) throw new Error(`Site ${siteName} is disabled`);
-        
+
         return await this._runSite(siteName);
     }
 
@@ -246,9 +252,8 @@ export default class SiteRunner extends EventEmitter {
      * 内部运行站点方法
      */
     async _runSite(siteName) {
-        const executor = this.runners.get(siteName);
+        const executor = this.executors.get(siteName);
         if (!executor) throw new Error(`Site executor not found: ${siteName}`);
-
         // 获取起始任务
         const startTasks = executor.getStartTasks();
 
@@ -256,15 +261,14 @@ export default class SiteRunner extends EventEmitter {
             this.logger.warn(`No start tasks for site: ${siteName}`);
             return { site: siteName, success: false, reason: 'no_tasks' };
         }
-
-        // 更新指标
+        // 更新度量指标
         this.metrics.totalTasks += startTasks.length;
         this.metrics.activeSites++;
 
         this.logger.info(`Running site: ${siteName} with ${startTasks.length} tasks`);
         this.emit('siteRunStart', { site: siteName, taskCount: startTasks.length });
 
-        // 提交任务到调度器
+        // 加入任务队列
         for (const task of startTasks) {
             await this.scheduler.addTask(siteName, task);
         }
@@ -282,26 +286,27 @@ export default class SiteRunner extends EventEmitter {
     async stopSite(siteName) {
         this.scheduler.pauseSite(siteName);
         this.scheduler.clearQueue(siteName);
-        
-        const status = this.scheduler.getSiteStatus(siteName);
+
         this.metrics.activeSites--;
-        
+
         this.emit('siteStopped', { name: siteName });
         this.logger.info(`Site stopped: ${siteName}`);
-        
+
         return { site: siteName, stopped: true };
     }
+
+
 
     /**
      * 停止所有站点
      */
     async stopAll() {
         this.logger.info('Stopping all sites...');
-        
+
         for (const [siteName] of this.runners) {
             await this.stopSite(siteName);
         }
-        
+
         this.isRunning = false;
         this.emit('stopAll', { timestamp: Date.now() });
         this.logger.info('All sites stopped');
@@ -329,13 +334,13 @@ export default class SiteRunner extends EventEmitter {
      * 手动添加任务
      */
     async addTask(siteName, url, options = {}) {
-        const executor = this.runners.get(siteName);
+        const executor = this.executors.get(siteName);
         if (!executor) throw new Error(`Site ${siteName} not found`);
 
         // 获取第一个步骤作为默认步骤
         const workflow = executor.siteConfig.workflow;
         const firstStep = workflow?.[0] || { type: 'page', model: 'standard' };
-        
+
         let stepRef = firstStep.alias;
         if (!stepRef) {
             if (firstStep.type && firstStep.model) {
@@ -363,26 +368,40 @@ export default class SiteRunner extends EventEmitter {
     }
 
     /**
+     * 重新加载策略配置
+     */
+    async reloadPolicy(policyName) {
+        this.logger.info(`Reloading policy: ${policyName}`);
+
+        // 通过配置管理器重新加载策略
+        const newPolicy = await this.configManager.reloadPolicy(policyName);
+
+        // 重新加载所有使用该策略的站点
+        const sites = this.configManager.getAllSiteConfigs();
+        for (const site of sites) {
+            if (site._policy === policyName) {
+                await this.reloadSite(site.name);
+            }
+        }
+
+        this.emit('policyReloaded', { policyName, policy: newPolicy });
+        this.logger.info(`Policy reloaded: ${policyName}`);
+
+        return newPolicy;
+    }
+
+    /**
      * 重新加载站点配置
      */
     async reloadSite(siteName) {
-        const config = this.siteConfigs.get(siteName);
-        if (!config || !config._source) {
-            throw new Error(`Config for ${siteName} not found`);
-        }
-
         this.logger.info(`Reloading site: ${siteName}`);
 
-        // 停止旧站点
+        // 停止站点
         await this.stopSite(siteName);
-        
-        // 重新加载配置
-        const newConfig = await this.configLoader.loadFile(config._source);
-        
-        // 重新加载策略
-        const newPolicy = await this.policyManager.getPolicyForSite(newConfig);
-        this.sitePolicies.set(siteName, newPolicy);
-        
+
+        // 通过配置管理器重新加载
+        const newConfig = await this.configManager.reloadSite(siteName);
+
         // 创建新执行器
         const newExecutor = new WorkflowExecutor(newConfig, {
             processorRegistry: this.processorRegistry,
@@ -391,20 +410,19 @@ export default class SiteRunner extends EventEmitter {
             downloadManager: this.downloadManager,
             storageManager: this.storageManager,
             incrementalManager: this.incrementalManager,
-            policyManager: this.policyManager,
+            configManager: this.configManager,
             logger: new Logger(newConfig.name)
         });
 
-        // 更新调度器配置
+        // 更新调度器
         this.scheduler.updateSiteConfig(siteName, {
-            concurrency: newPolicy.concurrency || newConfig.concurrency || 1,
+            concurrency: newConfig.concurrency || 1,
             priority: newConfig.priority || 5,
-            timeout: newPolicy.timeout || newConfig.timeout || 30000
+            timeout: newConfig.timeout || 30000
         });
 
-        // 更新映射
-        this.runners.set(siteName, newExecutor);
-        this.siteConfigs.set(siteName, newConfig);
+        // 更新缓存
+        this.executors.set(siteName, newExecutor);
 
         // 如果启用，重新启动
         if (newConfig.enabled !== false) {
@@ -422,25 +440,20 @@ export default class SiteRunner extends EventEmitter {
      */
     getSiteStatus(siteName) {
         const schedulerStatus = this.scheduler.getSiteStatus(siteName);
-        const executor = this.runners.get(siteName);
-        const config = this.siteConfigs.get(siteName);
-        const policy = this.sitePolicies.get(siteName);
+        const executor = this.executors.get(siteName);
+        const config = this.configManager.getSiteConfig(siteName);
 
         if (!config) return null;
 
         return {
             name: siteName,
             enabled: config.enabled !== false,
+            policy: config._policy,
             config: {
                 concurrency: config.concurrency,
                 priority: config.priority,
                 url: config.url
             },
-            policy: policy ? {
-                rate_limit: policy.rate_limit?.enabled,
-                circuit_breaker: policy.circuit_breaker?.enabled,
-                proxy: policy.proxy?.enabled
-            } : null,
             ...schedulerStatus,
             progress: executor?.getProgress?.() || null
         };
@@ -451,7 +464,7 @@ export default class SiteRunner extends EventEmitter {
      */
     getAllStatus() {
         const status = {};
-        for (const name of this.runners.keys()) {
+        for (const name of this.executors.keys()) {
             status[name] = this.getSiteStatus(name);
         }
         return status;
@@ -480,7 +493,11 @@ export default class SiteRunner extends EventEmitter {
      * 获取统计信息（兼容旧接口）
      */
     getStats() {
-        return this.getMetrics();
+        return {
+            runner: this.getMetrics(),
+            configManager: this.configManager.getStats(),
+            scheduler: this.scheduler.getStats()
+        };
     }
 
     /**
@@ -490,6 +507,7 @@ export default class SiteRunner extends EventEmitter {
         return {
             metrics: this.getMetrics(),
             sites: this.getAllStatus(),
+            config: this.configManager.getStats(),
             scheduler: this.scheduler.getStats(),
             timestamp: Date.now()
         };
@@ -500,17 +518,17 @@ export default class SiteRunner extends EventEmitter {
      */
     async waitForCompletion(timeout = 3600000) {
         const startTime = Date.now();
-        
+
         return new Promise((resolve, reject) => {
             const checkInterval = setInterval(() => {
                 const stats = this.scheduler.getStats();
                 const elapsed = Date.now() - startTime;
-                
+
                 if (stats.totalQueueLength === 0 && stats.runningSites === 0) {
                     clearInterval(checkInterval);
                     resolve(this.getMetrics());
                 }
-                
+
                 if (elapsed > timeout) {
                     clearInterval(checkInterval);
                     reject(new Error(`Wait timeout after ${timeout}ms`));
@@ -524,14 +542,14 @@ export default class SiteRunner extends EventEmitter {
      */
     async shutdown() {
         this.logger.info('Shutting down SiteRunner...');
-        
+
         await this.stopAll();
         await this.scheduler.shutdown();
         await this.browserManager.close();
         await this.incrementalManager.close();
         await this.resourceFetcher?.close();
-        await this.policyManager?.close();
-        
+        await this.configManager?.close();
+
         this.emit('shutdown');
         this.logger.info('SiteRunner shutdown complete');
     }
