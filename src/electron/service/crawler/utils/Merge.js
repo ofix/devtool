@@ -321,16 +321,16 @@ function isObject(value) {
 export function createMerger() {
     const cache = new Map();
 
-    return function(target, source, options = {}) {
+    return function (target, source, options = {}) {
         const cacheKey = JSON.stringify({ target, source, options });
-        
+
         if (cache.has(cacheKey)) {
             return cache.get(cacheKey);
         }
-        
+
         const result = mergeDeep(target, source, options);
         cache.set(cacheKey, result);
-        
+
         return result;
     };
 }
@@ -359,31 +359,31 @@ export function createMerger() {
  */
 export function safeMerge(target, source) {
     const seen = new WeakMap();
-    
+
     function merge(target, source) {
         if (!source) return target;
         if (!target) return source;
-        
+
         if (seen.has(source)) {
             return target;
         }
         seen.set(source, true);
-        
+
         const result = { ...target };
-        
+
         for (const [key, sourceValue] of Object.entries(source)) {
             const targetValue = target[key];
-            
+
             if (isObject(sourceValue) && isObject(targetValue)) {
                 result[key] = merge(targetValue, sourceValue);
             } else {
                 result[key] = sourceValue;
             }
         }
-        
+
         return result;
     }
-    
+
     return merge(target, source);
 }
 
@@ -413,12 +413,12 @@ export function safeMerge(target, source) {
 export function mergeExclude(target, source, excludeKeys = []) {
     if (!source) return target;
     if (!target) return source;
-    
+
     const filteredSource = { ...source };
     for (const key of excludeKeys) {
         delete filteredSource[key];
     }
-    
+
     return mergeDeep(target, filteredSource);
 }
 
@@ -448,14 +448,14 @@ export function mergeExclude(target, source, excludeKeys = []) {
 export function mergeInclude(target, source, includeKeys = []) {
     if (!source) return target;
     if (!target) return source;
-    
+
     const filteredSource = {};
     for (const key of includeKeys) {
         if (key in source) {
             filteredSource[key] = source[key];
         }
     }
-    
+
     return mergeDeep(target, filteredSource);
 }
 
@@ -491,12 +491,12 @@ export function mergeInclude(target, source, includeKeys = []) {
 export function mergeWithTransform(target, source, transformers = {}) {
     if (!source) return target;
     if (!target) return source;
-    
+
     const result = { ...target };
-    
+
     for (const [key, sourceValue] of Object.entries(source)) {
         const targetValue = target[key];
-        
+
         if (transformers[key]) {
             result[key] = transformers[key](targetValue, sourceValue);
         } else if (isObject(sourceValue) && isObject(targetValue)) {
@@ -505,7 +505,7 @@ export function mergeWithTransform(target, source, transformers = {}) {
             result[key] = sourceValue;
         }
     }
-    
+
     return result;
 }
 
