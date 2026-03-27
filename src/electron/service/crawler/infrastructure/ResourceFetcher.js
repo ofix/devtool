@@ -205,10 +205,27 @@ export default class ResourceFetcher extends EventEmitter {
                 await this.delayManager.wait();
             }
 
-            // 2.3 限流检查
+            // 2.3 限流检查（增强版）
             if (this.rateLimiter) {
                 const groupKey = this._getRateLimitGroupKey(url);
-                await this.rateLimiter.acquire(groupKey);
+                try {
+                    await this.rateLimiter.acquire(groupKey);
+                } catch (error) {
+                    // 限流超时或被拒绝
+                    this.emit('rateLimitBlocked', {
+                        url,
+                        groupKey,
+                        error: error.message
+                    });
+
+                    // 根据策略决定是否继续
+                    if (this.policyConfig.rate_limit?.on_exceed === 'fallback') {
+                        // 使用降级数据
+                        return await this._getFallbackResponse(url, fetchOptions);
+                    } else {
+                        throw error;
+                    }
+                }
             }
 
             // 2.4 执行实际请求（带重试和代理）

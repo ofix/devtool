@@ -6,11 +6,14 @@ default:
   # 限流策略
   rate_limit:
     enabled: true
-    qps: 10 # 默认每秒10个请求
-    burst: 15 # 峰值15个
-    algorithm: token_bucket # 令牌桶算法
-    group_by: domain # 按域名分组限流
-    action: wait # 超限时等待
+    qps: 10
+    burst: 15
+    algorithm: token_bucket
+    group_by: domain
+    action: wait # wait / drop / queue
+    acquire_timeout: 30000 # 等待超时30秒
+    queue_size: 100 # 最大队列大小
+    on_exceed: fallback # 超限后: fallback / error
 
   # 代理策略
   proxy:
