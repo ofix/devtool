@@ -1,8 +1,7 @@
-// src/crawler/config/SitePolicyParser.js
 import fs from 'fs-extra';
 import yaml from 'js-yaml';
 import path from 'path';
-import { mergeDeep } from '../utils/merge.js';
+import { mergeDeep } from '../utils/Merge.js';
 
 /**
  * 站点策略解析器
