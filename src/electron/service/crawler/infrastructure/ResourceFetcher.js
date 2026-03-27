@@ -1,38 +1,37 @@
+// src/crawler/infrastructure/ResourceFetcher.js
 import axios from 'axios';
 import https from 'https';
 import * as cheerio from 'cheerio';
 import { EventEmitter } from 'events';
 
-import PageResult from "./PageResult.js";
-import RateLimiter from '../policy/RateLimiter.js';
-import ProxyPool from '../policy/ProxyPool.js';
-import CircuitBreaker from '../policy/CircuitBreaker.js';
+import PageResult from './PageResult.js';
+import PolicyExecutor from '../policy/PolicyExecutor.js';
+import CachePolicy from '../policy/policies/CachePolicy.js';
+import DelayPolicy from '../policy/policies/DelayPolicy.js';
+import RateLimitPolicy from '../policy/policies/RateLimitPolicy.js';
+import ProxyPolicy from '../policy/policies/ProxyPolicy.js';
+import CircuitBreakerPolicy from '../policy/policies/CircuitBreakerPolicy.js';
+import RetryPolicy from '../policy/policies/RetryPolicy.js';
 import CacheManager from '../policy/CacheManager.js';
-import RetryHandler from '../policy/RetryHandler.js';
-import DelayManager from '../policy/DelayManager.js';
 
 /**
  * 统一资源获取器
- * 集成：限流、代理池、熔断器、缓存、重试策略、动态延迟
+ * 职责：只负责 HTTP 请求，策略由 PolicyExecutor 管理
  */
 export default class ResourceFetcher extends EventEmitter {
     constructor(policyConfig, options = {}) {
         super();
-        // 策略配置（已经合并好）
-        this.policyConfig = policyConfig;
 
-        // 基础配置
+        this.policyConfig = policyConfig;
         this.browserManager = options.browserManager;
         this.authContext = options.authContext || null;
-        this.timeout = options.timeout || 30000;
-        this.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-        this.maxRetries = options.maxRetries || 3;
-        this.retryDelay = options.retryDelay || 1000;
+        this.timeout = policyConfig.timeout || options.timeout || 30000;
+        this.userAgent = policyConfig.user_agent || options.userAgent || 'Mozilla/5.0...';
 
-        // 根据策略初始化各模块
-        this._initModulesFromPolicy();
+        // 创建策略执行器
+        this.policyExecutor = this._createPolicyExecutor(policyConfig);
 
-        // HTTP 客户端配置
+        // HTTP 客户端
         this.httpClient = axios.create({
             timeout: this.timeout,
             httpsAgent: new https.Agent({
@@ -47,122 +46,82 @@ export default class ResourceFetcher extends EventEmitter {
 
         // 设置拦截器
         this._setupInterceptors();
+
+        // 事件转发
+        this._setupEventForwarding();
     }
-
-    _initModulesFromPolicy() {
-        // 限流器
-        if (this.policyConfig.rate_limit?.enabled !== false) {
-            this.rateLimiter = new RateLimiter(this.policyConfig.rate_limit);
-        }
-
-        // 代理池
-        if (this.policyConfig.proxy?.enabled) {
-            this.proxyPool = new ProxyPool(this.policyConfig.proxy);
-        }
-
-        // 熔断器
-        if (this.policyConfig.circuit_breaker?.enabled !== false) {
-            this.circuitBreakers = new Map();
-            this._initCircuitBreaker(this.policyConfig.circuit_breaker);
-        }
-
-        // 缓存管理器
-        if (this.policyConfig.cache?.enabled !== false) {
-            this.cacheManager = new CacheManager(this.policyConfig.cache);
-        }
-
-        // 重试处理器
-        this.retryHandler = new RetryHandler(this.policyConfig.retry);
-
-        // 延迟管理器
-        if (this.policyConfig.delay) {
-            this.delayManager = new DelayManager(this.policyConfig.delay);
-        }
-
-        // 其他配置
-        this.timeout = this.policyConfig.timeout || 30000;
-        this.userAgent = this.policyConfig.user_agent;
-    }
-
 
     /**
-     * 初始化熔断器（支持多组）
+     * 创建策略执行器
      */
-    _initCircuitBreaker(cbConfig) {
-        // 创建默认熔断器
-        const defaultCB = new CircuitBreaker({
-            name: 'default',
-            ...cbConfig
-        });
-        this.circuitBreakers.set('default', defaultCB);
+    _createPolicyExecutor(policyConfig) {
+        const policies = [];
 
-        // 监听熔断器事件
-        defaultCB.on('open', (data) => this.emit('circuitBreakerOpen', data));
-        defaultCB.on('close', (data) => this.emit('circuitBreakerClose', data));
-        defaultCB.on('halfOpen', (data) => this.emit('circuitBreakerHalfOpen', data));
-
-        // 按域名分组
-        if (cbConfig.groups) {
-            for (const [group, groupConfig] of Object.entries(cbConfig.groups)) {
-                const groupCB = new CircuitBreaker({
-                    name: group,
-                    ...cbConfig,
-                    ...groupConfig
-                });
-                this.circuitBreakers.set(group, groupCB);
-
-                groupCB.on('open', (data) => this.emit('circuitBreakerOpen', data));
-                groupCB.on('close', (data) => this.emit('circuitBreakerClose', data));
-                groupCB.on('halfOpen', (data) => this.emit('circuitBreakerHalfOpen', data));
-            }
+        // 缓存策略
+        if (policyConfig.cache?.enabled !== false) {
+            const cachePolicy = new CachePolicy(policyConfig.cache);
+            const cacheManager = new CacheManager(policyConfig.cache);
+            cachePolicy.setCacheManager(cacheManager);
+            policies.push(cachePolicy);
         }
+
+        // 延迟策略
+        if (policyConfig.delay) {
+            policies.push(new DelayPolicy(policyConfig.delay));
+        }
+
+        // 限流策略
+        if (policyConfig.rate_limit?.enabled !== false) {
+            policies.push(new RateLimitPolicy(policyConfig.rate_limit));
+        }
+
+        // 代理策略
+        if (policyConfig.proxy?.enabled) {
+            policies.push(new ProxyPolicy(policyConfig.proxy));
+        }
+
+        // 熔断策略
+        if (policyConfig.circuit_breaker?.enabled !== false) {
+            policies.push(new CircuitBreakerPolicy(policyConfig.circuit_breaker));
+        }
+
+        // 重试策略（总是有，但可以配置）
+        const retryConfig = policyConfig.retry || { max_attempts: 3 };
+        policies.push(new RetryPolicy(retryConfig));
+
+        return new PolicyExecutor(policies);
     }
 
     /**
-     * 设置请求/响应拦截器
+     * 设置请求拦截器
      */
     _setupInterceptors() {
-        // 请求拦截器：自动添加认证信息
         this.httpClient.interceptors.request.use(config => {
-            // 默认 User-Agent
             config.headers['User-Agent'] = config.headers['User-Agent'] || this.userAgent;
 
-            // 自动添加认证信息
             if (this.authContext && this.authContext.isValid()) {
                 const authHeaders = this.authContext.getHeaders();
                 for (const [key, value] of Object.entries(authHeaders)) {
                     config.headers[key] = value;
                 }
 
-                // Cookie 特殊处理
                 const cookieString = this.authContext.getCookieString();
                 if (cookieString) {
                     config.headers['Cookie'] = cookieString;
                 }
             }
 
-            // 添加默认 Accept 头
-            if (!config.headers['Accept']) {
-                config.headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8';
-            }
-            if (!config.headers['Accept-Language']) {
-                config.headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8';
-            }
-            if (!config.headers['Accept-Encoding']) {
-                config.headers['Accept-Encoding'] = 'gzip, deflate, br';
-            }
-            if (!config.headers['Connection']) {
-                config.headers['Connection'] = 'keep-alive';
-            }
-
-            this.emit('request', { url: config.url, method: config.method, headers: config.headers });
+            this.emit('request', { url: config.url, method: config.method });
             return config;
         });
 
-        // 响应拦截器
         this.httpClient.interceptors.response.use(
             response => {
-                this.emit('response', { url: response.config.url, status: response.status, size: response.data?.length });
+                this.emit('response', {
+                    url: response.config.url,
+                    status: response.status,
+                    size: response.data?.length
+                });
                 return response;
             },
             error => {
@@ -173,144 +132,60 @@ export default class ResourceFetcher extends EventEmitter {
     }
 
     /**
-     * 更新认证上下文
+     * 设置事件转发
      */
-    setAuthContext(authContext) {
-        this.authContext = authContext;
-        this.emit('authUpdated', { type: authContext?.type, isValid: authContext?.isValid() });
+    _setupEventForwarding() {
+        // 这里可以转发策略内部的事件
     }
 
     /**
-     * 获取页面内容（集成所有功能）
+     * 获取页面内容
      */
     async fetch(url, options = {}) {
+        const context = {
+            url,
+            options: { ...options },
+            proxy: null,
+            cached: false,
+            cacheResult: null,
+            startTime: Date.now()
+        };
+
+        // 使用策略执行器执行
+        const result = await this.policyExecutor.execute(context, async () => {
+            return await this._doRequest(context);
+        });
+
+        return result;
+    }
+
+    /**
+     * 实际执行请求
+     */
+    async _doRequest(context) {
+        const { url, options, proxy } = context;
         const { dynamic = false, ...fetchOptions } = options;
 
-        // 1. 获取对应的熔断器
-        const cb = this._getCircuitBreaker(url);
-
-        // 2. 定义实际执行函数
-        const executeRequest = async () => {
-            // 2.1 检查缓存
-            if (this.cacheManager) {
-                const cached = await this.cacheManager.get({ url, options: fetchOptions });
-                if (cached) {
-                    this.emit('cacheHit', { url });
-                    return cached;
-                }
-            }
-
-            // 2.2 应用延迟
-            if (this.delayManager) {
-                await this.delayManager.wait();
-            }
-
-            // 2.3 限流检查（增强版）
-            if (this.rateLimiter) {
-                const groupKey = this._getRateLimitGroupKey(url);
-                try {
-                    await this.rateLimiter.acquire(groupKey);
-                } catch (error) {
-                    // 限流超时或被拒绝
-                    this.emit('rateLimitBlocked', {
-                        url,
-                        groupKey,
-                        error: error.message
-                    });
-
-                    // 根据策略决定是否继续
-                    if (this.policyConfig.rate_limit?.on_exceed === 'fallback') {
-                        // 使用降级数据
-                        return await this._getFallbackResponse(url, fetchOptions);
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-
-            // 2.4 执行实际请求（带重试和代理）
-            const result = await this._executeWithRetry(url, dynamic, fetchOptions);
-
-            // 2.5 缓存结果
-            if (this.cacheManager && this._shouldCache(result)) {
-                await this.cacheManager.set({ url, options: fetchOptions }, result);
-            }
-
-            // 2.6 记录请求（用于自适应延迟）
-            if (this.delayManager?.adaptive) {
-                this.delayManager.recordRequest();
-            }
-
-            return result;
-        };
-
-        // 3. 定义降级函数
-        const fallback = async () => {
-            if (this.config.circuit_breaker?.fallback) {
-                return await this._getFallbackResponse(url, fetchOptions);
-            }
-            throw new Error(`Circuit breaker open for ${url}`);
-        };
-
-        // 4. 使用熔断器执行（如果有）
-        if (cb) {
-            return await cb.execute(executeRequest, fallback);
-        }
-
-        // 5. 没有熔断器，直接执行
-        return await executeRequest();
-    }
-
-    /**
-     * 执行请求（带重试和代理）
-     */
-    async _executeWithRetry(url, dynamic, options) {
-        const executor = async () => {
-            if (this.proxyPool) {
-                // 使用代理池执行
-                return await this.proxyPool.executeWithProxy(
-                    (proxy) => this._makeRequest(url, dynamic, options, proxy),
-                    {
-                        retryOnFail: this.config.proxy?.retry_on_fail !== false,
-                        maxRetries: this.config.proxy?.max_retries || 3
-                    }
-                );
-            } else {
-                // 直接执行
-                return await this._makeRequest(url, dynamic, options);
-            }
-        };
-
-        return await this.retryHandler.execute(executor);
-    }
-
-    /**
-     * 实际发起请求
-     */
-    async _makeRequest(url, dynamic, options, proxy = null) {
-        const startTime = Date.now();
-
         if (dynamic) {
-            return await this._fetchDynamic(url, options, proxy, startTime);
+            return await this._fetchDynamic(url, fetchOptions, proxy);
         }
-        return await this._fetchStatic(url, options, proxy, startTime);
+        return await this._fetchStatic(url, fetchOptions, proxy);
     }
 
     /**
-     * 静态获取（HTTP 请求）
+     * 静态请求
      */
-    async _fetchStatic(url, options, proxy, startTime) {
+    async _fetchStatic(url, options, proxy) {
+        const startTime = Date.now();
         const {
             method = 'GET',
             headers = {},
             data,
             params,
             timeout = this.timeout,
-            responseType = 'text',
-            maxRedirects = 5
+            responseType = 'text'
         } = options;
 
-        // 配置代理
         let proxyConfig = null;
         if (proxy) {
             const [protocol, rest] = proxy.url.split('://');
@@ -325,7 +200,7 @@ export default class ResourceFetcher extends EventEmitter {
             }
         }
 
-        const requestConfig = {
+        const response = await this.httpClient.request({
             url,
             method,
             headers: { ...headers },
@@ -333,15 +208,11 @@ export default class ResourceFetcher extends EventEmitter {
             data,
             timeout,
             proxy: proxyConfig,
-            responseType,
-            maxRedirects
-        };
+            responseType
+        });
 
-        const response = await this.httpClient.request(requestConfig);
         const html = response.data;
         const $ = cheerio.load(html);
-
-        const duration = Date.now() - startTime;
 
         const result = new PageResult({
             url,
@@ -350,7 +221,7 @@ export default class ResourceFetcher extends EventEmitter {
             statusCode: response.status,
             headers: response.headers,
             mode: 'static',
-            duration,
+            duration: Date.now() - startTime,
             response,
             proxy: proxy?.url
         });
@@ -358,7 +229,7 @@ export default class ResourceFetcher extends EventEmitter {
         this.emit('requestComplete', {
             url,
             mode: 'static',
-            duration,
+            duration: result.duration,
             status: response.status,
             proxy: proxy?.url
         });
@@ -367,18 +238,17 @@ export default class ResourceFetcher extends EventEmitter {
     }
 
     /**
-     * 动态获取（Puppeteer）
+     * 动态请求（Puppeteer）
      */
-    async _fetchDynamic(url, options, proxy, startTime) {
+    async _fetchDynamic(url, options, proxy) {
+        const startTime = Date.now();
         const page = await this.browserManager.getPage();
 
         try {
-            // 设置代理（Puppeteer 代理需要通过启动参数）
             if (proxy && this.browserManager.setProxy) {
                 await this.browserManager.setProxy(proxy);
             }
 
-            // 设置认证信息
             if (this.authContext && this.authContext.isValid()) {
                 if (this.authContext.type === 'cookie' && this.authContext.cookies.length) {
                     await page.setCookie(...this.authContext.cookies);
@@ -390,79 +260,33 @@ export default class ResourceFetcher extends EventEmitter {
                 }
             }
 
-            // 设置视口
-            if (options.viewport) {
-                await page.setViewport(options.viewport);
-            } else {
-                await page.setViewport({ width: 1920, height: 1080 });
-            }
+            await page.setViewport(options.viewport || { width: 1920, height: 1080 });
+            await page.setUserAgent(options.userAgent || this.userAgent);
 
-            // 设置 User-Agent
-            if (options.userAgent) {
-                await page.setUserAgent(options.userAgent);
-            } else {
-                await page.setUserAgent(this.userAgent);
-            }
-
-            // 设置自定义 Headers
-            if (options.headers) {
-                await page.setExtraHTTPHeaders(options.headers);
-            }
-
-            // 设置超时
             const timeout = options.timeout || this.timeout;
             page.setDefaultTimeout(timeout);
-            page.setDefaultNavigationTimeout(timeout);
 
-            // 请求拦截（可选）
-            if (options.blockResources) {
-                await page.setRequestInterception(true);
-                page.on('request', (request) => {
-                    const resourceType = request.resourceType();
-                    if (options.blockResources.includes(resourceType)) {
-                        request.abort();
-                    } else {
-                        request.continue();
-                    }
-                });
-            }
-
-            // 访问页面
             await page.goto(url, {
                 waitUntil: options.waitUntil || 'networkidle2',
-                timeout: timeout
+                timeout
             });
 
-            // 等待指定元素
             if (options.waitSelector) {
                 await page.waitForSelector(options.waitSelector, {
-                    timeout: options.waitTimeout || 10000,
-                    visible: options.waitVisible !== false
-                });
-            }
-
-            // 等待指定函数
-            if (options.waitFunction) {
-                await page.waitForFunction(options.waitFunction, {
                     timeout: options.waitTimeout || 10000
                 });
             }
 
-            // 执行交互动作
             if (options.actions) {
                 await this._executeActions(page, options.actions);
             }
 
-            // 自动滚动
             if (options.scroll) {
                 await this._autoScroll(page, options.scroll);
             }
 
-            // 获取 HTML
             const html = await page.content();
             const $ = cheerio.load(html);
-
-            const duration = Date.now() - startTime;
 
             const result = new PageResult({
                 url,
@@ -470,7 +294,7 @@ export default class ResourceFetcher extends EventEmitter {
                 $,
                 page,
                 mode: 'dynamic',
-                duration,
+                duration: Date.now() - startTime,
                 cookies: await page.cookies(),
                 proxy: proxy?.url
             });
@@ -478,7 +302,7 @@ export default class ResourceFetcher extends EventEmitter {
             this.emit('requestComplete', {
                 url,
                 mode: 'dynamic',
-                duration,
+                duration: result.duration,
                 proxy: proxy?.url
             });
 
@@ -501,42 +325,16 @@ export default class ResourceFetcher extends EventEmitter {
                         await page.waitForTimeout(action.waitAfter);
                     }
                     break;
-
                 case 'input':
                     await page.type(action.selector, action.value, {
                         delay: action.delay || 100
                     });
                     break;
-
-                case 'select':
-                    await page.select(action.selector, action.value);
-                    break;
-
-                case 'hover':
-                    await page.hover(action.selector);
-                    if (action.waitAfter) {
-                        await page.waitForTimeout(action.waitAfter);
-                    }
-                    break;
-
                 case 'wait':
                     await page.waitForTimeout(action.time || 1000);
                     break;
-
                 case 'scroll':
                     await page.evaluate((x, y) => window.scrollTo(x, y), action.x || 0, action.y || 0);
-                    break;
-
-                case 'evaluate':
-                    await page.evaluate(action.function, ...(action.args || []));
-                    break;
-
-                case 'screenshot':
-                    const screenshot = await page.screenshot(action.options);
-                    if (action.savePath) {
-                        const fs = await import('fs-extra');
-                        await fs.writeFile(action.savePath, screenshot);
-                    }
                     break;
             }
         }
@@ -565,102 +363,7 @@ export default class ResourceFetcher extends EventEmitter {
     }
 
     /**
-     * 获取降级响应
-     */
-    async _getFallbackResponse(url, options) {
-        const fallback = this.config.circuit_breaker.fallback;
-
-        if (fallback.type === 'cache' && this.cacheManager) {
-            // 从缓存获取过期数据
-            const cached = await this.cacheManager.get({ url, options }, { allowStale: true });
-            if (cached) {
-                return {
-                    ...cached,
-                    fromFallback: true,
-                    fallbackReason: 'circuit_breaker_open'
-                };
-            }
-        } else if (fallback.type === 'static') {
-            // 返回静态数据
-            const html = fallback.value;
-            const $ = cheerio.load(html);
-            return new PageResult({
-                url,
-                html,
-                $,
-                mode: 'static',
-                fromFallback: true,
-                fallbackReason: 'circuit_breaker_open'
-            });
-        }
-
-        return null;
-    }
-
-    /**
-     * 获取熔断器
-     */
-    _getCircuitBreaker(url) {
-        if (!this.circuitBreakers) return null;
-
-        const groupBy = this.config.circuit_breaker?.group_by;
-
-        if (groupBy === 'domain') {
-            try {
-                const urlObj = new URL(url);
-                const hostname = urlObj.hostname;
-
-                if (this.circuitBreakers.has(hostname)) {
-                    return this.circuitBreakers.get(hostname);
-                }
-            } catch {
-                // 忽略 URL 解析错误
-            }
-        }
-
-        // 按 URL 模式匹配
-        if (this.config.circuit_breaker?.groups) {
-            for (const [group, groupConfig] of Object.entries(this.config.circuit_breaker.groups)) {
-                if (groupConfig.pattern && new RegExp(groupConfig.pattern).test(url)) {
-                    if (this.circuitBreakers.has(group)) {
-                        return this.circuitBreakers.get(group);
-                    }
-                }
-            }
-        }
-
-        return this.circuitBreakers.get('default');
-    }
-
-    /**
-     * 获取限流分组键
-     */
-    _getRateLimitGroupKey(url) {
-        const groupBy = this.config.rate_limit?.group_by || 'domain';
-
-        if (groupBy === 'domain') {
-            try {
-                const urlObj = new URL(url);
-                return urlObj.hostname;
-            } catch {
-                return 'default';
-            }
-        } else if (groupBy === 'url') {
-            return url;
-        }
-
-        return 'default';
-    }
-
-    /**
-     * 判断是否应该缓存
-     */
-    _shouldCache(result) {
-        return result && result.statusCode >= 200 && result.statusCode < 300;
-    }
-
-    /**
-     * 批量获取多个 URL
+     * 批量获取
      */
     async fetchAll(urls, options = {}) {
         const concurrency = options.concurrency || 5;
@@ -694,53 +397,21 @@ export default class ResourceFetcher extends EventEmitter {
      * 获取统计信息
      */
     getStats() {
-        const stats = {
-            circuitBreakers: {},
-            cache: null,
-            rateLimiter: null
-        };
-
-        if (this.circuitBreakers) {
-            for (const [name, cb] of this.circuitBreakers.entries()) {
-                stats.circuitBreakers[name] = cb.getStats();
-            }
-        }
-
-        if (this.cacheManager) {
-            stats.cache = this.cacheManager.getStats();
-        }
-
-        if (this.rateLimiter) {
-            stats.rateLimiter = this.rateLimiter.getStats?.();
-        }
-
-        return stats;
+        return this.policyExecutor.getStats();
     }
 
     /**
-     * 重置熔断器
+     * 更新认证上下文
      */
-    resetCircuitBreaker(name = 'default') {
-        if (this.circuitBreakers && this.circuitBreakers.has(name)) {
-            this.circuitBreakers.get(name).reset();
-        }
+    setAuthContext(authContext) {
+        this.authContext = authContext;
+        this.emit('authUpdated', { type: authContext?.type });
     }
 
     /**
      * 关闭资源
      */
     async close() {
-        if (this.proxyPool) {
-            await this.proxyPool.close();
-        }
-        if (this.cacheManager) {
-            await this.cacheManager.close();
-        }
-        if (this.circuitBreakers) {
-            for (const cb of this.circuitBreakers.values()) {
-                cb.stopMonitoring();
-            }
-        }
         this.removeAllListeners();
     }
 }
