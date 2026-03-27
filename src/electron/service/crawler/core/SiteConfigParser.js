@@ -44,7 +44,7 @@ export default class SiteConfigParser {
     }
 
     /**
-     * 解析配置
+     * 解析配置（添加 policy 字段处理）
      */
     parse(rawConfig, sourcePath) {
         // 解析占位符
@@ -72,6 +72,25 @@ export default class SiteConfigParser {
         // 解析工作流
         const workflow = this._parseWorkflow(configWithConstants.workflow || [], constants);
 
+        // ✅ 解析 policy 字段（支持字符串或对象）
+        let policyConfig = null;
+        if (configWithConstants.policy) {
+            if (typeof configWithConstants.policy === 'string') {
+                // 字符串：策略名称
+                policyConfig = {
+                    name: configWithConstants.policy,
+                    inline: false
+                };
+            } else if (typeof configWithConstants.policy === 'object') {
+                // 对象：内联策略
+                policyConfig = {
+                    name: null,
+                    inline: true,
+                    config: configWithConstants.policy
+                };
+            }
+        }
+
         // 构建最终配置
         const config = {
             version: configWithConstants.version || '1.0',
@@ -92,7 +111,8 @@ export default class SiteConfigParser {
             startUrls: configWithConstants.startUrls || [],
             login: loginConfig,
             workflow: workflow,
-            policy: configWithConstants.policy,
+            // ✅ 保留 policy 配置
+            policy: policyConfig,
             _source: sourcePath,
             _loadedAt: new Date()
         };

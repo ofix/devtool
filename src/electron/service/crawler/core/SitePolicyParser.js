@@ -1,3 +1,4 @@
+// src/crawler/config/SitePolicyParser.js
 import fs from 'fs-extra';
 import yaml from 'js-yaml';
 import path from 'path';
@@ -23,7 +24,7 @@ export default class SitePolicyParser {
 
         if (await fs.pathExists(policyPath)) {
             this.globalPolicy = yaml.load(await fs.readFile(policyPath, 'utf8'));
-            this.logger.debug('Loaded global policy');
+            this.logger.debug('Loaded global policy from:', policyPath);
         } else {
             this.globalPolicy = this._getDefaultGlobalPolicy();
             this.logger.debug('Using default global policy');
@@ -33,14 +34,36 @@ export default class SitePolicyParser {
     }
 
     /**
-     * 加载站点策略（按名称）
+     * 解析策略配置（支持字符串名称或内联对象）
+     * @param {string|Object} policyInput - 策略名称或内联策略对象
+     * @returns {Promise<Object>} 解析后的策略配置
      */
-    async loadSitePolicy(policyName) {
-        // 内联策略对象
-        if (typeof policyName === 'object') {
-            return this._mergePolicy(this.globalPolicy.default, policyName);
+    async resolvePolicy(policyInput) {
+        // 没有配置策略，返回默认策略
+        if (!policyInput) {
+            return this.globalPolicy.default;
         }
 
+        // 内联策略对象
+        if (typeof policyInput === 'object') {
+            this.logger.debug('Using inline policy');
+            return this._mergePolicy(this.globalPolicy.default, policyInput);
+        }
+
+        // 字符串：策略名称
+        if (typeof policyInput === 'string') {
+            return await this.loadSitePolicy(policyInput);
+        }
+
+        return this.globalPolicy.default;
+    }
+
+    /**
+     * 加载站点策略（按名称）
+     * @param {string} policyName - 策略名称
+     * @returns {Promise<Object>} 策略配置
+     */
+    async loadSitePolicy(policyName) {
         // 检查缓存
         if (this.policyCache.has(policyName)) {
             return this.policyCache.get(policyName);
@@ -52,12 +75,13 @@ export default class SitePolicyParser {
 
         if (await fs.pathExists(policyPath)) {
             sitePolicy = yaml.load(await fs.readFile(policyPath, 'utf8'));
-            this.logger.debug(`Loaded policy: ${policyName}`);
+            this.logger.debug(`Loaded policy from file: ${policyName}`);
         } else {
-            this.logger.warn(`Policy not found: ${policyName}, using default`);
+            this.logger.warn(`Policy file not found: ${policyName}.yaml, using default`);
+            return this.globalPolicy.default;
         }
 
-        // 合并策略
+        // 合并策略（支持继承）
         const mergedPolicy = this._mergePolicy(
             this.globalPolicy.default,
             sitePolicy,
@@ -76,9 +100,14 @@ export default class SitePolicyParser {
     _mergePolicy(defaultPolicy, sitePolicy, templates = {}) {
         let result = { ...defaultPolicy };
 
-        // 处理继承
-        if (sitePolicy.extends && templates[sitePolicy.extends]) {
-            result = mergeDeep(result, templates[sitePolicy.extends]);
+        // 处理继承（策略可以继承另一个策略）
+        if (sitePolicy.extends) {
+            const parentPolicy = this.policyCache.get(sitePolicy.extends);
+            if (parentPolicy) {
+                result = mergeDeep(result, parentPolicy);
+            } else if (templates[sitePolicy.extends]) {
+                result = mergeDeep(result, templates[sitePolicy.extends]);
+            }
         }
 
         // 合并站点策略
@@ -92,25 +121,51 @@ export default class SitePolicyParser {
             }
         }
 
+        // 解析缓存服务器引用
+        if (result.cache?.server && typeof result.cache.server === 'string') {
+            const serverName = result.cache.server;
+            if (this.globalPolicy.cache_servers?.[serverName]) {
+                result.cache = mergeDeep(result.cache, this.globalPolicy.cache_servers[serverName]);
+            }
+        }
+
         return result;
     }
 
     /**
      * 获取站点的完整策略配置
+     * @param {Object} siteConfig - 站点配置（已解析）
+     * @returns {Promise<Object>} 合并后的策略配置
      */
     async getPolicyForSite(siteConfig) {
         if (!this.globalPolicy) {
             await this.loadGlobalPolicy();
         }
 
-        let policy = this.globalPolicy.default;
+        // 解析 policy 字段
+        let policyConfig;
 
         if (siteConfig.policy) {
-            policy = await this.loadSitePolicy(siteConfig.policy);
+            if (siteConfig.policy.inline) {
+                // 内联策略
+                policyConfig = siteConfig.policy.config;
+                this.logger.debug(`Using inline policy for site: ${siteConfig.name}`);
+            } else if (siteConfig.policy.name) {
+                // 文件策略
+                policyConfig = await this.loadSitePolicy(siteConfig.policy.name);
+                this.logger.debug(`Using policy file for site ${siteConfig.name}: ${siteConfig.policy.name}`);
+            } else {
+                // 兼容旧格式：直接是字符串
+                policyConfig = await this.loadSitePolicy(siteConfig.policy);
+            }
+        } else {
+            // 没有指定策略，使用默认策略
+            policyConfig = this.globalPolicy.default;
+            this.logger.debug(`Using default policy for site: ${siteConfig.name}`);
         }
 
-        // 站点配置覆盖策略
-        return mergeDeep(policy, siteConfig);
+        // 站点配置覆盖策略（站点配置优先级最高）
+        return mergeDeep(policyConfig, siteConfig);
     }
 
     /**
