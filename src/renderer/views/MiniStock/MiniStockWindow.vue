@@ -77,9 +77,9 @@ import KLineCtrl from "./KLineCtrl.vue";
 import SearchPanel from "./SearchPanel.vue";
 import FavoritePanel from "./FavoritePanel.vue";
 import SettingsPanel from "./SettingsPanel.vue";
-import DataProviderManager from "../providers/DataProviderManager";
-import { useStockStore } from "../stores/stockStore";
-import { useConfigStore } from "../stores/configStore";
+import DataProviderManager from "@/MiniStock/Providers/DataProviderManager";
+import { useStockStore } from "@/stores/StoreStock";
+import { useConfigStore } from "@/stores/StoreStockConfig";
 
 export default {
   name: "MiniStockWindow",
@@ -131,19 +131,19 @@ export default {
 
     // 窗口控制
     const startDrag = () => {
-      window.electron.startDrag();
+      window.channel.startDrag();
     };
 
     const minimizeWindow = () => {
-      window.electron.minimizeWindow();
+      window.channel.minimizeWindow();
     };
 
     const toggleMaximize = () => {
-      window.electron.maximizeWindow();
+      window.channel.maximizeWindow();
     };
 
     const closeWindow = () => {
-      window.electron.closeWindow();
+      window.channel.closeWindow();
     };
 
     // 股票操作

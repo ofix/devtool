@@ -44,8 +44,8 @@
 <script>
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import KLineRenderer from "../canvas/KLineRenderer";
-import DataProviderManager from "../providers/DataProviderManager";
-import { useConfigStore } from "../stores/configStore";
+import DataProviderManager from "./Providers/DataProviderManager";
+import { useConfigStore } from "../../stores/StoreStockConfig";
 
 export default {
   name: "KLineCtrl",

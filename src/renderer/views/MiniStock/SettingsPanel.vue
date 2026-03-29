@@ -158,8 +158,8 @@
 
 <script>
 import { ref, onMounted } from "vue";
-import { useConfigStore } from "../stores/configStore";
-import { useStockStore } from "../stores/stockStore";
+import { useConfigStore } from "@/stores/StoreStockConfig";
+import { useStockStore } from "@/stores/StoreStock";
 
 export default {
   name: "SettingsPanel",

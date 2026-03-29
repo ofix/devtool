@@ -48,8 +48,8 @@
 
 <script>
 import { ref, watch } from "vue";
-import DataProviderManager from "../providers/DataProviderManager";
-import { useStockStore } from "../stores/stockStore";
+import DataProviderManager from "@/MiniStock/Providers/DataProviderManager";
+import { useStockStore } from "@/stores/StoreStockConfig";
 
 export default {
   name: "SearchPanel",

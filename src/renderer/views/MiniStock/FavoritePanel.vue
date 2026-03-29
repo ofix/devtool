@@ -47,7 +47,7 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useStockStore } from "../stores/stockStore";
+import { useStockStore } from "@/stores/StoreStock";
 
 export default {
   name: "FavoritePanel",
