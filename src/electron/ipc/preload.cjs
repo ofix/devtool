@@ -60,7 +60,6 @@ contextBridge.exposeInMainWorld('dt', {
     info: wndInfo
 });
 
-
 contextBridge.exposeInMainWorld('channel', {
     clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
     setFullScreen: (flag, wndName) => ipcRenderer.send('full-screen', flag, wndName),

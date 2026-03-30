@@ -113,12 +113,12 @@ class StockStore {
         sector: f.sector
       }))
     };
-    await window.electron?.setConfig('stocks', data);
+    await window.channel?.setConfig('stocks', data);
   }
 
   // 从本地存储加载
   async loadFromStorage () {
-    const data = await window.electron?.getConfig('stocks');
+    const data = await window.channel?.getConfig('stocks');
     if (data) {
       if (data.displayStocks) {
         this.state.displayStocks = data.displayStocks.map(s => ({

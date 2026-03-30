@@ -40,6 +40,7 @@ class WndManager extends Singleton {
 
     // 基础窗口配置（只包含BrowserWindow属性）
     get transparentWndOptions() {
+        console.log("preload path: ", join(__dirname, '../ipc/preload.cjs'));
         return {
             frame: false,
             transparent: true,
@@ -52,7 +53,7 @@ class WndManager extends Singleton {
                 nodeIntegration: false,
                 contextIsolation: true,
                 webSecurity: false, // 关闭跨域安全检查
-                preload: join(__dirname, '../preload.cjs'),
+                preload: join(__dirname, '../ipc/preload.cjs'),
                 contextIsolation: true,
                 maxPayloadSize: 200 // 共享内存Buffer传输限制
             }
@@ -138,11 +139,10 @@ class WndManager extends Singleton {
 
     getMiniStockWndConfig() {
         const { width, height } = screen.getPrimaryDisplay().size;
-        const miniWidth = 800;
-        const miniHeight = 600;
+        const miniHeight = Math.floor(height / 4);
         return {
             browserWindow: {
-                x: (width - miniWidth)/2, y: height - miniHeight, width: miniWidth, height: miniHeight, transparent: false,
+                x: 0, y: height - miniHeight, width: width, height: miniHeight, transparent: false,
                 alwaysOnTop: false, show: true, frame: false,
                 resizable: true,
             },

@@ -270,7 +270,7 @@ const MenuRoutes = [
     }, {
         path: '/mini-stock',
         name: 'MiniStock',
-        component: () => import(/* webpackChunkName: "chunk-Misc/MiniStock" */ '@/views/MiniStock/MiniStockEntry.vue'),
+        component: () => import(/* webpackChunkName: "chunk-Misc/MiniStock" */ '@/views/MiniStock/MiniStockWindow.vue'),
         meta: {
             title: 'mini股票组件',
             desc: '',

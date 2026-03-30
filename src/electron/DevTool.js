@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, globalShortcut, ipcMain } from 'electron';
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ShortcutManager from './service/ShortcutManager.js';
-import IPCManager from "./service/IPCManager.js"
+import IPCManager from './ipc/index.js';
 import WndManager from "./service/WndManager.js"
 import debugLogger from './service/DebugLogger.js'
 
@@ -40,7 +40,7 @@ class DevTool {
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
             }, {
-                shortcut: "Ctrl+0",
+                shortcut: "Ctrl+`",
                 callback: handleCtrl0,
                 description: "显示/隐藏迷你股票窗口"
             }, {
@@ -83,7 +83,6 @@ class DevTool {
 
     init() {
         const ipcManager = IPCManager.getInstance();
-        ipcManager.startListen();
         this.registerAppShortcuts();
     }
 
@@ -103,7 +102,7 @@ class DevTool {
                 },
             }),
             webPreferences: {
-                preload: join(__dirname, 'preload.cjs'),
+                preload: join(__dirname, './ipc/preload.cjs'),
                 nodeIntegration: true,
                 contextIsolation: true,// 必须开启，避免 monaco-editor Worker 路径冲突
                 sandbox: false,
