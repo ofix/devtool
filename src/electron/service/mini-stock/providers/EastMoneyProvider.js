@@ -1,4 +1,5 @@
 import axios from 'axios';
+import http from 'http';
 
 class EastMoneyProvider {
     constructor() {
@@ -7,6 +8,109 @@ class EastMoneyProvider {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Referer': 'https://quote.eastmoney.com/'
         };
+    }
+
+    async sleepRandom() {
+        const ms = Math.floor(Math.random() * 700) + 300;
+        console.log("睡眠 ", ms, "毫秒");
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async getStockList() {
+        try {
+            const url = "http://push2.eastmoney.com/api/qt/clist/get";
+            const allStocks = [];
+            let currentPage = 1;
+            const pageSize = 200; // 每页数量
+            let hasMore = true;
+
+            while (hasMore) {
+                const params = {
+                    'pn': currentPage,
+                    'pz': pageSize,
+                    'po': '1',
+                    'np': '1',
+                    'fltt': '2',
+                    'invt': '2',
+                    'fid': 'f3',
+                    'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23', // 沪深京A股
+                    'fields': 'f12,f13,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18' // 更多字段
+                };
+
+                console.log(`正在获取第 ${currentPage} 页数据...`);
+                const agent = new http.Agent({
+                    keepAlive: false, // 🔥 禁止长连接（关键）
+                });
+                const response = await axios.get(url, {
+                    agent,         // 每次用新 agent
+                    timeout: 8000, // 超时
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': 'http://quote.eastmoney.com/',
+                        'Origin': 'http://quote.eastmoney.com',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'zh-CN,zh;q=0.9',
+                        'Connection': 'close', // 🔥 告诉服务器用完就关
+                    }, params
+                });
+
+                if (response.data && response.data.data && response.data.data.diff) {
+                    const stocks = response.data.data.diff;
+
+                    if (stocks.length === 0) {
+                        hasMore = false;
+                        break;
+                    }
+
+                    // 格式化股票数据
+                    const formattedStocks = stocks.map(stock => ({
+                        code: stock.f12,           // 股票代码
+                        name: stock.f14,           // 股票名称
+                        market: stock.f13,         // 市场代码
+                        marketType: this.getMarketName(stock.f13), // 市场名称
+                        currentPrice: stock.f2,    // 最新价
+                        changePercent: stock.f3,   // 涨跌幅
+                        changeAmount: stock.f4,    // 涨跌额
+                        volume: stock.f5,          // 成交量
+                        amount: stock.f6,          // 成交额
+                        amplitude: stock.f15,      // 振幅
+                        high: stock.f16,           // 最高
+                        low: stock.f17,            // 最低
+                        open: stock.f18,           // 今开
+                        updateTime: new Date().toISOString()
+                    }));
+
+                    allStocks.push(...formattedStocks);
+
+                    // 检查是否还有更多数据
+                    const totalCount = response.data.data.total || 0;
+                    if (allStocks.length >= totalCount) {
+                        hasMore = false;
+                    } else {
+                        currentPage++;
+                    }
+                    await this.sleepRandom();
+                    console.log(`已获取 ${allStocks.length} 只股票...`);
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            return allStocks;
+        } catch (error) {
+            console.error('获取股票列表失败:', error);
+            throw error;
+        }
+    }
+
+    // 获取市场名称
+    getMarketName(marketCode) {
+        const marketMap = {
+            '0': '深圳',
+            '1': '上海',
+            '2': '北京'
+        };
+        return marketMap[marketCode] || '未知';
     }
 
     async getKLineData(code, market, period, startDate, endDate) {
@@ -27,7 +131,7 @@ class EastMoneyProvider {
                 },
                 headers: this.headers
             });
-
+            console.log(response.data);
             return this.parseKLineData(response.data);
         } catch (error) {
             console.error('EastMoneyProvider getKLineData error:', error);

@@ -36,6 +36,13 @@ class Utils {
         return dir;
     }
 
+    static async ensureStockListFile() {
+        let filePath = join(Utils.sysDocumentDir, 'devtool', 'stock_list.json');
+        const absolutePath = path.resolve(filePath);
+        this.ensureDir(absolutePath, true);
+        return absolutePath;
+    }
+
     static async ensureRemoteFilePath(host, remoteFilePath) {
         let localPath = join(Utils.sysDocumentDir, "devtool", `sftp.${host}`, remoteFilePath);
         let absolutePath = path.resolve(localPath);
