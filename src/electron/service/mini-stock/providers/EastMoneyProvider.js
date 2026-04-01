@@ -1,5 +1,6 @@
 import axios from 'axios';
-import http from 'http';
+import Utils from "../../../core/Utils.js";
+import fs from 'fs';
 
 class EastMoneyProvider {
     constructor() {
@@ -11,46 +12,59 @@ class EastMoneyProvider {
     }
 
     async sleepRandom() {
-        const ms = Math.floor(Math.random() * 700) + 300;
+        const ms = Math.floor(Math.random() * 7000) + 3000;
         console.log("睡眠 ", ms, "毫秒");
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async getStockList() {
         try {
-            const url = "http://push2.eastmoney.com/api/qt/clist/get";
+            const url = "https://push2.eastmoney.com/api/qt/clist/get";
             const allStocks = [];
-            let currentPage = 1;
-            const pageSize = 200; // 每页数量
+            const allShares = [];
+            let currentPage = 20;
+            const pageSize = 100; // 每页数量
             let hasMore = true;
 
             while (hasMore) {
                 const params = {
+                    'np': '1',
+                    'fltt': '1',
+                    'invt': '2',
+                    'fs': 'm:0+t:6+f:!2,m:0+t:80+f:!2,m:1+t:2+f:!2,m:1+t:23+f:!2,m:0+t:81+s:262144+f:!2', // 沪深京A股
+                    'fields': 'f12,f13,f14,f1,f2,f4,f3,f152,f5,f6,f7,f15,f18,f16,f17,f10,f8,f9,f23', // 更多字段
+                    'fid': 'f12',
                     'pn': currentPage,
                     'pz': pageSize,
                     'po': '1',
-                    'np': '1',
-                    'fltt': '2',
-                    'invt': '2',
-                    'fid': 'f3',
-                    'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23', // 沪深京A股
-                    'fields': 'f12,f13,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18' // 更多字段
+                    'dect': '1',
+                    'wbp2u': '|0|0|0|web'
                 };
 
                 console.log(`正在获取第 ${currentPage} 页数据...`);
-                const agent = new http.Agent({
-                    keepAlive: false, // 🔥 禁止长连接（关键）
-                });
                 const response = await axios.get(url, {
-                    agent,         // 每次用新 agent
-                    timeout: 8000, // 超时
+                    timeout: 10000, // 超时
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Referer': 'http://quote.eastmoney.com/',
-                        'Origin': 'http://quote.eastmoney.com',
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'zh-CN,zh;q=0.9',
-                        'Connection': 'close', // 🔥 告诉服务器用完就关
+                        'Accept': '*/*',
+                        'Accept-Encoding': 'gzip, deflate, br, zstd',
+                        'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
+                        'Cache-Control': 'max-age=0',
+                        'Connection': 'keep-alive',
+                        'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; websitepoptg_api_time=1775007304159; st_si=76345057599765; st_asi=delete; fullscreengg=1; fullscreengg2=1; st_sn=5; st_psi=20260401094513768-113300300812-4401537884; st_pvi=66081628292100; st_sp=2026-01-27%2008%3A52%3A32; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; wsc_checkuser_ok=1',
+                        'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
+                        'Host': 'push2.eastmoney.com',
+                        'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
+                        'sec-ch-ua-mobile': '?0',
+                        'sec-ch-ua-platform': '"Linux"',
+                        // 'Sec-Ch-Ua':'"Not/A)Brand";v="8", "Chromium";v="126"',
+                        // 'Sec-Ch-Ua-Mobile':'?0',
+                        // 'Sec-Ch-Ua-Platform':'"Linux"',
+                        'cb': 'jQuery371007211754528794523_1775007918338',
+                        'Sec-Fetch-Dest': 'script',
+                        'Sec-Fetch-Mode': 'no-cors',
+                        'Sec-Fetch-Site': 'same-site',
+                        'ut': 'fa5fd1943c7b386f172d6893dbfba10b',// 'fa5fd1943c7b386f172d6893dbfba10b',
+                        'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36',
                     }, params
                 });
 
@@ -61,6 +75,19 @@ class EastMoneyProvider {
                         hasMore = false;
                         break;
                     }
+                    for (let i = 0; i < stocks.length; i++) {
+                        let stock = stocks[i];
+                        let line = stock.f12 + "," + stock.f14 + "," + stock.f13 + "," + this.getMarketName(stock.f13);
+                        console.log(line);;
+                        allShares.push(line);
+                    }
+
+                    const filePath = await Utils.ensureStockListFile();
+                    fs.writeFile(filePath, allShares.join('\n'), 'utf8', (err) => {
+                        if (err) {
+                            console.error('写入失败:', err);
+                        }
+                    });
 
                     // 格式化股票数据
                     const formattedStocks = stocks.map(stock => ({

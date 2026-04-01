@@ -1,8 +1,14 @@
+import { join } from 'node:path';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import EastMoneyProvider from './EastMoneyProvider.js';
 import TencentProvider from './TencentProvider.js';
 import YahooProvider from './YahooProvider.js';
 import BaiduFinanceProvider from './BaiduFinanceProvider.js';
 import Utils from "../../../core/Utils.js";
+import Trie from "../../../core/Trie.js";
+import csv from 'csv-parser';
 
 class DataProviderManager {
     constructor() {
@@ -15,6 +21,63 @@ class DataProviderManager {
         this.activeProvider = 'eastmoney';
         this.cache = new Map(); // 数据缓存
         this.cacheDuration = 5000; // 缓存5秒
+        this.trie = new Trie();
+        this.loaded = false;
+    }
+
+    getStockCsvPath() {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        return path.join(__dirname, '../../../data/stock_list.csv');
+    }
+
+    async searchLocalStock(keyword) {
+        if (!this.loaded) {
+            let stockListPath = this.getStockCsvPath();
+            await this.loadLocalStockList(stockListPath);
+            this.loaded = true;
+        }
+        if (!keyword) return [];
+        const key = keyword.trim();
+        return this.trie.search(key.toLowerCase());
+    }
+
+    // 加载本地股票列表
+    async loadLocalStockList(csvPath = 'stock_list.csv') {
+        return new Promise((resolve, reject) => {
+            const stockList = [];
+
+            fs.createReadStream(csvPath)
+                .pipe(
+                    csv({
+                        headers: false, // 无表头
+                        skipLines: 0    // 不跳过任何行
+                    })
+                )
+                .on('data', (row) => {
+                    // 无表头 → 按索引读取
+                    const stock = {
+                        code: row[0]?.trim() || '',       // 第1列：股票代码
+                        name: row[1]?.trim() || '',       // 第2列：股票名称
+                        marketNo: row[2]?.trim() || '',   // 第3列：市场代号
+                        market: row[3]?.trim() || '',     // 第4列：市场缩写
+                        pinyin: row[4]?.trim() || '',     // 第5列：拼音全拼
+                        pinyinFirst: row[5]?.trim() || '' // 第6列：拼音首字母
+                    };
+
+                    stockList.push(stock);
+
+                    // 4种搜索关键词 插入同一棵 Trie
+                    this.trie.insert(stock.code, stock);
+                    this.trie.insert(stock.name, stock);
+                    // this.trie.insert(stock.pinyin.toLowerCase(), stock);
+                    this.trie.insert(stock.pinyinFirst.toLowerCase(), stock);
+                })
+                .on('end', () => {
+                    resolve();
+                })
+                .on('error', reject);
+        });
     }
 
     setActiveProvider(providerName) {
@@ -33,7 +96,7 @@ class DataProviderManager {
 
         const data = await this.providers.eastmoney.getStockList();
         let stockFilePath = await Utils.ensureStockListFile();
-        this.saveStockList(data, stockFilePath);
+        // this.saveStockList(data, stockFilePath);
         this.setCache(cacheKey, data);
         return data;
     }
