@@ -1,4 +1,3 @@
-// DataProviderManager.js
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -26,11 +25,12 @@ class DataProviderManager {
 
         // 统一缓存结构
         this.cache = {
-            daily: new LRUCache(500),      // 日K缓存
-            weekly: new LRUCache(300),     // 周K缓存
-            monthly: new LRUCache(300),    // 月K缓存
-            yearly: new LRUCache(200),     // 年K缓存
+            day: new LRUCache(500),        // 日K缓存
+            week: new LRUCache(300),       // 周K缓存
+            week: new LRUCache(300),       // 月K缓存
+            year: new LRUCache(200),       // 年K缓存
             minute: new LRUCache(100),     // 分时缓存
+            fiveMinute: new LRUCache(100), // 5日分时
             stock: new LRUCache(1)         // 股票列表缓存
         };
 
@@ -78,14 +78,6 @@ class DataProviderManager {
             this._cleanMinuteCache();
         }, 30000);
         this.timers.push(minuteCleanupTimer);
-
-        // 定期刷新统计（可选）
-        if (process.env.NODE_ENV === 'development') {
-            const statsTimer = setInterval(() => {
-                this._logStats();
-            }, 60000);
-            this.timers.push(statsTimer);
-        }
     }
 
     /**
@@ -115,9 +107,9 @@ class DataProviderManager {
             storageWrites: this.stats.storageWrites,
             providerCalls: this.stats.providerCalls,
             cacheSizes: {
-                daily: this.cache.daily.size(),
-                weekly: this.cache.weekly.size(),
-                monthly: this.cache.monthly.size(),
+                day: this.cache.day.size(),
+                week: this.cache.week.size(),
+                month: this.cache.month.size(),
                 minute: this.cache.minute.size()
             }
         });
@@ -143,8 +135,8 @@ class DataProviderManager {
         console.log('DataProviderManager closed');
     }
 
-    // ==================== 统一 K线入口 ====================
-    async getKLineData(code, market, period, startDate, endDate, options = {}) {
+    // 日/周/月/年 K线查询
+    async getKlines(code, market, period, startDate, endDate, options = {}) {
         const {
             forceRefresh = false,
             adjustType = 'forward',
@@ -155,9 +147,6 @@ class DataProviderManager {
         if (!code || !market) {
             throw new Error(`Invalid parameters: code=${code}, market=${market}`);
         }
-
-        const periodKey = this._getPeriodKey(period);
-        const cacheKey = this._getCacheKey(code, adjustType, period);
 
         // 起始时间戳（用于存储查询）
         const startTimestamp = startDate ? new Date(startDate).getTime() : 0;
@@ -175,7 +164,7 @@ class DataProviderManager {
 
         // 内存缓存检查
         if (!forceRefresh && !needRefresh) {
-            const cached = this.cache[periodKey]?.get(cacheKey);
+            const cached = this.cache[period]?.get(code);
             if (cached) {
                 this.stats.cacheHits++;
                 const filtered = this._filterByDate(cached, startDate, endDate);
@@ -189,7 +178,7 @@ class DataProviderManager {
         this.stats.cacheMisses++;
 
         // 获取日K数据（唯一数据源）
-        const dailyList = await this._getDailyKLine(
+        const dailyList = await this._getDayKlines(
             code, market, startTimestamp, endTimestamp, forceRefresh || needRefresh
         );
 
@@ -197,36 +186,29 @@ class DataProviderManager {
 
         // 周期聚合
         let result = dailyList;
-        switch (periodKey) {
-            case 'weekly':
-                result = this._aggregateWeekly(dailyList);
+        switch (period){
+            case 'week':
+                result = this._getWeekKlines(dailyList);
                 break;
-            case 'monthly':
-                result = this._aggregateMonthly(dailyList);
+            case 'month':
+                result = this._getMonthKlines(dailyList);
                 break;
-            case 'yearly':
-                result = this._aggregateYearly(dailyList);
+            case 'year':
+                result = this._getYearKlines(dailyList);
                 break;
         }
 
         // 缓存结果
-        this.cache[periodKey].set(cacheKey, result);
+        this.cache[period].set(code, result);
 
         return this._filterByDate(result, startDate, endDate);
-    }
-
-    /**
-     * 获取缓存键
-     */
-    _getCacheKey(code, adjustType, period) {
-        return `${code}_${adjustType}_${period}`;
     }
 
     /**
      * 清除指定代码的所有缓存
      */
     _clearCodeCache(code) {
-        const patterns = ['daily', 'weekly', 'monthly', 'yearly'];
+        const patterns = ['day', 'week', 'month', 'year'];
         for (const pattern of patterns) {
             const cache = this.cache[pattern];
             for (const [key] of cache.cache.entries()) {
@@ -237,13 +219,11 @@ class DataProviderManager {
         }
     }
 
-    // ==================== 日K读取逻辑（优化版） ====================
-    async _getDailyKLine(code, market, startTimestamp, endTimestamp, forceRefresh) {
-        const cacheKey = `${code}_forward_daily`;
-
-        // 检查内存缓存
+    // 日K读取逻辑
+    async _getDayKlines(code, market, startTimestamp, endTimestamp, forceRefresh) {
+          // 检查内存缓存
         if (!forceRefresh) {
-            const cached = this.cache.daily.get(cacheKey);
+            const cached = this.cache.day.get(code);
             if (cached) {
                 // 检查缓存是否覆盖所需范围
                 if (this._isCacheSufficient(cached, startTimestamp, endTimestamp)) {
@@ -263,7 +243,7 @@ class DataProviderManager {
 
             if (records && records.length > 0) {
                 const list = this._recordsToKlineList(records);
-                this.cache.daily.set(cacheKey, list);
+                this.cache.day.set(code, list);
                 return this._filterByTimestamp(list, startTimestamp, endTimestamp);
             }
         } catch (e) {
@@ -271,7 +251,7 @@ class DataProviderManager {
         }
 
         // 从网络拉取
-        return this._fetchAndSaveDaily(code, market, startTimestamp, endTimestamp);
+        return this._fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp);
     }
 
     /**
@@ -313,15 +293,15 @@ class DataProviderManager {
         });
     }
 
-    // ==================== 拉取 + 写入存储 ====================
-    async _fetchAndSaveDaily(code, market, startTimestamp, endTimestamp) {
+    // 拉取 + 写入存储
+    async _fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
         // 防止并发拉取同一只股票
         const loadingKey = `${code}_${market}`;
         if (this.loadingPromises.has(loadingKey)) {
             return this.loadingPromises.get(loadingKey);
         }
 
-        const promise = this._doFetchAndSaveDaily(code, market, startTimestamp, endTimestamp);
+        const promise = this._doFetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp);
         this.loadingPromises.set(loadingKey, promise);
 
         try {
@@ -332,12 +312,9 @@ class DataProviderManager {
         }
     }
 
-    async _doFetchAndSaveDaily(code, market, startTimestamp, endTimestamp) {
-        const cacheKey = `${code}_forward_daily`;
+    async _doFetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
         const provider = this._getProvider(market);
-
         this.stats.providerCalls++;
-
         // 计算拉取的天数范围
         const startDate = startTimestamp ? new Date(startTimestamp) : new Date(0);
         const endDate = endTimestamp ? new Date(endTimestamp) : new Date();
@@ -345,11 +322,7 @@ class DataProviderManager {
 
         let data;
         try {
-            data = await provider.getKLineData(code, market, '1d', startTimestamp, endTimestamp);
-            if (!data?.length) {
-                // 如果指定范围没数据，尝试拉取最近数据
-                data = await provider.getKLineData(code, market, '1d', 0, Date.now());
-            }
+            data = await provider.getKLineData(code, market, 'day', startTimestamp, endTimestamp);
         } catch (err) {
             console.error(`拉取 ${code} 日K失败:`, err.message);
             return [];
@@ -378,16 +351,16 @@ class DataProviderManager {
         await this.storage.batchAppend(code, records);
 
         const list = this._recordsToKlineList(records);
-        this.cache.daily.set(cacheKey, list);
+        this.cache.day.set(code, list);
 
         return list;
     }
 
     // ==================== 周期聚合（优化版） ====================
-    _aggregateWeekly(daily) {
+    _getWeekKlines(day) {
         const map = new Map();
 
-        for (const k of daily) {
+        for (const k of day) {
             const date = new Date(k.date);
             const year = date.getFullYear();
             // 更准确的周计算
@@ -411,10 +384,10 @@ class DataProviderManager {
         return Array.from(map.values());
     }
 
-    _aggregateMonthly(daily) {
+    _getMonthKlines(day) {
         const map = new Map();
 
-        for (const k of daily) {
+        for (const k of day) {
             const date = new Date(k.date);
             const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
 
@@ -433,10 +406,10 @@ class DataProviderManager {
         return Array.from(map.values());
     }
 
-    _aggregateYearly(daily) {
+    _getYearKlines(day) {
         const map = new Map();
 
-        for (const k of daily) {
+        for (const k of day) {
             const year = new Date(k.date).getFullYear();
             const key = year.toString();
 
@@ -455,7 +428,7 @@ class DataProviderManager {
         return Array.from(map.values());
     }
 
-    // ==================== 除权检查 ====================
+    // 除权检查
     async _checkAndUpdateAdjustment(code, market) {
         try {
             const cachedInfo = this.adjustCache.get(code);
@@ -505,17 +478,7 @@ class DataProviderManager {
         }
     }
 
-    // ==================== 工具函数 ====================
-    _getPeriodKey(period) {
-        const map = {
-            '1d': 'daily',
-            '1w': 'weekly',
-            '1M': 'monthly',
-            '1y': 'yearly'
-        };
-        return map[period] || 'daily';
-    }
-
+    // 工具函数
     _filterByDate(data, startDate, endDate) {
         if (!data?.length) return [];
 
@@ -545,8 +508,8 @@ class DataProviderManager {
         return { market: 'a', symbol: code };
     }
 
-    // ==================== 分时、股票列表、搜索 ====================
-    async getMinuteData(codes, days = 1) {
+    // 分时、股票列表、搜索
+    async getMinuteKlines(codes, days = 1) {
         const isSingle = !Array.isArray(codes);
         const list = isSingle ? [codes] : codes;
         const key = list.join(',');
@@ -652,10 +615,10 @@ class DataProviderManager {
             ...this.stats,
             hitRate: totalAccess > 0 ? (this.stats.cacheHits / totalAccess * 100).toFixed(2) : 0,
             cacheSizes: {
-                daily: this.cache.daily.size(),
-                weekly: this.cache.weekly.size(),
-                monthly: this.cache.monthly.size(),
-                yearly: this.cache.yearly.size(),
+                day: this.cache.day.size(),
+                week: this.cache.week.size(),
+                month: this.cache.month.size(),
+                year: this.cache.year.size(),
                 minute: this.cache.minute.size()
             }
         };
@@ -666,7 +629,7 @@ class DataProviderManager {
      */
     async warmup(codes, market) {
         const promises = codes.map(code =>
-            this.getKLineData(code, market, '1d', 0, Date.now(), { forceRefresh: false })
+            this.getKlines(code, market, 'day', 0, Date.now(), { forceRefresh: false })
                 .catch(err => console.error(`预热失败 ${code}:`, err.message))
         );
         await Promise.all(promises);
