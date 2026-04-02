@@ -390,15 +390,15 @@ class EastMoneyProvider {
             return {
                 date: items[0],
                 open: parseFloat(items[1]),
-                close: parseFloat(items[2]),
                 high: parseFloat(items[3]),
                 low: parseFloat(items[4]),
-                volume: parseFloat(items[5]),
+                close: parseFloat(items[2]),
                 amount: parseFloat(items[6]),
-                amplitude: parseFloat(items[7]),  // 振幅
+                volume: parseFloat(items[5]),
+                change: parseFloat(items[9]),        // 涨跌额
                 changePercent: parseFloat(items[8]), // 涨跌幅
-                change: parseFloat(items[9]),     // 涨跌额
-                turnover: parseFloat(items[10])   // 换手率
+                // amplitude: parseFloat(items[7]),  // 振幅
+                // turnover: parseFloat(items[10])   // 换手率
             };
         });
     }

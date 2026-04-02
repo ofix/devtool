@@ -22,7 +22,7 @@ class TencentProvider {
     }
   }
 
-  async getRealtimeData (code, market) {
+  async getMinuteData (code, market) {
     try {
       const symbol = this.getSymbol(code, market);
       const response = await axios.get(`${this.baseURL}/qt/quote=${symbol}`);
@@ -34,8 +34,6 @@ class TencentProvider {
 
       const items = match[1].split('~');
       return {
-        name: items[1],
-        code: items[2],
         price: parseFloat(items[3]),
         change: parseFloat(items[4]),
         changePercent: parseFloat(items[5]),
