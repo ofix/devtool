@@ -1,9 +1,11 @@
 import axios from 'axios';
 import Utils from "../../../core/Utils.js";
 import fs from 'fs';
+import DataProvider from "./DataProvider.js"
 
-class EastMoneyProvider {
+class EastMoneyProvider extends DataProvider {
     constructor() {
+        super();
         this.baseURL = 'https://push2.eastmoney.com/api/qt';
         this.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -15,6 +17,120 @@ class EastMoneyProvider {
         const ms = Math.floor(Math.random() * 7000) + 3000;
         console.log("睡眠 ", ms, "毫秒");
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * 获取 东方财富 涨幅榜/跌幅榜 前N只股票
+     * @param {number} n - 获取股票数量
+     * @param {string} order - top=涨幅榜, bottom=跌幅榜
+     * @returns {Promise<Array>} 带实时行情的排行榜数据
+     */
+    async getShareRankList(n, order = "top") {
+
+    }
+
+    #getHeaders() {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000000000000);
+
+        return {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            // 关键：Cookie 不要写死！写死必封！我给你保留基础段 + 动态化
+            'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
+            'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
+            'Host': 'push2.eastmoney.com',
+            'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+            'X-Requested-With': 'XMLHttpRequest',
+            'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
+            '_': timestamp,
+            'ut': 'fa5fd1943c7b386f172d6893dbfba10b',
+        };
+    }
+
+    // 辅助：生成随机字符串（防 Cookie 固定风控）
+    #randomString(len) {
+        const chars = 'abcdef1234567890';
+        let str = '';
+        for (let i = 0; i < len; i++) {
+            str += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return str;
+    }
+
+    // 辅助：生成随机数字串
+    #randomNum(len) {
+        let num = '';
+        for (let i = 0; i < len; i++) {
+            num += Math.floor(Math.random() * 10);
+        }
+        return num;
+    }
+
+    /**
+     * 获取东方财富 涨幅榜/跌幅榜 前N只股票
+     * @param {number} n - 获取股票数量
+     * @param {string} order - top=涨幅榜, bottom=跌幅榜
+     * @returns {Promise<Array>} 股票列表 [代码, 名称, 涨幅, 现价, ...]
+     */
+    async getTopShares(n, order = "top") {
+        try {
+            const baseUrl = "https://push2.eastmoney.com/api/qt/clist/get";
+            const ts = Date.now();
+
+            const params = new URLSearchParams({
+                fid: "f3",
+                po: order === "top" ? "1" : "0",
+                pz: n,
+                np: 1,
+                fltt: 2,
+                invt: 1,
+                fields: "f12,f14,f3,f2,f6,f10,f15,f16,f17",
+                cb: `jQuery3710${Math.random().toString().slice(2, 18)}_${ts}`,
+                _: ts,
+            });
+
+            const url = `${baseUrl}?${params.toString()}`;
+
+            // 使用优化后的 Header
+            const res = await fetch(url, {
+                headers: this.#getHeaders(),
+                method: "GET",
+                mode: "cors",
+                credentials: "include",
+            });
+
+            let text = await res.text();
+            text = text.replace(/^jQuery\d+_\d+\(/, "").replace(/\);$/, "");
+            const data = JSON.parse(text);
+
+            if (data?.rc !== 0 || !data?.data?.diff) return [];
+
+            return data.data.diff.map(item => ({
+                code: item.f12,
+                name: item.f14,
+                changePercent: item.f3, // 涨跌幅
+                open: item.f17,
+                high: item.f15,
+                low: item.f16,
+                price: item.f2,
+                volume: item.f5,
+                amount: item.f6
+            }));
+
+        } catch (err) {
+            console.error("获取失败：", err);
+            return [];
+        }
     }
 
     async getStockList() {
@@ -44,28 +160,8 @@ class EastMoneyProvider {
                 console.log(`正在获取第 ${currentPage} 页数据...`);
                 const response = await axios.get(url, {
                     timeout: 10000, // 超时
-                    headers: {
-                        'Accept': '*/*',
-                        'Accept-Encoding': 'gzip, deflate, br, zstd',
-                        'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
-                        'Cache-Control': 'max-age=0',
-                        'Connection': 'keep-alive',
-                        'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; websitepoptg_api_time=1775007304159; st_si=76345057599765; st_asi=delete; fullscreengg=1; fullscreengg2=1; st_sn=5; st_psi=20260401094513768-113300300812-4401537884; st_pvi=66081628292100; st_sp=2026-01-27%2008%3A52%3A32; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; wsc_checkuser_ok=1',
-                        'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
-                        'Host': 'push2.eastmoney.com',
-                        'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
-                        'sec-ch-ua-mobile': '?0',
-                        'sec-ch-ua-platform': '"Linux"',
-                        // 'Sec-Ch-Ua':'"Not/A)Brand";v="8", "Chromium";v="126"',
-                        // 'Sec-Ch-Ua-Mobile':'?0',
-                        // 'Sec-Ch-Ua-Platform':'"Linux"',
-                        'cb': 'jQuery371007211754528794523_1775007918338',
-                        'Sec-Fetch-Dest': 'script',
-                        'Sec-Fetch-Mode': 'no-cors',
-                        'Sec-Fetch-Site': 'same-site',
-                        'ut': 'fa5fd1943c7b386f172d6893dbfba10b',// 'fa5fd1943c7b386f172d6893dbfba10b',
-                        'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36',
-                    }, params
+                    headers: this.#getHeaders(),
+                    params
                 });
 
                 if (response.data && response.data.data && response.data.data.diff) {
@@ -101,10 +197,9 @@ class EastMoneyProvider {
                         volume: stock.f5,          // 成交量
                         amount: stock.f6,          // 成交额
                         amplitude: stock.f15,      // 振幅
+                        open: stock.f18,           // 今开
                         high: stock.f16,           // 最高
                         low: stock.f17,            // 最低
-                        open: stock.f18,           // 今开
-                        updateTime: new Date().toISOString()
                     }));
 
                     allStocks.push(...formattedStocks);
@@ -140,7 +235,7 @@ class EastMoneyProvider {
         return marketMap[marketCode] || '未知';
     }
 
-    async getKLineData(code, market, period, startDate, endDate) {
+    async getKline(code, market, period, startDate, endDate) {
         try {
             // 转换周期格式
             const klt = this.convertPeriod(period);
@@ -404,10 +499,10 @@ class EastMoneyProvider {
     }
 
     /**
-  * 解析JSONP格式的响应数据
-  * @param {string} jsonpData - JSONP格式的字符串
-  * @returns {object} 解析后的JSON对象
-  */
+    * 解析JSONP格式的响应数据
+    * @param {string} jsonpData - JSONP格式的字符串
+    * @returns {object} 解析后的JSON对象
+    */
     parseJSONPResponse(jsonpData) {
         try {
             let jsonStr = jsonpData;

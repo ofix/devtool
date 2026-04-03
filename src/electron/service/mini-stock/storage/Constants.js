@@ -1,5 +1,5 @@
 // 文件结构常量
-export const RECORD_SIZE = 48;        // K线记录大小（字节）
+export const RECORD_SIZE = 88;        // K线记录大小（字节）
 export const INDEX_SIZE = 12;         // 索引记录大小（字节）
 export const HEADER_SIZE = 256;       // 文件头大小（字节）
 

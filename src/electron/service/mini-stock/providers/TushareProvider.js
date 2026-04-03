@@ -1,7 +1,8 @@
 import axios from 'axios';
-
-class TushareProvider {
+import DataProvider from "./DataProvider.js"
+class TushareProvider extends DataProvider{
     constructor() {
+        super();
         this.baseURL = 'http://api.tushare.pro';
         this.token = 'ee1af62cef664a2d14e5bcf8424c94eb09a7e59c6e7779a9677df353'; // 需要在初始化时设置 token
         this.headers = {
@@ -19,6 +20,21 @@ class TushareProvider {
     }
 
     /**
+     * 获取Tushare 涨幅榜/跌幅榜 前N只股票
+     * @param {number} n - 获取股票数量
+     * @param {string} order - top=涨幅榜, bottom=跌幅榜
+     * @returns {Promise<Array>} 股票列表 [代码, 名称, 涨幅, 现价, ...]
+     */
+    async getShareRankList(n, order = "top") {
+        throw new Error('Tushare 不支持涨幅榜/跌幅榜数据接口');
+    }
+
+    #getTodayDate() {
+        const d = new Date();
+        return `${d.getFullYear()}${(d.getMonth() + 1 + '').padStart(2, 0)}${(d.getDate() + '').padStart(2, 0)}`;
+    }
+
+    /**
     * 获取并解析K线数据
     * @param {string} share - 股票
     * @param {string} startDate - 开始日期
@@ -26,7 +42,7 @@ class TushareProvider {
     * @param {string} adj - 复权类型
     * @returns {Promise<Array>} 解析后的K线数据
     */
-    async getKLineData(share, startDate, endDate, adj = null) {
+    async getKline(share, startDate, endDate, adj = null) {
         let tsCode = this._getTsCode(share);
         const rawData = await this._getDaily(tsCode, startDate, endDate, adj);
         return this.parseKLineData(rawData);

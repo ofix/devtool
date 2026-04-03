@@ -1,4 +1,4 @@
-import { INDEX_SIZE } from './constants.js';
+import { INDEX_SIZE } from './Constants.js';
 
 export class IndexRecord {
     /**

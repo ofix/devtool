@@ -44,7 +44,6 @@
 <script>
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import KLineRenderer from "../canvas/KLineRenderer";
-import DataProviderManager from "./Providers/DataProviderManager";
 import { useConfigStore } from "../../stores/StoreStockConfig";
 
 export default {
@@ -98,7 +97,7 @@ export default {
         const endDate = new Date().toISOString().split("T")[0];
         const startDate = getStartDate(currentType.value);
 
-        const data = await DataProviderManager.getKLineData(
+        const data = await window.channel.getKlines(
           props.stockCode,
           props.market,
           currentType.value,
@@ -147,7 +146,7 @@ export default {
       if (!isTradingTime()) return;
 
       try {
-        const realtime = await DataProviderManager.getRealtimeData([
+        const realtime = await window.channel.getMinuteKline([
           props.stockCode,
         ]);
         if (

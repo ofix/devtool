@@ -77,7 +77,6 @@ import KLineCtrl from "./KLineCtrl.vue";
 import SearchPanel from "./SearchPanel.vue";
 import FavoritePanel from "./FavoritePanel.vue";
 import SettingsPanel from "./SettingsPanel.vue";
-import DataProviderManager from "@/MiniStock/Providers/DataProviderManager";
 import { useStockStore } from "@/stores/StoreStock";
 import { useConfigStore } from "@/stores/StoreStockConfig";
 

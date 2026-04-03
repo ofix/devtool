@@ -1,106 +1,120 @@
-import { RECORD_SIZE } from './constants.js';
+import { RECORD_SIZE } from './Constants.js';
 
 export class KlineRecord {
     /**
      * K线记录
-     * @param {number} timestamp - 时间戳（毫秒）
-     * @param {number} open - 开盘价
-     * @param {number} high - 最高价
-     * @param {number} low - 最低价
-     * @param {number} close - 收盘价
+     * @param {number} timestamp - 毫秒时间戳
+     * @param {number} open - 开盘
+     * @param {number} high - 最高
+     * @param {number} low - 最低
+     * @param {number} close - 收盘
+     * @param {number} preClose - 昨收
+     * @param {number} turnoverratio - 换手率
+     * @param {number} change - 涨跌额
+     * @param {number} changeratio - 涨跌幅(%)
      * @param {number} volume - 成交量
      * @param {number} amount - 成交额
      */
-    constructor(timestamp, open, high, low, close, volume, amount) {
+    constructor(
+        timestamp,
+        open, high, low, close,
+        preClose,
+        turnoverratio,
+        change,
+        changeratio,
+        volume,
+        amount
+    ) {
         this.timestamp = timestamp;
         this.open = open;
         this.high = high;
         this.low = low;
         this.close = close;
+        this.preClose = preClose;
+        this.turnoverratio = turnoverratio;
+        this.change = change;
+        this.changeratio = changeratio;
         this.volume = volume;
         this.amount = amount;
     }
-    
+
+    // 获取 2026-04-01 格式
+    get time() {
+        return new Date(this.timestamp).toISOString().split('T')[0];
+    }
+
     /**
-     * 序列化为二进制数据
-     * @returns {Buffer} 二进制数据
+     * 二进制打包（固定长度，不变）
      */
     pack() {
-        const buffer = Buffer.alloc(RECORD_SIZE);
-        let offset = 0;
-        
-        buffer.writeBigUInt64BE(BigInt(this.timestamp), offset); offset += 8;
-        buffer.writeDoubleBE(this.open, offset); offset += 8;
-        buffer.writeDoubleBE(this.high, offset); offset += 8;
-        buffer.writeDoubleBE(this.low, offset); offset += 8;
-        buffer.writeDoubleBE(this.close, offset); offset += 8;
-        buffer.writeDoubleBE(this.volume, offset); offset += 8;
-        buffer.writeDoubleBE(this.amount, offset);
-        
-        return buffer;
+        const buf = Buffer.alloc(RECORD_SIZE);
+        let o = 0;
+
+        buf.writeBigUInt64BE(BigInt(this.timestamp), o); o += 8;
+        buf.writeDoubleBE(this.open, o); o += 8;
+        buf.writeDoubleBE(this.high, o); o += 8;
+        buf.writeDoubleBE(this.low, o); o += 8;
+        buf.writeDoubleBE(this.close, o); o += 8;
+
+        buf.writeDoubleBE(this.preClose, o); o += 8;
+        buf.writeDoubleBE(this.turnoverratio, o); o += 8;
+        buf.writeDoubleBE(this.change, o); o += 8;
+        buf.writeDoubleBE(this.changeratio, o); o += 8;
+
+        buf.writeDoubleBE(this.volume, o); o += 8;
+        buf.writeDoubleBE(this.amount, o); o += 8;
+
+        return buf;
     }
-    
+
     /**
-     * 从二进制数据反序列化
-     * @param {Buffer} buffer - 二进制数据
-     * @returns {KlineRecord} K线记录
+     * 二进制解包
      */
-    static unpack(buffer) {
-        if (buffer.length !== RECORD_SIZE) {
-            throw new Error(`Invalid record size: ${buffer.length}`);
-        }
-        
-        let offset = 0;
-        const timestamp = Number(buffer.readBigUInt64BE(offset)); offset += 8;
-        const open = buffer.readDoubleBE(offset); offset += 8;
-        const high = buffer.readDoubleBE(offset); offset += 8;
-        const low = buffer.readDoubleBE(offset); offset += 8;
-        const close = buffer.readDoubleBE(offset); offset += 8;
-        const volume = buffer.readDoubleBE(offset); offset += 8;
-        const amount = buffer.readDoubleBE(offset);
-        
-        return new KlineRecord(timestamp, open, high, low, close, volume, amount);
+    static unpack(buf) {
+        if (buf.length !== RECORD_SIZE) throw new Error('记录长度错误');
+
+        let o = 0;
+        const timestamp = Number(buf.readBigUInt64BE(o)); o += 8;
+        const open = buf.readDoubleBE(o); o += 8;
+        const high = buf.readDoubleBE(o); o += 8;
+        const low = buf.readDoubleBE(o); o += 8;
+        const close = buf.readDoubleBE(o); o += 8;
+
+        const preClose = buf.readDoubleBE(o); o += 8;
+        const turnoverratio = buf.readDoubleBE(o); o += 8;
+        const change = buf.readDoubleBE(o); o += 8;
+        const changeratio = buf.readDoubleBE(o); o += 8;
+
+        const volume = buf.readDoubleBE(o); o += 8;
+        const amount = buf.readDoubleBE(o); o += 8;
+
+        return new KlineRecord(
+            timestamp, open, high, low, close,
+            preClose, turnoverratio, change, changeratio,
+            volume, amount
+        );
     }
-    
-    /**
-     * 验证K线数据的合法性
-     * @returns {boolean} 是否合法
-     */
+
     validate() {
-        // 时间戳校验
-        if (this.timestamp < 0 || this.timestamp > Date.now() + 86400000 * 365) {
-            return false;
-        }
-        
-        // 价格校验
-        if (this.open <= 0 || this.high <= 0 || this.low <= 0 || this.close <= 0) {
-            return false;
-        }
-        
-        // OHLC关系校验
-        if (this.high < this.low || this.high < this.open || this.high < this.close) {
-            return false;
-        }
-        
-        if (this.low > this.open || this.low > this.close) {
-            return false;
-        }
-        
+        if (this.timestamp < 0) return false;
+        if (this.open <= 0 || this.high <= 0 || this.low <= 0 || this.close <= 0) return false;
+        if (this.high < this.low) return false;
         return true;
     }
-    
-    /**
-     * 转换为JSON对象
-     * @returns {object} JSON对象
-     */
+
+    // ✅ 输出自动带 date: '2026-04-01'
     toJSON() {
         return {
+            date: this.date,      // 你要的字符串
             timestamp: this.timestamp,
-            datetime: new Date(this.timestamp).toISOString(),
             open: this.open,
             high: this.high,
             low: this.low,
             close: this.close,
+            preClose: this.preClose,
+            change: this.change,
+            changeratio: this.changeratio,
+            turnoverratio: this.turnoverratio,
             volume: this.volume,
             amount: this.amount
         };

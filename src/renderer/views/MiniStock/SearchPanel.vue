@@ -48,7 +48,6 @@
 
 <script>
 import { ref, watch } from "vue";
-import DataProviderManager from "@/MiniStock/Providers/DataProviderManager";
 import { useStockStore } from "@/stores/StoreStockConfig";
 
 export default {
@@ -66,7 +65,7 @@ export default {
         return;
       }
 
-      const results = await DataProviderManager.searchStock(keyword.value);
+      const results = await window.channel.searchStock(keyword.value);
       searchResults.value = results.slice(0, 20);
     };
 

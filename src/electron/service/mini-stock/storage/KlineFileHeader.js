@@ -1,4 +1,4 @@
-import { HEADER_SIZE, MAGIC_NUMBER, VERSION } from './constants.js';
+import { HEADER_SIZE, MAGIC_NUMBER, VERSION } from './Constants.js';
 import { crc32 } from './Crc32.js';
 
 export class KlineFileHeader {

@@ -147,10 +147,10 @@ contextBridge.exposeInMainWorld('channel', {
     closeAllPinWnd: () => ipcRenderer.invoke('pin-image:close-all-wnd'),
     setPinWndBounds: (x, y, width, height) => ipcRenderer.invoke('pin-image:set-wnd-bounds', x, y, width, height),
     // 视频录制
-    startVideoRecord:(options)=>ipcRenderer.invoke('video-record:start',options),
-    pauseVideoRecord:(id)=>ipcRenderer.invoke('video-record:pause',id),
-    resumeVideoRecord:(id)=>ipcRenderer.invoke('video-record:resume',id),
-    stopVideoRecord:(id,path)=> ipcRenderer.invoke('video-record:stop',id,path),
+    startVideoRecord: (options) => ipcRenderer.invoke('video-record:start', options),
+    pauseVideoRecord: (id) => ipcRenderer.invoke('video-record:pause', id),
+    resumeVideoRecord: (id) => ipcRenderer.invoke('video-record:resume', id),
+    stopVideoRecord: (id, path) => ipcRenderer.invoke('video-record:stop', id, path),
     // 屏幕取色器
     openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
     cancelColorPicker: () => ipcRenderer.invoke('color-picker:cancel'),
@@ -168,10 +168,15 @@ contextBridge.exposeInMainWorld('channel', {
     selectFile: (side) => ipcRenderer.invoke('select-file', side),
     readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
     diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines),
-    // 文件夹比对
     selectFolder: () => ipcRenderer.invoke('select-folder'),
-    // 加载文件夹
     loadFolder: (dirPath) => ipcRenderer.invoke('load-folder', dirPath),
-    // 比对文件夹
     diffFolder: (folderA, folderB) => ipcRenderer.invoke('diff-folder', folderA, folderB),
+    // 股票行情
+    searchShares: (keyword) => ipcRenderer.invoke('mini-stock:search-shares', keyword),
+    getKline: (codes, market, period, startDate, endDate) => ipcRenderer.invoke('mini-stock:kline', codes, market, period, startDate, endDate),
+    getMinuteKline: (codes, days = 1) => ipcRenderer.invoke('mini-stock:minute-kline', codes, days),
+    shareRankList: (n, order = "top") => ipcRenderer.invoke('mini-stock:share-rank-list', n, order),
+    favoriteShares: () => ipcRenderer.invoke('mini-stock:favorite-shares'),
+    addFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:add-favorite-share', code),
+    delFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:del-favorite-share', code),
 })

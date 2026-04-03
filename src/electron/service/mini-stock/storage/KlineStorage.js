@@ -4,7 +4,7 @@ import {
     RECORD_SIZE, INDEX_SIZE, HEADER_SIZE,
     BATCH_SIZE, FLUSH_INTERVAL, MAX_CACHE_SIZE,
     WAL_CLEAR_THRESHOLD, INDEX_BATCH_SIZE
-} from './constants.js';
+} from './Constants.js';
 import { KlineRecord } from './KlineRecord.js';
 import { IndexRecord } from './IndexRecord.js';
 import { KlineFileHeader } from './KlineFileHeader.js';

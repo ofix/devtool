@@ -33,14 +33,15 @@ export default class Trie {
             current = current.children.get(char);
         }
 
-        // 收集所有子树的股票
-        const matches = new Set();
+        // 用 Map 去重（key = 股票唯一标识）
+        const resultMap = new Map();
 
-        // 正确遍历：把所有节点的 Set 全部合并到一个总 Set 里
         function dfs(node) {
-            for (const s of node.stockSet) {
-                matches.add(s);
+            for (const stock of node.stockSet) {
+
+                resultMap.set(stock.code, stock); // 自动覆盖重复，只留一个
             }
+            // 继续遍历子节点
             for (const child of node.children.values()) {
                 dfs(child);
             }
@@ -48,7 +49,7 @@ export default class Trie {
 
         dfs(current);
 
-        // 转成数组返回
-        return Array.from(matches);
+        // 转数组返回
+        return Array.from(resultMap.values());
     }
 }
