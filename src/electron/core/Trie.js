@@ -12,10 +12,11 @@ export default class Trie {
         this.root = new TrieNode();
     }
 
-    insert(keyword, stock) {
+    insert (keyword, stock) {
         if (!keyword) return;
         let node = this.root;
         for (const char of keyword) {
+            if (char == ' ') continue; // 跳过空格
             if (!node.children.has(char)) {
                 node.children.set(char, new TrieNode());
             }
@@ -24,7 +25,7 @@ export default class Trie {
         node.stockSet.add(stock);
     }
 
-    search(prefix) {
+    search (prefix) {
         if (!prefix) return [];
 
         let current = this.root;
@@ -36,7 +37,7 @@ export default class Trie {
         // 用 Map 去重（key = 股票唯一标识）
         const resultMap = new Map();
 
-        function dfs(node) {
+        function dfs (node) {
             for (const stock of node.stockSet) {
 
                 resultMap.set(stock.code, stock); // 自动覆盖重复，只留一个
