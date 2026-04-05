@@ -7,7 +7,11 @@ class LRUCache {
         this.misses = 0;
     }
 
-    get(key) {
+    has (key) {
+        return this.cache.has(key);
+    }
+
+    get (key) {
         if (!this.cache.has(key)) {
             this.misses++;
             return null;
@@ -19,7 +23,7 @@ class LRUCache {
         return value;
     }
 
-    set(key, value) {
+    set (key, value) {
         if (this.cache.has(key)) this.cache.delete(key);
         if (this.cache.size >= this.maxSize) {
             const firstKey = this.cache.keys().next().value;
@@ -28,16 +32,16 @@ class LRUCache {
         this.cache.set(key, value);
     }
 
-    delete(key) {
+    delete (key) {
         return this.cache.delete(key);
     }
 
-    clear() {
+    clear () {
         this.cache.clear();
         this.hits = this.misses = 0;
     }
 
-    getStats() {
+    getStats () {
         const total = this.hits + this.misses;
         return {
             size: this.cache.size,

@@ -15,7 +15,7 @@ app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('no-sandbox');
 
 let manager = new StockManager();
-let matches = await manager.searchLocalStock("002252");
+let matches = await manager.searchLocalStock("柳");
 for (let i = 0; i < matches.length; i++) {
     let stock = matches[i];
     console.log(`${stock.name},${stock.code},${stock.market}`);

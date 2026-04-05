@@ -8,6 +8,7 @@ import {
 import { KlineRecord } from './KlineRecord.js';
 import { KlineFileHeader } from './KlineFileHeader.js';
 import { SimpleWAL } from './SimpleWAL.js';
+import LRUCache from '../../../core/LRUCache.js';
 
 export class KlineStorage {
     constructor(basePath) {
@@ -16,6 +17,11 @@ export class KlineStorage {
         this.handles = new Map(); // shareCode => Handle
         // 写入缓冲区
         this.writeBuffer = new Map(); // shareCode => { records: [], flushing: false }
+        // 限制缓存大小，防止内存爆掉
+        this.CACHE_MAX_SIZE = 5000;
+        // 二分查找位置缓存（LRU 可选，这里先简单缓存）
+        this.recordCache = new LRUCache(this.CACHE_MAX_SIZE);
+
         // 刷新定时器
         this.flushTimer = null;
         // 关闭标志
@@ -164,6 +170,10 @@ export class KlineStorage {
         }
 
         const handle = await this.open(shareCode);
+        const endTime = handle.header.endTime || 0;
+        if (record.timestamp <= endTime) {
+            throw new Error(`Record timestamp ${record.timestamp} is not greater than current endTime ${endTime} for ${shareCode}`);
+        }
         const buffer = this.writeBuffer.get(shareCode);
 
         if (!buffer) {
@@ -189,6 +199,7 @@ export class KlineStorage {
      * 批量写入
      */
     async batchAppend (shareCode, records) {
+        if (!records.length) return;
         for (const r of records) {
             if (!r.validate()) {
                 throw new Error(`Invalid record in batch for ${shareCode}: ${r.timestamp}`)
@@ -196,16 +207,39 @@ export class KlineStorage {
         }
 
         const handle = await this.open(shareCode);
+        const endTime = handle.header.endTime || 0;
+
+        // 二分查找：第一个 > endTime 的位置
+        let left = 0;
+        let right = records.length - 1;
+        let firstValid = records.length; // 默认全部无效
+
+        while (left <= right) {
+            const mid = (left + right) >> 1;
+            const ts = records[mid].timestamp;
+
+            if (ts > endTime) {
+                firstValid = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+
+        // 直接截取有效数据（后面全部是新的）
+        const newRecords = records.slice(firstValid);
+        if (newRecords.length === 0) return;
+
         const buffer = this.writeBuffer.get(shareCode);
 
         if (!buffer) {
             throw new Error(`Buffer not initialized for ${shareCode}`);
         }
 
-        buffer.records.push(...records);
+        buffer.records.push(...newRecords);
 
         const stats = this.stats.get(shareCode);
-        stats.writes += records.length;
+        stats.writes += newRecords.length;
 
         await this.flush(shareCode).catch(console.error);
     }
@@ -308,41 +342,50 @@ export class KlineStorage {
     }
 
     /**
-     * 查询K线数据
+     * 查询K线数据（支持【查全部】+【查范围】）
+     * @param {string} shareCode - 股票代码
+     * @param {number|string} [startTime] - 开始时间（不传=最早）
+     * @param {number|string} [endTime] - 结束时间（不传=最晚）
+     * @returns {Promise<KlineRecord[]>}
      */
     async query (shareCode, startTime, endTime) {
-        const startTimestamp = this.toSecTimestamp(startTime);
-        const endTimeStamp = this.toSecTimestamp(endTime);
-        console.log(`日K线查询 ${shareCode} from ${startTimestamp} to ${endTimeStamp}`);
-
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
-
-        console.log('总记录数目 = ', header.count);
         if (header.count === 0) return [];
+
+        // 兼容多种时间格式输入，统一转换为秒级时间戳
+        const startTimestamp = startTime ? this.toSecTimestamp(startTime) : header.startTime;
+        const endTimestamp = endTime ? this.toSecTimestamp(endTime) : header.endTime;
+
+        // 查询范围完全不交集，直接返回空数组
+        if (startTimestamp > header.endTime || endTimestamp < header.startTime) {
+            return []
+        }
 
         // 二分查找起始位置
         let left = 0;
         let right = header.count - 1;
         let startIdx = -1;
 
-        while (left <= right) {
-            const mid = (left + right) >> 1;
-            const midRecord = await this.readRecordAt(handle, mid);
+        // 如果查询范围不等于整个时间范围，才进行二分查找；否则直接从头开始读取
+        if (startTimestamp == header.startTime && endTimestamp == header.endTime) {
+            startIdx = 0;
+        } else {
+            while (left <= right) {
+                const mid = (left + right) >> 1;
+                const midRecord = await this.readCachedRecordAt(shareCode, handle, mid);
 
-            if (midRecord.timestamp >= startTimestamp) {
-                startIdx = mid;
-                right = mid - 1;
-            } else {
-                left = mid + 1;
+                if (midRecord.timestamp >= startTimestamp) {
+                    startIdx = mid;
+                    right = mid - 1;
+                } else {
+                    left = mid + 1;
+                }
             }
         }
 
 
-        console.log('startIdx = ', startIdx);
         if (startIdx === -1) return [];
-
-        console.log(`Start index for ${shareCode}:`, startIdx);
 
         // 按块大小批量读取
         const results = [];
@@ -364,7 +407,7 @@ export class KlineStorage {
             let hasExceeded = false;
             for (let i = 0; i < actualCount; i++) {
                 const record = KlineRecord.unpack(buffer.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
-                if (record.timestamp > endTime) {
+                if (record.timestamp > endTimestamp) {
                     hasExceeded = true;
                     break;
                 }
@@ -379,14 +422,37 @@ export class KlineStorage {
     }
 
     /**
-     * 直接计算位置读取记录
+     * 带缓存读取指定位置的记录（二分专用！）
+     */
+    async readCachedRecordAt (shareCode, handle, index) {
+        const cacheKey = `${shareCode}:${index}`;
+        // 命中缓存：直接内存返回（零IO）
+        if (this.recordCache.has(cacheKey)) {
+            return this.recordCache.get(cacheKey);
+        }
+        // 未命中：读磁盘
+        const { dataFd } = handle;
+        const offset = HEADER_SIZE + index * RECORD_SIZE;
+        const buf = Buffer.alloc(RECORD_SIZE);
+        await dataFd.read(buf, 0, RECORD_SIZE, offset);
+        const record = KlineRecord.unpack(buf);
+
+        // 写入缓存（控制大小，防溢出）
+        this.recordCache.set(cacheKey, record);
+
+        return record;
+    }
+
+    /**
+     * 读取指定位置的记录,无缓存版本
      */
     async readRecordAt (handle, index) {
         const { dataFd } = handle;
         const offset = HEADER_SIZE + index * RECORD_SIZE;
         const buf = Buffer.alloc(RECORD_SIZE);
         await dataFd.read(buf, 0, RECORD_SIZE, offset);
-        return KlineRecord.unpack(buf);
+        const record = KlineRecord.unpack(buf);
+        return record;
     }
 
     async getFirst (shareCode) {
@@ -541,7 +607,6 @@ export class KlineStorage {
         for (const [shareCode, handle] of this.handles.entries()) {
             closePromises.push(handle.wal.close());
             closePromises.push(handle.dataFd.close());
-
         }
 
         await Promise.all(closePromises);
