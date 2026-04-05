@@ -7,7 +7,7 @@ class StockHandler {
         this.registerHandlers();
     }
 
-    registerHandlers() {
+    registerHandlers () {
         ipcMain.handle('mini-stock:kline', async (event, codes, market, period, startDate, endDate) => {
             try {
                 const data = await this.manager.getKlines(codes, market, period, startDate, endDate);
@@ -60,6 +60,11 @@ class StockHandler {
 
         ipcMain.handle('mini-stock:del-favorite-share', async (event, code) => {
             const result = await this.manager.delFavoriteShare(code);
+            return result;
+        });
+
+        ipcMain.handle('mini-stock:add-search-share', async (event, code) => {
+            const result = await this.manager.addSearchShare(code);
             return result;
         });
     }

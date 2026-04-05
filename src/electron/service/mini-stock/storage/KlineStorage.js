@@ -1,12 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import {
-    RECORD_SIZE, INDEX_SIZE, HEADER_SIZE,
-    BATCH_SIZE, FLUSH_INTERVAL, MAX_CACHE_SIZE,
-    WAL_CLEAR_THRESHOLD, INDEX_BATCH_SIZE
+    RECORD_SIZE, HEADER_SIZE,
+    BATCH_SIZE, FLUSH_INTERVAL,
+    WAL_CLEAR_THRESHOLD,
 } from './Constants.js';
 import { KlineRecord } from './KlineRecord.js';
-import { IndexRecord } from './IndexRecord.js';
 import { KlineFileHeader } from './KlineFileHeader.js';
 import { SimpleWAL } from './SimpleWAL.js';
 
@@ -17,8 +16,6 @@ export class KlineStorage {
         this.handles = new Map(); // shareCode => Handle
         // 写入缓冲区
         this.writeBuffer = new Map(); // shareCode => { records: [], flushing: false }
-        // 索引缓存
-        this.indexCache = new Map(); // shareCode => Map<timestamp, offset>
         // 刷新定时器
         this.flushTimer = null;
         // 关闭标志
@@ -27,15 +24,14 @@ export class KlineStorage {
         this.stats = new Map(); // shareCode => Stats
     }
 
-    async init() {
+    async init () {
         await fs.mkdir(this.basePath, { recursive: true });
         this.startFlushTimer();
     }
 
-    getFilePaths(shareCode) {
+    getFilePaths (shareCode) {
         return {
             dataPath: path.join(this.basePath, `${shareCode}.dat`),
-            indexPath: path.join(this.basePath, `${shareCode}.idx`),
             walPath: path.join(this.basePath, `${shareCode}.wal`)
         };
     }
@@ -43,26 +39,23 @@ export class KlineStorage {
     /**
      * 打开或获取文件句柄
      */
-    async open(shareCode) {
+    async open (shareCode) {
         if (this.handles.has(shareCode)) {
             return this.handles.get(shareCode);
         }
 
-        const { dataPath, indexPath, walPath } = this.getFilePaths(shareCode);
+        const { dataPath, walPath } = this.getFilePaths(shareCode);
         await fs.mkdir(this.basePath, { recursive: true });
 
         // 并行打开文件
-        const [dataFd, indexFd] = await Promise.all([
-            fs.open(dataPath, 'a+'),
-            fs.open(indexPath, 'a+')
-        ]);
+        const dataFd = await fs.open(dataPath, 'a+');
 
         const wal = new SimpleWAL(walPath);
         await wal.open();
 
         const header = new KlineFileHeader();
         const handle = {
-            shareCode, dataFd, indexFd, wal, header,
+            shareCode, dataFd, wal, header,
             lastFlushTime: Date.now()
         };
 
@@ -94,7 +87,7 @@ export class KlineStorage {
     /**
      * 初始化头部
      */
-    async initHeader(handle) {
+    async initHeader (handle) {
         const { dataFd, header } = handle;
 
         try {
@@ -102,7 +95,7 @@ export class KlineStorage {
             const { bytesRead } = await dataFd.read(headerBuf, 0, HEADER_SIZE, 0);
 
             if (bytesRead === HEADER_SIZE) {
-                const deserialized = await KlineFileHeader.deserialize(headerBuf);
+                const deserialized = KlineFileHeader.deserialize(headerBuf);
                 Object.assign(header, deserialized);
             } else {
                 await this.createNewHeader(handle);
@@ -116,7 +109,7 @@ export class KlineStorage {
     /**
      * 创建新头部
      */
-    async createNewHeader(handle) {
+    async createNewHeader (handle) {
         const { dataFd, header } = handle;
         const newHeader = new KlineFileHeader();
         const buf = newHeader.serialize();
@@ -130,7 +123,7 @@ export class KlineStorage {
     /**
      * 校验文件完整性
      */
-    async verifyFileIntegrity(handle) {
+    async verifyFileIntegrity (handle) {
         const { dataFd, header, shareCode } = handle;
         const stat = await dataFd.stat();
         const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
@@ -144,7 +137,7 @@ export class KlineStorage {
     /**
      * 修复文件
      */
-    async repairFile(handle) {
+    async repairFile (handle) {
         const { dataFd, header } = handle;
         const stat = await dataFd.stat();
 
@@ -161,28 +154,11 @@ export class KlineStorage {
         }
     }
 
-    /**
-     * 崩溃恢复
-     */
-    async recovery(handle) {
-        const { dataFd, indexFd, header, shareCode } = handle;
-
-        const dataStat = await dataFd.stat();
-        const indexStat = await indexFd.stat();
-
-        const dataCount = Math.floor((dataStat.size - HEADER_SIZE) / RECORD_SIZE);
-        const indexCount = Math.floor(indexStat.size / INDEX_SIZE);
-
-        if (dataCount !== indexCount) {
-            console.log(`Index inconsistent for ${shareCode}, rebuilding: data=${dataCount}, index=${indexCount}`);
-            await this.rebuildIndex(handle);
-        }
-    }
 
     /**
      * 写入单条记录
      */
-    async append(shareCode, record) {
+    async append (shareCode, record) {
         if (!record.validate()) {
             throw new Error(`Invalid record for ${shareCode}: ${record.timestamp}`);
         }
@@ -212,10 +188,10 @@ export class KlineStorage {
     /**
      * 批量写入
      */
-    async batchAppend(shareCode, records) {
+    async batchAppend (shareCode, records) {
         for (const r of records) {
             if (!r.validate()) {
-                throw new Error(`Invalid record in batch for ${shareCode}: ${r.timestamp}`);
+                throw new Error(`Invalid record in batch for ${shareCode}: ${r.timestamp}`)
             }
         }
 
@@ -231,15 +207,13 @@ export class KlineStorage {
         const stats = this.stats.get(shareCode);
         stats.writes += records.length;
 
-        if (buffer.records.length >= BATCH_SIZE && !buffer.flushing) {
-            this.flush(shareCode).catch(console.error);
-        }
+        await this.flush(shareCode).catch(console.error);
     }
 
     /**
      * 刷新缓冲区到磁盘（带锁防止并发）
      */
-    async flush(shareCode) {
+    async flush (shareCode) {
         const buffer = this.writeBuffer.get(shareCode);
 
         // 没有数据或正在刷新，直接返回
@@ -258,16 +232,13 @@ export class KlineStorage {
                 return;
             }
 
-            const { dataFd, indexFd, wal, header } = handle;
+            const { dataFd, wal, header } = handle;
             const records = buffer.records;
 
-            // 清空缓冲区（在成功写入前清空，避免重复）
-            buffer.records = [];
-
-            // 1. 写入WAL
+            // 写入WAL
             await wal.append(records);
 
-            // 2. 准备数据
+            // 准备数据
             const dataBuf = Buffer.alloc(records.length * RECORD_SIZE);
             let dataOffset = 0;
             for (let i = 0; i < records.length; i++) {
@@ -276,55 +247,31 @@ export class KlineStorage {
             }
 
             const dataPos = HEADER_SIZE + header.count * RECORD_SIZE;
-
-            // 3. 准备索引
-            const indexBuf = Buffer.alloc(records.length * INDEX_SIZE);
-            let indexOffset = 0;
-            for (let i = 0; i < records.length; i++) {
-                const indexRecord = new IndexRecord(
-                    records[i].timestamp,
-                    dataPos + i * RECORD_SIZE
-                );
-                indexRecord.pack().copy(indexBuf, indexOffset);
-                indexOffset += INDEX_SIZE;
-
-                // 更新缓存
-                this.updateCache(shareCode, records[i].timestamp, dataPos + i * RECORD_SIZE);
-            }
-
-            const indexPos = header.count * INDEX_SIZE;
-
-            // 4. 并行写入数据和索引
-            await Promise.all([
-                dataFd.write(dataBuf, 0, dataBuf.length, dataPos),
-                indexFd.write(indexBuf, 0, indexBuf.length, indexPos)
-            ]);
-
-            // 5. 更新头部
-            for (const record of records) {
-                header.updateTimeRange(record);
+            await dataFd.write(dataBuf, 0, dataBuf.length, dataPos);
+            // 更新头部
+            if (records.length > 0) {
+                header.updateTimeRange(records[0]); // 更新最小时间
+                header.updateTimeRange(records[records.length - 1]); // 更新最大时间
             }
             header.count += records.length;
 
             const headerBuf = await header.serialize();
             await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
 
-            // 6. 强制刷盘
-            await Promise.all([
-                dataFd.sync(),
-                indexFd.sync()
-            ]);
+            // 强制刷盘
+            await dataFd.sync();
 
-            // 7. 更新统计
+            // 更新统计
             const stats = this.stats.get(shareCode);
             stats.flushes++;
             handle.lastFlushTime = Date.now();
 
-            // 8. 定期清理WAL
+            // 定期清理WAL
             if (header.count % WAL_CLEAR_THRESHOLD === 0) {
                 await wal.clear();
             }
-
+            // 刷新成功，清空缓冲区
+            buffer.records = [];
         } catch (err) {
             console.error(`Flush failed for ${shareCode}:`, err);
             // 恢复缓冲区数据（避免数据丢失）
@@ -343,56 +290,36 @@ export class KlineStorage {
         }
     }
 
-    /**
-     * 更新索引缓存
-     */
-    updateCache(shareCode, timestamp, offset) {
-        if (!this.indexCache.has(shareCode)) {
-            this.indexCache.set(shareCode, new Map());
+    // 转秒级时间戳
+    toSecTimestamp (time) {
+        // 已经是数字时间戳 → 直接返回
+        if (typeof time === 'number') {
+            return time;
         }
 
-        const cache = this.indexCache.get(shareCode);
-
-        // LRU: 如果缓存过大，删除最旧的
-        if (cache.size >= MAX_CACHE_SIZE) {
-            const oldestKey = cache.keys().next().value;
-            cache.delete(oldestKey);
-            const stats = this.stats.get(shareCode);
-            if (stats) stats.cacheMisses++;
+        // 字符串日期 2020-01-02 → 转秒（本地时区 00:00:00）
+        if (typeof time === 'string' && time.includes('-')) {
+            const date = new Date(`${time} 00:00:00`);
+            return Math.floor(date.getTime() / 1000);
         }
 
-        cache.set(timestamp, offset);
-        const stats = this.stats.get(shareCode);
-        if (stats) stats.cacheHits++;
-    }
-
-    /**
-     * 从缓存读取索引
-     */
-    getCachedIndex(shareCode, timestamp) {
-        const cache = this.indexCache.get(shareCode);
-        if (!cache) return null;
-
-        const stats = this.stats.get(shareCode);
-        if (cache.has(timestamp)) {
-            if (stats) stats.cacheHits++;
-            return cache.get(timestamp);
-        }
-
-        if (stats) stats.cacheMisses++;
-        return null;
+        // 字符串数字 "1577836800" → 转数字
+        return Number(time);
     }
 
     /**
      * 查询K线数据
      */
-    async query(shareCode, startTime, endTime) {
+    async query (shareCode, startTime, endTime) {
+        const startTimestamp = this.toSecTimestamp(startTime);
+        const endTimeStamp = this.toSecTimestamp(endTime);
+        console.log(`日K线查询 ${shareCode} from ${startTimestamp} to ${endTimeStamp}`);
+
         const handle = await this.open(shareCode);
-        const { header, dataFd, indexFd } = handle;
+        const { header, dataFd } = handle;
 
+        console.log('总记录数目 = ', header.count);
         if (header.count === 0) return [];
-
-        const results = [];
 
         // 二分查找起始位置
         let left = 0;
@@ -401,8 +328,9 @@ export class KlineStorage {
 
         while (left <= right) {
             const mid = (left + right) >> 1;
-            const ir = await this.readIndexAt(handle, mid);
-            if (ir.timestamp >= startTime) {
+            const midRecord = await this.readRecordAt(handle, mid);
+
+            if (midRecord.timestamp >= startTimestamp) {
                 startIdx = mid;
                 right = mid - 1;
             } else {
@@ -410,86 +338,106 @@ export class KlineStorage {
             }
         }
 
+
+        console.log('startIdx = ', startIdx);
         if (startIdx === -1) return [];
 
-        // 批量读取数据
-        let pos = startIdx;
-        const batchSize = INDEX_BATCH_SIZE;
+        console.log(`Start index for ${shareCode}:`, startIdx);
 
-        while (pos < header.count) {
-            const batchEnd = Math.min(pos + batchSize, header.count);
-            const indexBuf = Buffer.alloc((batchEnd - pos) * INDEX_SIZE);
-            await indexFd.read(indexBuf, 0, indexBuf.length, pos * INDEX_SIZE);
+        // 按块大小批量读取
+        const results = [];
+        let currentPos = startIdx;
+        const BLOCK_SIZE = 64 * 1024; // 64KB 块大小
+        const RECORDS_PER_BLOCK = Math.floor(BLOCK_SIZE / RECORD_SIZE); // 64KB / 48B ≈ 1365 条/块
 
-            for (let i = 0; i < batchEnd - pos; i++) {
-                const ir = IndexRecord.unpack(
-                    indexBuf.subarray(i * INDEX_SIZE, (i + 1) * INDEX_SIZE)
-                );
+        while (currentPos < header.count) {
+            // 计算本批次读取数量（不超过剩余数量）
+            const batchCount = Math.min(header.count - currentPos, RECORDS_PER_BLOCK);
+            const batchBytes = batchCount * RECORD_SIZE;
+            const buffer = Buffer.alloc(batchBytes);
+            const offset = HEADER_SIZE + currentPos * RECORD_SIZE;
 
-                if (ir.timestamp > endTime) {
-                    return results;
+            const { bytesRead } = await dataFd.read(buffer, 0, batchBytes, offset);
+            const actualCount = Math.floor(bytesRead / RECORD_SIZE);
+
+            // 解码并过滤
+            let hasExceeded = false;
+            for (let i = 0; i < actualCount; i++) {
+                const record = KlineRecord.unpack(buffer.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
+                if (record.timestamp > endTime) {
+                    hasExceeded = true;
+                    break;
                 }
-
-                // 读取数据记录
-                const recordBuf = Buffer.alloc(RECORD_SIZE);
-                await dataFd.read(recordBuf, 0, RECORD_SIZE, ir.offset);
-                results.push(KlineRecord.unpack(recordBuf));
+                results.push(record);
             }
-            pos = batchEnd;
+
+            if (hasExceeded) break;
+            currentPos += batchCount;
         }
 
         return results;
     }
 
     /**
-     * 读取指定索引位置
+     * 直接计算位置读取记录
      */
-    async readIndexAt(handle, index) {
-        const { indexFd } = handle;
-        const buf = Buffer.alloc(INDEX_SIZE);
-        await indexFd.read(buf, 0, INDEX_SIZE, index * INDEX_SIZE);
-        return IndexRecord.unpack(buf);
-    }
-
-    /**
-     * 获取第一条K线
-     */
-    async getFirst(shareCode) {
-        const handle = await this.open(shareCode);
-        const { header, dataFd } = handle;
-
-        if (header.count === 0) return null;
-
+    async readRecordAt (handle, index) {
+        const { dataFd } = handle;
+        const offset = HEADER_SIZE + index * RECORD_SIZE;
         const buf = Buffer.alloc(RECORD_SIZE);
-        await dataFd.read(buf, 0, RECORD_SIZE, HEADER_SIZE);
+        await dataFd.read(buf, 0, RECORD_SIZE, offset);
         return KlineRecord.unpack(buf);
     }
 
-    /**
-     * 获取最后一条K线
-     */
-    async getLast(shareCode) {
+    async getFirst (shareCode) {
         const handle = await this.open(shareCode);
-        const { header, dataFd } = handle;
+        if (handle.header.count === 0) return null;
+        return this.readRecordAt(handle, 0);
+    }
 
-        if (header.count === 0) return null;
+    async getLast (shareCode) {
+        const handle = await this.open(shareCode);
+        const count = handle.header.count;
+        if (count === 0) return null;
+        return this.readRecordAt(handle, count - 1);
+    }
 
-        const pos = HEADER_SIZE + (header.count - 1) * RECORD_SIZE;
-        const buf = Buffer.alloc(RECORD_SIZE);
-        await dataFd.read(buf, 0, RECORD_SIZE, pos);
-        return KlineRecord.unpack(buf);
+    async getCount (shareCode) {
+        const handle = await this.open(shareCode);
+        return handle.header.count;
+    }
+
+    /**
+     * 恢复文件（修复不完整的记录）
+     * @param {*} handle 
+     */
+    async recovery (handle) {
+        const { dataFd, header } = handle;
+        const stat = await dataFd.stat();
+
+        const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
+        if (stat.size !== expectedSize) {
+            console.warn(`File size mismatch for ${handle.shareCode}, repairing...`);
+            const validSize = HEADER_SIZE + Math.floor((stat.size - HEADER_SIZE) / RECORD_SIZE) * RECORD_SIZE;
+            if (validSize >= HEADER_SIZE) {
+                await dataFd.truncate(validSize);
+                header.count = (validSize - HEADER_SIZE) / RECORD_SIZE;
+                const headerBuf = await header.serialize();
+                await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
+                await dataFd.sync();
+            }
+        }
     }
 
     /**
      * 获取统计信息
      */
-    async getStats(shareCode) {
+    async getStats (shareCode) {
         const handle = await this.open(shareCode);
-        const { header, dataFd, indexFd } = handle;
+        const { header, dataFd } = handle;
 
-        const [dataStat, indexStat, storageStats] = await Promise.all([
+        const [dataStat, storageStats] = await Promise.all([
             dataFd.stat(),
-            indexFd.stat(),
             this.stats.get(shareCode) || {}
         ]);
 
@@ -497,7 +445,6 @@ export class KlineStorage {
             shareCode,
             count: header.count,
             dataSize: dataStat.size,
-            indexSize: indexStat.size,
             startTime: header.startTime,
             endTime: header.endTime,
             writes: storageStats.writes || 0,
@@ -512,7 +459,7 @@ export class KlineStorage {
     /**
      * 获取缓存命中率
      */
-    getCacheHitRate(shareCode) {
+    getCacheHitRate (shareCode) {
         const stats = this.stats.get(shareCode);
         if (!stats) return 0;
 
@@ -521,43 +468,9 @@ export class KlineStorage {
     }
 
     /**
-     * 重建索引
-     */
-    async rebuildIndex(handle) {
-        const { dataFd, indexFd, header, shareCode } = handle;
-
-        // 清空索引文件和缓存
-        await indexFd.truncate(0);
-        this.indexCache.delete(shareCode);
-
-        if (header.count === 0) return;
-
-        // 批量构建索引
-        const indexBuf = Buffer.alloc(header.count * INDEX_SIZE);
-
-        for (let i = 0; i < header.count; i++) {
-            const offset = HEADER_SIZE + i * RECORD_SIZE;
-            const recordBuf = Buffer.alloc(RECORD_SIZE);
-            await dataFd.read(recordBuf, 0, RECORD_SIZE, offset);
-            const record = KlineRecord.unpack(recordBuf);
-
-            const indexRecord = new IndexRecord(record.timestamp, offset);
-            indexRecord.pack().copy(indexBuf, i * INDEX_SIZE);
-
-            // 更新缓存
-            this.updateCache(shareCode, record.timestamp, offset);
-        }
-
-        await indexFd.write(indexBuf, 0, indexBuf.length, 0);
-        await indexFd.sync();
-
-        console.log(`Index rebuilt for ${shareCode}: ${header.count} records`);
-    }
-
-    /**
      * 启动定时刷新
      */
-    startFlushTimer() {
+    startFlushTimer () {
         if (this.flushTimer) return;
 
         this.flushTimer = setInterval(() => {
@@ -586,7 +499,7 @@ export class KlineStorage {
     /**
      * 强制刷新所有缓冲区
      */
-    async flushAll() {
+    async flushAll () {
         const promises = [];
         for (const [shareCode] of this.writeBuffer.entries()) {
             promises.push(this.flush(shareCode));
@@ -597,26 +510,24 @@ export class KlineStorage {
     /**
      * 关闭指定 shareCode
      */
-    async closeShare(shareCode) {
+    async closeShare (shareCode) {
         await this.flush(shareCode);
 
         const handle = this.handles.get(shareCode);
         if (handle) {
             await handle.wal.close();
             await handle.dataFd.close();
-            await handle.indexFd.close();
             this.handles.delete(shareCode);
         }
 
         this.writeBuffer.delete(shareCode);
-        this.indexCache.delete(shareCode);
         this.stats.delete(shareCode);
     }
 
     /**
      * 关闭所有连接
      */
-    async close() {
+    async close () {
         this.isClosing = true;
 
         if (this.flushTimer) {
@@ -630,14 +541,13 @@ export class KlineStorage {
         for (const [shareCode, handle] of this.handles.entries()) {
             closePromises.push(handle.wal.close());
             closePromises.push(handle.dataFd.close());
-            closePromises.push(handle.indexFd.close());
+
         }
 
         await Promise.all(closePromises);
 
         this.handles.clear();
         this.writeBuffer.clear();
-        this.indexCache.clear();
         this.stats.clear();
 
         console.log('KlineStorage closed');

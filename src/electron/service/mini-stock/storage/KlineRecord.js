@@ -3,7 +3,7 @@ import { RECORD_SIZE } from './Constants.js';
 export class KlineRecord {
     /**
      * K线记录
-     * @param {number} timestamp - 毫秒时间戳
+     * @param {number} timestamp - 秒级时间戳
      * @param {number} open - 开盘
      * @param {number} high - 最高
      * @param {number} low - 最低
@@ -39,14 +39,18 @@ export class KlineRecord {
     }
 
     // 获取 2026-04-01 格式
-    get time() {
-        return new Date(this.timestamp).toISOString().split('T')[0];
+    get time () {
+        const date = new Date(this.timestamp * 1000); // 秒转毫秒
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     /**
      * 二进制打包（固定长度，不变）
      */
-    pack() {
+    pack () {
         const buf = Buffer.alloc(RECORD_SIZE);
         let o = 0;
 
@@ -70,7 +74,7 @@ export class KlineRecord {
     /**
      * 二进制解包
      */
-    static unpack(buf) {
+    static unpack (buf) {
         if (buf.length !== RECORD_SIZE) throw new Error('记录长度错误');
 
         let o = 0;
@@ -95,18 +99,18 @@ export class KlineRecord {
         );
     }
 
-    validate() {
+    validate () {
         if (this.timestamp < 0) return false;
         if (this.open <= 0 || this.high <= 0 || this.low <= 0 || this.close <= 0) return false;
         if (this.high < this.low) return false;
         return true;
     }
 
-    // ✅ 输出自动带 date: '2026-04-01'
-    toJSON() {
+    // 输出自动带 date:
+    toJSON () {
         return {
-            date: this.date,      // 你要的字符串
-            timestamp: this.timestamp,
+            time: this.time, // 日期格式 '2026-04-01'
+            timestamp: this.timestamp, // 秒级时间戳（10位数字）
             open: this.open,
             high: this.high,
             low: this.low,
@@ -118,5 +122,9 @@ export class KlineRecord {
             volume: this.volume,
             amount: this.amount
         };
+    }
+    // 输出 CSV 格式（不带表头）
+    toCSV () {
+        return `${this.time},${this.timestamp},${this.open},${this.high},${this.low},${this.close},${this.preClose},${this.change},${this.changeratio},${this.turnoverratio},${this.volume},${this.amount}`;
     }
 }

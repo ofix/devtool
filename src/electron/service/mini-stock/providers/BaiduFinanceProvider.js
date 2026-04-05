@@ -8,7 +8,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度财经 - 获取涨幅榜 / 跌幅榜前 N 只股票
-    async getTopSharesFromBaidu(n, order = "top") {
+    async getTopSharesFromBaidu (n, order = "top") {
         try {
             const isAsc = order !== 'top'; // 涨幅降序，跌幅升序
             const timestamp = Date.now();
@@ -53,7 +53,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度专用请求头（防反爬）
-    #getHeaders() {
+    #getHeaders () {
         return {
             "Accept": "application/json, text/plain, */*",
             "Accept-Encoding": "gzip, deflate, br",
@@ -67,7 +67,7 @@ class BaiduFinanceProvider extends DataProvider {
         };
     }
 
-    async getKline(code, market, period, startDate, endDate) {
+    async getKline (code, market, period, startDate, endDate) {
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
                 params: {
@@ -93,7 +93,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    parseDayKline(data) {
+    parseDayKline (data) {
         try {
             const newMarketData = data?.Result?.newMarketData;
             if (!newMarketData) return [];
@@ -111,7 +111,8 @@ class BaiduFinanceProvider extends DataProvider {
                 // "时间戳","时间","开盘","收盘","成交量","最高","最低","成交额","涨跌额","涨跌幅","换手率","昨收",
                 // "timestamp","time","open","close","volume","high","low","amount","range","ratio","turnoverratio","preClose"
                 return {
-                    day: item.time, // 时间
+                    timestamp: Number(item.timestamp), // 时间戳
+                    time: item.time, // 时间
                     open: parseFloat(item.open) || 0, // 开盘价
                     close: parseFloat(item.close) || 0, // 收盘价
                     high: parseFloat(item.high) || 0, // 最高价
@@ -119,9 +120,9 @@ class BaiduFinanceProvider extends DataProvider {
                     volume: parseFloat(item.volume) / 100 || 0, // 成交量
                     amount: parseFloat(item.amount) || 0, // 成交额
                     turnoverratio: parseFloat(item.turnoverratio) || 0, // 换手率
-                    preClose: parseFloat(item.preClose) || 0, // 昨收
                     change: parseFloat(item.range) || 0, // 涨跌额
-                    changePercent: parseFloat(item.ratio) || 0, // 涨跌幅
+                    changeratio: parseFloat(item.ratio) || 0, // 涨跌幅
+                    preClose: parseFloat(item.preClose) || 0, // 昨收
                 };
             });
         } catch (e) {
@@ -130,7 +131,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    async getMinuteKline(code, market, days = 1) {
+    async getMinuteKline (code, market, days = 1) {
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
                 params: {
@@ -156,7 +157,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    parseMinuteKline(data) {
+    parseMinuteKline (data) {
         try {
             const newMarketData = data?.Result?.newMarketData;
             if (!newMarketData) return [];
@@ -174,7 +175,7 @@ class BaiduFinanceProvider extends DataProvider {
                 // "时间戳", "时间", "价格", "均价", "涨跌额", "涨跌幅", "成交量", "成交额", "累积成交量", "累积成交额"
                 // "timestamp", "time", "price", "avgPrice", "range", "ratio", "volume", "amount", "totalVolume", "totalAmount"
                 return {
-                    timestamp: item.timestamp, // 时间
+                    timestamp: Number(item.timestamp), // 时间
                     time: item.time, // 日期
                     price: parseFloat(item.price) || 0, // 开盘价
                     avgPrice: parseFloat(item.avgPrice) || 0, // 收盘价
@@ -184,7 +185,6 @@ class BaiduFinanceProvider extends DataProvider {
                     amount: parseFloat(item.amount) || 0, // 成交额
                     totalVolume: parseFloat(item.totalVolume) / 100 || 0, // 成交量
                     totalAmount: parseFloat(item.totalAmount) || 0, // 成交额
-
                 };
             });
         } catch (e) {
@@ -193,7 +193,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    async searchStock(keyword) {
+    async searchStock (keyword) {
         try {
             const response = await axios.get('https://finance.pae.baidu.com/api/search', {
                 params: {
