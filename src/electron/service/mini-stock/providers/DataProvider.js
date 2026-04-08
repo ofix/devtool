@@ -12,6 +12,74 @@ export default class DataProvider {
         throw new Error('子类必须实现 getShareRankList 方法');
     }
 
+    /**
+     * 获取股票日/周/月/年数据
+     * @param {string} code 股票代码
+     * @param {string} name 股票名称
+     * @param {string} market 股票市场
+     * @param {'day'|'week'|'month'|'year'} period day: 日K线 week: 周K线 month: 月K线 year: 年K线
+     * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
+     * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
+     * @returns {Promise<Object>} 返回K线数据
+     */
+    async getKline(code, name, market, period, startDate, endDate) {
+        throw new Error('子类必须实现 getKline 方法');
+    }
+
+
+    /**
+     * 爬取板块数据
+     */
+    async getBk(params){
+        throw new Error("子类必须实现 getBk 方法");
+    }
+
+    async getBkList(){
+        throw new Error("子类必须实现 getBkList 方法");
+    }
+
+    /**
+     * 爬取行业板块
+     */
+    async getIndustry() {
+        throw new Error('子类必须实现 getIndustry 方法');
+    }
+
+    /**
+     * 爬取地域板块
+     */
+    async getRegion(){
+        throw new Error('子类必须实现 getRegion 方法');
+    }
+
+    /**
+     * 爬取概念板块
+     */
+    async getConcept() {
+        throw new Error('子类必须实现 getConcept 方法');
+    }
+
+    /**
+     * 获取股票分时数据
+     * @param {string} code 股票代码
+     * @param {string} name 股票名称
+     * @param {string} market 股票市场
+     * @param {Number} days 1: 分时图 5: 5日分时图
+     */
+    async getMinuteKline(code, name, market, days = 1) {
+        throw new Error('子类必须实现 getMinuteKline 方法');
+    }
+
+    /**
+     * 获取股票IPO信息
+     * @param {string} code 股票代码
+     * @param {string} market 股票市场
+     * @return {string} 股票IPO信息，格式 股票代码,上市日期，发行价
+     */
+    async getIPOInfo(code, market) {
+        throw new Error('子类必须实现 getMinuteKline 方法');
+    }
+
     headers() {
         return {
             'Accept': '*/*;',

@@ -1,0 +1,8104 @@
+{
+   "regions": [
+      {
+         "market": 90,
+         "code": "BK0169",
+         "name": "四川板块",
+         "pinyin": "SCBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0171",
+         "name": "云南板块",
+         "pinyin": "YNBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0170",
+         "name": "重庆板块",
+         "pinyin": "CQBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0174",
+         "name": "西藏板块",
+         "pinyin": "XZBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0145",
+         "name": "上海板块",
+         "pinyin": "SHBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0149",
+         "name": "安徽板块",
+         "pinyin": "AHBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0150",
+         "name": "北京板块",
+         "pinyin": "BJBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0164",
+         "name": "山东板块",
+         "pinyin": "SDBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0154",
+         "name": "广西板块",
+         "pinyin": "GXBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0158",
+         "name": "湖南板块",
+         "pinyin": "HNBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0159",
+         "name": "江苏板块",
+         "pinyin": "JSBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0166",
+         "name": "天津板块",
+         "pinyin": "TJBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0162",
+         "name": "宁夏板块",
+         "pinyin": "NXBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0176",
+         "name": "海南板块",
+         "pinyin": "HNBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0175",
+         "name": "内蒙古",
+         "pinyin": "NMG",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0146",
+         "name": "黑龙江",
+         "pinyin": "HLJ",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0172",
+         "name": "浙江板块",
+         "pinyin": "ZJBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0173",
+         "name": "贵州板块",
+         "pinyin": "GZBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0148",
+         "name": "吉林板块",
+         "pinyin": "JLBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0147",
+         "name": "新疆板块",
+         "pinyin": "XJBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0153",
+         "name": "广东板块",
+         "pinyin": "GDBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0151",
+         "name": "福建板块",
+         "pinyin": "FJBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0157",
+         "name": "湖北板块",
+         "pinyin": "HBBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0152",
+         "name": "甘肃板块",
+         "pinyin": "GSBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0161",
+         "name": "辽宁板块",
+         "pinyin": "LNBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0160",
+         "name": "江西板块",
+         "pinyin": "JXBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0156",
+         "name": "河南板块",
+         "pinyin": "HNBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0155",
+         "name": "河北板块",
+         "pinyin": "HBBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0165",
+         "name": "陕西板块",
+         "pinyin": "SXBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0167",
+         "name": "山西板块",
+         "pinyin": "SXBK",
+         "type": 1,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0163",
+         "name": "青海板块",
+         "pinyin": "QHBK",
+         "type": 1,
+         "flag": 0
+      }
+   ],
+   "industries": [
+      {
+         "market": 90,
+         "code": "BK0421",
+         "name": "铁路公路",
+         "pinyin": "TLGL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0437",
+         "name": "煤炭",
+         "pinyin": "MT",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0422",
+         "name": "物流",
+         "pinyin": "WL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0436",
+         "name": "纺织服饰",
+         "pinyin": "FZFS",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0450",
+         "name": "航运港口",
+         "pinyin": "HYGK",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0433",
+         "name": "农林牧渔",
+         "pinyin": "NLMY",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0427",
+         "name": "公用事业",
+         "pinyin": "GYSY",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0451",
+         "name": "房地产开发",
+         "pinyin": "FDCKF",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0454",
+         "name": "塑料",
+         "pinyin": "SL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0481",
+         "name": "汽车零部件",
+         "pinyin": "QCLBJ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0464",
+         "name": "石油石化",
+         "pinyin": "SYSH",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0424",
+         "name": "水泥",
+         "pinyin": "SN",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0428",
+         "name": "电力",
+         "pinyin": "DL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0458",
+         "name": "仪器仪表",
+         "pinyin": "YQYB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK0486",
+         "name": "传媒",
+         "pinyin": "CM",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0420",
+         "name": "航空机场",
+         "pinyin": "HKJC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0438",
+         "name": "食品饮料",
+         "pinyin": "SPYL",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0459",
+         "name": "元件",
+         "pinyin": "YJ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0482",
+         "name": "一般零售",
+         "pinyin": "YBLS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0456",
+         "name": "家用电器",
+         "pinyin": "JYDQ",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0465",
+         "name": "化学制药",
+         "pinyin": "HXZY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0457",
+         "name": "电网设备",
+         "pinyin": "DWSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0479",
+         "name": "钢铁",
+         "pinyin": "GT",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0478",
+         "name": "有色金属",
+         "pinyin": "YSJS",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0440",
+         "name": "家居用品",
+         "pinyin": "JJYP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0546",
+         "name": "玻璃玻纤",
+         "pinyin": "BLBX",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0448",
+         "name": "通信设备",
+         "pinyin": "TXSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0476",
+         "name": "装修建材",
+         "pinyin": "ZXJC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0545",
+         "name": "通用设备",
+         "pinyin": "TYSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0538",
+         "name": "化学制品",
+         "pinyin": "HXZP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0728",
+         "name": "环保",
+         "pinyin": "HB",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK0735",
+         "name": "计算机设备",
+         "pinyin": "JSJSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0731",
+         "name": "农化制品",
+         "pinyin": "NHZP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0727",
+         "name": "医疗服务",
+         "pinyin": "YLFW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0738",
+         "name": "多元金融",
+         "pinyin": "DYJR",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0736",
+         "name": "通信服务",
+         "pinyin": "TXFW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0737",
+         "name": "软件开发",
+         "pinyin": "RJKF",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0734",
+         "name": "饰品",
+         "pinyin": "SP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0732",
+         "name": "贵金属",
+         "pinyin": "GJS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0739",
+         "name": "工程机械",
+         "pinyin": "GCJX",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0740",
+         "name": "教育",
+         "pinyin": "JY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0910",
+         "name": "专用设备",
+         "pinyin": "ZYSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1019",
+         "name": "化学原料",
+         "pinyin": "HXYL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1038",
+         "name": "光学光电子",
+         "pinyin": "GXGDZ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1018",
+         "name": "橡胶",
+         "pinyin": "XJ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1037",
+         "name": "消费电子",
+         "pinyin": "XFDZ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1016",
+         "name": "汽车服务",
+         "pinyin": "QCFW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1042",
+         "name": "医药商业",
+         "pinyin": "YYSY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1015",
+         "name": "能源金属",
+         "pinyin": "NYJS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1031",
+         "name": "光伏设备",
+         "pinyin": "GFSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1027",
+         "name": "小金属",
+         "pinyin": "XJS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1035",
+         "name": "美容护理",
+         "pinyin": "MRHL",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1045",
+         "name": "房地产服务",
+         "pinyin": "FDCFW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1044",
+         "name": "生物制品",
+         "pinyin": "SWZP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1033",
+         "name": "电池",
+         "pinyin": "DC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1032",
+         "name": "风电设备",
+         "pinyin": "FDSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1205",
+         "name": "机械设备",
+         "pinyin": "JXSB",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1041",
+         "name": "医疗器械",
+         "pinyin": "YLQX",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1036",
+         "name": "半导体",
+         "pinyin": "BDT",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1207",
+         "name": "计算机",
+         "pinyin": "JSJ",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1215",
+         "name": "通信",
+         "pinyin": "TX",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1043",
+         "name": "专业服务",
+         "pinyin": "ZYFW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1217",
+         "name": "综合",
+         "pinyin": "ZH",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1200",
+         "name": "电力设备",
+         "pinyin": "DLSB",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1208",
+         "name": "建筑材料",
+         "pinyin": "JZCL",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1204",
+         "name": "国防军工",
+         "pinyin": "GFJG",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1210",
+         "name": "交通运输",
+         "pinyin": "JTYS",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1209",
+         "name": "建筑装饰",
+         "pinyin": "JZZS",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1201",
+         "name": "电子",
+         "pinyin": "DZ",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1224",
+         "name": "纺织制造",
+         "pinyin": "FZZZ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1221",
+         "name": "数字媒体",
+         "pinyin": "SZMT",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1213",
+         "name": "商贸零售",
+         "pinyin": "SMLS",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1253",
+         "name": "医疗美容",
+         "pinyin": "YLMR",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1214",
+         "name": "社会服务",
+         "pinyin": "SHFW",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1203",
+         "name": "非银金融",
+         "pinyin": "FYJR",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1202",
+         "name": "房地产",
+         "pinyin": "FDC",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1259",
+         "name": "养殖业",
+         "pinyin": "YZY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1216",
+         "name": "医药生物",
+         "pinyin": "YYSW",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1226",
+         "name": "普钢",
+         "pinyin": "PG",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1206",
+         "name": "基础化工",
+         "pinyin": "JCHG",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1235",
+         "name": "环境治理",
+         "pinyin": "HJZL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1212",
+         "name": "轻工制造",
+         "pinyin": "QGZZ",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1240",
+         "name": "厨卫电器",
+         "pinyin": "CWDQ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1218",
+         "name": "出版",
+         "pinyin": "CB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1283",
+         "name": "银行",
+         "pinyin": "YH",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1558",
+         "name": "学历教育",
+         "pinyin": "XLJY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1289",
+         "name": "大众出版",
+         "pinyin": "DZCB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1595",
+         "name": "原料药",
+         "pinyin": "YLY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1342",
+         "name": "房地产综合服务",
+         "pinyin": "FDCZHFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1377",
+         "name": "火力发电",
+         "pinyin": "HLFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1459",
+         "name": "清洁小家电",
+         "pinyin": "QJXJD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1443",
+         "name": "橡胶助剂",
+         "pinyin": "XJZJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1389",
+         "name": "固废治理",
+         "pinyin": "GFZL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1517",
+         "name": "食用菌",
+         "pinyin": "SYJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1359",
+         "name": "金融控股",
+         "pinyin": "JRKG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1448",
+         "name": "横向通用软件",
+         "pinyin": "HXTYRJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1397",
+         "name": "磨具磨料",
+         "pinyin": "MJML",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1511",
+         "name": "肉鸡养殖",
+         "pinyin": "RJYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1306",
+         "name": "蓄电池及其他电池",
+         "pinyin": "XDCJQTDC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1334",
+         "name": "光学元件",
+         "pinyin": "GXYJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1518",
+         "name": "种子",
+         "pinyin": "ZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1591",
+         "name": "通信网络设备及器件",
+         "pinyin": "TXWLSBJQJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1422",
+         "name": "无机盐",
+         "pinyin": "WJY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1429",
+         "name": "食品及饲料添加剂",
+         "pinyin": "SPJSLTJJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1619",
+         "name": "其他金属新材料",
+         "pinyin": "QTJSXCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1241",
+         "name": "黑色家电",
+         "pinyin": "HSJD",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1258",
+         "name": "饲料",
+         "pinyin": "SL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1473",
+         "name": "园林工程",
+         "pinyin": "YLGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1280",
+         "name": "食品加工",
+         "pinyin": "SPJG",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1557",
+         "name": "培训教育",
+         "pinyin": "PXJY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1569",
+         "name": "炼油化工",
+         "pinyin": "LYHG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1298",
+         "name": "文字媒体",
+         "pinyin": "WZMT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1361",
+         "name": "期货",
+         "pinyin": "QH",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1408",
+         "name": "机器人",
+         "pinyin": "JQR",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1321",
+         "name": "火电设备",
+         "pinyin": "HDSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1445",
+         "name": "安防设备",
+         "pinyin": "AFSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1300",
+         "name": "院线",
+         "pinyin": "YX",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1597",
+         "name": "血液制品",
+         "pinyin": "XYZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1523",
+         "name": "汽车经销商",
+         "pinyin": "QCJXS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1537",
+         "name": "成品家居",
+         "pinyin": "CPJJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1510",
+         "name": "其他养殖",
+         "pinyin": "QTYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1527",
+         "name": "轮胎轮毂",
+         "pinyin": "LTLG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1328",
+         "name": "集成电路封测",
+         "pinyin": "JCDLFC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1371",
+         "name": "铁矿石",
+         "pinyin": "TKS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1572",
+         "name": "油气及炼化工程",
+         "pinyin": "YQJLHGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1297",
+         "name": "图片媒体",
+         "pinyin": "TPMT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1228",
+         "name": "冶钢原料",
+         "pinyin": "YGYL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1451",
+         "name": "厨房电器",
+         "pinyin": "CFDQ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1432",
+         "name": "氮肥",
+         "pinyin": "DF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1344",
+         "name": "产业地产",
+         "pinyin": "CYDC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1524",
+         "name": "汽车综合服务",
+         "pinyin": "QCZHFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1618",
+         "name": "磁性材料",
+         "pinyin": "CXCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1545",
+         "name": "特种纸",
+         "pinyin": "TZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1466",
+         "name": "管材",
+         "pinyin": "GC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1279",
+         "name": "非白酒",
+         "pinyin": "FBJ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1513",
+         "name": "海洋捕捞",
+         "pinyin": "HYBL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1335",
+         "name": "面板",
+         "pinyin": "MB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1570",
+         "name": "其他石化",
+         "pinyin": "QTSH",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1566",
+         "name": "检测服务",
+         "pinyin": "JCFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1308",
+         "name": "电工仪器仪表",
+         "pinyin": "DGYQYB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1393",
+         "name": "工程机械整机",
+         "pinyin": "GCJXZJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1409",
+         "name": "激光设备",
+         "pinyin": "JGSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1428",
+         "name": "其他化学制品",
+         "pinyin": "QTHXZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1304",
+         "name": "锂电专用设备",
+         "pinyin": "LDZYSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1339",
+         "name": "被动元件",
+         "pinyin": "BDYJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1372",
+         "name": "冶钢辅料",
+         "pinyin": "YGFL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1577",
+         "name": "啤酒",
+         "pinyin": "PJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1265",
+         "name": "包装印刷",
+         "pinyin": "BZYS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1588",
+         "name": "通信工程及服务",
+         "pinyin": "TXGCJFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1474",
+         "name": "钢结构",
+         "pinyin": "GJG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1562",
+         "name": "人工景区",
+         "pinyin": "RGJQ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1482",
+         "name": "航运",
+         "pinyin": "HY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1599",
+         "name": "其他医疗服务",
+         "pinyin": "QTYLFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1581",
+         "name": "预加工食品",
+         "pinyin": "YJGSP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1507",
+         "name": "宠物食品",
+         "pinyin": "CWSP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1341",
+         "name": "房产租赁经纪",
+         "pinyin": "FCZLJJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1560",
+         "name": "酒店",
+         "pinyin": "JD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1521",
+         "name": "摩托车",
+         "pinyin": "MTC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1605",
+         "name": "医疗设备",
+         "pinyin": "YLSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1475",
+         "name": "国际工程",
+         "pinyin": "GJGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1368",
+         "name": "钢铁管材",
+         "pinyin": "GTGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1406",
+         "name": "印刷包装机械",
+         "pinyin": "YSBZJX",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1220",
+         "name": "广告营销",
+         "pinyin": "GGYX",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1620",
+         "name": "钴",
+         "pinyin": "G",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1363",
+         "name": "信托",
+         "pinyin": "XT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1357",
+         "name": "钟表珠宝",
+         "pinyin": "ZBZB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1331",
+         "name": "数字芯片设计",
+         "pinyin": "SZXPSJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1519",
+         "name": "电动乘用车",
+         "pinyin": "DDCYC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1626",
+         "name": "稀土",
+         "pinyin": "XT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1498",
+         "name": "品牌化妆品",
+         "pinyin": "PPHZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1548",
+         "name": "综合电商",
+         "pinyin": "ZHDS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1239",
+         "name": "白色家电",
+         "pinyin": "BSJD",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1520",
+         "name": "综合乘用车",
+         "pinyin": "ZHCYC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1247",
+         "name": "基础建设",
+         "pinyin": "JCJS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1390",
+         "name": "水务及水治理",
+         "pinyin": "SWJSZL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1314",
+         "name": "风电整机",
+         "pinyin": "FDZJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1312",
+         "name": "线缆部件及其他",
+         "pinyin": "XLBJJQT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1515",
+         "name": "粮食种植",
+         "pinyin": "LSZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1454",
+         "name": "其他黑色家电",
+         "pinyin": "QTHSJD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1461",
+         "name": "玻璃制造",
+         "pinyin": "BLZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1427",
+         "name": "民爆制品",
+         "pinyin": "MBZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1272",
+         "name": "旅游及景区",
+         "pinyin": "LYJJQ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1494",
+         "name": "焦煤",
+         "pinyin": "JM",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1479",
+         "name": "航空运输",
+         "pinyin": "HKYS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1465",
+         "name": "防水材料",
+         "pinyin": "FSCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1244",
+         "name": "小家电",
+         "pinyin": "XJD",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1356",
+         "name": "其他饰品",
+         "pinyin": "QTSP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1425",
+         "name": "胶黏剂及胶带",
+         "pinyin": "JNJJJD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1508",
+         "name": "畜禽饲料",
+         "pinyin": "CQSL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1379",
+         "name": "热力服务",
+         "pinyin": "RLFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1354",
+         "name": "鞋帽及其他",
+         "pinyin": "XMJQT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1533",
+         "name": "塑料包装",
+         "pinyin": "SLBZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1463",
+         "name": "水泥制品",
+         "pinyin": "SNZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1453",
+         "name": "彩电",
+         "pinyin": "CD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1593",
+         "name": "通信终端及配件",
+         "pinyin": "TXZDJPJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1499",
+         "name": "医美服务",
+         "pinyin": "YMFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1353",
+         "name": "家纺",
+         "pinyin": "JF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1311",
+         "name": "输变电设备",
+         "pinyin": "SBDSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1600",
+         "name": "医疗研发外包",
+         "pinyin": "YLYFWB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1337",
+         "name": "品牌消费电子",
+         "pinyin": "PPXFDZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1442",
+         "name": "炭黑",
+         "pinyin": "TH",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1509",
+         "name": "水产饲料",
+         "pinyin": "SCSL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1434",
+         "name": "钾肥",
+         "pinyin": "JF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1318",
+         "name": "光伏主材",
+         "pinyin": "GFZC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1484",
+         "name": "公交",
+         "pinyin": "GJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1424",
+         "name": "氟化工",
+         "pinyin": "FHG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1261",
+         "name": "种植业",
+         "pinyin": "ZZY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1584",
+         "name": "熟食",
+         "pinyin": "SS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1481",
+         "name": "港口",
+         "pinyin": "GK",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1400",
+         "name": "制冷空调设备",
+         "pinyin": "ZLKTSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1583",
+         "name": "零食",
+         "pinyin": "LS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1396",
+         "name": "金属制品",
+         "pinyin": "JSZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1546",
+         "name": "电商服务",
+         "pinyin": "DSFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1579",
+         "name": "保健品",
+         "pinyin": "BJP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1625",
+         "name": "钨",
+         "pinyin": "W",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1263",
+         "name": "摩托车及其他",
+         "pinyin": "MTCJQT",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1319",
+         "name": "硅料硅片",
+         "pinyin": "GLGP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1556",
+         "name": "教育运营及其他",
+         "pinyin": "JYYYJQT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1237",
+         "name": "自动化设备",
+         "pinyin": "ZDHSB",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1296",
+         "name": "视频媒体",
+         "pinyin": "SPMT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1580",
+         "name": "肉制品",
+         "pinyin": "RZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1430",
+         "name": "涂料油墨",
+         "pinyin": "TLYM",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1536",
+         "name": "综合包装",
+         "pinyin": "ZHBZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1338",
+         "name": "消费电子零部件及组装",
+         "pinyin": "XFDZLBJJZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1343",
+         "name": "物业管理",
+         "pinyin": "WYGL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1309",
+         "name": "电网自动化设备",
+         "pinyin": "DWZDHSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1528",
+         "name": "其他汽车零部件",
+         "pinyin": "QTQCLBJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1488",
+         "name": "跨境物流",
+         "pinyin": "KJWL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1590",
+         "name": "其他通信设备",
+         "pinyin": "QTTXSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1325",
+         "name": "半导体材料",
+         "pinyin": "BDTCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1340",
+         "name": "印制电路板",
+         "pinyin": "YZDLB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1530",
+         "name": "商用载货车",
+         "pinyin": "SYZHC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1617",
+         "name": "黄金",
+         "pinyin": "HJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1607",
+         "name": "医药流通",
+         "pinyin": "YYLT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1407",
+         "name": "工控设备",
+         "pinyin": "GKSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1380",
+         "name": "水力发电",
+         "pinyin": "SLFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1420",
+         "name": "其他化学原料",
+         "pinyin": "QTHXYL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1477",
+         "name": "其他专业工程",
+         "pinyin": "QTZYGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1561",
+         "name": "旅游综合",
+         "pinyin": "LYZH",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1375",
+         "name": "光伏发电",
+         "pinyin": "GFFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1351",
+         "name": "印染",
+         "pinyin": "YR",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1602",
+         "name": "诊断服务",
+         "pinyin": "ZDFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1346",
+         "name": "住宅开发",
+         "pinyin": "ZZKF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1327",
+         "name": "分立器件",
+         "pinyin": "FLQJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1352",
+         "name": "非运动服装",
+         "pinyin": "FYDFZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1535",
+         "name": "纸包装",
+         "pinyin": "ZBZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1490",
+         "name": "原材料供应链服务",
+         "pinyin": "YCLGYLFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1551",
+         "name": "百货",
+         "pinyin": "BH",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1554",
+         "name": "商业物业经营",
+         "pinyin": "SYWYJY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1616",
+         "name": "白银",
+         "pinyin": "BY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1348",
+         "name": "辅料",
+         "pinyin": "FL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1313",
+         "name": "风电零部件",
+         "pinyin": "FDLBJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1543",
+         "name": "娱乐用品",
+         "pinyin": "YLYP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1345",
+         "name": "商业地产",
+         "pinyin": "SYDC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1483",
+         "name": "高速公路",
+         "pinyin": "GSGL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1614",
+         "name": "铅锌",
+         "pinyin": "QX",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1303",
+         "name": "锂电池",
+         "pinyin": "LDC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1452",
+         "name": "卫浴电器",
+         "pinyin": "WYDQ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1491",
+         "name": "端到端供应链服务",
+         "pinyin": "DDDGYLFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1419",
+         "name": "煤化工",
+         "pinyin": "MHG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1563",
+         "name": "自然景区",
+         "pinyin": "ZRJQ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1552",
+         "name": "超市",
+         "pinyin": "CS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1225",
+         "name": "服装家纺",
+         "pinyin": "FZJF",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1437",
+         "name": "改性塑料",
+         "pinyin": "GXSL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1410",
+         "name": "其他自动化设备",
+         "pinyin": "QTZDHSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1578",
+         "name": "其他酒类",
+         "pinyin": "QTJL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1589",
+         "name": "通信应用增值服务",
+         "pinyin": "TXYYZZFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1373",
+         "name": "电能综合服务",
+         "pinyin": "DNZHFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1439",
+         "name": "膜材料",
+         "pinyin": "MCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1376",
+         "name": "核力发电",
+         "pinyin": "HLFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1271",
+         "name": "酒店餐饮",
+         "pinyin": "JDCY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1604",
+         "name": "医疗耗材",
+         "pinyin": "YLHC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1571",
+         "name": "油品石化贸易",
+         "pinyin": "YPSHMY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1529",
+         "name": "汽车电子电气系统",
+         "pinyin": "QCDZDQXT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1500",
+         "name": "医美耗材",
+         "pinyin": "YMHC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1514",
+         "name": "水产养殖",
+         "pinyin": "SCYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1540",
+         "name": "其他家居用品",
+         "pinyin": "QTJJYP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1559",
+         "name": "餐饮",
+         "pinyin": "CY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1293",
+         "name": "营销代理",
+         "pinyin": "YXDL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1266",
+         "name": "文娱用品",
+         "pinyin": "WYYP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1621",
+         "name": "锂",
+         "pinyin": "L",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1268",
+         "name": "互联网电商",
+         "pinyin": "HLWDS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1622",
+         "name": "镍",
+         "pinyin": "N",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1329",
+         "name": "集成电路制造",
+         "pinyin": "JCDLZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1347",
+         "name": "纺织鞋类制造",
+         "pinyin": "FZXLZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1450",
+         "name": "空调",
+         "pinyin": "KT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1449",
+         "name": "冰洗",
+         "pinyin": "BX",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1299",
+         "name": "影视动漫制作",
+         "pinyin": "YSDMZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1262",
+         "name": "乘用车",
+         "pinyin": "CYC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1464",
+         "name": "水泥制造",
+         "pinyin": "SNZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1248",
+         "name": "专业工程",
+         "pinyin": "ZYGC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1310",
+         "name": "配电设备",
+         "pinyin": "PDSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1623",
+         "name": "钼",
+         "pinyin": "M",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1274",
+         "name": "炼化及贸易",
+         "pinyin": "LHJMY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1553",
+         "name": "多业态零售",
+         "pinyin": "DYTLS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1418",
+         "name": "氯碱",
+         "pinyin": "LJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1264",
+         "name": "商用车",
+         "pinyin": "SYC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1446",
+         "name": "其他计算机设备",
+         "pinyin": "QTJSJSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1615",
+         "name": "铜",
+         "pinyin": "T",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1544",
+         "name": "大宗用纸",
+         "pinyin": "DZYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1565",
+         "name": "会展服务",
+         "pinyin": "HZFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1601",
+         "name": "医院",
+         "pinyin": "YY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1326",
+         "name": "半导体设备",
+         "pinyin": "BDTSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1573",
+         "name": "油田服务",
+         "pinyin": "YTFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1457",
+         "name": "厨房小家电",
+         "pinyin": "CFXJD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1598",
+         "name": "疫苗",
+         "pinyin": "YM",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1567",
+         "name": "其他专业服务",
+         "pinyin": "QTZYFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1267",
+         "name": "造纸",
+         "pinyin": "ZZ",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1440",
+         "name": "其他塑料制品",
+         "pinyin": "QTSLZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1349",
+         "name": "棉纺",
+         "pinyin": "MF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1250",
+         "name": "煤炭开采",
+         "pinyin": "MTKC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1542",
+         "name": "文化用品",
+         "pinyin": "WHYP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1369",
+         "name": "长材",
+         "pinyin": "CC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1496",
+         "name": "洗护用品",
+         "pinyin": "XHYP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1222",
+         "name": "影视院线",
+         "pinyin": "YSYX",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1504",
+         "name": "粮油加工",
+         "pinyin": "LYJG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1613",
+         "name": "铝",
+         "pinyin": "L",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1292",
+         "name": "广告媒体",
+         "pinyin": "GGMT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1547",
+         "name": "跨境电商",
+         "pinyin": "KJDS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1624",
+         "name": "其他小金属",
+         "pinyin": "QTXJS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1391",
+         "name": "综合环境治理",
+         "pinyin": "ZHHJZL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1252",
+         "name": "化妆品",
+         "pinyin": "HZP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1423",
+         "name": "纺织化学制品",
+         "pinyin": "FZHXZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1582",
+         "name": "烘焙食品",
+         "pinyin": "HBSP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1538",
+         "name": "瓷砖地板",
+         "pinyin": "CZDB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1485",
+         "name": "铁路运输",
+         "pinyin": "TLYS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1260",
+         "name": "渔业",
+         "pinyin": "YY",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1532",
+         "name": "金属包装",
+         "pinyin": "JSBZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1405",
+         "name": "其他专用设备",
+         "pinyin": "QTZYSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1586",
+         "name": "软饮料",
+         "pinyin": "RYL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1403",
+         "name": "能源及重型设备",
+         "pinyin": "NYJZXSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1486",
+         "name": "仓储物流",
+         "pinyin": "CCWL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1330",
+         "name": "模拟芯片设计",
+         "pinyin": "MNXPSJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1431",
+         "name": "有机硅",
+         "pinyin": "YJG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1281",
+         "name": "休闲食品",
+         "pinyin": "XXSP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1417",
+         "name": "纯碱",
+         "pinyin": "CJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1404",
+         "name": "农用机械",
+         "pinyin": "NYJX",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1421",
+         "name": "钛白粉",
+         "pinyin": "TBF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1323",
+         "name": "综合电力设备商",
+         "pinyin": "ZHDLSBS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1294",
+         "name": "门户网站",
+         "pinyin": "MHWZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1512",
+         "name": "生猪养殖",
+         "pinyin": "SZYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1388",
+         "name": "大气治理",
+         "pinyin": "DQZL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1287",
+         "name": "工业金属",
+         "pinyin": "GYJS",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1480",
+         "name": "机场",
+         "pinyin": "JC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1526",
+         "name": "底盘与发动机系统",
+         "pinyin": "DPYFDJXT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1402",
+         "name": "楼宇设备",
+         "pinyin": "LYSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1305",
+         "name": "燃料电池",
+         "pinyin": "RLDC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1467",
+         "name": "耐火材料",
+         "pinyin": "NHCL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1426",
+         "name": "聚氨酯",
+         "pinyin": "JAZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1256",
+         "name": "农产品加工",
+         "pinyin": "NCPJG",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1365",
+         "name": "租赁",
+         "pinyin": "ZL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1398",
+         "name": "其他通用设备",
+         "pinyin": "QTTYSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1290",
+         "name": "教育出版",
+         "pinyin": "JYCB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1441",
+         "name": "其他橡胶制品",
+         "pinyin": "QTXJZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1606",
+         "name": "线下药店",
+         "pinyin": "XXYD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1525",
+         "name": "车身附件及饰件",
+         "pinyin": "CSFJJSJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1495",
+         "name": "生活用纸",
+         "pinyin": "SHYZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1585",
+         "name": "乳品",
+         "pinyin": "RP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1522",
+         "name": "其他运输设备",
+         "pinyin": "QTYSSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1603",
+         "name": "体外诊断",
+         "pinyin": "TWZD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1302",
+         "name": "电池化学品",
+         "pinyin": "DCHXP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1320",
+         "name": "逆变器",
+         "pinyin": "NBQ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1493",
+         "name": "动力煤",
+         "pinyin": "DLM",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1395",
+         "name": "机床工具",
+         "pinyin": "JCGJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1392",
+         "name": "工程机械器件",
+         "pinyin": "GCJXQJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1333",
+         "name": "LED",
+         "pinyin": "LED",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1316",
+         "name": "光伏辅材",
+         "pinyin": "GFFC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1435",
+         "name": "磷肥及磷化工",
+         "pinyin": "LFJLHG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1282",
+         "name": "饮料乳品",
+         "pinyin": "YLRP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1472",
+         "name": "基建市政工程",
+         "pinyin": "JJSZGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1587",
+         "name": "电信运营商",
+         "pinyin": "DXYYS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1596",
+         "name": "其他生物制品",
+         "pinyin": "QTSWZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1378",
+         "name": "其他能源发电",
+         "pinyin": "QTNYFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1438",
+         "name": "合成树脂",
+         "pinyin": "HCSZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1489",
+         "name": "快递",
+         "pinyin": "KD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1295",
+         "name": "其他数字媒体",
+         "pinyin": "QTSZMT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1251",
+         "name": "个护用品",
+         "pinyin": "GHYP",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1447",
+         "name": "垂直应用软件",
+         "pinyin": "CZYYRJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1469",
+         "name": "涂料",
+         "pinyin": "TL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1364",
+         "name": "资产管理",
+         "pinyin": "ZCGL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1458",
+         "name": "个护小家电",
+         "pinyin": "GHXJD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1317",
+         "name": "光伏加工设备",
+         "pinyin": "GFJGSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1594",
+         "name": "化学制剂",
+         "pinyin": "HXZJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1362",
+         "name": "其他多元金融",
+         "pinyin": "QTDYJR",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1350",
+         "name": "其他纺织",
+         "pinyin": "QTFZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1433",
+         "name": "复合肥",
+         "pinyin": "FHF",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1497",
+         "name": "化妆品制造及其他",
+         "pinyin": "HZPZZJQT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1487",
+         "name": "公路货运",
+         "pinyin": "GLHY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1315",
+         "name": "光伏电池组件",
+         "pinyin": "GFDCZJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1275",
+         "name": "油服工程",
+         "pinyin": "YFGC",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1534",
+         "name": "印刷",
+         "pinyin": "YS",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1531",
+         "name": "商用载客车",
+         "pinyin": "SYZKC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1505",
+         "name": "其他农产品加工",
+         "pinyin": "QTNCPJG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1539",
+         "name": "定制家居",
+         "pinyin": "DZJJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1436",
+         "name": "农药",
+         "pinyin": "NY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1592",
+         "name": "通信线缆及配套",
+         "pinyin": "TXXLJPT",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1401",
+         "name": "纺织服装设备",
+         "pinyin": "FZFZSB",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1374",
+         "name": "风力发电",
+         "pinyin": "FLFD",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1476",
+         "name": "化学工程",
+         "pinyin": "HXGC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1503",
+         "name": "果蔬加工",
+         "pinyin": "GSJG",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1541",
+         "name": "卫浴制品",
+         "pinyin": "WYZP",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1367",
+         "name": "板材",
+         "pinyin": "BC",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1211",
+         "name": "汽车",
+         "pinyin": "QC",
+         "type": 2,
+         "flag": 1
+      },
+      {
+         "market": 90,
+         "code": "BK1355",
+         "name": "运动服装",
+         "pinyin": "YDFZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1288",
+         "name": "金属新材料",
+         "pinyin": "JSXCL",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1360",
+         "name": "金融信息服务",
+         "pinyin": "JRXXFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1516",
+         "name": "其他种植业",
+         "pinyin": "QTZZY",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1568",
+         "name": "人力资源服务",
+         "pinyin": "RLZYFW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK0471",
+         "name": "化学纤维",
+         "pinyin": "HXQW",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1416",
+         "name": "粘胶",
+         "pinyin": "NJ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1415",
+         "name": "其他化学纤维",
+         "pinyin": "QTHXQW",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1462",
+         "name": "玻纤制造",
+         "pinyin": "BQZZ",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK0475",
+         "name": "银行Ⅱ",
+         "pinyin": "YH2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0473",
+         "name": "证券Ⅱ",
+         "pinyin": "ZQ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0474",
+         "name": "保险Ⅱ",
+         "pinyin": "BX2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0726",
+         "name": "工程咨询服务Ⅱ",
+         "pinyin": "GCZXFW2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0539",
+         "name": "综合Ⅱ",
+         "pinyin": "ZH2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0484",
+         "name": "贸易Ⅱ",
+         "pinyin": "MY2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK0725",
+         "name": "装修装饰Ⅱ",
+         "pinyin": "ZXZS2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1020",
+         "name": "非金属材料Ⅱ",
+         "pinyin": "FJSCL2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1028",
+         "name": "燃气Ⅱ",
+         "pinyin": "RQ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1030",
+         "name": "电机Ⅱ",
+         "pinyin": "DJ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1039",
+         "name": "电子化学品Ⅱ",
+         "pinyin": "DZHXP2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1040",
+         "name": "中药Ⅱ",
+         "pinyin": "ZY2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1229",
+         "name": "地面兵装Ⅱ",
+         "pinyin": "DMBZ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1232",
+         "name": "航天装备Ⅱ",
+         "pinyin": "HTZB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1223",
+         "name": "其他电子Ⅱ",
+         "pinyin": "QTDZ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1034",
+         "name": "其他电源设备Ⅱ",
+         "pinyin": "QTDYSB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1046",
+         "name": "游戏Ⅱ",
+         "pinyin": "YX2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1219",
+         "name": "电视广播Ⅱ",
+         "pinyin": "DSGB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1231",
+         "name": "航空装备Ⅱ",
+         "pinyin": "HKZB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1236",
+         "name": "轨交设备Ⅱ",
+         "pinyin": "GJSB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1227",
+         "name": "特钢Ⅱ",
+         "pinyin": "TG2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1230",
+         "name": "航海装备Ⅱ",
+         "pinyin": "HHZB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1249",
+         "name": "焦炭Ⅱ",
+         "pinyin": "JT2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1233",
+         "name": "军工电子Ⅱ",
+         "pinyin": "JGDZ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1245",
+         "name": "照明设备Ⅱ",
+         "pinyin": "ZMSB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1234",
+         "name": "环保设备Ⅱ",
+         "pinyin": "HBSB2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1242",
+         "name": "家电零部件Ⅱ",
+         "pinyin": "JDLBJ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1270",
+         "name": "专业连锁Ⅱ",
+         "pinyin": "ZYLS2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1255",
+         "name": "林业Ⅱ",
+         "pinyin": "LY2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1238",
+         "name": "IT服务Ⅱ",
+         "pinyin": "ITFW2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1269",
+         "name": "旅游零售Ⅱ",
+         "pinyin": "LYLS2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1254",
+         "name": "动物保健Ⅱ",
+         "pinyin": "DWBJ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1246",
+         "name": "房屋建设Ⅱ",
+         "pinyin": "FWJS2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1243",
+         "name": "其他家电Ⅱ",
+         "pinyin": "QTJD2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1277",
+         "name": "白酒Ⅱ",
+         "pinyin": "BJ2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1273",
+         "name": "体育Ⅱ",
+         "pinyin": "TY2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1257",
+         "name": "农业综合Ⅱ",
+         "pinyin": "NYZH2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1307",
+         "name": "电机Ⅲ",
+         "pinyin": "DJ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1291",
+         "name": "电视广播Ⅲ",
+         "pinyin": "DSGB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1322",
+         "name": "其他电源设备Ⅲ",
+         "pinyin": "QTDYSB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1276",
+         "name": "油气开采Ⅱ",
+         "pinyin": "YQKC2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1301",
+         "name": "游戏Ⅲ",
+         "pinyin": "YX3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1278",
+         "name": "调味发酵品Ⅱ",
+         "pinyin": "TWFJP2",
+         "type": 2,
+         "flag": 2
+      },
+      {
+         "market": 90,
+         "code": "BK1383",
+         "name": "航海装备Ⅲ",
+         "pinyin": "HHZB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1382",
+         "name": "地面兵装Ⅲ",
+         "pinyin": "DMBZ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1381",
+         "name": "燃气Ⅲ",
+         "pinyin": "RQ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1332",
+         "name": "电子化学品Ⅲ",
+         "pinyin": "DZHXP3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1358",
+         "name": "保险Ⅲ",
+         "pinyin": "BX3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1336",
+         "name": "其他电子Ⅲ",
+         "pinyin": "QTDZ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1370",
+         "name": "特钢Ⅲ",
+         "pinyin": "TG3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1387",
+         "name": "环保设备Ⅲ",
+         "pinyin": "HBSB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1384",
+         "name": "航空装备Ⅲ",
+         "pinyin": "HKZB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1460",
+         "name": "照明设备Ⅲ",
+         "pinyin": "ZMSB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1385",
+         "name": "航天装备Ⅲ",
+         "pinyin": "HTZB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1456",
+         "name": "其他家电Ⅲ",
+         "pinyin": "QTJD3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1386",
+         "name": "军工电子Ⅲ",
+         "pinyin": "JGDZ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1411",
+         "name": "非金属材料Ⅲ",
+         "pinyin": "FJSCL3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1366",
+         "name": "证券Ⅲ",
+         "pinyin": "ZQ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1502",
+         "name": "林业Ⅲ",
+         "pinyin": "LY3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1394",
+         "name": "轨交设备Ⅲ",
+         "pinyin": "GJSB3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1444",
+         "name": "IT服务Ⅲ",
+         "pinyin": "ITFW3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1478",
+         "name": "装修装饰Ⅲ",
+         "pinyin": "ZXZS3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1455",
+         "name": "家电零部件Ⅲ",
+         "pinyin": "JDLBJ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1468",
+         "name": "其他建材Ⅲ",
+         "pinyin": "QTJC3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1471",
+         "name": "工程咨询服务Ⅲ",
+         "pinyin": "GCZXFW3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1470",
+         "name": "房屋建设Ⅲ",
+         "pinyin": "FWJS3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1506",
+         "name": "农业综合Ⅲ",
+         "pinyin": "NYZH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1549",
+         "name": "旅游零售Ⅲ",
+         "pinyin": "LYLS3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1555",
+         "name": "专业连锁Ⅲ",
+         "pinyin": "ZYLS3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1501",
+         "name": "动物保健Ⅲ",
+         "pinyin": "DWBJ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1550",
+         "name": "贸易Ⅲ",
+         "pinyin": "MY3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1609",
+         "name": "城商行Ⅲ",
+         "pinyin": "CSH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1564",
+         "name": "体育Ⅲ",
+         "pinyin": "TY3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1492",
+         "name": "焦炭Ⅲ",
+         "pinyin": "JT3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1627",
+         "name": "综合Ⅲ",
+         "pinyin": "ZH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1574",
+         "name": "油气开采Ⅲ",
+         "pinyin": "YQKC3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1576",
+         "name": "调味发酵品Ⅲ",
+         "pinyin": "TWFJP3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1575",
+         "name": "白酒Ⅲ",
+         "pinyin": "BJ3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1612",
+         "name": "农商行Ⅲ",
+         "pinyin": "NSH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1610",
+         "name": "股份制银行Ⅲ",
+         "pinyin": "GFZYH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1608",
+         "name": "中药Ⅲ",
+         "pinyin": "ZY3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1611",
+         "name": "国有大型银行Ⅲ",
+         "pinyin": "GYDXYH3",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1414",
+         "name": "锦纶",
+         "pinyin": "JL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1413",
+         "name": "涤纶",
+         "pinyin": "DL",
+         "type": 2,
+         "flag": 3
+      },
+      {
+         "market": 90,
+         "code": "BK1412",
+         "name": "氨纶",
+         "pinyin": "AL",
+         "type": 2,
+         "flag": 3
+      }
+   ],
+   "concepts": [
+      {
+         "market": 90,
+         "code": "BK0955",
+         "name": "C2M概念",
+         "pinyin": "C2MGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1139",
+         "name": "中特估",
+         "pinyin": "ZTG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0514",
+         "name": "参股券商",
+         "pinyin": "CGQS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0509",
+         "name": "网络游戏",
+         "pinyin": "WLYX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0525",
+         "name": "参股银行",
+         "pinyin": "CGYH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0718",
+         "name": "证金持股",
+         "pinyin": "ZJCG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1070",
+         "name": "土壤修复",
+         "pinyin": "TRXF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0611",
+         "name": "上证50_",
+         "pinyin": "SZ50",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0592",
+         "name": "铁路基建",
+         "pinyin": "TLJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0604",
+         "name": "参股保险",
+         "pinyin": "CGBX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1000",
+         "name": "宁组合",
+         "pinyin": "NZH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0950",
+         "name": "草甘膦",
+         "pinyin": "CGL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1011",
+         "name": "环氧丙烷",
+         "pinyin": "HYBW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0721",
+         "name": "PPP模式",
+         "pinyin": "PPPMS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0705",
+         "name": "上证380",
+         "pinyin": "SZ380",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0704",
+         "name": "无人机",
+         "pinyin": "WRJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1054",
+         "name": "DRG/DIP",
+         "pinyin": "DRGDIP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0986",
+         "name": "CAR-T细胞疗法",
+         "pinyin": "CARTXBLF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0964",
+         "name": "6G概念",
+         "pinyin": "6GGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0997",
+         "name": "NFT概念",
+         "pinyin": "NFTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0970",
+         "name": "生物识别",
+         "pinyin": "SWSB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0804",
+         "name": "深股通",
+         "pinyin": "SGT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0870",
+         "name": "单抗概念",
+         "pinyin": "DKGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0900",
+         "name": "新能源车",
+         "pinyin": "XNYC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0802",
+         "name": "无人驾驶",
+         "pinyin": "WRJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0801",
+         "name": "增强现实",
+         "pinyin": "ZQXS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0724",
+         "name": "海绵城市",
+         "pinyin": "HMCS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0935",
+         "name": "中芯概念",
+         "pinyin": "ZXGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0535",
+         "name": "QFII重仓",
+         "pinyin": "QFIIZC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0715",
+         "name": "航母概念",
+         "pinyin": "HMGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0807",
+         "name": "共享经济",
+         "pinyin": "GXJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0552",
+         "name": "机构重仓",
+         "pinyin": "JGZC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0536",
+         "name": "基金重仓",
+         "pinyin": "JJZC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0547",
+         "name": "黄金概念",
+         "pinyin": "HJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0568",
+         "name": "深成500",
+         "pinyin": "SC500",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0629",
+         "name": "北斗导航",
+         "pinyin": "BDDH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0493",
+         "name": "新能源",
+         "pinyin": "XNY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0622",
+         "name": "地热能",
+         "pinyin": "DRN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0960",
+         "name": "无线充电",
+         "pinyin": "WXCD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0638",
+         "name": "创业成份",
+         "pinyin": "CYCF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0675",
+         "name": "病毒防治",
+         "pinyin": "BDFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0677",
+         "name": "粤港自贸",
+         "pinyin": "YGZM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0881",
+         "name": "3D玻璃",
+         "pinyin": "3DBL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0672",
+         "name": "沪企改革",
+         "pinyin": "HQGG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0612",
+         "name": "上证180_",
+         "pinyin": "SZ180",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0945",
+         "name": "装配建筑",
+         "pinyin": "ZPJZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0685",
+         "name": "举牌",
+         "pinyin": "JP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0933",
+         "name": "退税商店",
+         "pinyin": "TSSD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0946",
+         "name": "EDA概念",
+         "pinyin": "EDAGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0993",
+         "name": "宠物经济",
+         "pinyin": "CWJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1047",
+         "name": "数据安全",
+         "pinyin": "SJAQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1004",
+         "name": "工业母机",
+         "pinyin": "GYMJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1002",
+         "name": "激光雷达",
+         "pinyin": "JGLD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0947",
+         "name": "屏下摄像",
+         "pinyin": "PXSX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0623",
+         "name": "海洋经济",
+         "pinyin": "HYJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1055",
+         "name": "虚拟数字人",
+         "pinyin": "XNSZR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1098",
+         "name": "生物质能发电",
+         "pinyin": "SWZNFD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1086",
+         "name": "粮食概念",
+         "pinyin": "LSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1085",
+         "name": "痘病毒防治",
+         "pinyin": "DBDFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0625",
+         "name": "通用航空",
+         "pinyin": "TYHK",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1134",
+         "name": "算力概念",
+         "pinyin": "SLGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0617",
+         "name": "石墨烯",
+         "pinyin": "SMX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1099",
+         "name": "轮毂电机",
+         "pinyin": "LGDJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1080",
+         "name": "新型城镇化",
+         "pinyin": "XXCZH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1059",
+         "name": "百元股",
+         "pinyin": "BYG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1056",
+         "name": "幽门螺杆菌概念",
+         "pinyin": "YMLGJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0601",
+         "name": "海工装备",
+         "pinyin": "HGZB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1078",
+         "name": "肝炎概念",
+         "pinyin": "GYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1094",
+         "name": "钙钛矿电池",
+         "pinyin": "GTKDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1092",
+         "name": "麒麟电池",
+         "pinyin": "QLDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1107",
+         "name": "科创板做市商",
+         "pinyin": "KCBZSS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1100",
+         "name": "减速器",
+         "pinyin": "JSQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0948",
+         "name": "MicroLED",
+         "pinyin": "MICROLED",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0943",
+         "name": "汽车拆解",
+         "pinyin": "QCCJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0982",
+         "name": "电子车牌",
+         "pinyin": "DZCP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0594",
+         "name": "长江三角",
+         "pinyin": "CJSJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0983",
+         "name": "核污染防治",
+         "pinyin": "HWRFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0597",
+         "name": "水利建设",
+         "pinyin": "SLJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0581",
+         "name": "智能电网",
+         "pinyin": "ZNDW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1109",
+         "name": "供销社概念",
+         "pinyin": "GXSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0579",
+         "name": "云计算",
+         "pinyin": "YJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0821",
+         "name": "MSCI中国",
+         "pinyin": "MSCIZG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0534",
+         "name": "成渝特区",
+         "pinyin": "CYTQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0548",
+         "name": "生物疫苗",
+         "pinyin": "SWYM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0902",
+         "name": "MiniLED",
+         "pinyin": "MINILED",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0743",
+         "name": "深证100R",
+         "pinyin": "SZ100R",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0825",
+         "name": "新零售",
+         "pinyin": "XLS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0885",
+         "name": "VPN",
+         "pinyin": "VPN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0856",
+         "name": "工业大麻",
+         "pinyin": "GYDM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0835",
+         "name": "独角兽",
+         "pinyin": "DJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0845",
+         "name": "百度概念",
+         "pinyin": "BDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0700",
+         "name": "充电桩",
+         "pinyin": "CDZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0854",
+         "name": "华为概念",
+         "pinyin": "HWGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1013",
+         "name": "华为欧拉",
+         "pinyin": "HWOL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0887",
+         "name": "鸡肉概念",
+         "pinyin": "JRGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0512",
+         "name": "化工原料",
+         "pinyin": "HGYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0703",
+         "name": "超级电容",
+         "pinyin": "CJDR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0708",
+         "name": "体育产业",
+         "pinyin": "TYCY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0490",
+         "name": "军工",
+         "pinyin": "JG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0954",
+         "name": "盲盒经济",
+         "pinyin": "MHJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0872",
+         "name": "青蒿素",
+         "pinyin": "QHS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0866",
+         "name": "人造肉",
+         "pinyin": "RZR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0520",
+         "name": "社保重仓",
+         "pinyin": "SBZC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0932",
+         "name": "尾气治理",
+         "pinyin": "WQZL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1126",
+         "name": "ChatGPT概念",
+         "pinyin": "CHATGPTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0916",
+         "name": "氮化镓",
+         "pinyin": "DHJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0834",
+         "name": "乡村振兴",
+         "pinyin": "XCZX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0506",
+         "name": "创投",
+         "pinyin": "CT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0505",
+         "name": "中字头",
+         "pinyin": "ZZT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0578",
+         "name": "稀土永磁",
+         "pinyin": "XTYC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0595",
+         "name": "风能",
+         "pinyin": "FN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0897",
+         "name": "IPv6",
+         "pinyin": "IPV6",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0722",
+         "name": "虚拟现实",
+         "pinyin": "XNXS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0875",
+         "name": "ETC",
+         "pinyin": "ETC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0914",
+         "name": "医废处理",
+         "pinyin": "YFCL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1012",
+         "name": "PVDF概念",
+         "pinyin": "PVDFGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0991",
+         "name": "工程机械概念",
+         "pinyin": "GCJXGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0695",
+         "name": "小金属概念",
+         "pinyin": "XJSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0615",
+         "name": "中药概念",
+         "pinyin": "ZYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0979",
+         "name": "低碳冶金",
+         "pinyin": "DTYJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0693",
+         "name": "基因测序",
+         "pinyin": "JYCX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1025",
+         "name": "预制菜概念",
+         "pinyin": "YZCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1003",
+         "name": "抽水蓄能",
+         "pinyin": "CSXN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0890",
+         "name": "MLCC",
+         "pinyin": "MLCC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0666",
+         "name": "苹果概念",
+         "pinyin": "PGGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0981",
+         "name": "工业气体",
+         "pinyin": "GYQT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0653",
+         "name": "养老概念",
+         "pinyin": "YLGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0840",
+         "name": "OLED",
+         "pinyin": "OLED",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0664",
+         "name": "婴童概念",
+         "pinyin": "YTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0698",
+         "name": "免疫治疗",
+         "pinyin": "MYZL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0701",
+         "name": "中证500",
+         "pinyin": "ZZ500",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0998",
+         "name": "机器视觉",
+         "pinyin": "JQSJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1022",
+         "name": "职业教育",
+         "pinyin": "ZYJY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0992",
+         "name": "REITs概念",
+         "pinyin": "REITSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0656",
+         "name": "智能电视",
+         "pinyin": "ZNDS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0990",
+         "name": "快递概念",
+         "pinyin": "KDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0891",
+         "name": "国产芯片",
+         "pinyin": "GCXP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1129",
+         "name": "数字水印",
+         "pinyin": "SZSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1095",
+         "name": "钒电池",
+         "pinyin": "FDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1116",
+         "name": "抗菌面料",
+         "pinyin": "KJML",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0800",
+         "name": "人工智能",
+         "pinyin": "RGZN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0689",
+         "name": "阿里概念",
+         "pinyin": "ALGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0684",
+         "name": "京津冀",
+         "pinyin": "JJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0811",
+         "name": "超级品牌",
+         "pinyin": "CJPP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0628",
+         "name": "智慧城市",
+         "pinyin": "ZHCS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0707",
+         "name": "沪股通",
+         "pinyin": "HGT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1014",
+         "name": "发电机概念",
+         "pinyin": "FDJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0806",
+         "name": "精准医疗",
+         "pinyin": "JZYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0711",
+         "name": "券商概念",
+         "pinyin": "QSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0882",
+         "name": "猪肉概念",
+         "pinyin": "ZRGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0815",
+         "name": "昨日涨停",
+         "pinyin": "ZRZT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0952",
+         "name": "第三代半导体",
+         "pinyin": "DSDBDT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0928",
+         "name": "抖音小店",
+         "pinyin": "DYXD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0697",
+         "name": "IPO受益",
+         "pinyin": "IPOSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0957",
+         "name": "拼多多概念",
+         "pinyin": "PDDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0714",
+         "name": "5G概念",
+         "pinyin": "5GGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0803",
+         "name": "股权转让",
+         "pinyin": "GQZR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0808",
+         "name": "军民融合",
+         "pinyin": "JMRH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0855",
+         "name": "纳米银",
+         "pinyin": "NMY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0524",
+         "name": "参股期货",
+         "pinyin": "CGQH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0958",
+         "name": "虚拟电厂",
+         "pinyin": "XNDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1113",
+         "name": "复合集流体",
+         "pinyin": "FHJLT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1089",
+         "name": "汽车热管理",
+         "pinyin": "QCRGL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0494",
+         "name": "节能环保",
+         "pinyin": "JNHB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0968",
+         "name": "固态电池",
+         "pinyin": "GTDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0823",
+         "name": "养老金",
+         "pinyin": "YLJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0861",
+         "name": "数字孪生",
+         "pinyin": "SZLS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0606",
+         "name": "油气设服",
+         "pinyin": "YQSF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0864",
+         "name": "氢能源",
+         "pinyin": "QNY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0832",
+         "name": "工业互联",
+         "pinyin": "GYHL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0556",
+         "name": "移动支付",
+         "pinyin": "YDZF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0862",
+         "name": "超级真菌",
+         "pinyin": "CJZJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0665",
+         "name": "电商概念",
+         "pinyin": "DSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0643",
+         "name": "上海自贸",
+         "pinyin": "SHZM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0895",
+         "name": "维生素",
+         "pinyin": "WSS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0837",
+         "name": "互联医疗",
+         "pinyin": "HLYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0636",
+         "name": "B股",
+         "pinyin": "BG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0814",
+         "name": "大飞机",
+         "pinyin": "DFJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0676",
+         "name": "独家药品",
+         "pinyin": "DJYP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0671",
+         "name": "彩票概念",
+         "pinyin": "CPGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1142",
+         "name": "裸眼3D",
+         "pinyin": "LY3D",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0924",
+         "name": "地摊经济",
+         "pinyin": "DTJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0880",
+         "name": "UWB概念",
+         "pinyin": "UWBGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1119",
+         "name": "PLC概念",
+         "pinyin": "PLCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0669",
+         "name": "生态农业",
+         "pinyin": "STNY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0679",
+         "name": "超导概念",
+         "pinyin": "CDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1143",
+         "name": "空间计算",
+         "pinyin": "KJJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1010",
+         "name": "磷化工",
+         "pinyin": "LHG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0879",
+         "name": "标准普尔",
+         "pinyin": "BZPE",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0813",
+         "name": "雄安新区",
+         "pinyin": "XAXQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0893",
+         "name": "无线耳机",
+         "pinyin": "WXEJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1068",
+         "name": "净水概念",
+         "pinyin": "JSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0927",
+         "name": "免税概念",
+         "pinyin": "MSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0949",
+         "name": "氦气概念",
+         "pinyin": "HQGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1125",
+         "name": "电子后视镜",
+         "pinyin": "DZHSJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0988",
+         "name": "钠离子电池",
+         "pinyin": "NLZDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1104",
+         "name": "信创",
+         "pinyin": "XC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1127",
+         "name": "AI芯片",
+         "pinyin": "AIXP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0959",
+         "name": "数字阅读",
+         "pinyin": "SZYD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0972",
+         "name": "快手概念",
+         "pinyin": "KSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0938",
+         "name": "代糖概念",
+         "pinyin": "DTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0975",
+         "name": "磁悬浮概念",
+         "pinyin": "CXFGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0939",
+         "name": "辅助生殖",
+         "pinyin": "FZSZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0901",
+         "name": "3D摄像头",
+         "pinyin": "3DSXT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1111",
+         "name": "AIGC概念",
+         "pinyin": "AIGCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0985",
+         "name": "换电概念",
+         "pinyin": "HDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0915",
+         "name": "WiFi",
+         "pinyin": "WIFI",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1131",
+         "name": "同步磁阻电机",
+         "pinyin": "TBCZDJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0977",
+         "name": "碳化硅",
+         "pinyin": "THG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0912",
+         "name": "远程办公",
+         "pinyin": "YCBG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1024",
+         "name": "绿色电力",
+         "pinyin": "LSDL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1073",
+         "name": "啤酒概念",
+         "pinyin": "PJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0971",
+         "name": "注册制次新股",
+         "pinyin": "ZCZCXG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1082",
+         "name": "噪声防治",
+         "pinyin": "ZSFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1005",
+         "name": "专精特新",
+         "pinyin": "ZJTX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0859",
+         "name": "超清视频",
+         "pinyin": "CQSP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1130",
+         "name": "时空大数据",
+         "pinyin": "SKDSJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1090",
+         "name": "机器人概念",
+         "pinyin": "JQRGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1102",
+         "name": "空气能热泵",
+         "pinyin": "KQNRB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1071",
+         "name": "跨境支付",
+         "pinyin": "KJZF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1049",
+         "name": "EDR概念",
+         "pinyin": "EDRGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0999",
+         "name": "茅指数",
+         "pinyin": "MZS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1133",
+         "name": "ERP概念",
+         "pinyin": "ERPGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1135",
+         "name": "数据要素",
+         "pinyin": "SJYS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1001",
+         "name": "内贸流通",
+         "pinyin": "NMLT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1136",
+         "name": "光通信模块",
+         "pinyin": "GTXMK",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1103",
+         "name": "熔盐储能",
+         "pinyin": "RYCN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1069",
+         "name": "智慧灯杆",
+         "pinyin": "ZHDG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0614",
+         "name": "食品安全",
+         "pinyin": "SPAQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1006",
+         "name": "碳基材料",
+         "pinyin": "TJCL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1137",
+         "name": "存储芯片",
+         "pinyin": "CCXP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0610",
+         "name": "央视50_",
+         "pinyin": "YS50",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0619",
+         "name": "3D打印",
+         "pinyin": "3DDY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1058",
+         "name": "地下管网",
+         "pinyin": "DXGW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1065",
+         "name": "气溶胶检测",
+         "pinyin": "QRJJC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1076",
+         "name": "建筑节能",
+         "pinyin": "JZJN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1057",
+         "name": "电子纸概念",
+         "pinyin": "DZZGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0852",
+         "name": "冷链物流",
+         "pinyin": "LLWL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1088",
+         "name": "F5G概念",
+         "pinyin": "F5GGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0942",
+         "name": "商汤概念",
+         "pinyin": "STGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0600",
+         "name": "参股新三板",
+         "pinyin": "CGXSB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0603",
+         "name": "页岩气",
+         "pinyin": "YYQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1141",
+         "name": "混合现实",
+         "pinyin": "HHXS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1108",
+         "name": "科创板做市股",
+         "pinyin": "KCBZSG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0596",
+         "name": "融资融券",
+         "pinyin": "RZRQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0577",
+         "name": "核能核电",
+         "pinyin": "HNHD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0566",
+         "name": "滨海新区",
+         "pinyin": "BHXQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0549",
+         "name": "深圳特区",
+         "pinyin": "SZTQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0554",
+         "name": "物联网",
+         "pinyin": "WLW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0944",
+         "name": "肝素概念",
+         "pinyin": "GSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0567",
+         "name": "股权激励",
+         "pinyin": "GQJL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0523",
+         "name": "新材料",
+         "pinyin": "XCL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0936",
+         "name": "长寿药",
+         "pinyin": "CSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0984",
+         "name": "华为汽车",
+         "pinyin": "HWQC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0528",
+         "name": "转债标的",
+         "pinyin": "ZZBD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0519",
+         "name": "稀缺资源",
+         "pinyin": "XQZY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0742",
+         "name": "创业板综",
+         "pinyin": "CYBZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0822",
+         "name": "租售同权",
+         "pinyin": "ZSTQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0850",
+         "name": "进口博览",
+         "pinyin": "JKBL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1063",
+         "name": "重组蛋白",
+         "pinyin": "CZDB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0906",
+         "name": "流感",
+         "pinyin": "LG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0818",
+         "name": "可燃冰",
+         "pinyin": "KRB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0849",
+         "name": "京东金融",
+         "pinyin": "JDJR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0907",
+         "name": "转基因",
+         "pinyin": "ZJY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0965",
+         "name": "社区团购",
+         "pinyin": "SQTG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0886",
+         "name": "智慧政务",
+         "pinyin": "ZHZW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0918",
+         "name": "特高压",
+         "pinyin": "TGY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0873",
+         "name": "垃圾分类",
+         "pinyin": "LJFL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0898",
+         "name": "胎压监测",
+         "pinyin": "TYJC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1052",
+         "name": "动力电池回收",
+         "pinyin": "DLDCHS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0922",
+         "name": "数据中心",
+         "pinyin": "SJZX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0712",
+         "name": "一带一路",
+         "pinyin": "YDYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0699",
+         "name": "全息技术",
+         "pinyin": "QXJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0498",
+         "name": "AB股",
+         "pinyin": "ABG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0511",
+         "name": "ST股",
+         "pinyin": "STG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0500",
+         "name": "HS300_",
+         "pinyin": "HS300",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0499",
+         "name": "AH股",
+         "pinyin": "AHG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0706",
+         "name": "人脑工程",
+         "pinyin": "RNGC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0501",
+         "name": "次新股",
+         "pinyin": "CXG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0830",
+         "name": "区块链",
+         "pinyin": "QKL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0877",
+         "name": "PCB",
+         "pinyin": "PCB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0680",
+         "name": "智能家居",
+         "pinyin": "ZNJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0696",
+         "name": "国产软件",
+         "pinyin": "GCRJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0913",
+         "name": "消毒剂",
+         "pinyin": "XDJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0674",
+         "name": "蓝宝石",
+         "pinyin": "LBS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0668",
+         "name": "医疗器械概念",
+         "pinyin": "YLQXGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0662",
+         "name": "在线教育",
+         "pinyin": "ZXJY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0868",
+         "name": "GDR",
+         "pinyin": "GDR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0655",
+         "name": "网络安全",
+         "pinyin": "WLAQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0899",
+         "name": "CRO",
+         "pinyin": "CRO",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1112",
+         "name": "破净股",
+         "pinyin": "PJG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0926",
+         "name": "湖北自贸",
+         "pinyin": "HBZM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1026",
+         "name": "调味品概念",
+         "pinyin": "TWPGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0641",
+         "name": "智能穿戴",
+         "pinyin": "ZNCD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0634",
+         "name": "大数据",
+         "pinyin": "DSJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1106",
+         "name": "创新药",
+         "pinyin": "CXY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0953",
+         "name": "鸿蒙概念",
+         "pinyin": "HMGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0632",
+         "name": "土地流转",
+         "pinyin": "TDLZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1093",
+         "name": "汽车一体化压铸",
+         "pinyin": "QCYTHYZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1097",
+         "name": "TOPCon电池",
+         "pinyin": "TOPCONDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1023",
+         "name": "培育钻石",
+         "pinyin": "PYZS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0843",
+         "name": "天然气",
+         "pinyin": "TRQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1087",
+         "name": "超超临界发电",
+         "pinyin": "CCLJFD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1110",
+         "name": "Web3.0",
+         "pinyin": "WEB30",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0996",
+         "name": "毛发医疗",
+         "pinyin": "MFYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0817",
+         "name": "昨日触板",
+         "pinyin": "ZRCB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0816",
+         "name": "昨日连板",
+         "pinyin": "ZRLB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0838",
+         "name": "东北振兴",
+         "pinyin": "DBZX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0839",
+         "name": "知识产权",
+         "pinyin": "ZSCQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0847",
+         "name": "影视概念",
+         "pinyin": "YSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0812",
+         "name": "贬值受益",
+         "pinyin": "BZSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0853",
+         "name": "电子竞技",
+         "pinyin": "DZJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0925",
+         "name": "北交所概念",
+         "pinyin": "BJSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0896",
+         "name": "白酒",
+         "pinyin": "BJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0905",
+         "name": "传感器",
+         "pinyin": "CGQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0833",
+         "name": "小米概念",
+         "pinyin": "XMGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1115",
+         "name": "跨境电商",
+         "pinyin": "KJDS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0888",
+         "name": "农业种植",
+         "pinyin": "NYZZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1144",
+         "name": "高压快充",
+         "pinyin": "GYKC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1118",
+         "name": "数据确权",
+         "pinyin": "SJQQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0917",
+         "name": "半导体概念",
+         "pinyin": "BDTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1124",
+         "name": "毫米波概念",
+         "pinyin": "HMBGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0867",
+         "name": "富时罗素",
+         "pinyin": "FSLS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0974",
+         "name": "化妆品概念",
+         "pinyin": "HZPGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0909",
+         "name": "降解塑料",
+         "pinyin": "JJSL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0883",
+         "name": "数字货币",
+         "pinyin": "SZHB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0894",
+         "name": "阿兹海默",
+         "pinyin": "AZHM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0892",
+         "name": "乳业",
+         "pinyin": "RY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0966",
+         "name": "碳交易",
+         "pinyin": "TJY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1128",
+         "name": "CPO概念",
+         "pinyin": "CPOGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1132",
+         "name": "MLOps概念",
+         "pinyin": "MLOPSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0951",
+         "name": "刀片电池",
+         "pinyin": "DPDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1121",
+         "name": "第四代半导体",
+         "pinyin": "DSDBDT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1072",
+         "name": "中俄贸易概念",
+         "pinyin": "ZEMYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1048",
+         "name": "IGBT概念",
+         "pinyin": "IGBTGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1061",
+         "name": "数字经济",
+         "pinyin": "SZJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1077",
+         "name": "统一大市场",
+         "pinyin": "TYDSC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0969",
+         "name": "汽车芯片",
+         "pinyin": "QCXP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1075",
+         "name": "电子身份证",
+         "pinyin": "DZSFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1084",
+         "name": "数字哨兵",
+         "pinyin": "SZSB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0995",
+         "name": "华为昇腾",
+         "pinyin": "HWST",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1138",
+         "name": "液冷概念",
+         "pinyin": "YLGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0860",
+         "name": "边缘计算",
+         "pinyin": "BYJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0994",
+         "name": "空间站概念",
+         "pinyin": "KJZGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1074",
+         "name": "托育服务",
+         "pinyin": "TYFW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1079",
+         "name": "户外露营",
+         "pinyin": "HWLY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0865",
+         "name": "电子烟",
+         "pinyin": "DZY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1050",
+         "name": "昨日涨停_含一字",
+         "pinyin": "ZRZTHYZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1007",
+         "name": "植物照明",
+         "pinyin": "ZWZM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1009",
+         "name": "元宇宙概念",
+         "pinyin": "YYZGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1053",
+         "name": "低价股",
+         "pinyin": "DJG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1051",
+         "name": "昨日连板_含一字",
+         "pinyin": "ZRLBHYZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1008",
+         "name": "国资云概念",
+         "pinyin": "GZYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1066",
+         "name": "民爆概念",
+         "pinyin": "MBGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1064",
+         "name": "东数西算",
+         "pinyin": "DSXS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1146",
+         "name": "减肥药",
+         "pinyin": "JFY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1147",
+         "name": "SPD概念",
+         "pinyin": "SPDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1145",
+         "name": "机器人执行器",
+         "pinyin": "JQRZXQ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1148",
+         "name": "BC电池",
+         "pinyin": "BCDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1149",
+         "name": "星闪概念",
+         "pinyin": "XSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0884",
+         "name": "光刻机(胶)",
+         "pinyin": "GKJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1150",
+         "name": "新型工业化",
+         "pinyin": "XXGYH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1151",
+         "name": "短剧互动游戏",
+         "pinyin": "DJHDYX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1152",
+         "name": "高带宽内存",
+         "pinyin": "GDKNC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1153",
+         "name": "多模态AI",
+         "pinyin": "DMTAI",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1155",
+         "name": "小米汽车",
+         "pinyin": "XMQC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1156",
+         "name": "PEEK材料概念",
+         "pinyin": "PEEKCLGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1158",
+         "name": "微盘股",
+         "pinyin": "WPG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1159",
+         "name": "Sora概念",
+         "pinyin": "SORAGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1160",
+         "name": "柔性屏(折叠屏)",
+         "pinyin": "RXPZDP",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1161",
+         "name": "英伟达概念",
+         "pinyin": "YWDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1162",
+         "name": "AI手机",
+         "pinyin": "AISJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1163",
+         "name": "可控核聚变",
+         "pinyin": "KKHJB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1164",
+         "name": "AIPC",
+         "pinyin": "AIPC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1165",
+         "name": "娃哈哈概念",
+         "pinyin": "WHHGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1157",
+         "name": "飞行汽车(eVTOL)",
+         "pinyin": "FXQCEVTOL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1166",
+         "name": "低空经济",
+         "pinyin": "DKJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1169",
+         "name": "Kimi概念",
+         "pinyin": "KIMIGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1168",
+         "name": "铜缆高速连接",
+         "pinyin": "TLGSLJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1171",
+         "name": "碳纤维",
+         "pinyin": "TQW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1172",
+         "name": "AI语料",
+         "pinyin": "AIYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1173",
+         "name": "锂矿概念",
+         "pinyin": "LKGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1174",
+         "name": "合成生物",
+         "pinyin": "HCSW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1175",
+         "name": "玻璃基板",
+         "pinyin": "BLJB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0963",
+         "name": "商业航天",
+         "pinyin": "SYHT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0920",
+         "name": "车联网(车路云)",
+         "pinyin": "CLWCLY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1176",
+         "name": "财税数字化",
+         "pinyin": "CSSZH",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1177",
+         "name": "荣耀概念",
+         "pinyin": "RYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1178",
+         "name": "AI眼镜",
+         "pinyin": "AIYJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0590",
+         "name": "西部大开发",
+         "pinyin": "XBDKF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1179",
+         "name": "房屋检测",
+         "pinyin": "FWJC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1180",
+         "name": "华为海思",
+         "pinyin": "HWHS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0980",
+         "name": "化债(AMC)概念",
+         "pinyin": "HZAMCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1181",
+         "name": "并购重组概念",
+         "pinyin": "BGCZGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0937",
+         "name": "蚂蚁概念",
+         "pinyin": "MYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1183",
+         "name": "谷子经济",
+         "pinyin": "GZJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1184",
+         "name": "人形机器人",
+         "pinyin": "RXJQR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1185",
+         "name": "冰雪经济",
+         "pinyin": "BXJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1186",
+         "name": "首发经济",
+         "pinyin": "SFJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0923",
+         "name": "抖音概念(字节概念)",
+         "pinyin": "DYGNZJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1187",
+         "name": "小红书概念",
+         "pinyin": "XHSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0809",
+         "name": "AI智能体",
+         "pinyin": "AIZNT",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1188",
+         "name": "DeepSeek概念",
+         "pinyin": "DEEPSEEKGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1189",
+         "name": "腾讯云",
+         "pinyin": "TXY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0683",
+         "name": "央国企改革",
+         "pinyin": "YGQGG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1170",
+         "name": "AI制药（医疗）",
+         "pinyin": "AIZYYL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0710",
+         "name": "量子科技",
+         "pinyin": "LZKJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0692",
+         "name": "旅游概念",
+         "pinyin": "LYGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1190",
+         "name": "虚拟机器人",
+         "pinyin": "XNJQR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0921",
+         "name": "卫星互联网",
+         "pinyin": "WXHLW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0940",
+         "name": "网红经济",
+         "pinyin": "WHJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1192",
+         "name": "雅下水电概念",
+         "pinyin": "YXSDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1193",
+         "name": "海南自贸",
+         "pinyin": "HNZM",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1195",
+         "name": "2025中报预减",
+         "pinyin": "2025ZBYJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1194",
+         "name": "2025中报预增",
+         "pinyin": "2025ZBYZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1196",
+         "name": "2025中报扭亏",
+         "pinyin": "2025ZBNK",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1197",
+         "name": "反内卷概念",
+         "pinyin": "FNJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1628",
+         "name": "2025三季报扭亏",
+         "pinyin": "2025SJBNK",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1198",
+         "name": "2025三季报预增",
+         "pinyin": "2025SJBYZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1199",
+         "name": "2025三季报预减",
+         "pinyin": "2025SJBYJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1629",
+         "name": "AI应用",
+         "pinyin": "AIYY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1630",
+         "name": "昨日首板",
+         "pinyin": "ZRSB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1632",
+         "name": "昨日高换手",
+         "pinyin": "ZRGHS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1633",
+         "name": "昨日高振幅",
+         "pinyin": "ZRGZF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1631",
+         "name": "昨日炸板",
+         "pinyin": "ZRZB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1635",
+         "name": "长期破净",
+         "pinyin": "CQPJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1637",
+         "name": "东方财富热股",
+         "pinyin": "DFCFRG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1638",
+         "name": "最近多板",
+         "pinyin": "ZJDB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1636",
+         "name": "红利破净股",
+         "pinyin": "HLPJG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1639",
+         "name": "周期股",
+         "pinyin": "ZQG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1641",
+         "name": "红利股",
+         "pinyin": "HLG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1640",
+         "name": "价值股",
+         "pinyin": "JZG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1642",
+         "name": "微利股",
+         "pinyin": "WLG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0425",
+         "name": "工程建设",
+         "pinyin": "GCJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0447",
+         "name": "互联网服务",
+         "pinyin": "HLWFW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0485",
+         "name": "旅游酒店",
+         "pinyin": "LYJD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0429",
+         "name": "交运设备",
+         "pinyin": "JYSB",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0470",
+         "name": "造纸印刷",
+         "pinyin": "ZZYS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0480",
+         "name": "航天航空",
+         "pinyin": "HTHK",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0733",
+         "name": "包装材料",
+         "pinyin": "BZCL",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0729",
+         "name": "船舶制造",
+         "pinyin": "CBZZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0730",
+         "name": "农药兽药",
+         "pinyin": "NYSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1029",
+         "name": "汽车整车",
+         "pinyin": "QCZC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0492",
+         "name": "煤化工概念",
+         "pinyin": "MHGGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0989",
+         "name": "储能概念",
+         "pinyin": "CNGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0682",
+         "name": "燃料电池概念",
+         "pinyin": "RLDCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0690",
+         "name": "氟化工概念",
+         "pinyin": "FHGGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0841",
+         "name": "体外诊断概念",
+         "pinyin": "TWZDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0477",
+         "name": "酿酒概念",
+         "pinyin": "NJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1017",
+         "name": "资源开采概念",
+         "pinyin": "ZYKCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0588",
+         "name": "光伏概念",
+         "pinyin": "GFGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0908",
+         "name": "HJT电池",
+         "pinyin": "HJTDC",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0637",
+         "name": "互联网金融",
+         "pinyin": "HLWJR",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0574",
+         "name": "锂电池概念",
+         "pinyin": "LDCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0967",
+         "name": "水产概念",
+         "pinyin": "SCGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0976",
+         "name": "被动元件概念",
+         "pinyin": "BDYJGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0889",
+         "name": "医美概念",
+         "pinyin": "YMGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0580",
+         "name": "LED概念",
+         "pinyin": "LEDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0805",
+         "name": "钛白粉概念",
+         "pinyin": "TBFGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0667",
+         "name": "安防概念",
+         "pinyin": "AFGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0961",
+         "name": "有机硅概念",
+         "pinyin": "YJGGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1644",
+         "name": "微盘精选",
+         "pinyin": "WPJX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1643",
+         "name": "小盘股",
+         "pinyin": "XPG",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1645",
+         "name": "昨日打二板以上表现",
+         "pinyin": "ZRDEBYSBX",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1655",
+         "name": "零售概念",
+         "pinyin": "LSGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1656",
+         "name": "特色药",
+         "pinyin": "TSY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1653",
+         "name": "味蕾经济",
+         "pinyin": "WLJJ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1658",
+         "name": "创新医疗服务",
+         "pinyin": "CXYLFW",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1651",
+         "name": "显示技术",
+         "pinyin": "XSJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1650",
+         "name": "通信技术",
+         "pinyin": "TXJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1647",
+         "name": "电网概念",
+         "pinyin": "DWGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1657",
+         "name": "病原体防治",
+         "pinyin": "BYTFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1652",
+         "name": "新消费",
+         "pinyin": "XXF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1659",
+         "name": "精准诊断",
+         "pinyin": "JZZD",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1649",
+         "name": "油气资源",
+         "pinyin": "YQZY",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1646",
+         "name": "消费电子概念",
+         "pinyin": "XFDZGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1654",
+         "name": "文娱消费",
+         "pinyin": "WYXF",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1648",
+         "name": "电池技术",
+         "pinyin": "DCJS",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1182",
+         "name": "智谱AI概念",
+         "pinyin": "ZPAIGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0644",
+         "name": "特斯拉概念",
+         "pinyin": "TSLGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0842",
+         "name": "富士康概念",
+         "pinyin": "FSKGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK0904",
+         "name": "广电概念",
+         "pinyin": "GDGN",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1101",
+         "name": "先进封装",
+         "pinyin": "XJFZ",
+         "type": 3,
+         "flag": 0
+      },
+      {
+         "market": 90,
+         "code": "BK1660",
+         "name": "光纤概念",
+         "pinyin": "GQGN",
+         "type": 3,
+         "flag": 0
+      }
+   ]
+}

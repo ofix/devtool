@@ -30,12 +30,12 @@ export class KlineStorage {
         this.stats = new Map(); // shareCode => Stats
     }
 
-    async init () {
+    async init() {
         await fs.mkdir(this.basePath, { recursive: true });
         this.startFlushTimer();
     }
 
-    getFilePaths (shareCode) {
+    getFilePaths(shareCode) {
         return {
             dataPath: path.join(this.basePath, `${shareCode}.dat`),
             walPath: path.join(this.basePath, `${shareCode}.wal`)
@@ -45,7 +45,7 @@ export class KlineStorage {
     /**
      * 打开或获取文件句柄
      */
-    async open (shareCode) {
+    async open(shareCode) {
         if (this.handles.has(shareCode)) {
             return this.handles.get(shareCode);
         }
@@ -93,7 +93,7 @@ export class KlineStorage {
     /**
      * 初始化头部
      */
-    async initHeader (handle) {
+    async initHeader(handle) {
         const { dataFd, header } = handle;
 
         try {
@@ -115,7 +115,7 @@ export class KlineStorage {
     /**
      * 创建新头部
      */
-    async createNewHeader (handle) {
+    async createNewHeader(handle) {
         const { dataFd, header } = handle;
         const newHeader = new KlineFileHeader();
         const buf = newHeader.serialize();
@@ -129,7 +129,7 @@ export class KlineStorage {
     /**
      * 校验文件完整性
      */
-    async verifyFileIntegrity (handle) {
+    async verifyFileIntegrity(handle) {
         const { dataFd, header, shareCode } = handle;
         const stat = await dataFd.stat();
         const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
@@ -143,7 +143,7 @@ export class KlineStorage {
     /**
      * 修复文件
      */
-    async repairFile (handle) {
+    async repairFile(handle) {
         const { dataFd, header } = handle;
         const stat = await dataFd.stat();
 
@@ -164,7 +164,7 @@ export class KlineStorage {
     /**
      * 写入单条记录
      */
-    async append (shareCode, record) {
+    async append(shareCode, record) {
         if (!record.validate()) {
             throw new Error(`Invalid record for ${shareCode}: ${record.timestamp}`);
         }
@@ -198,7 +198,7 @@ export class KlineStorage {
     /**
      * 批量写入
      */
-    async batchAppend (shareCode, records) {
+    async batchAppend(shareCode, records) {
         if (!records.length) return;
         for (const r of records) {
             if (!r.validate()) {
@@ -247,7 +247,7 @@ export class KlineStorage {
     /**
      * 刷新缓冲区到磁盘（带锁防止并发）
      */
-    async flush (shareCode) {
+    async flush(shareCode) {
         const buffer = this.writeBuffer.get(shareCode);
 
         // 没有数据或正在刷新，直接返回
@@ -325,7 +325,7 @@ export class KlineStorage {
     }
 
     // 转秒级时间戳
-    toSecTimestamp (time) {
+    toSecTimestamp(time) {
         // 已经是数字时间戳 → 直接返回
         if (typeof time === 'number') {
             return time;
@@ -348,7 +348,7 @@ export class KlineStorage {
      * @param {number|string} [endTime] - 结束时间（不传=最晚）
      * @returns {Promise<KlineRecord[]>}
      */
-    async query (shareCode, startTime, endTime) {
+    async query(shareCode, startTime, endTime) {
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
         if (header.count === 0) return [];
@@ -387,6 +387,15 @@ export class KlineStorage {
 
         if (startIdx === -1) return [];
 
+        // 昨日收盘价
+        let preClose = 0;
+        if (startIdx == 0) {
+            preClose = header.issuePrice;// 如果是第一天，获取收盘价
+        } else {
+            let record = this.readRecordAt(startIdx - 1); // 获取前一天的收盘价
+            preClose = record.close;
+        }
+
         // 按块大小批量读取
         const results = [];
         let currentPos = startIdx;
@@ -407,6 +416,8 @@ export class KlineStorage {
             let hasExceeded = false;
             for (let i = 0; i < actualCount; i++) {
                 const record = KlineRecord.unpack(buffer.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
+                record.setPreClose(preClose); // 必须设置收盘价，否则无法计算涨跌额和涨跌幅
+                preClose = record.close;
                 if (record.timestamp > endTimestamp) {
                     hasExceeded = true;
                     break;
@@ -424,7 +435,7 @@ export class KlineStorage {
     /**
      * 带缓存读取指定位置的记录（二分专用！）
      */
-    async readCachedRecordAt (shareCode, handle, index) {
+    async readCachedRecordAt(shareCode, handle, index) {
         const cacheKey = `${shareCode}:${index}`;
         // 命中缓存：直接内存返回（零IO）
         if (this.recordCache.has(cacheKey)) {
@@ -446,7 +457,7 @@ export class KlineStorage {
     /**
      * 读取指定位置的记录,无缓存版本
      */
-    async readRecordAt (handle, index) {
+    async readRecordAt(handle, index) {
         const { dataFd } = handle;
         const offset = HEADER_SIZE + index * RECORD_SIZE;
         const buf = Buffer.alloc(RECORD_SIZE);
@@ -455,20 +466,20 @@ export class KlineStorage {
         return record;
     }
 
-    async getFirst (shareCode) {
+    async getFirst(shareCode) {
         const handle = await this.open(shareCode);
         if (handle.header.count === 0) return null;
         return this.readRecordAt(handle, 0);
     }
 
-    async getLast (shareCode) {
+    async getLast(shareCode) {
         const handle = await this.open(shareCode);
         const count = handle.header.count;
         if (count === 0) return null;
         return this.readRecordAt(handle, count - 1);
     }
 
-    async getCount (shareCode) {
+    async getCount(shareCode) {
         const handle = await this.open(shareCode);
         return handle.header.count;
     }
@@ -477,7 +488,7 @@ export class KlineStorage {
      * 恢复文件（修复不完整的记录）
      * @param {*} handle 
      */
-    async recovery (handle) {
+    async recovery(handle) {
         const { dataFd, header } = handle;
         const stat = await dataFd.stat();
 
@@ -498,7 +509,7 @@ export class KlineStorage {
     /**
      * 获取统计信息
      */
-    async getStats (shareCode) {
+    async getStats(shareCode) {
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
 
@@ -525,7 +536,7 @@ export class KlineStorage {
     /**
      * 获取缓存命中率
      */
-    getCacheHitRate (shareCode) {
+    getCacheHitRate(shareCode) {
         const stats = this.stats.get(shareCode);
         if (!stats) return 0;
 
@@ -536,7 +547,7 @@ export class KlineStorage {
     /**
      * 启动定时刷新
      */
-    startFlushTimer () {
+    startFlushTimer() {
         if (this.flushTimer) return;
 
         this.flushTimer = setInterval(() => {
@@ -565,7 +576,7 @@ export class KlineStorage {
     /**
      * 强制刷新所有缓冲区
      */
-    async flushAll () {
+    async flushAll() {
         const promises = [];
         for (const [shareCode] of this.writeBuffer.entries()) {
             promises.push(this.flush(shareCode));
@@ -576,7 +587,7 @@ export class KlineStorage {
     /**
      * 关闭指定 shareCode
      */
-    async closeShare (shareCode) {
+    async closeShare(shareCode) {
         await this.flush(shareCode);
 
         const handle = this.handles.get(shareCode);
@@ -593,7 +604,7 @@ export class KlineStorage {
     /**
      * 关闭所有连接
      */
-    async close () {
+    async close() {
         this.isClosing = true;
 
         if (this.flushTimer) {

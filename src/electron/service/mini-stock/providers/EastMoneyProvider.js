@@ -1,7 +1,13 @@
 import axios from 'axios';
-import Utils from "../../../core/Utils.js";
 import fs from 'fs';
+import path from "path";
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'url';
+import Utils from "../../../core/Utils.js";
 import DataProvider from "./DataProvider.js"
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class EastMoneyProvider extends DataProvider {
     constructor() {
@@ -11,6 +17,7 @@ class EastMoneyProvider extends DataProvider {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Referer': 'https://quote.eastmoney.com/'
         };
+        this.bkFilePath = path.join(__dirname, '../../../data/easymoney_bklist.json');
     }
 
     async sleepRandom() {
@@ -573,6 +580,126 @@ class EastMoneyProvider extends DataProvider {
                 totalAmount: minuteDataList.reduce((sum, d) => sum + d.amount, 0)
             }
         };
+    }
+    
+    randomSleep (){
+        const ms = Math.floor(Math.random() * 4000) + 2000;
+        return new Promise(resolve => setTimeout(resolve, ms));
+    };
+
+    /**
+     * 爬取板块数据（完整分页拉取）
+     * @param {Object} payload { type, code, name }
+     * @returns {Object} { code, name, shares: [{code,name}] }
+     */
+    async getBk(payload) {
+        const result = {
+            code: payload.code,
+            name: payload.name,
+            shares: []
+        };
+
+        const pageSize = 100;
+        let pageIndex = 1; // 东方财富页码从 1 开始
+
+        while (true) {
+            try {
+                const pageData = await this._getBkInPage(payload, pageIndex, pageSize);
+
+                // 添加当前页股票
+                if (pageData.shares.length > 0) {
+                    result.shares.push(...pageData.shares);
+                }
+
+                // 最后一页，退出循环
+                if (pageData.end) {
+                    break;
+                }
+
+                pageIndex++;
+
+                // 安全保护：最多拉 200 页，避免死循环
+                if (pageIndex > 200) {
+                    console.warn(`板块 ${payload.code} 超过最大页数限制，自动停止`);
+                    break;
+                }
+                await this.randomSleep(); // 防封间隔
+            } catch (err) {
+                console.error(`获取板块 ${payload.code} 第 ${pageIndex} 页失败:`, err.message);
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 获取单页成分股
+     */
+    async _getBkInPage(payload, pageIndex, pageSize) {
+        try {
+            const response = await axios.get('https://push2.eastmoney.com/api/qt/clist/get', {
+                params: {
+                    np: 1,
+                    fltt: 1,
+                    invt: 2,
+                    fs: `b:${payload.code}+f:!50`,
+                    fields: 'f12,f14', // 股票代码 + 股票名称
+                    fid: 'f12',
+                    pn: pageIndex,
+                    pz: pageSize,
+                    po: 1,
+                    dect: 1,
+                    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
+                    wbp2u: '|0|0|0|web',
+                    _: Date.now()
+                },
+                timeout: 10000, // 超时
+                headers: this.#getHeaders(),
+            });
+
+            const respData = response.data;
+            const diff = respData?.data?.diff || [];
+
+            // 解析股票列表
+            const shares = diff.map(item => ({
+                code: item.f12?.trim() || '',
+                name: item.f14?.trim() || ''
+            })).filter(item => item.code);
+            console.log(response);
+            console.log(shares);
+
+            // 判断是否最后一页：返回数量 < pageSize
+            const end = diff.length < pageSize;
+
+            return {
+                end,
+                shares
+            };
+
+        } catch (err) {
+            console.error('_getBkInPage 接口错误:', err.message);
+            return { end: true, shares: [] };
+        }
+    }
+
+    async getBkList() {
+        const response = await axios.get('https://quote.eastmoney.com/center/api/sidemenu_new.json');
+        let bkMap = { regions: [], industries: [], concepts: [] }; // 概念
+        let bklist = response.data.bklist; // 行业/概念/地域板块列表
+        for (let bk of bklist) {
+            let type = parseInt(bk.type);
+            if (type == 1) {
+                bkMap.regions.push(bk); // 地域板块
+            } else if (type == 2) {
+                bkMap.industries.push(bk); // 行业板块
+            } else if (type == 3) {
+                bkMap.concepts.push(bk); // 概念板块
+            }
+        }
+        let data = JSON.stringify(bkMap, '', 3);
+        fs.writeFileSync(this.bkFilePath, data, 'utf8');
+        return bkMap;
     }
 }
 

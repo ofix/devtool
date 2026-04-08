@@ -1,10 +1,10 @@
 // 文件结构常量
-export const RECORD_SIZE = 88;           // K线记录大小（字节）
-export const HEADER_SIZE = 256;          // 文件头大小（字节）
+export const RECORD_SIZE = 64;           // K线记录大小（字节）
+export const HEADER_SIZE = 128;          // 文件头大小（字节）
 
 // 魔法数字
 export const MAGIC_NUMBER = 0x4B4C494E;  // 'KLIN'
-export const VERSION = 0x00010001;       // v1.1
+export const VERSION = 0x00010000;       // v1.1
 
 // 性能配置
 export const BATCH_SIZE = 100;           // 批量写入大小
