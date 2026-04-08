@@ -183,6 +183,7 @@ async function testEastMoneyBkList() {
             await randomSleep(); // 防封间隔
         } catch (e) {
             console.error(e.message);
+            await randomSleep(); // 防封间隔            
         }
     }
 }

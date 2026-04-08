@@ -63,7 +63,7 @@ export default class StockManager {
         this.bkMenuFilePath = path.join(__dirname, '../../data/eastmoney_bkmenu.json');
         this.bkConceptFilePath = path.join(__dirname, '../../data/eastmoney_bk_concept.json');
         this.bkRegionFilePath = path.join(__dirname, '../../data/eastmoney_bk_region.json');
-        this.bkIndustryFilePath - path.join(__dirname, '../../data/eastmoney_bk_industry.json');
+        this.bkIndustryFilePath = path.join(__dirname, '../../data/eastmoney_bk_industry.json');
 
         // 代码=>股票映射
         this.codeShareMap = new Map();

@@ -581,8 +581,8 @@ class EastMoneyProvider extends DataProvider {
             }
         };
     }
-    
-    randomSleep (){
+
+    randomSleep() {
         const ms = Math.floor(Math.random() * 4000) + 2000;
         return new Promise(resolve => setTimeout(resolve, ms));
     };
@@ -625,8 +625,8 @@ class EastMoneyProvider extends DataProvider {
                 }
                 await this.randomSleep(); // 防封间隔
             } catch (err) {
+                await this.randomSleep(); // 防封间隔
                 console.error(`获取板块 ${payload.code} 第 ${pageIndex} 页失败:`, err.message);
-                break;
             }
         }
 
