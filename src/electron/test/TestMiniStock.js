@@ -172,15 +172,21 @@ async function testEastMoneyBkList() {
     for (let concept of concepts) {
         try {
             let result = await manager.getBk(concept);
-            let response = JSON.stringify(result.data);
             if (result.cache) {
-                console.log(`[缓存][${progress}/${concepts.length}][${response.shares.length}]:${response}`);
+                console.log(`[缓存][${progress}/${concepts.length}][${result.shares.length}]`);
+                console.log(result.shares);
             } else {
-                console.log(`[${progress}/${concepts.length}][${response.shares.length}]:${response}`);
+                console.log(`[${progress}/${concepts.length}][${result.shares.length}]`);
+                console.log(result.shares);
             }
-            await manager.saveBkList('concept');
+            if (result.error) {
+                break;
+            }
+            if (!result.cache) {
+                await manager.saveBkList('concept');
+                await randomSleep(); // 防封间隔
+            }
             progress += 1;
-            await randomSleep(); // 防封间隔
         } catch (e) {
             console.error(e.message);
             await randomSleep(); // 防封间隔            

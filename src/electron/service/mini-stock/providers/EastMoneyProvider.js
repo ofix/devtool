@@ -20,12 +20,6 @@ class EastMoneyProvider extends DataProvider {
         this.bkFilePath = path.join(__dirname, '../../../data/easymoney_bklist.json');
     }
 
-    async sleepRandom() {
-        const ms = Math.floor(Math.random() * 7000) + 3000;
-        console.log("睡眠 ", ms, "毫秒");
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     /**
      * 获取 东方财富 涨幅榜/跌幅榜 前N只股票
      * @param {number} n - 获取股票数量
@@ -42,25 +36,28 @@ class EastMoneyProvider extends DataProvider {
 
         return {
             'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Cache-Control': 'no-cache',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
+            // 'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
             // 关键：Cookie 不要写死！写死必封！我给你保留基础段 + 动态化
-            'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
+            // 'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
+            'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=74355445509833; st_asi=delete; fullscreengg=1; fullscreengg2=1; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fbk%2F90.BK1169.html; st_sn=15; st_psi=20260409093430932-111000300841-2395518435',
             'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
             'Host': 'push2.eastmoney.com',
-            'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
+            // 'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
+            'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
             'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
+            'sec-ch-ua-platform': '"Linux"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-            'X-Requested-With': 'XMLHttpRequest',
-            'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
-            '_': timestamp,
-            'ut': 'fa5fd1943c7b386f172d6893dbfba10b',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36',
+            // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+            // 'X-Requested-With': 'XMLHttpRequest',
+            // 'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
+            // '_': timestamp,
+            // 'ut': 'fa5fd1943c7b386f172d6893dbfba10b',
         };
     }
 
@@ -218,7 +215,7 @@ class EastMoneyProvider extends DataProvider {
                     } else {
                         currentPage++;
                     }
-                    await this.sleepRandom();
+                    await this.randomSleep();
                     console.log(`已获取 ${allStocks.length} 只股票...`);
                 } else {
                     hasMore = false;
@@ -582,8 +579,10 @@ class EastMoneyProvider extends DataProvider {
         };
     }
 
-    randomSleep() {
-        const ms = Math.floor(Math.random() * 4000) + 2000;
+    randomSleep(base) {
+        let baseMs = base || 8000;
+        const ms = Math.floor(Math.random() * 4000) + baseMs;
+        console.log("睡眠 ", ms / 1000, '秒');
         return new Promise(resolve => setTimeout(resolve, ms));
     };
 
@@ -591,15 +590,18 @@ class EastMoneyProvider extends DataProvider {
      * 爬取板块数据（完整分页拉取）
      * @param {Object} payload { type, code, name }
      * @returns {Object} { code, name, shares: [{code,name}] }
+     * @example 参考页面
+     * https://quote.eastmoney.com/center/gridlist.html#boards2-90.BK0590
      */
     async getBk(payload) {
         const result = {
             code: payload.code,
             name: payload.name,
+            error: false,
             shares: []
         };
 
-        const pageSize = 100;
+        const pageSize = 20;
         let pageIndex = 1; // 东方财富页码从 1 开始
 
         while (true) {
@@ -612,7 +614,8 @@ class EastMoneyProvider extends DataProvider {
                 }
 
                 // 最后一页，退出循环
-                if (pageData.end) {
+                if (pageData.end || pageData.error) {
+                    result.error = pageData.error;
                     break;
                 }
 
@@ -625,8 +628,8 @@ class EastMoneyProvider extends DataProvider {
                 }
                 await this.randomSleep(); // 防封间隔
             } catch (err) {
-                await this.randomSleep(); // 防封间隔
                 console.error(`获取板块 ${payload.code} 第 ${pageIndex} 页失败:`, err.message);
+                await this.randomSleep(); // 防封间隔
             }
         }
 
@@ -643,8 +646,9 @@ class EastMoneyProvider extends DataProvider {
                     np: 1,
                     fltt: 1,
                     invt: 2,
+                    cb: 'jQuery37107246009655814323_1775698454004', // 这个可以保留
                     fs: `b:${payload.code}+f:!50`,
-                    fields: 'f12,f14', // 股票代码 + 股票名称
+                    fields: 'f12,f14',
                     fid: 'f12',
                     pn: pageIndex,
                     pz: pageSize,
@@ -654,11 +658,20 @@ class EastMoneyProvider extends DataProvider {
                     wbp2u: '|0|0|0|web',
                     _: Date.now()
                 },
-                timeout: 10000, // 超时
+                timeout: 15000,
                 headers: this.#getHeaders(),
             });
 
-            const respData = response.data;
+            // ======================
+            // 关键修复：剥离 JSONP 回调
+            // ======================
+            const text = response.data;
+            // 去掉前面的 jQueryxxx(  和后面的 );
+            const jsonStr = text.replace(/^[\w_]+\(/, '').replace(/\);$/, '');
+            const respData = JSON.parse(jsonStr); // 转成真正的对象
+
+            console.log("板块 ", payload.name, payload.code);
+
             const diff = respData?.data?.diff || [];
 
             // 解析股票列表
@@ -666,20 +679,19 @@ class EastMoneyProvider extends DataProvider {
                 code: item.f12?.trim() || '',
                 name: item.f14?.trim() || ''
             })).filter(item => item.code);
-            console.log(response);
-            console.log(shares);
 
-            // 判断是否最后一页：返回数量 < pageSize
+            // 判断是否最后一页
             const end = diff.length < pageSize;
 
             return {
                 end,
+                error: false,
                 shares
             };
 
         } catch (err) {
             console.error('_getBkInPage 接口错误:', err.message);
-            return { end: true, shares: [] };
+            return { end: true, error: true, shares: [] };
         }
     }
 

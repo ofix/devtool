@@ -2,6 +2,8 @@ import path from "path";
 import { join, dirname } from 'node:path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { constants as fsConstants } from 'fs';
+import axios from 'axios';
 import csv from 'csv-parser';
 import LRUCache from '../../core/LRUCache.js';
 import Trie from "../../core/Trie.js";
@@ -13,7 +15,6 @@ import SinaProvider from "./providers/SinaProvider.js";
 import TushareProvider from './providers/TushareProvider.js';
 import { KlineStorage } from './storage/KlineStorage.js';
 import { KlineRecord } from './storage/KlineRecord.js';
-import { types } from "node:util";
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -120,6 +121,15 @@ export default class StockManager {
     }
 
     async init() {
+        // 添加请求拦截器
+        axios.interceptors.request.use(request => {
+            const url = new URL(request.url, request.baseURL);
+            Object.keys(request.params || {}).forEach(key => {
+                url.searchParams.append(key, request.params[key]);
+            });
+            console.log('[请求]:', url.toString());
+            return request;
+        });
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
         this.diskKlineDir = path.join(__dirname, '../../../data/day');
@@ -141,7 +151,7 @@ export default class StockManager {
         // this.timers.push(minuteCleanupTimer);
     }
 
-    getBkMenu(){
+    getBkMenu() {
         return this.bkMenu;
     }
 
@@ -150,9 +160,9 @@ export default class StockManager {
      */
     async isFileExists(filePath) {
         try {
-            await fs.access(filePath, fsConstants.F_OK);
+            await fs.promises.access(filePath, fsConstants.F_OK);
             return true;
-        } catch {
+        } catch (e) {
             return false;
         }
     }
@@ -167,7 +177,7 @@ export default class StockManager {
             //  判断文件是否存在
             const exists = await this.isFileExists(filePath);
             if (!exists) {
-                console.warn(`文件不存在：${path.basename(filePath)}`);
+                console.warn(`文件不存在：${filePath}`);
                 return new Map();
             }
             const content = fs.readFileSync(filePath, 'utf8');
@@ -250,7 +260,7 @@ export default class StockManager {
             });
 
             const jsonStr = JSON.stringify(bkList, null, 2);
-            await fs.writeFile(filePath, jsonStr, 'utf8');
+            await fs.promises.writeFile(filePath, jsonStr, 'utf8');
             console.log(`保存成功：${path.basename(filePath)} (${bkList.length} 个板块)`);
             return true;
         } catch (err) {
@@ -488,12 +498,12 @@ export default class StockManager {
 
         // 缓存命中
         if (targetMap.has(code)) {
+            let data = targetMap.get(code);
             return {
+                ...data,
                 cache: true,
-                data: targetMap.get(code),
             };
         }
-
         // 缓存未命中 → 拉取远程
         const provider = this._getProvider('a');
         const data = await provider.getBk(params);
@@ -502,8 +512,8 @@ export default class StockManager {
         targetMap.set(data.code, data);
 
         return {
+            ...data,
             cache: false,
-            data,
         };
     }
 
