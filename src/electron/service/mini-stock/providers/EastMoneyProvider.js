@@ -35,27 +35,32 @@ class EastMoneyProvider extends DataProvider {
         const random = Math.floor(Math.random() * 1000000000000);
 
         return {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Encoding': 'gzip, deflate, br',
+            // 'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept': '*/*',
+            // 'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             // 'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
             'Accept-Language': 'zh-CN,zh;q=0.9',
             // 'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
             // 关键：Cookie 不要写死！写死必封！我给你保留基础段 + 动态化
             // 'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
-            'Cookie': 'qgqp_b_id=5f053c5d572b53952f1e12f7cb7cb429; st_si=43483327739694; st_asi=delete; st_nvi=6bMILVkNh0lkOLpJN1DEu8add; nid18=0408302865ac0131bca852242db06837; nid18_create_time=1775713036255; gviem=vQ6rKjHxBsJ0r_lVfeygi43d8; gviem_create_time=1775713036256; st_pvi=58524495943449; st_sp=2026-04-09%2013%3A37%3A14; st_inirUrl=; st_sn=2; st_psi=20260409133840394-113200301321-7207262247',
+            // 'Cookie': 'qgqp_b_id=5f053c5d572b53952f1e12f7cb7cb429; st_si=43483327739694; st_asi=delete; st_nvi=6bMILVkNh0lkOLpJN1DEu8add; nid18=0408302865ac0131bca852242db06837; nid18_create_time=1775713036255; gviem=vQ6rKjHxBsJ0r_lVfeygi43d8; gviem_create_time=1775713036256; st_pvi=58524495943449; st_sp=2026-04-09%2013%3A37%3A14; st_inirUrl=; st_sn=2; st_psi=20260409133840394-113200301321-7207262247',
+            'Cookie': 'qgqp_b_id=886ba22199663e93eb0113379a4305a8; st_nvi=ulCdncsaewxKeNZhq6bBR70e0; st_si=74919616369452; st_pvi=10901482434489; st_sp=2025-11-23%2009%3A52%3A22; st_inirUrl=https%3A%2F%2Fwww.baidu.com%2Flink; st_sn=1; st_psi=20260409222636241-113200301321-1178857012; st_asi=delete; nid18=0c5cd9c46a95566518e33e5332d1c75c; nid18_create_time=1775744796824; gviem=3ShOiHInJDywdwremiWwU4306; gviem_create_time=1775744796824',
             'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
             'Host': 'push2.eastmoney.com',
             // 'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
             'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Linux"',
+            // 'sec-ch-ua-platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
             // 'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36',
             // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.200 Safari/537.36 Qaxbrowser',
+            // 'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.200 Safari/537.36 Qaxbrowser',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
             // 'X-Requested-With': 'XMLHttpRequest',
             // 'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
             // '_': timestamp,
@@ -603,8 +608,9 @@ class EastMoneyProvider extends DataProvider {
             shares: []
         };
 
-        const pageSize = 20;
+        const pageSize = 100; // 每页拉 100 条，东方财富接口默认最大就是100
         let pageIndex = 1; // 东方财富页码从 1 开始
+        let retries = 0;
 
         while (true) {
             try {
@@ -616,9 +622,18 @@ class EastMoneyProvider extends DataProvider {
                 }
 
                 // 最后一页，退出循环
-                if (pageData.end || pageData.error) {
-                    result.error = pageData.error;
+                if (pageData.end) {
                     break;
+                }
+                if (pageData.error) {
+                    if (retries >= 3) {
+                        result.error = true;
+                        break;
+                    }
+                    console.warn(`获取板块 ${payload.code} 第 ${pageIndex} 页数据异常，正在重试... (${retries + 1}/3)`);
+                    retries += 1;
+                    await this.randomSleep(20000); // 错误重试间隔
+                    continue;
                 }
 
                 pageIndex++;
@@ -693,7 +708,7 @@ class EastMoneyProvider extends DataProvider {
 
         } catch (err) {
             console.error('_getBkInPage 接口错误:', err.message);
-            return { end: true, error: true, shares: [] };
+            return { end: false, error: true, shares: [] };
         }
     }
 
