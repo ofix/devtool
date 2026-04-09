@@ -608,9 +608,10 @@ class EastMoneyProvider extends DataProvider {
             shares: []
         };
 
-        const pageSize = 100; // 每页拉 100 条，东方财富接口默认最大就是100
+        const pageSize = 20; // 每页拉 50 条，东方财富接口默认最大就是100
         let pageIndex = 1; // 东方财富页码从 1 开始
         let retries = 0;
+        let errorPageIndex = -1;
 
         while (true) {
             try {
@@ -632,8 +633,14 @@ class EastMoneyProvider extends DataProvider {
                     }
                     console.warn(`获取板块 ${payload.code} 第 ${pageIndex} 页数据异常，正在重试... (${retries + 1}/3)`);
                     retries += 1;
-                    await this.randomSleep(20000); // 错误重试间隔
+                    errorPageIndex = pageIndex; // 记录出错的页码
+                    await this.randomSleep(1000 * 60 * 3); // 错误重试间隔为3分钟
                     continue;
+                }
+
+                if (errorPageIndex == pageIndex) { // 重试成功，重置错误页码和重试计数
+                    errorPageIndex = -1;
+                    retries = 0; // 重置重试计数
                 }
 
                 pageIndex++;
