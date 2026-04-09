@@ -32,7 +32,8 @@ class WndManager extends Singleton {
             'SFTPWnd': this.getDebugToolWndConfig(),
             'PostWomanWnd': this.getPostWomanWndConfig(),
             'DebugWnd': this.getDebugWndConfig(),
-            'FileCompareWnd': this.getFileCompareWndConfig()
+            'FileCompareWnd': this.getFileCompareWndConfig(),
+            'AntSyncWnd':this.getAntSyncWndConfig(), // 股票行情数据维护窗口
         };
 
         this.activeWnd = "";
@@ -115,6 +116,24 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/hex-editor',
+                levelName: 'normal',
+                levelZOrder: 0,
+            }
+        };
+    }
+
+    getAntSyncWndConfig(){
+        const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
+        const width = 960;
+        const height = 560;
+        return {
+            browserWindow: {
+                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height, transparent: false,
+                alwaysOnTop: false, show: true, frame: false,
+                resizable: true,
+            },
+            custom: {
+                url: '/ant-sync',
                 levelName: 'normal',
                 levelZOrder: 0,
             }

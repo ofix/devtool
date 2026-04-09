@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import StockManager from '../service/mini-stock/providers/StockManager.js';
+import StockManager from '../service/mini-stock/StockManager.js';
 
 class StockHandler {
     constructor() {

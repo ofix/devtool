@@ -276,6 +276,15 @@ const MenuRoutes = [
             desc: '',
             chunkGroup: 'misc'
         }
+    }, {
+        path: '/ant-sync',
+        name: 'AntSync',
+        component: () => import(/* webpackChunkName: "chunk-Misc/AntSync" */ '@/views/MiniStock/AntSyncWindow.vue'),
+        meta: {
+            title: '股票数据维护',
+            desc: '',
+            chunkGroup: 'misc'
+        }
     }
 ];
 

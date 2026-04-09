@@ -70,8 +70,10 @@ export default class StockManager {
         this.codeShareMap = new Map();
 
         // 搜索索引
-        this.trie = new Trie();
+        this.trie = new Trie(); // 股票前缀树
+        this.bkTrieMap = { region: new Trie(), concept: new Trie(), industry: new Trie() }; // 板块前缀树
         this.loaded = false;
+        this.inited = false;
 
         // 存储实例
         this.storage = null;
@@ -143,7 +145,7 @@ export default class StockManager {
         await this._loadIPOInfo();
         await this._loadBkMenu();
         await this._loadBkList();
-
+        this.inited = true;
         // 分时缓存自动清理
         // const minuteCleanupTimer = setInterval(() => {
         //     this._cleanMinuteCache();
@@ -234,6 +236,30 @@ export default class StockManager {
             }
             const content = fs.readFileSync(this.bkMenuFilePath, 'utf8');
             this.bkMenu = JSON.parse(content);
+            // 校验解析后的数据格式，避免缺少核心字段
+            const { regions = [], concepts = [], industries = [] } = this.bkMenu;
+
+
+            // 提取重复逻辑，减少冗余（统一处理不同类型板块的trie插入）
+            const insertBkToTrie = (bkList, trie) => {
+                if (!Array.isArray(bkList) || !trie?.insert) return; // 容错：避免非数组/无insert方法报错
+                bkList.forEach(bk => {
+                    // 校验bk对象完整性，避免解构报错
+                    if (!bk || !bk.code || !bk.name) return;
+                    trie.insert(bk.code, bk);
+                    trie.insert(bk.name, bk);
+                    // 拼音容错：存在且非空才插入
+                    if (bk.pinyin && typeof bk.pinyin === 'string') {
+                        trie.insert(bk.pinyin.toLowerCase(), bk);
+                    }
+                });
+            };
+
+            // 批量插入不同类型板块，代码更简洁
+            insertBkToTrie(regions, this.bkTrieMap.region);
+            insertBkToTrie(concepts, this.bkTrieMap.concept);
+            insertBkToTrie(industries, this.bkTrieMap.industry);
+
         } catch (err) {
             console.error('加载板块菜单失败:', this.bkMenuFilePath, err.message);
         }
@@ -302,6 +328,85 @@ export default class StockManager {
 
         if (!keyword) return [];
         return this.trie.search(keyword.toLowerCase());
+    }
+
+    async getBkList(type) {
+        if (this.bkMenu.hasOwnProperty(type)) {
+            return this.bkMenu[type];
+        }
+        return [];
+    }
+
+    // 搜索板块列表
+    async searchBkList(keyword, type) {
+        // 定义类型映射（核心：消除大量 if-else）
+        const typeMap = {
+            concept: ['concepts', this.bkTrieMap.concept],
+            industry: ['industries', this.bkTrieMap.industry],
+            region: ['region', this.bkTrieMap.region]
+        };
+
+        //  校验类型是否合法
+        const [menuKey, trie] = typeMap[type] || [];
+        if (!menuKey || !trie) return [];
+
+        // 无关键词 → 返回全量列表
+        if (!keyword) {
+            return this.bkMenu[menuKey] || [];
+        }
+
+        // 有关键词 → 搜索
+        return trie.search(keyword.toLowerCase());
+    }
+
+    async syncBkList(type) {
+        let result = await this.providers.eastmoney.getBkList();
+        if (type == 'concept') {
+            return result.concepts;
+        } else if (type == 'industry') {
+            return result.industries;
+        } else if (type == 'region') {
+            return result.regions;
+        }
+        return [];
+    }
+
+    getBkShares(code, type) {
+        if (type == 'concept') {
+            return this.bkConcepts.get(code) || [];
+        } else if (type == 'industry') {
+            return this.bkIndustries.get(code) || [];
+        } else if (type == 'region') {
+            return this.bkRegions.get(code) || [];
+        }
+        return [];
+    }
+
+    async syncBkShares(bkList,type='concept'){
+        let progress = 0;
+        for (let bk of bkList) {
+            try {
+                let result = await this.getBk(bk);
+                if (result.cache) {
+                    console.log(`[缓存][${progress}/${concepts.length}][${result.shares.length}]`);
+                    console.log(result.shares);
+                } else {
+                    console.log(`[${progress}/${concepts.length}][${result.shares.length}]`);
+                    console.log(result.shares);
+                }
+                if (result.error) {
+                    break;
+                }
+                if (!result.cache) {
+                    // await manager.saveBkList(type);
+                    await randomSleep(); // 防封间隔
+                }
+                progress += 1;
+            } catch (e) {
+                console.error(e.message);
+                await randomSleep(); // 防封间隔            
+            }
+        }
     }
 
     // 加载本地股票列表

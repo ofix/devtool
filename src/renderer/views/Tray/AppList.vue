@@ -210,6 +210,13 @@ const allApps = ref([
     icon: "Visualize",
     disabled: false,
   },
+  {
+    key: "AntSyncWnd",
+    name: "数据维护",
+    category: "金融",
+    icon: "DataSync",
+    disabled: false,
+  },
 ]);
 
 // 2. 新增：搜索关键词（响应式）

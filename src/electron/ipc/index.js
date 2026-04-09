@@ -1,3 +1,4 @@
+import Singleton from "../service/Singleton.js";
 import LoggerHandler from './handler-logger.js';
 import WindowHandler from './handler-window.js';
 import SFTPHandler from './handler-sftp.js';
@@ -11,7 +12,7 @@ import RulerHandler from './handler-ruler.js';
 import FileCompareHandler from './handler-file-compare.js';
 import StockHandler from './handler-mini-stock.js';
 import SystemHandler from './handler-system.js';
-import Singleton from "../service/Singleton.js";
+import AntSyncHandler from "./handler-ant-sync.js";
 
 class IPCManager extends Singleton {
     constructor() {
@@ -30,6 +31,7 @@ class IPCManager extends Singleton {
         this.fileCompare = FileCompareHandler;
         this.stock = StockHandler;
         this.system = SystemHandler;
+        this.antSync = AntSyncHandler;
 
         console.log('所有 IPC 处理器已注册完成');
     }

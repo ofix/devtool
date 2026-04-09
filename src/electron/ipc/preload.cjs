@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron/renderer')
 
-function safeStringify (arg) {
+function safeStringify(arg) {
     const seen = new WeakMap();
     try {
         return JSON.stringify(arg, (key, value) => {
@@ -19,7 +19,7 @@ function safeStringify (arg) {
 }
 
 // 封装日志发送到主进程的核心逻辑（加异常捕获+日志打印）
-function sendLogToMainProcess (type, args) {
+function sendLogToMainProcess(type, args) {
     try {
         // 前置校验：ipcRenderer 是否就绪
         if (!ipcRenderer || typeof ipcRenderer.send !== 'function') {
@@ -180,4 +180,9 @@ contextBridge.exposeInMainWorld('channel', {
     addFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:add-favorite-share', code),
     delFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:del-favorite-share', code),
     addSearchShare: (code) => ipcRenderer.invoke('mini-stock:add-search-share', code),
+    // 数据同步
+    getBkList: (type, keyword) => ipcRenderer.invoke('ant-sync:get-bk-list', type, keyword),
+    syncBkList: (type) => ipcRenderer.invoke('ant-sync:sync-bk-list', type),
+    getBkShares: (type, bkCode) => ipcRenderer.invoke('ant-sync:get-bk-shares', type, bkCode),
+    syncBkShares: (type, bkList) => ipcRenderer.invoke('ant-sync:sync-bk-shares', type, bkList),
 })

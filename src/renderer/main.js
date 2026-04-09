@@ -21,6 +21,7 @@ import IconConsole from '@/icons/IconSSH.vue';
 import IconColorPicker from "@/icons/IconColorPicker.vue";
 import IconCopy from "@/icons/IconCopy.vue";
 import IconVisualize from "@/icons/IconVisualize.vue";
+import IconDataSync from '@/icons/IconDataSync.vue';
 
 removeVueDevtoolsContainers();
 
@@ -38,7 +39,8 @@ app.component('IconFileCompare', IconFileCompare);
 app.component('IconDesktopTile', IconDesktopTile);
 app.component('IconConsole', IconConsole);
 app.component('IconCopy', IconCopy);
-app.component('IconVisualize',IconVisualize);
+app.component('IconVisualize', IconVisualize);
+app.component('IconDataSync', IconDataSync);
 
 app.use(createPinia())
 app.use(router)
