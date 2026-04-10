@@ -1,3 +1,5 @@
+import fs from 'fs';
+import { constants as fsConstants } from 'fs';
 export default class DataProvider {
     constructor() {
 
@@ -10,6 +12,19 @@ export default class DataProvider {
      */
     async getShareRankList(n, order = "top") {
         throw new Error('子类必须实现 getShareRankList 方法');
+    }
+
+
+    /**
+     * 判断文件是否存在（核心方法）
+     */
+    async isFileExists(filePath) {
+        try {
+            await fs.promises.access(filePath, fsConstants.F_OK);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -30,11 +45,11 @@ export default class DataProvider {
     /**
      * 爬取板块数据
      */
-    async getBk(params){
+    async getBk(params) {
         throw new Error("子类必须实现 getBk 方法");
     }
 
-    async getBkList(){
+    async getBkList() {
         throw new Error("子类必须实现 getBkList 方法");
     }
 
@@ -48,7 +63,7 @@ export default class DataProvider {
     /**
      * 爬取地域板块
      */
-    async getRegion(){
+    async getRegion() {
         throw new Error('子类必须实现 getRegion 方法');
     }
 

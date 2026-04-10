@@ -35,10 +35,10 @@ class EastMoneyProvider extends DataProvider {
         const random = Math.floor(Math.random() * 1000000000000);
 
         return {
-            // 'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept': '*/*',
-            // 'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            // 'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            // 'Accept-Encoding': 'gzip, deflate, br, zstd',
             // 'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
             'Accept-Language': 'zh-CN,zh;q=0.9',
             // 'Cache-Control': 'no-cache',
@@ -46,14 +46,15 @@ class EastMoneyProvider extends DataProvider {
             // 关键：Cookie 不要写死！写死必封！我给你保留基础段 + 动态化
             // 'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
             // 'Cookie': 'qgqp_b_id=5f053c5d572b53952f1e12f7cb7cb429; st_si=43483327739694; st_asi=delete; st_nvi=6bMILVkNh0lkOLpJN1DEu8add; nid18=0408302865ac0131bca852242db06837; nid18_create_time=1775713036255; gviem=vQ6rKjHxBsJ0r_lVfeygi43d8; gviem_create_time=1775713036256; st_pvi=58524495943449; st_sp=2026-04-09%2013%3A37%3A14; st_inirUrl=; st_sn=2; st_psi=20260409133840394-113200301321-7207262247',
-            'Cookie': 'qgqp_b_id=886ba22199663e93eb0113379a4305a8; st_nvi=ulCdncsaewxKeNZhq6bBR70e0; st_si=74919616369452; st_pvi=10901482434489; st_sp=2025-11-23%2009%3A52%3A22; st_inirUrl=https%3A%2F%2Fwww.baidu.com%2Flink; st_sn=1; st_psi=20260409222636241-113200301321-1178857012; st_asi=delete; nid18=0c5cd9c46a95566518e33e5332d1c75c; nid18_create_time=1775744796824; gviem=3ShOiHInJDywdwremiWwU4306; gviem_create_time=1775744796824',
+            // 'Cookie': 'qgqp_b_id=886ba22199663e93eb0113379a4305a8; st_nvi=ulCdncsaewxKeNZhq6bBR70e0; st_si=74919616369452; st_pvi=10901482434489; st_sp=2025-11-23%2009%3A52%3A22; st_inirUrl=https%3A%2F%2Fwww.baidu.com%2Flink; st_sn=1; st_psi=20260409222636241-113200301321-1178857012; st_asi=delete; nid18=0c5cd9c46a95566518e33e5332d1c75c; nid18_create_time=1775744796824; gviem=3ShOiHInJDywdwremiWwU4306; gviem_create_time=1775744796824',
+            'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=67985322770793; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45',
             'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
             'Host': 'push2.eastmoney.com',
             // 'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
             'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
             'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Linux"',
-            // 'sec-ch-ua-platform': '"Windows"',
+            // 'sec-ch-ua-platform': '"Linux"',
+            'sec-ch-ua-platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
@@ -587,7 +588,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     randomSleep(base) {
-        let baseMs = base || 10000;
+        let baseMs = base || 8000;
         const ms = Math.floor(Math.random() * 6000) + baseMs;
         console.log("睡眠 ", ms / 1000, '秒');
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -608,56 +609,234 @@ class EastMoneyProvider extends DataProvider {
             shares: []
         };
 
-        const pageSize = 20; // 每页拉 50 条，东方财富接口默认最大就是100
-        let pageIndex = 1; // 东方财富页码从 1 开始
-        let retries = 0;
-        let errorPageIndex = -1;
+        const ctx = {
+            payload: payload, // 请求参数对象
+            maxRetries: 3, // 请求错误页最大请求次数
+            errorPageRetries: 0, // 请求错误页已经重试的次数
+            pageSize: 20, // 分页大小,东方财富接口默认最大就是100
+            totalPages: 0, // 页码总数
+            completePages: [], // 已经完成的请求页
+            pendingPages: [], // 未完成的页码数
+            currentPage: 1, // 当前请求页，可能被覆盖
+            completePageShares: {}, // 已完成的分页share对象map
+        }
 
-        while (true) {
-            try {
-                const pageData = await this._getBkInPage(payload, pageIndex, pageSize);
+        // 从临时文件恢复数据（如果有）
+        await this._checkBkTempFile(ctx);
 
-                // 添加当前页股票
-                if (pageData.shares.length > 0) {
-                    result.shares.push(...pageData.shares);
-                }
+        // 获取所有页面数据
+        const fetchResult = await this._fetchBkPages(ctx);
+        if (fetchResult.error) {
+            result.error = true;
+            return result;
+        }
 
-                // 最后一页，退出循环
-                if (pageData.end) {
-                    break;
-                }
-                if (pageData.error) {
-                    if (retries >= 3) {
-                        result.error = true;
-                        break;
-                    }
-                    console.warn(`获取板块 ${payload.code} 第 ${pageIndex} 页数据异常，正在重试... (${retries + 1}/3)`);
-                    retries += 1;
-                    errorPageIndex = pageIndex; // 记录出错的页码
-                    await this.randomSleep(1000 * 60 * 3); // 错误重试间隔为3分钟
-                    continue;
-                }
-
-                if (errorPageIndex == pageIndex) { // 重试成功，重置错误页码和重试计数
-                    errorPageIndex = -1;
-                    retries = 0; // 重置重试计数
-                }
-
-                pageIndex++;
-
-                // 安全保护：最多拉 200 页，避免死循环
-                if (pageIndex > 200) {
-                    console.warn(`板块 ${payload.code} 超过最大页数限制，自动停止`);
-                    break;
-                }
-                await this.randomSleep(); // 防封间隔
-            } catch (err) {
-                console.error(`获取板块 ${payload.code} 第 ${pageIndex} 页失败:`, err.message);
-                await this.randomSleep(); // 防封间隔
-            }
+        // 合并结果并清理
+        if (this._isBkFetchComplete(ctx)) {
+            result.shares = this._mergeBkSharesByPage(ctx);
+            await this._deleteBkTempFile(ctx);
+            console.log(`✅ 板块 ${payload.code} 成分股获取完成！共 ${result.shares.length} 只股票`);
+        } else {
+            console.log(`⏸️ 板块 ${payload.code} 进度: ${ctx.completePages.length}/${ctx.totalPages}`);
         }
 
         return result;
+    }
+
+    /**
+     * 加载板块请求上下文（从临时文件恢复数据）
+     * @param {Object} ctx 上下文对象（会被直接修改）
+     */
+    async _checkBkTempFile(ctx) {
+        const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
+        if (! await this.isFileExists(tempBkFilePath)) { // 没有临时数据文件，采用默认值
+            return;
+        }
+
+        let data = await fs.promises.readFile(tempBkFilePath, 'utf-8');
+        let lastCtx = JSON.parse(data);
+
+        if (lastCtx) {
+            console.log(`恢复板块 ${ctx.payload.code} 数据获取，已完成 ${lastCtx.completePages?.length || 0}/${lastCtx.totalPages || 0} 页`);
+
+            // 用临时文件数据覆盖现有上下文
+            ctx.maxRetries = lastCtx.maxRetries ?? ctx.maxRetries;
+            ctx.errorPageRetries = 0;  // 重置重试计数
+            ctx.pageSize = lastCtx.pageSize ?? ctx.pageSize;
+            ctx.totalPages = lastCtx.totalPages ?? 0;
+            ctx.completePages = lastCtx.completePages ?? [];
+            ctx.pendingPages = lastCtx.pendingPages ?? [];
+            ctx.completePageShares = lastCtx.completePageShares ?? {};
+            ctx.currentPage = lastCtx.currentPage ?? 1;
+        }
+    }
+
+
+    /**
+     * 获取所有板块页面数据
+     * @param {Object} ctx 请求上下文
+     */
+    async _fetchBkPages(ctx) {
+        // 如果没有总页数，先获取第一页（特殊处理）
+        if (ctx.totalPages === 0) {
+            const firstPageResult = await this._fetchBkPageWithRetry(ctx);
+            if (firstPageResult.error) {
+                return { error: true };
+            }
+            // 从第一页数据中获取总页数
+            ctx.totalPages = Math.ceil(firstPageResult.total / ctx.pageSize);
+            // 生成随机请求队列（排除第一页）
+            ctx.pendingPages = this._generateRandomBkPageQueue(ctx.totalPages);
+        }
+
+        // 如果没有待获取的页面，直接返回
+        if (ctx.pendingPages.length === 0) {
+            return { error: false };
+        }
+
+        await this.randomSleep(); // 随机间隔防止被封
+
+        // 开始获取剩余页面
+        while (ctx.pendingPages.length > 0) {
+            const targetPage = ctx.pendingPages[0]; // 取第一个待处理的页面
+            // 跳过已完成的页面
+            if (ctx.completePages.includes(targetPage)) {
+                ctx.pendingPages.shift(); // 移除已完成的页码
+                continue;
+            }
+
+            // 设置当前要获取的页码
+            ctx.currentPage = targetPage;
+            const pageResult = await this._fetchBkPageWithRetry(ctx);
+            if (pageResult.error) {
+                await this._saveBkTempFile(ctx); // 执行出错，退出
+                break;
+            } else {
+                ctx.pendingPages.shift();  // 成功：从待处理列表中移除当前页码
+            }
+            await this.randomSleep(); // 随机间隔防止被封
+        }
+
+        return { error: false };
+    }
+
+    /**
+     * 获取单页板块数据（带重试机制）
+     * @param {Object} ctx 请求上下文
+     * @returns {Object} { error, total,shares }
+     */
+    async _fetchBkPageWithRetry(ctx) {
+        const currentPage = ctx.currentPage || 1;
+        const isFirstPage = ctx.totalPages === 0; // 如果还没有总页数，说明是第一页
+        let retries = 0;
+        const maxRetries = ctx.maxRetries;
+
+        while (retries <= maxRetries) {
+            try {
+                console.log(`获取板块 ${ctx.payload.code} 第 ${currentPage}页${isFirstPage ? '（初始化）' : ''} (进度: ${ctx.completePages.length + 1}/${ctx.totalPages || '?'})`);
+                const pageResult = await this._getBkInPage(ctx.payload, currentPage, ctx.pageSize);
+                // 请求失败
+                if (pageResult.error) {
+                    throw new Error('获取板块数据失败');
+                }
+
+                // 保存数据
+                if (pageResult.shares && pageResult.shares.length > 0) {
+                    if (!ctx.completePages.includes(currentPage)) {
+                        ctx.completePages.push(currentPage);
+                        ctx.completePageShares['p' + currentPage] = pageResult.shares;
+                    }
+                }
+                // 重置当前页的重试计数
+                ctx.errorPageRetries = 0;
+                return pageResult;
+            } catch (err) {
+                console.warn(`板块 ${ctx.payload.code} 第 ${currentPage} 页获取失败 (${retries + 1}/${maxRetries + 1}):`, err.message);
+                retries++;
+                ctx.errorPageRetries = retries;
+
+                if (retries >= maxRetries) {
+                    console.error(`板块 ${ctx.payload.code} 第 ${currentPage} 页重试${maxRetries}次后仍然失败`);
+                    ctx.errorPageRetries = 0;
+                    return { error: true, total: 0, shares: [] };
+                }
+
+                // 重试间隔：错误越严重，等待时间越长
+                const waitTime = retries === 1 ? 60000 : 120000; // 第1次等1分钟，之后等2分钟
+                await this.randomSleep(waitTime + Math.random() * 60000);
+            }
+        }
+
+        return { error: true, total: 0, shares: [] };
+    }
+
+    /**
+     * 保存板块请求上下文到临时文件
+     */
+    async _saveBkTempFile(ctx) {
+        const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
+        const data = JSON.stringify(ctx, '', 3);
+        await fs.promises.writeFile(tempBkFilePath, data, 'utf-8');
+    }
+
+    _getBkTempFilePath(bkCode) {
+        return path.join(__dirname, `../../../data/${bkCode}.json`);
+    }
+
+    /**
+     * 删除板块临时文件
+     */
+    async _deleteBkTempFile(ctx) {
+        try {
+            const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
+            if (await this.isFileExists(tempBkFilePath)) {
+                await fs.promises.rm(tempBkFilePath);
+            }
+        } catch (err) {
+            console.error(`删除板块临时文件失败: ${err.message}`);
+        }
+    }
+
+    /**
+     * 生成随机页码队列（排除第一页）
+     * @param {number} totalPages
+     */
+    _generateRandomBkPageQueue(totalPages) {
+        const pages = [];
+        for (let i = 2; i <= totalPages; i++) {
+            pages.push(i);
+        }
+
+        // Fisher-Yates 随机打乱
+        for (let i = pages.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pages[i], pages[j]] = [pages[j], pages[i]];
+        }
+
+        return pages;
+    }
+
+    /**
+     * 检查板块数据是否获取完成
+     */
+    _isBkFetchComplete(ctx) {
+        return ctx.completePages.length === ctx.totalPages && ctx.totalPages > 0;
+    }
+
+
+    /**
+     * 按页码顺序合并板块成分股数据
+     */
+    _mergeBkSharesByPage(ctx) {
+        const allShares = [];
+        for (let page = 1; page <= ctx.totalPages; page++) {
+            const shares = ctx.completePageShares['p' + page];
+            if (shares && shares.length > 0) {
+                allShares.push(...shares);
+            }
+        }
+
+        return allShares;
     }
 
     /**
@@ -692,11 +871,10 @@ class EastMoneyProvider extends DataProvider {
             const text = response.data;
             // 去掉前面的 jQueryxxx(  和后面的 );
             const jsonStr = text.replace(/^[\w_]+\(/, '').replace(/\);$/, '');
-            const respData = JSON.parse(jsonStr); // 转成真正的对象
+            const resJson = JSON.parse(jsonStr); // 转成真正的对象
 
-            console.log("板块 ", payload.name, payload.code);
-
-            const diff = respData?.data?.diff || [];
+            const diff = resJson?.data?.diff || [];
+            const total = resJson?.data?.total || 0;
 
             // 解析股票列表
             const shares = diff.map(item => ({
@@ -704,18 +882,13 @@ class EastMoneyProvider extends DataProvider {
                 name: item.f14?.trim() || ''
             })).filter(item => item.code);
 
-            // 判断是否最后一页
-            const end = diff.length < pageSize;
-
             return {
-                end,
                 error: false,
+                total,
                 shares
             };
-
         } catch (err) {
-            console.error('_getBkInPage 接口错误:', err.message);
-            return { end: false, error: true, shares: [] };
+            return { error: true, total: 0, shares: [] };
         }
     }
 

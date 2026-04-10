@@ -1,8 +1,9 @@
 <template>
+  <TitleBar title="DevTool" wndKey="AntSyncWnd"/>
   <div class="app-container">
     <el-container style="height: 100vh">
       <!-- 左侧菜单 -->
-      <el-aside width="200px" class="sidebar">
+      <el-aside width="100px" class="sidebar">
         <el-menu
           :default-active="activeMenu"
           @select="handleMenuSelect"
@@ -198,6 +199,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { ElMessage } from "element-plus";
+import TitleBar from "@/components/TitleBar.vue";
 
 // 响应式数据
 const activeMenu = ref("plate"); // 左侧菜单选中项：plate, market, finance
@@ -491,7 +493,7 @@ onMounted(() => {
 
 <style scoped>
 .app-container {
-  height: 100vh;
+  height: calc(100% - var(--dt-titlebar-height));
   overflow: hidden;
 }
 
