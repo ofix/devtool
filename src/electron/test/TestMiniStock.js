@@ -167,23 +167,23 @@ async function testEastMoneyBkList () {
     await manager.init();
     manager.setProvider('eastmoney');
     let bkMenu = manager.getBkMenu();
-    let concepts = bkMenu.concepts;
+    let regions = bkMenu.regions;
     let progress = 1;
-    for (let concept of concepts) {
+    for (let region of regions) {
         try {
-            let result = await manager.getBk(concept);
+            let result = await manager.getBk(region);
             if (result.cache) {
-                console.log(`[缓存][${progress}/${concepts.length}][${result.shares.length}]`);
+                console.log(`[缓存][${progress}/${regions.length}][${result.shares.length}]`);
                 console.log(result.shares);
             } else {
-                console.log(`[${progress}/${concepts.length}][${result.shares.length}]`);
+                console.log(`[${progress}/${regions.length}][${result.shares.length}]`);
                 console.log(result.shares);
             }
             if (result.error) {
                 break;
             }
             if (!result.cache) {
-                await manager.saveBkList('concept');
+                await manager.saveBkList('region');
                 await randomSleep(); // 防封间隔
             }
             progress += 1;
@@ -192,7 +192,7 @@ async function testEastMoneyBkList () {
             await randomSleep(); // 防封间隔            
         }
     }
-    console.log("完成概念板块的获取");
+    console.log("完成地域板块的获取");
 }
 
 // testBaiduIPOInfo();
