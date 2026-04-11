@@ -96,7 +96,7 @@ export default class StockManager {
         };
     }
 
-    getFilePaths() {
+    getFilePaths () {
         return {
             favorite: this.favoriteFilePath,
             stockList: this.stockListFilePath,
@@ -108,7 +108,7 @@ export default class StockManager {
     /**
      * 切换财经数据供应商
      */
-    setProvider(provider) {
+    setProvider (provider) {
         let providers = {
             "eastmoney": "东方财富",
             "tencent": "腾讯财经",
@@ -122,7 +122,7 @@ export default class StockManager {
         }
     }
 
-    async init() {
+    async init () {
         // 添加请求拦截器
         axios.interceptors.request.use(request => {
             const url = new URL(request.url, request.baseURL);
@@ -153,14 +153,14 @@ export default class StockManager {
         // this.timers.push(minuteCleanupTimer);
     }
 
-    getBkMenu() {
+    getBkMenu () {
         return this.bkMenu;
     }
 
     /**
      * 判断文件是否存在（核心方法）
      */
-    async isFileExists(filePath) {
+    async isFileExists (filePath) {
         try {
             await fs.promises.access(filePath, fsConstants.F_OK);
             return true;
@@ -174,7 +174,7 @@ export default class StockManager {
      * @param {string} filePath 文件路径
      * @returns {Promise<Map>}
      */
-    async _loadBkFile(filePath) {
+    async _loadBkFile (filePath) {
         try {
             //  判断文件是否存在
             const exists = await this.isFileExists(filePath);
@@ -215,7 +215,7 @@ export default class StockManager {
     /**
      * 加载所有板块（一次性加载）
      */
-    async _loadBkList() {
+    async _loadBkList () {
         this.bkConcepts = await this._loadBkFile(this.bkConceptFilePath);
         this.bkRegions = await this._loadBkFile(this.bkRegionFilePath);
         this.bkIndustries = await this._loadBkFile(this.bkIndustryFilePath);
@@ -228,7 +228,7 @@ export default class StockManager {
     /**
      * 加载东财板块菜单
      */
-    async _loadBkMenu() {
+    async _loadBkMenu () {
         try {
             const exists = await this.isFileExists(this.bkMenuFilePath);
             if (!exists) {
@@ -269,7 +269,7 @@ export default class StockManager {
      * 保存 Map 到 JSON 文件
      * 自动把 shares: [{code,name}] 转回 "code|name" 格式
      */
-    async _saveBkList(filePath, map) {
+    async _saveBkList (filePath, map) {
         try {
             if (!(map instanceof Map)) {
                 throw new Error('必须传入 Map 类型');
@@ -295,7 +295,7 @@ export default class StockManager {
         }
     }
 
-    async saveBkList(bkTypes) {
+    async saveBkList (bkTypes) {
         if (bkTypes.indexOf('concept') != -1) {
             await this._saveBkList(this.bkConceptFilePath, this.bkConcepts);
             console.log("[√]概念板块文件保存成功");
@@ -311,17 +311,17 @@ export default class StockManager {
     }
 
     // 获取全市场股票
-    getAllShares() {
+    getAllShares () {
         return this.allShares;
     }
 
     // 获取IPO信息
-    getIPOInfo() {
+    getIPOInfo () {
         return this.ipoInfo;
     }
 
     // 搜索本地股票
-    async searchLocalStock(keyword) {
+    async searchLocalStock (keyword) {
         if (!this.loaded) {
             await this._loadStockList();
         }
@@ -330,7 +330,7 @@ export default class StockManager {
         return this.trie.search(keyword.toLowerCase());
     }
 
-    async getBkList(type) {
+    async getBkList (type) {
         if (this.bkMenu.hasOwnProperty(type)) {
             return this.bkMenu[type];
         }
@@ -338,7 +338,7 @@ export default class StockManager {
     }
 
     // 搜索板块列表
-    async searchBkList(keyword, type) {
+    async searchBkList (keyword, type) {
         // 定义类型映射（核心：消除大量 if-else）
         const typeMap = {
             concept: ['concepts', this.bkTrieMap.concept],
@@ -359,7 +359,7 @@ export default class StockManager {
         return trie.search(keyword.toLowerCase());
     }
 
-    async syncBkList(type) {
+    async syncBkList (type) {
         let result = await this.providers.eastmoney.getBkList();
         if (type == 'concept') {
             return result.concepts;
@@ -371,7 +371,7 @@ export default class StockManager {
         return [];
     }
 
-    getBkShares(code, type) {
+    getBkShares (code, type) {
         if (type == 'concept') {
             return this.bkConcepts.get(code) || [];
         } else if (type == 'industry') {
@@ -382,7 +382,7 @@ export default class StockManager {
         return [];
     }
 
-    async syncBkShares(bkList,type='concept'){
+    async syncBkShares (bkList, type = 'concept') {
         let progress = 0;
         for (let bk of bkList) {
             try {
@@ -410,7 +410,7 @@ export default class StockManager {
     }
 
     // 加载本地股票列表
-    async _loadStockList() {
+    async _loadStockList () {
         return new Promise((resolve, reject) => {
             const stream = fs.createReadStream(this.stockListFilePath);
             stream.pipe(csv({ headers: false }))
@@ -437,7 +437,7 @@ export default class StockManager {
         });
     }
 
-    async _loadIPOInfo() {
+    async _loadIPOInfo () {
         return new Promise((resolve, reject) => {
             // 先判断文件是否存在，不存在直接 resolve，不抛错
             fs.access(this.ipoInfoFilePath, (err) => {
@@ -472,7 +472,7 @@ export default class StockManager {
     }
 
     // 加载搜索历史
-    _loadSearchHistory() {
+    _loadSearchHistory () {
         try {
             if (fs.existsSync(this.searchHistoryFilePath)) {
                 const data = fs.readFileSync(this.searchHistoryFilePath, 'utf8');
@@ -493,7 +493,7 @@ export default class StockManager {
     }
 
     // 添加搜索历史（自动去重，限制长度）
-    addSearchShare(code, name) {
+    addSearchShare (code, name) {
         const timestamp = Date.now();
         // 去重并限制长度
         this.searchHistory = [{ code, name, timestamp }, ...this.searchHistory.filter(item => item.code !== code)].slice(0, 100);
@@ -508,7 +508,7 @@ export default class StockManager {
      * 从文件 favorites.json 中加载自选股
      * 文件格式: ["688203","322001","000001"]
      */
-    _loadFavoriteShares() {
+    _loadFavoriteShares () {
         try {
             if (fs.existsSync(this.favoriteFilePath)) {
                 const data = fs.readFileSync(this.favoriteFilePath, 'utf8');
@@ -535,7 +535,7 @@ export default class StockManager {
      * 保存自选股到文件
      * @private
      */
-    _saveFavoriteShares() {
+    _saveFavoriteShares () {
         try {
             fs.writeFileSync(this.favoriteFilePath, JSON.stringify(this.favoriteShares, null, 2), 'utf8');
         } catch (err) {
@@ -543,7 +543,7 @@ export default class StockManager {
         }
     }
 
-    getFavoriteShares() {
+    getFavoriteShares () {
         return this.favoriteShares;
     }
 
@@ -552,7 +552,7 @@ export default class StockManager {
     * @param {string} code - 股票代码（如 '688203' 或 '322001'）
     * @returns {boolean} 是否添加成功
     */
-    addFavoriteShare(code) {
+    addFavoriteShare (code) {
         // 参数校验
         if (!code || typeof code !== 'string') {
             console.error('股票代码不能为空');
@@ -575,7 +575,7 @@ export default class StockManager {
         return true;
     }
 
-    async getBkList() {
+    async getBkList () {
         const provider = this._getProvider('a');
         return await provider.getBkList();
     }
@@ -585,7 +585,7 @@ export default class StockManager {
      * @param {Object} params - { type: 1/2/3, code: BKxxx }
      * @returns { cache: boolean, data: object }
      */
-    async getBk(params) {
+    async getBk (params) {
         const { type, code } = params;
 
         // 映射配置：类型 => [map实例, 名称]
@@ -614,7 +614,9 @@ export default class StockManager {
         const data = await provider.getBk(params);
 
         // 存入缓存
-        targetMap.set(data.code, data);
+        if (data.shares.length > 0) {
+            targetMap.set(data.code, data);
+        }
 
         return {
             ...data,
@@ -627,7 +629,7 @@ export default class StockManager {
        * @param {string} code - 股票代码
        * @returns {boolean} 是否删除成功
        */
-    delFavoriteShare(code) {
+    delFavoriteShare (code) {
         if (!code || typeof code !== 'string') {
             console.error('股票代码不能为空');
             return false;
@@ -653,7 +655,7 @@ export default class StockManager {
      * @param {Array} codes - 股票代码数组
      * @returns {Object} 删除结果统计
      */
-    delFavoriteShares(codes) {
+    delFavoriteShares (codes) {
         if (!Array.isArray(codes)) {
             console.error('参数必须是数组');
             return { success: 0, failed: 0, notFound: 0 };
@@ -690,7 +692,7 @@ export default class StockManager {
      * 清空所有自选股
      * @returns {boolean}
      */
-    clearAllFavoriteShares() {
+    clearAllFavoriteShares () {
         if (this.favoriteShares.length === 0) {
             console.log('自选股列表已为空');
             return false;
@@ -706,7 +708,7 @@ export default class StockManager {
     /**
      * 清理过期的分时缓存
      */
-    _cleanMinuteCache() {
+    _cleanMinuteCache () {
         const now = Date.now();
         const expireTime = 5 * 60 * 1000; // 5分钟
 
@@ -720,7 +722,7 @@ export default class StockManager {
     /**
      * 记录统计信息
      */
-    _logStats() {
+    _logStats () {
         const totalAccess = this.stats.cacheHits + this.stats.cacheMisses;
         const hitRate = totalAccess > 0 ? (this.stats.cacheHits / totalAccess * 100).toFixed(2) : 0;
 
@@ -738,7 +740,7 @@ export default class StockManager {
         });
     }
 
-    async closeAll() {
+    async closeAll () {
         // 清理所有定时器
         for (const timer of this.timers) {
             clearInterval(timer);
@@ -764,7 +766,7 @@ export default class StockManager {
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
      * @returns {Promise<Array>} 带实时行情的排行榜数据
      */
-    async getShareRankList(n, order = "top") {
+    async getShareRankList (n, order = "top") {
         const provider = this._getProvider(market);
         this.stats.providerCalls++;
         if (n > 100) {
@@ -790,7 +792,7 @@ export default class StockManager {
         return data;
     }
 
-    print(shareList) {
+    print (shareList) {
         console.log("+++++++++++++++++++++++++++++++++++++");
         for (let i = 0; i < shareList.length; i++) {
             const share = shareList[i];
@@ -800,7 +802,7 @@ export default class StockManager {
         this.#printProvider();
     }
 
-    #printProvider() {
+    #printProvider () {
         let providers = {
             "eastmoney": "东方财富",
             "tencent": "腾讯财经",
@@ -823,7 +825,7 @@ export default class StockManager {
      * @param {string} endDate 结束时间 日期格式 yyyy-mm-dd
      * @param {Object} options 请求选项
      */
-    async getKlines(code, market, period, startDate, endDate, options = {}) {
+    async getKlines (code, market, period, startDate, endDate, options = {}) {
         const {
             forceRefresh = false,
             adjustType = 'forward',
@@ -895,7 +897,7 @@ export default class StockManager {
      * 输出K线数据
      * @param {Array} data 日/周/月/年股票列表
      */
-    printKline(data) {
+    printKline (data) {
         if (!data || data.length === 0) {
             console.log('无K线数据');
             return;
@@ -940,7 +942,7 @@ export default class StockManager {
     /**
      * 清除指定代码的所有缓存
      */
-    _clearCodeCache(code) {
+    _clearCodeCache (code) {
         const patterns = ['day', 'week', 'month', 'year'];
         for (const pattern of patterns) {
             const cache = this.cache[pattern];
@@ -953,7 +955,7 @@ export default class StockManager {
     }
 
     // 日K读取逻辑
-    async _getDayKlines(code, market, startTimestamp, endTimestamp, forceRefresh) {
+    async _getDayKlines (code, market, startTimestamp, endTimestamp, forceRefresh) {
         // 检查内存缓存
         if (!forceRefresh) {
             const cached = this.cache.day.get(code);
@@ -990,7 +992,7 @@ export default class StockManager {
     /**
      * 检查缓存是否足够覆盖查询范围
      */
-    _isCacheSufficient(cached, startTimestamp, endTimestamp) {
+    _isCacheSufficient (cached, startTimestamp, endTimestamp) {
         if (!cached || cached.length === 0) return false;
 
         const firstDate = new Date(cached[0].date).getTime();
@@ -1002,7 +1004,7 @@ export default class StockManager {
     /**
      * 将 KlineRecord 数组转换为普通对象数组
      */
-    _recordsToKlineList(records) {
+    _recordsToKlineList (records) {
         return records.map(record => ({
             date: record.timestamp,
             open: record.open,
@@ -1017,7 +1019,7 @@ export default class StockManager {
     /**
      * 按时间戳过滤
      */
-    _filterByTimestamp(list, startTimestamp, endTimestamp) {
+    _filterByTimestamp (list, startTimestamp, endTimestamp) {
         if (!list?.length) return [];
         return list.filter(item => {
             const time = item.timestamp || new Date(item.date).getTime();
@@ -1027,7 +1029,7 @@ export default class StockManager {
     }
 
     // 拉取 + 写入存储
-    async _fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
+    async _fetchAndSaveDayKlines (code, market, startTimestamp, endTimestamp) {
         // 防止并发拉取同一只股票
         const loadingKey = `${code}_${market}`;
         if (this.loadingPromises.has(loadingKey)) {
@@ -1045,7 +1047,7 @@ export default class StockManager {
         }
     }
 
-    async _doFetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
+    async _doFetchAndSaveDayKlines (code, market, startTimestamp, endTimestamp) {
         const provider = this._getProvider(market);
         this.stats.providerCalls++;
         // 计算拉取的天数范围
@@ -1090,7 +1092,7 @@ export default class StockManager {
     }
 
     // 根据股票日K线获取股票周K线
-    _getWeekKlines(day) {
+    _getWeekKlines (day) {
         const map = new Map();
 
         for (const k of day) {
@@ -1118,7 +1120,7 @@ export default class StockManager {
     }
 
     // 基于股票日K线获取股票月线
-    _getMonthKlines(day) {
+    _getMonthKlines (day) {
         const map = new Map();
 
         for (const k of day) {
@@ -1141,7 +1143,7 @@ export default class StockManager {
     }
 
     // 基于股票日K线获取股票年K线
-    _getYearKlines(day) {
+    _getYearKlines (day) {
         const map = new Map();
 
         for (const k of day) {
@@ -1164,7 +1166,7 @@ export default class StockManager {
     }
 
     // 除权检查
-    async _checkAndUpdateAdjustment(code, market) {
+    async _checkAndUpdateAdjustment (code, market) {
         try {
             const cachedInfo = this.adjustCache.get(code);
             const provider = this._getProvider(market);
@@ -1199,7 +1201,7 @@ export default class StockManager {
         }
     }
 
-    async _saveAdjustInfo(code, info) {
+    async _saveAdjustInfo (code, info) {
         if (!this.diskEnabled) return;
 
         try {
@@ -1214,7 +1216,7 @@ export default class StockManager {
     }
 
     // 工具函数
-    _filterByDate(data, startDate, endDate) {
+    _filterByDate (data, startDate, endDate) {
         if (!data?.length) return [];
 
         const start = startDate ? new Date(startDate).getTime() : 0;
@@ -1226,7 +1228,7 @@ export default class StockManager {
         });
     }
 
-    _getProvider(market) {
+    _getProvider (market) {
         // 港股和美股使用腾讯数据源
         if (market === 'hk' || market === 'us') {
             return this.providers.tencent;
@@ -1234,7 +1236,7 @@ export default class StockManager {
         return this.providers[this.activeProvider];
     }
 
-    _parseCode(code) {
+    _parseCode (code) {
         if (code.startsWith('hk')) return { market: 'hk', symbol: code.slice(2) };
         if (code.startsWith('us')) return { market: 'us', symbol: code.slice(2) };
         if (code.startsWith('sh') || code.startsWith('sz')) {
@@ -1244,7 +1246,7 @@ export default class StockManager {
     }
 
     // 分时、股票列表、搜索
-    async getMinuteKlines(codes, days = 1) {
+    async getMinuteKlines (codes, days = 1) {
         const isSingle = !Array.isArray(codes);
         const list = isSingle ? [codes] : codes;
         const key = list.join(',');
@@ -1281,7 +1283,7 @@ export default class StockManager {
         return resultData;
     }
 
-    async getStockList() {
+    async getStockList () {
         const cached = this.cache.stock.get('list');
         if (cached && (Date.now() - cached.timestamp) < 3600000) { // 1小时缓存
             this.stats.cacheHits++;
@@ -1308,7 +1310,7 @@ export default class StockManager {
     /**
      * 获取统计信息
      */
-    getStats() {
+    getStats () {
         const totalAccess = this.stats.cacheHits + this.stats.cacheMisses;
         return {
             ...this.stats,
@@ -1326,7 +1328,7 @@ export default class StockManager {
     /**
      * 预热缓存（预加载常用股票数据）
      */
-    async warmup(codes, market) {
+    async warmup (codes, market) {
         const promises = codes.map(code =>
             this.getKlines(code, market, 'day', 0, Date.now(), { forceRefresh: false })
                 .catch(err => console.error(`预热失败 ${code}:`, err.message))

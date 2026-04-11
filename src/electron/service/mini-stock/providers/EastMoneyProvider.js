@@ -26,42 +26,52 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
      * @returns {Promise<Array>} 带实时行情的排行榜数据
      */
-    async getShareRankList(n, order = "top") {
+    async getShareRankList (n, order = "top") {
 
     }
 
-    #getHeaders() {
+    #getHeaders () {
         const timestamp = Date.now();
         const random = Math.floor(Math.random() * 1000000000000);
 
         return {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            // 'Accept': '*/*',
+            // 'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br',
             // 'Accept-Encoding': 'gzip, deflate, br, zstd',
             // 'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
-            'Accept-Language': 'zh-CN,zh;q=0.9',
+            // 'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
             // 'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
             // 关键：Cookie 不要写死！写死必封！我给你保留基础段 + 动态化
             // 'Cookie': 'qgqp_b_id=' + this.#randomString(32) + '; st_pvi=' + this.#randomNum(16) + '; st_sp=' + new Date().toISOString().slice(0, 10),
             // 'Cookie': 'qgqp_b_id=5f053c5d572b53952f1e12f7cb7cb429; st_si=43483327739694; st_asi=delete; st_nvi=6bMILVkNh0lkOLpJN1DEu8add; nid18=0408302865ac0131bca852242db06837; nid18_create_time=1775713036255; gviem=vQ6rKjHxBsJ0r_lVfeygi43d8; gviem_create_time=1775713036256; st_pvi=58524495943449; st_sp=2026-04-09%2013%3A37%3A14; st_inirUrl=; st_sn=2; st_psi=20260409133840394-113200301321-7207262247',
             // 'Cookie': 'qgqp_b_id=886ba22199663e93eb0113379a4305a8; st_nvi=ulCdncsaewxKeNZhq6bBR70e0; st_si=74919616369452; st_pvi=10901482434489; st_sp=2025-11-23%2009%3A52%3A22; st_inirUrl=https%3A%2F%2Fwww.baidu.com%2Flink; st_sn=1; st_psi=20260409222636241-113200301321-1178857012; st_asi=delete; nid18=0c5cd9c46a95566518e33e5332d1c75c; nid18_create_time=1775744796824; gviem=3ShOiHInJDywdwremiWwU4306; gviem_create_time=1775744796824',
-            'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=67985322770793; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45',
+            // 'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=67985322770793; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45',
+            // 'Cookie': 'st_inirUrl=; st_psi=20260410200032853-113200301321-2696679963; st_pvi=61458735512065; st_sn=3; st_sp=2026-04-10%2020%3A00%3A16; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_asi=delete; st_nvi=p6hlvbWu_s8tISq564Zyt601f; st_si=86944945694129',
+            'Cookie': 'st_asi=delete; st_inirUrl=https%3A%2F%2Fbank.eastmoney.com%2F; st_psi=2026041118375622-113200301321-8245831635; st_pvi=61458735512065; st_si=23161048216987; st_sn=1; st_sp=2026-04-10%2020%3A00%3A16; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_nvi=p6hlvbWu_s8tISq564Zyt601f',
+            // 'Cookie': 'st_inirUrl=https%3A%2F%2Fbank.eastmoney.com%2F; st_psi=20260411074111653-113200301321-2891455114; st_pvi=61458735512065; st_sn=7; st_sp=2026-04-10%2020%3A00%3A16; st_asi=delete; st_si=64623006336055; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_nvi=p6hlvbWu_s8tISq564Zyt601f',
+            // 'Cookie': 'qgqp_b_id=870947b6a314f95b131c3316de84baba; st_nvi=zQ6WuIDUSQ5Pynf9xPFoM3fad; st_si=71252010261157; st_asi=delete; nid18=0735a491c64cc7a7c8e84431e957007a; nid18_create_time=1775901278977; gviem=f27oSiOu5_P8xP9Gc5R4f544f; gviem_create_time=1775901278977; fullscreengg=1; fullscreengg2=1; wsc_checkuser_ok=1; st_pvi=84531075945310; st_sp=2026-04-11%2017%3A54%3A38; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; st_sn=3; st_psi=20260411175455527-113200301321-5840294214',
             'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
             'Host': 'push2.eastmoney.com',
             // 'sec-ch-ua': '"Chromium";v="130","Not=A?Brand";v="99"',
-            'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
+            // 'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126"',
+            'sec-ch-ua': '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
             'sec-ch-ua-mobile': '?0',
             // 'sec-ch-ua-platform': '"Linux"',
-            'sec-ch-ua-platform': '"Windows"',
+            // 'sec-ch-ua-platform': '"Windows"',
+            'Priority': 'u=1, i',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
             // 'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36',
             // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
             // 'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.200 Safari/537.36 Qaxbrowser',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+            // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
+            // 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+            // 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
             // 'X-Requested-With': 'XMLHttpRequest',
             // 'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
             // '_': timestamp,
@@ -70,7 +80,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     // 辅助：生成随机字符串（防 Cookie 固定风控）
-    #randomString(len) {
+    #randomString (len) {
         const chars = 'abcdef1234567890';
         let str = '';
         for (let i = 0; i < len; i++) {
@@ -80,7 +90,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     // 辅助：生成随机数字串
-    #randomNum(len) {
+    #randomNum (len) {
         let num = '';
         for (let i = 0; i < len; i++) {
             num += Math.floor(Math.random() * 10);
@@ -94,7 +104,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
      * @returns {Promise<Array>} 股票列表 [代码, 名称, 涨幅, 现价, ...]
      */
-    async getTopShares(n, order = "top") {
+    async getTopShares (n, order = "top") {
         try {
             const baseUrl = "https://push2.eastmoney.com/api/qt/clist/get";
             const ts = Date.now();
@@ -145,7 +155,7 @@ class EastMoneyProvider extends DataProvider {
         }
     }
 
-    async getStockList() {
+    async getStockList () {
         try {
             const url = "https://push2.eastmoney.com/api/qt/clist/get";
             const allStocks = [];
@@ -238,7 +248,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     // 获取市场名称
-    getMarketName(marketCode) {
+    getMarketName (marketCode) {
         const marketMap = {
             '0': '深圳',
             '1': '上海',
@@ -247,7 +257,7 @@ class EastMoneyProvider extends DataProvider {
         return marketMap[marketCode] || '未知';
     }
 
-    async getKline(code, market, period, startDate, endDate) {
+    async getKline (code, market, period, startDate, endDate) {
         try {
             // 转换周期格式
             const klt = this.convertPeriod(period);
@@ -274,7 +284,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     // 分时数据接口
-    async getMinuteData(code, market) {
+    async getMinuteData (code, market) {
         try {
             const secid = this.getSecId(code, market);
             // 东方财富分时数据接口
@@ -320,7 +330,7 @@ class EastMoneyProvider extends DataProvider {
 
 
     // 获取历史分时数据（支持多天）
-    async getHistoryMinuteData(code, market, days = 5) {
+    async getHistoryMinuteData (code, market, days = 5) {
         try {
             const secid = this.getSecId(code, market);
             const response = await axios.get('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
@@ -342,7 +352,7 @@ class EastMoneyProvider extends DataProvider {
     }
 
     // 获取5日分时数据（用于5日分时图）
-    async getFiveDayMinuteData(code, market) {
+    async getFiveDayMinuteData (code, market) {
         try {
             const secid = this.getSecId(code, market);
             const response = await axios.get('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
@@ -371,7 +381,7 @@ class EastMoneyProvider extends DataProvider {
    * @param {number} days - 获取天数，默认1天
    * @returns {Promise<object>} 处理后的分时数据
    */
-    async getMinuteData(code, market, days = 1) {
+    async getMinuteData (code, market, days = 1) {
         try {
             const secid = this.getSecId(code, market);
             const url = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
@@ -410,7 +420,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} market - 市场 (sh/sz)
      * @returns {Promise<object>} 处理后的分时数据
      */
-    async getFiveDayMinuteData(code, market) {
+    async getFiveDayMinuteData (code, market) {
         return this.getMinuteData(code, market, 5);
     }
 
@@ -420,7 +430,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {number} days - 获取天数
      * @returns {Promise<Array>} 分时数据列表
      */
-    async batchGetMinuteData(stocks, days = 1) {
+    async batchGetMinuteData (stocks, days = 1) {
         const promises = stocks.map(stock =>
             this.getMinuteData(stock.code, stock.market, days)
         );
@@ -432,7 +442,7 @@ class EastMoneyProvider extends DataProvider {
             .map(result => result.value);
     }
 
-    async searchStock(keyword) {
+    async searchStock (keyword) {
         try {
             const response = await axios.get('https://searchapi.eastmoney.com/api/suggest/get', {
                 params: {
@@ -456,7 +466,7 @@ class EastMoneyProvider extends DataProvider {
         }
     }
 
-    convertPeriod(period) {
+    convertPeriod (period) {
         const periodMap = {
             'day': 101,
             'week': 102,
@@ -468,7 +478,7 @@ class EastMoneyProvider extends DataProvider {
         return periodMap[period] || 101;
     }
 
-    getSecId(code, market) {
+    getSecId (code, market) {
         if (market === 'a') {
             // 判断上海还是深圳
             if (code.startsWith('6')) {
@@ -480,7 +490,7 @@ class EastMoneyProvider extends DataProvider {
         return code;
     }
 
-    detectMarket(marketCode) {
+    detectMarket (marketCode) {
         const marketMap = {
             '0': 'a',   // 深圳
             '1': 'a',   // 上海
@@ -490,7 +500,7 @@ class EastMoneyProvider extends DataProvider {
         return marketMap[marketCode] || 'a';
     }
 
-    parseKLineData(data) {
+    parseKLineData (data) {
         const klines = data?.data?.klines || [];
         return klines.map(line => {
             const items = line.split(',');
@@ -515,7 +525,7 @@ class EastMoneyProvider extends DataProvider {
     * @param {string} jsonpData - JSONP格式的字符串
     * @returns {object} 解析后的JSON对象
     */
-    parseJSONPResponse(jsonpData) {
+    parseJSONPResponse (jsonpData) {
         try {
             let jsonStr = jsonpData;
             // 匹配 callback({...}) 格式
@@ -535,7 +545,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} trendStr - 分时数据字符串，格式：时间,价格,均价,涨跌额,涨跌幅,成交量,成交额,换手率
      * @returns {object} 解析后的分时数据对象
      */
-    parseMinuteDataItem(trendStr) {
+    parseMinuteDataItem (trendStr) {
         const fields = trendStr.split(',');
         return {
             time: fields[0],                      // 时间点 (如: 0930, 0931...)
@@ -556,7 +566,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} market - 市场
      * @returns {object} 结构化的分时数据
      */
-    processMinuteData(rawData, code, market) {
+    processMinuteData (rawData, code, market) {
         if (!rawData || !rawData.trends) {
             return null;
         }
@@ -587,9 +597,9 @@ class EastMoneyProvider extends DataProvider {
         };
     }
 
-    randomSleep(base) {
-        let baseMs = base || 8000;
-        const ms = Math.floor(Math.random() * 6000) + baseMs;
+    randomSleep (base) {
+        let baseMs = base || 1500;
+        const ms = Math.floor(Math.random() * 1500) + baseMs;
         console.log("睡眠 ", ms / 1000, '秒');
         return new Promise(resolve => setTimeout(resolve, ms));
     };
@@ -601,7 +611,7 @@ class EastMoneyProvider extends DataProvider {
      * @example 参考页面
      * https://quote.eastmoney.com/center/gridlist.html#boards2-90.BK0590
      */
-    async getBk(payload) {
+    async getBk (payload) {
         const result = {
             code: payload.code,
             name: payload.name,
@@ -611,7 +621,7 @@ class EastMoneyProvider extends DataProvider {
 
         const ctx = {
             payload: payload, // 请求参数对象
-            maxRetries: 3, // 请求错误页最大请求次数
+            maxRetries: 2, // 请求错误页最大请求次数
             errorPageRetries: 0, // 请求错误页已经重试的次数
             pageSize: 20, // 分页大小,东方财富接口默认最大就是100
             totalPages: 0, // 页码总数
@@ -647,7 +657,7 @@ class EastMoneyProvider extends DataProvider {
      * 加载板块请求上下文（从临时文件恢复数据）
      * @param {Object} ctx 上下文对象（会被直接修改）
      */
-    async _checkBkTempFile(ctx) {
+    async _checkBkTempFile (ctx) {
         const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
         if (! await this.isFileExists(tempBkFilePath)) { // 没有临时数据文件，采用默认值
             return;
@@ -676,7 +686,7 @@ class EastMoneyProvider extends DataProvider {
      * 获取所有板块页面数据
      * @param {Object} ctx 请求上下文
      */
-    async _fetchBkPages(ctx) {
+    async _fetchBkPages (ctx) {
         // 如果没有总页数，先获取第一页（特殊处理）
         if (ctx.totalPages === 0) {
             const firstPageResult = await this._fetchBkPageWithRetry(ctx);
@@ -697,6 +707,7 @@ class EastMoneyProvider extends DataProvider {
         await this.randomSleep(); // 随机间隔防止被封
 
         // 开始获取剩余页面
+        let fetchCount = 1;
         while (ctx.pendingPages.length > 0) {
             const targetPage = ctx.pendingPages[0]; // 取第一个待处理的页面
             // 跳过已完成的页面
@@ -708,13 +719,18 @@ class EastMoneyProvider extends DataProvider {
             // 设置当前要获取的页码
             ctx.currentPage = targetPage;
             const pageResult = await this._fetchBkPageWithRetry(ctx);
+            fetchCount += 1;
             if (pageResult.error) {
                 await this._saveBkTempFile(ctx); // 执行出错，退出
                 break;
             } else {
                 ctx.pendingPages.shift();  // 成功：从待处理列表中移除当前页码
             }
-            await this.randomSleep(); // 随机间隔防止被封
+            if (fetchCount % 17 == 0) {
+                await this.randomSleep(30000); // 每16次请求后长时间休息，防止被封
+            } else {
+                await this.randomSleep(); // 随机间隔防止被封
+            }
         }
 
         return { error: false };
@@ -725,7 +741,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {Object} ctx 请求上下文
      * @returns {Object} { error, total,shares }
      */
-    async _fetchBkPageWithRetry(ctx) {
+    async _fetchBkPageWithRetry (ctx) {
         const currentPage = ctx.currentPage || 1;
         const isFirstPage = ctx.totalPages === 0; // 如果还没有总页数，说明是第一页
         let retries = 0;
@@ -733,7 +749,7 @@ class EastMoneyProvider extends DataProvider {
 
         while (retries <= maxRetries) {
             try {
-                console.log(`获取板块 ${ctx.payload.code} 第 ${currentPage}页${isFirstPage ? '（初始化）' : ''} (进度: ${ctx.completePages.length + 1}/${ctx.totalPages || '?'})`);
+                console.log(`获取板块 ${ctx.payload.code}|${ctx.payload.name} 第 ${currentPage} 页${isFirstPage ? '（初始化）' : ''} (进度: ${ctx.completePages.length + 1}/${ctx.totalPages || '?'})`);
                 const pageResult = await this._getBkInPage(ctx.payload, currentPage, ctx.pageSize);
                 // 请求失败
                 if (pageResult.error) {
@@ -751,19 +767,19 @@ class EastMoneyProvider extends DataProvider {
                 ctx.errorPageRetries = 0;
                 return pageResult;
             } catch (err) {
-                console.warn(`板块 ${ctx.payload.code} 第 ${currentPage} 页获取失败 (${retries + 1}/${maxRetries + 1}):`, err.message);
+                console.warn(`板块 ${ctx.payload.code}|${ctx.payload.name} 第 ${currentPage} 页获取失败 (${retries + 1}/${maxRetries}):`, err.message);
                 retries++;
                 ctx.errorPageRetries = retries;
 
                 if (retries >= maxRetries) {
-                    console.error(`板块 ${ctx.payload.code} 第 ${currentPage} 页重试${maxRetries}次后仍然失败`);
+                    console.error(`板块 ${ctx.payload.code}|${ctx.payload.name} 第 ${currentPage} 页重试${maxRetries}次后仍然失败`);
                     ctx.errorPageRetries = 0;
                     return { error: true, total: 0, shares: [] };
                 }
 
                 // 重试间隔：错误越严重，等待时间越长
-                const waitTime = retries === 1 ? 60000 : 120000; // 第1次等1分钟，之后等2分钟
-                await this.randomSleep(waitTime + Math.random() * 60000);
+                const waitTime = retries === 1 ? 30000 : 60000; // 第1次等1分钟，之后等2分钟
+                await this.randomSleep(waitTime + Math.random() * 10000);
             }
         }
 
@@ -773,20 +789,20 @@ class EastMoneyProvider extends DataProvider {
     /**
      * 保存板块请求上下文到临时文件
      */
-    async _saveBkTempFile(ctx) {
+    async _saveBkTempFile (ctx) {
         const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
         const data = JSON.stringify(ctx, '', 3);
         await fs.promises.writeFile(tempBkFilePath, data, 'utf-8');
     }
 
-    _getBkTempFilePath(bkCode) {
+    _getBkTempFilePath (bkCode) {
         return path.join(__dirname, `../../../data/${bkCode}.json`);
     }
 
     /**
      * 删除板块临时文件
      */
-    async _deleteBkTempFile(ctx) {
+    async _deleteBkTempFile (ctx) {
         try {
             const tempBkFilePath = this._getBkTempFilePath(ctx.payload.code);
             if (await this.isFileExists(tempBkFilePath)) {
@@ -801,7 +817,7 @@ class EastMoneyProvider extends DataProvider {
      * 生成随机页码队列（排除第一页）
      * @param {number} totalPages
      */
-    _generateRandomBkPageQueue(totalPages) {
+    _generateRandomBkPageQueue (totalPages) {
         const pages = [];
         for (let i = 2; i <= totalPages; i++) {
             pages.push(i);
@@ -819,7 +835,7 @@ class EastMoneyProvider extends DataProvider {
     /**
      * 检查板块数据是否获取完成
      */
-    _isBkFetchComplete(ctx) {
+    _isBkFetchComplete (ctx) {
         return ctx.completePages.length === ctx.totalPages && ctx.totalPages > 0;
     }
 
@@ -827,7 +843,7 @@ class EastMoneyProvider extends DataProvider {
     /**
      * 按页码顺序合并板块成分股数据
      */
-    _mergeBkSharesByPage(ctx) {
+    _mergeBkSharesByPage (ctx) {
         const allShares = [];
         for (let page = 1; page <= ctx.totalPages; page++) {
             const shares = ctx.completePageShares['p' + page];
@@ -842,7 +858,7 @@ class EastMoneyProvider extends DataProvider {
     /**
      * 获取单页成分股
      */
-    async _getBkInPage(payload, pageIndex, pageSize) {
+    async _getBkInPage (payload, pageIndex, pageSize) {
         try {
             const response = await axios.get('https://push2.eastmoney.com/api/qt/clist/get', {
                 params: {
@@ -892,7 +908,7 @@ class EastMoneyProvider extends DataProvider {
         }
     }
 
-    async getBkList() {
+    async getBkList () {
         const response = await axios.get('https://quote.eastmoney.com/center/api/sidemenu_new.json');
         let bkMap = { regions: [], industries: [], concepts: [] }; // 概念
         let bklist = response.data.bklist; // 行业/概念/地域板块列表

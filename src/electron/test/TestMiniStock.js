@@ -15,7 +15,7 @@ const __dirname = dirname(__filename)
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('no-sandbox');
 
-async function testSearchStock() {
+async function testSearchStock () {
     let manager = new StockManager();
     await manager.init();
     let matches = await manager.searchLocalStock("柳");
@@ -29,7 +29,7 @@ async function testSearchStock() {
 
 
 // 加载本地模拟数据测试 KlineStorage 功能
-async function testKlineStorage() {
+async function testKlineStorage () {
     const mockDataPath = join(__dirname, '../service/mini-stock/mock/002252.json');
     let baiduProvider = new BaiduFinanceProvider();
     let mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf-8'));
@@ -67,7 +67,7 @@ const randomSleep = () => {
 };
 
 // 请求重试工具
-async function retry(fn, retries = 3) {
+async function retry (fn, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
             return await fn();
@@ -80,7 +80,7 @@ async function retry(fn, retries = 3) {
 
 
 // 原生写入 CSV（无第三方依赖）
-async function saveToCSV(ipoList, filePath) {
+async function saveToCSV (ipoList, filePath) {
     try {
         // CSV 表头
         let csvContent = '';
@@ -104,7 +104,7 @@ async function saveToCSV(ipoList, filePath) {
 }
 
 
-async function testBaiduIPOInfo() {
+async function testBaiduIPOInfo () {
     let manager = new StockManager();
     await manager.init();
     let shares = manager.getAllShares();
@@ -162,7 +162,7 @@ async function testBaiduIPOInfo() {
     }
 }
 
-async function testEastMoneyBkList() {
+async function testEastMoneyBkList () {
     let manager = new StockManager();
     await manager.init();
     manager.setProvider('eastmoney');
@@ -192,6 +192,7 @@ async function testEastMoneyBkList() {
             await randomSleep(); // 防封间隔            
         }
     }
+    console.log("完成概念板块的获取");
 }
 
 // testBaiduIPOInfo();
