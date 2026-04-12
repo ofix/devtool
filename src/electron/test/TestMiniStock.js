@@ -167,23 +167,23 @@ async function testEastMoneyBkList () {
     await manager.init();
     manager.setProvider('eastmoney');
     let bkMenu = manager.getBkMenu();
-    let regions = bkMenu.regions;
+    let industries = bkMenu.industries;
     let progress = 1;
-    for (let region of regions) {
+    for (let industry of industries) {
         try {
-            let result = await manager.getBk(region);
+            let result = await manager.getBk(industry);
             if (result.cache) {
-                console.log(`[缓存][${progress}/${regions.length}][${result.shares.length}]`);
+                console.log(`[缓存][${progress}/${industries.length}][${result.shares.length}]`);
                 console.log(result.shares);
             } else {
-                console.log(`[${progress}/${regions.length}][${result.shares.length}]`);
+                console.log(`[${progress}/${industries.length}][${result.shares.length}]`);
                 console.log(result.shares);
             }
             if (result.error) {
                 break;
             }
             if (!result.cache) {
-                await manager.saveBkList('region');
+                await manager.saveBkList('industry');
                 await randomSleep(); // 防封间隔
             }
             progress += 1;

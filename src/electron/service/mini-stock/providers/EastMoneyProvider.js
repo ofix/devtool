@@ -37,8 +37,8 @@ class EastMoneyProvider extends DataProvider {
         return {
             // 'Accept': 'application/json, text/javascript, */*; q=0.01',
             'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            // 'Accept-Encoding': 'gzip, deflate, br, zstd',
+            // 'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             // 'Accept-Language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6',
             // 'Accept-Language': 'zh-CN,zh;q=0.9',
             'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
@@ -50,7 +50,7 @@ class EastMoneyProvider extends DataProvider {
             // 'Cookie': 'qgqp_b_id=886ba22199663e93eb0113379a4305a8; st_nvi=ulCdncsaewxKeNZhq6bBR70e0; st_si=74919616369452; st_pvi=10901482434489; st_sp=2025-11-23%2009%3A52%3A22; st_inirUrl=https%3A%2F%2Fwww.baidu.com%2Flink; st_sn=1; st_psi=20260409222636241-113200301321-1178857012; st_asi=delete; nid18=0c5cd9c46a95566518e33e5332d1c75c; nid18_create_time=1775744796824; gviem=3ShOiHInJDywdwremiWwU4306; gviem_create_time=1775744796824',
             // 'Cookie': 'qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=67985322770793; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45',
             // 'Cookie': 'st_inirUrl=; st_psi=20260410200032853-113200301321-2696679963; st_pvi=61458735512065; st_sn=3; st_sp=2026-04-10%2020%3A00%3A16; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_asi=delete; st_nvi=p6hlvbWu_s8tISq564Zyt601f; st_si=86944945694129',
-            'Cookie': 'st_asi=delete; st_inirUrl=https%3A%2F%2Fbank.eastmoney.com%2F; st_psi=2026041118375622-113200301321-8245831635; st_pvi=61458735512065; st_si=23161048216987; st_sn=1; st_sp=2026-04-10%2020%3A00%3A16; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_nvi=p6hlvbWu_s8tISq564Zyt601f',
+            'Cookie': 'qgqp_b_id=870947b6a314f95b131c3316de84baba; st_nvi=vM3HWm4oPuDcXbAvFyuAD64f3; nid18=0735a491c64cc7a7c8e84431e957007a; nid18_create_time=1775921026787; gviem=_Gb0n0wTkho1xwpQJhUeFaecf; gviem_create_time=1775921026787; st_si=95669752779587; rskey=54rmXWXFaTG8vT0k3MkdKdkxvVjZUa1JpQT09qa8iQ; p_origin=https%3A%2F%2Fpassport2.eastmoney.com; mtp=1; ct=rx2UZ4RY33xSruRCfPq1Zw0ZLVB6fRM4bsJHauQOC7GyARCqDI2iZ2eBYdD31HKAtUEHAAENedu33DKt4W8HV12fvnpwC_WUkspn3f5jRyYiN9ava7tpj34-kVYMc2hWe8Ki5Q9R2S66EizaXIZRT8Bonwbp5z3Sh_ZJsWGuEEs; ut=FobyicMgeV6apd9R5fwVynY4OvVGiqZyc26aSkjEyJApE0ftD17LN7-eEUF3fiMsWQbUswFr0aSqQMwaS30aInPbWYxWMn4zDHAN84tKCyNzDQZ4YPihqd16dx_9Es21Cqhm4zR5yAh__i9B5xqMJxniEG9IKx_nXe_a_Y5AxY7xWfhqwcMsxLpWKzV-pw-Ke-MY0hc-UxI1hftDO2jrBDnhpCGRosActTMZ2W7s_ntdz12nYWjYnwj1ozEh2jXzfWjpVT7AaDoXsJIhYSKHpi-MGXeQFPrz; pi=7699345506358278%3Bm7699345506358278%3B%E4%B8%87%E9%A9%AC%E5%A5%94%E8%85%BE2026888%3B0q%2FU%2BNDfL65MF7DKMCrjVXMPDxdyfbNTHgysHDSjD6N1JVEK1xmoRYc4XrrqIhpL%2BIPekUHJ5wsG6u1SezL8MHdQ1lL%2BHhVpfJhKm3Z0VCh9ImpndEvvIRg1lid5H3iEQO3X03kxeqvjEzBquwa4V5OzXQrWnzWDS0eC2pCc0MSgf%2FEVjnYWL%2BrI9MARozW75FL%2BA4Ek%3BPq15wzZDPJeim5RWe%2B%2FxriTjmKqvqheUIXW6k0hKtQWjeL61NoRe7kZKaZ76gdWtddWS%2BGKsgf9PRF1hxWVhERWAamWnNeZul2kBsvb2nmo3FC%2Bk%2F28%2B5FpLLedgey7AbsST8yFHzjo0pkeq5rWt1HOY%2B%2BJJ0w%3D%3D; uidal=7699345506358278%e4%b8%87%e9%a9%ac%e5%a5%94%e8%85%be2026888; sid=132771940; vtpst=|; st_asi=delete; st_pvi=59156212850357; st_sp=2026-04-11%2023%3A23%3A46; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; st_sn=8; st_psi=2026041211243737-113200301321-3670181932',
             // 'Cookie': 'st_inirUrl=https%3A%2F%2Fbank.eastmoney.com%2F; st_psi=20260411074111653-113200301321-2891455114; st_pvi=61458735512065; st_sn=7; st_sp=2026-04-10%2020%3A00%3A16; st_asi=delete; st_si=64623006336055; gviem=mKu3g-nWNmFL5sU870-4x0aa1; gviem_create_time=1775822417490; nid18=0e8395724eeeb47c3eb8bf817495778f; nid18_create_time=1775822417490; qgqp_b_id=009fd27f95438f644f06c67d1affb630; st_nvi=p6hlvbWu_s8tISq564Zyt601f',
             // 'Cookie': 'qgqp_b_id=870947b6a314f95b131c3316de84baba; st_nvi=zQ6WuIDUSQ5Pynf9xPFoM3fad; st_si=71252010261157; st_asi=delete; nid18=0735a491c64cc7a7c8e84431e957007a; nid18_create_time=1775901278977; gviem=f27oSiOu5_P8xP9Gc5R4f544f; gviem_create_time=1775901278977; fullscreengg=1; fullscreengg2=1; wsc_checkuser_ok=1; st_pvi=84531075945310; st_sp=2026-04-11%2017%3A54%3A38; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; st_sn=3; st_psi=20260411175455527-113200301321-5840294214',
             'Referer': 'https://quote.eastmoney.com/center/gridlist.html',
@@ -60,7 +60,7 @@ class EastMoneyProvider extends DataProvider {
             'sec-ch-ua': '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
             'sec-ch-ua-mobile': '?0',
             // 'sec-ch-ua-platform': '"Linux"',
-            // 'sec-ch-ua-platform': '"Windows"',
+            'sec-ch-ua-platform': '"macOS"',
             'Priority': 'u=1, i',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
@@ -69,8 +69,7 @@ class EastMoneyProvider extends DataProvider {
             // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
             // 'User-Agent': 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.200 Safari/537.36 Qaxbrowser',
             // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
-            // 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
             // 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
             // 'X-Requested-With': 'XMLHttpRequest',
             // 'cb': `jQuery3710${Math.random().toString().slice(2, 18)}_${timestamp}`,
@@ -597,9 +596,11 @@ class EastMoneyProvider extends DataProvider {
         };
     }
 
+    // 东方财富接口爬取，超过1分钟10次请求容易封IP，增加随机睡眠时间
+    // 可以考虑登录东方财富账号获取cookie后使用cookie请求，增加请求成功率
     randomSleep (base) {
-        let baseMs = base || 1500;
-        const ms = Math.floor(Math.random() * 1500) + baseMs;
+        let baseMs = base || 4000;
+        const ms = Math.floor(Math.random() * 3000) + baseMs;
         console.log("睡眠 ", ms / 1000, '秒');
         return new Promise(resolve => setTimeout(resolve, ms));
     };
