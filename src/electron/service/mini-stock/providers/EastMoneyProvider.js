@@ -18,6 +18,80 @@ class EastMoneyProvider extends DataProvider {
             'Referer': 'https://quote.eastmoney.com/'
         };
         this.bkFilePath = path.join(__dirname, '../../../data/easymoney_bklist.json');
+
+        this.supportIndexes = {
+            // 沪市指数 → jp0
+            "上证指数": { secid: "1.000001", cb: "miniquotechart_jp0" },
+            "上证50": { secid: "1.000016", cb: "miniquotechart_jp0" },
+            "中证500": { secid: "1.000905", cb: "miniquotechart_jp0" },
+            "科创50": { secid: "1.000688", cb: "miniquotechart_jp0" },
+            // 深市指数 → jp1
+            "深证成指": { secid: "0.399001", cb: "miniquotechart_jp1" },
+            "创业板指": { secid: "0.399006", cb: "miniquotechart_jp1" },
+            "沪深300": { secid: "0.000300", cb: "miniquotechart_jp1" },
+        };
+    }
+
+    /**
+     * 获取指数分时数据，统一输出东方财富标准结构
+     * @param {string} indexName 指数名称
+     * @param {string} ndays 分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
+     * @returns 标准分时数据
+     */
+    async getIndexMinuteData (indexName, ndays = 1) {
+        const index = this.supportIndexes[indexName];
+        if (!index) {
+            throw new Error(`不支持的指数：${indexName}`);
+        }
+
+        const { secid, cb } = index;
+
+        const res = await axios.get('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
+            params: {
+                fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f17',
+                fields2: 'f51,f52,f53,f54,f55,f58',
+                dect: 1,
+                mpi: 1000,
+                ut: 'bd1d9ddb04089700cf9c27f6f7426281',
+                secid,
+                ndays: 1,
+                iscr: 0,
+                iscca: 0,
+                wbp2u: '1849325530509956|0|1|0|web',
+                cb,
+                dates: date
+            },
+            timeout: 10000
+        });
+
+        // 解析 JSONP
+        const jsonStr = res.data.replace(/^[a-zA-Z0-9_]+\(/, '').replace(/\);$/, '');
+        const result = JSON.parse(jsonStr);
+
+        if (result.rc !== 0) {
+            throw new Error(`接口异常，返回码：${result.rc}`);
+        }
+
+        // 统一输出：完全对齐东方财富原始分时结构
+        return {
+            code: result.data.code,
+            name: result.data.name,
+            date: date,
+            preClose: result.data.preClose,
+            size: result.data.trendsTotal,
+            data: result.data.trends, // 标准东财分时数组
+        };
+    }
+
+    /**
+     * 获取股票分时数据
+     * @param {string} code 股票代码
+     * @param {string} name 股票名称
+     * @param {string} market 股票市场：sh/sz
+     * @param {number} ndays 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
+     */
+    async getShareMinuteData (code, name, market, ndays = 1) {
+
     }
 
     /**
@@ -29,6 +103,8 @@ class EastMoneyProvider extends DataProvider {
     async getShareRankList (n, order = "top") {
 
     }
+
+
 
     #getHeaders () {
         const timestamp = Date.now();

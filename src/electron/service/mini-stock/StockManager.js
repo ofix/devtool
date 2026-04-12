@@ -581,6 +581,16 @@ export default class StockManager {
     }
 
     /**
+     * 获取指数分时数据（统一接口）
+     * @param {String} indexName 
+     * @returns 
+     */
+    async getIndexMinuteData (indexName) {
+        const provider = this._getProvider('a');
+        return await provider.getIndexMinuteData(indexName);
+    }
+
+    /**
      * 获取板块信息（带缓存）
      * @param {Object} params - { type: 1/2/3, code: BKxxx }
      * @returns { cache: boolean, data: object }
@@ -1245,42 +1255,60 @@ export default class StockManager {
         return { market: 'a', symbol: code };
     }
 
-    // 分时、股票列表、搜索
-    async getMinuteKlines (codes, days = 1) {
-        const isSingle = !Array.isArray(codes);
-        const list = isSingle ? [codes] : codes;
-        const key = list.join(',');
+    // 分时、股票列表、搜索（正确版：单只独立缓存）
+    async getShareMinuteData (shares, ndays = 1) {
+        const isSingle = !Array.isArray(shares);
+        const list = isSingle ? [shares] : shares;
 
-        const cached = this.cache.minute.get(key);
-        if (cached && (Date.now() - cached.timestamp) < 30000) {
-            this.stats.cacheHits++;
-            return isSingle ? cached.data[0] : cached.data;
+        // 用来存放最终结果
+        const resultData = [];
+
+        // 循环处理每一只股票（一只股票一个缓存）
+        for (const code of list) {
+            // ✅ 每只股票独立缓存 key
+            const cacheKey = `${code}_${ndays}`;
+            const cached = this.cache.minute.get(cacheKey);
+
+            // 缓存有效（5秒）直接用
+            if (cached && (Date.now() - cached.timestamp) < 5000) {
+                this.stats.cacheHits++;
+                resultData.push(cached.data);
+                continue;
+            }
+
+            this.stats.cacheMisses++;
+
+            // 真正请求接口
+            try {
+                const { market, symbol } = this._parseCode(code);
+                const provider = this.providers.baidu;
+                const data = await provider.getMinuteData(code, symbol, market, ndays);
+
+                // ✅ 单独写入当前股票缓存
+                this.cache.minute.set(cacheKey, {
+                    data: data,
+                    timestamp: Date.now()
+                });
+
+                resultData.push(data);
+            } catch (err) {
+                console.error(`获取分时数据失败 ${code}:`, err.message);
+                resultData.push(null);
+
+                // 失败也存个空缓存，避免频繁重试
+                this.cache.minute.set(cacheKey, {
+                    data: null,
+                    timestamp: Date.now()
+                });
+            }
         }
 
-        this.stats.cacheMisses++;
-
-        const results = await Promise.all(
-            list.map(async code => {
-                const { market, symbol } = this._parseCode(code);
-                const provider = this._getProvider(market);
-                try {
-                    return await provider.getMinuteData(symbol, market, days);
-                } catch (err) {
-                    console.error(`获取分时数据失败 ${code}:`, err.message);
-                    return null;
-                }
-            })
-        );
-
-        const resultData = isSingle ? results[0] :
-            Object.fromEntries(list.map((c, i) => [c, results[i]]));
-
-        this.cache.minute.set(key, {
-            data: resultData,
-            timestamp: Date.now()
-        });
-
-        return resultData;
+        // 返回格式保持和原来一致
+        if (isSingle) {
+            return resultData[0];
+        } else {
+            return Object.fromEntries(list.map((c, i) => [c, resultData[i]]));
+        }
     }
 
     async getStockList () {
