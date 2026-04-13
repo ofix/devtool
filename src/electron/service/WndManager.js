@@ -124,8 +124,8 @@ class WndManager extends Singleton {
 
     getAntSyncWndConfig(){
         const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
-        const width = 960;
-        const height = 560;
+        const width = 1280;
+        const height = 640;
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height, transparent: false,

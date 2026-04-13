@@ -181,6 +181,7 @@ contextBridge.exposeInMainWorld('channel', {
     delFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:del-favorite-share', code),
     addSearchShare: (code) => ipcRenderer.invoke('mini-stock:add-search-share', code),
     // 数据同步
+    getBkOverview: () => ipcRenderer.invoke('ant-sync:get-bk-overview'),
     getBkList: (type, keyword) => ipcRenderer.invoke('ant-sync:get-bk-list', type, keyword),
     syncBkList: (type) => ipcRenderer.invoke('ant-sync:sync-bk-list', type),
     getBkShares: (type, bkCode) => ipcRenderer.invoke('ant-sync:get-bk-shares', type, bkCode),

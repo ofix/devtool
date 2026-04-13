@@ -9,6 +9,12 @@ class AntSyncHandler {
     }
 
     registerHandlers() {
+        ipcMain.handle('ant-sync:get-bk-overview',async(_)=>{
+            if(!this.manager.inited){
+                await this.manager.init();
+            }
+            return this.manager.getBkOverview();
+        });
         ipcMain.handle('ant-sync:get-bk-list', async (_, type, keyword) => {
             if (!this.manager.inited) {
                 await this.manager.init();
