@@ -2,7 +2,7 @@
   <el-card class="config-card" shadow="never">
     <template #header>
       <div class="card-header">
-        <span>📋 基础设置</span>
+        <span class="icon-text"><IconSettingBase/> 基础设置</span>
         <el-button link type="primary" @click="expanded = !expanded">
           {{ expanded ? "收起" : "展开" }}
         </el-button>
@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
-
+import IconSettingBase from "@/icons/IconSettingBase.vue"
 const props = defineProps({
   provider: {
     type: Object,

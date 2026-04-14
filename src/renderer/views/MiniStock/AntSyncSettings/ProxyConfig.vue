@@ -2,7 +2,7 @@
   <el-card class="config-card" shadow="never">
     <template #header>
       <div class="card-header">
-        <span>🌐 代理配置</span>
+        <span class="icon-text"><IconProxy /> 代理配置</span>
         <el-button link type="primary" @click="expanded = !expanded">
           {{ expanded ? "收起" : "展开" }}
         </el-button>
@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
-
+import IconProxy from "@/icons/IconProxy.vue";
 const props = defineProps({
   provider: {
     type: Object,
@@ -139,5 +139,15 @@ defineExpose({ getConfig, resetConfig });
   justify-content: space-between;
   align-items: center;
   font-weight: 500;
+}
+.icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.icon-text svg {
+  display: block;
 }
 </style>

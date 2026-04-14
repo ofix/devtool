@@ -1,7 +1,7 @@
 <template>
   <div class="spider-config">
     <div class="config-header">
-      <h2>爬虫配置中心</h2>
+      <h2>设置</h2>
       <p class="config-desc">配置各数据供应商的请求头、爬虫策略等参数</p>
     </div>
 
@@ -232,37 +232,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value:
-          "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-        desc: "浏览器标识",
-      },
-      {
-        id: "header_2",
-        enabled: true,
-        name: "Accept",
-        value: "*/*",
-        desc: "接受类型",
-      },
-      {
-        id: "header_3",
-        enabled: true,
-        name: "Accept-Language",
-        value: "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-        desc: "语言偏好",
-      },
-      {
-        id: "header_4",
-        enabled: true,
-        name: "Referer",
-        value: "https://quote.eastmoney.com/center/gridlist.html",
-        desc: "来源页面",
-      },
-    ],
   },
   {
     id: "tonghuashun",
@@ -289,15 +258,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value: "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36",
-        desc: "浏览器标识",
-      },
-    ],
   },
   {
     id: "baidu",
@@ -324,15 +284,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value: "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36",
-        desc: "浏览器标识",
-      },
-    ],
   },
   {
     id: "tencent",
@@ -359,15 +310,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value: "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36",
-        desc: "浏览器标识",
-      },
-    ],
   },
   {
     id: "sina",
@@ -394,15 +336,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value: "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36",
-        desc: "浏览器标识",
-      },
-    ],
   },
   {
     id: "tushare",
@@ -429,15 +362,6 @@ const DEFAULT_PROVIDERS = [
       username: "",
       password: "",
     },
-    headers: [
-      {
-        id: "header_1",
-        enabled: true,
-        name: "User-Agent",
-        value: "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36",
-        desc: "浏览器标识",
-      },
-    ],
   },
 ];
 

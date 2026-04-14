@@ -1,6 +1,7 @@
 /* 先引入 Element Plus 基础样式（确保覆盖生效） */
 @import "element-plus/dist/index.css";
 @import "SplitterBar.css";
+@import "Spider.css";
 
 :root {
     --dpr: 1;

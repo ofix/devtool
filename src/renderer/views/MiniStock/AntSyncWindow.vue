@@ -42,21 +42,6 @@ const activeMenu = ref("plate"); // 左侧菜单选中项：plate, market, finan
 // 左侧菜单选择
 const handleMenuSelect = (index) => {
   activeMenu.value = index;
-
-  // 切换菜单时重置状态
-  if (index === "plate") {
-    // 切换到板块，加载当前选中的板块类型数据
-    currentBkType.value = "concept";
-    searchText.value = "";
-    currentPage.value = 1;
-    expandedRows.value = {};
-    loadBkData();
-  } else {
-    // 切换到行情或财务，清空板块相关数据
-    searchText.value = "";
-    currentPage.value = 1;
-    expandedRows.value = {};
-  }
 };
 </script>
 

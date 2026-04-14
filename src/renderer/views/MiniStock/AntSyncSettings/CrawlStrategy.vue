@@ -2,7 +2,7 @@
   <el-card class="config-card" shadow="never">
     <template #header>
       <div class="card-header">
-        <span>🕷️ 爬虫策略</span>
+        <span class="icon-text"><IconSpider/>爬虫策略</span>
         <el-button link type="primary" @click="expanded = !expanded">
           {{ expanded ? "收起" : "展开" }}
         </el-button>
@@ -97,7 +97,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
-
+import IconSpider from "@/icons/IconSpider.vue";
 const props = defineProps({
   provider: {
     type: Object,
