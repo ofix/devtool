@@ -1,8 +1,53 @@
 import DataProvider from "./DataProvider.js"
+import Share from "./Share.js"
 
 export default class SinaProvider extends DataProvider {
     constructor() {
         super();
+    }
+
+    /**
+     * 获取多只股票行情最新报价
+     * @param {Array} shares 多只股票
+     */
+    async getQuote(shares) {
+        const codes = shares.map(s => `${s.market}${s.code}`).join(',');
+        const url = `http://hq.sinajs.cn/list=${codes}`;
+
+        const response = await fetch(url);
+        const text = await response.text();
+
+        return this.#parseQuoteResponse(text);
+    }
+
+    /**
+     * 解析多只股票实时行情响应数据
+     */
+    #parseQuoteResponse(data) {
+        const result = [];
+        const lines = data.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) continue;
+
+            const match = line.match(/="(.+)"/);
+            if (match) {
+                const fields = match[1].split(',');
+                const newShare = new Share();
+                newShare.open = fields[0];
+                newShare.close = fields[1];
+                newShare.high = fields[3];
+                newShare.low = fields[4];
+                newShare.change = fields[2];
+                newShare.changePercent = fields[5];
+                newShare.amount = fields[6];
+                newShare.volume = fields[7];
+                result.push(newShare.toJSON());
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -58,7 +103,7 @@ export default class SinaProvider extends DataProvider {
         };
     }
 
-    async getKLineData(code, market, period, startDate, endDate) {
+    async getKlineData(code, market, period, startDate, endDate) {
         try {
             const symbol = this.getSymbol(code, market);
             const response = await axios.get(`${this.baseURL}/appstock/app/fqkline/get`, {

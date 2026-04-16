@@ -33,6 +33,14 @@ class EastMoneyProvider extends DataProvider {
     }
 
     /**
+     * 获取多只股票行情最新报价
+     * @param {Array} shares 多只股票
+     */
+    async getQuote(shares) {
+       
+    }
+
+    /**
      * 获取指数分时数据，统一输出东方财富标准结构
      * @param {string} indexName 指数名称
      * @param {string} ndays 分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据

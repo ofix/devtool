@@ -44,8 +44,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import KlineRenderer from "./Components/KlineRenderer";
-import { useConfigStore } from "../../stores/StoreStockConfig";
-import { useStockStore } from "../../stores/StoreStock";
+import { useStockConfigStore } from "@/stores/StoreStockConfig";
+import { useStockStore } from "@/stores/StoreStock";
 
 // Props
 const props = defineProps({
@@ -59,7 +59,7 @@ const props = defineProps({
 const emit = defineEmits(["kline-ready", "stock-changed"]);
 
 // Stores
-const configStore = useConfigStore();
+const configStore = useStockConfigStore();
 const stockStore = useStockStore();
 
 // Refs
@@ -84,35 +84,26 @@ const klineTypes = [
   { label: "5日分时", value: "5minute" },
 ];
 
+const hasPrevInPage = computed(() => {
+  const currentIndex = stockStore.displayStocks.findIndex(
+    (s) => s.code === stockStore.currentStock
+  );
+  return currentIndex > 0;
+});
+
+const hasNextInPage = computed(() => {
+  const currentIndex = stockStore.displayStocks.findIndex(
+    (s) => s.code === stockStore.currentStock
+  );
+  return (
+    currentIndex !== -1 && currentIndex < stockStore.displayStocks.length - 1
+  );
+});
+
 // 初始化EMA可见性
 emaPeriods.forEach((period) => {
   emaVisible.value[period] = true;
 });
-
-// 处理键盘事件（只在K线图内生效）
-const handleKeyDown = (e) => {
-  // 阻止事件冒泡，避免与父组件冲突
-  e.stopPropagation();
-
-  switch (e.key) {
-    case "ArrowLeft":
-      e.preventDefault();
-      if (renderer.value) renderer.value.pan("left");
-      break;
-    case "ArrowRight":
-      e.preventDefault();
-      if (renderer.value) renderer.value.pan("right");
-      break;
-    case "ArrowUp":
-      e.preventDefault();
-      if (renderer.value) renderer.value.zoom("in");
-      break;
-    case "ArrowDown":
-      e.preventDefault();
-      if (renderer.value) renderer.value.zoom("out");
-      break;
-  }
-};
 
 // 加载K线数据
 const loadKlineData = async () => {
@@ -124,7 +115,7 @@ const loadKlineData = async () => {
 
     const data = await window.channel.getKlines(
       stockStore.currentStock,
-      "a",
+      "a", // market
       currentType.value,
       startDate,
       endDate
@@ -188,6 +179,7 @@ const loadMinuteData = async () => {
       lastCandle.volume = rt.volume;
       lastCandle.amount = rt.amount;
 
+      // 更新 store 中的实时数据
       stockStore.updateStockData(stockStore.currentStock, {
         price: rt.price,
         change: rt.change,
@@ -243,6 +235,46 @@ const toggleSubChart = () => {
   if (renderer.value && renderer.value.volumeRenderer) {
     renderer.value.volumeRenderer.setDisplayMode(subChartMode.value);
     renderer.value.render();
+  }
+};
+
+// 上一只股票
+const handlePrevStock = () => {
+  if (hasPrevInPage.value || stockStore.hasPrevPage) {
+    stockStore.prevStock();
+    emit("stock-changed", stockStore.currentStock);
+    loadKlineData();
+  }
+};
+
+// 下一只股票
+const handleNextStock = () => {
+  if (hasNextInPage.value || stockStore.hasNextPage) {
+    stockStore.nextStock();
+    emit("stock-changed", stockStore.currentStock);
+    loadKlineData();
+  }
+};
+
+// 键盘事件
+const handleKeyDown = (event) => {
+  switch (event.key) {
+    case "ArrowUp":
+      event.preventDefault();
+      handlePrevStock();
+      break;
+    case "ArrowDown":
+      event.preventDefault();
+      handleNextStock();
+      break;
+    case "ArrowLeft":
+      event.preventDefault();
+      if (renderer.value) renderer.value.pan("left");
+      break;
+    case "ArrowRight":
+      event.preventDefault();
+      if (renderer.value) renderer.value.pan("right");
+      break;
   }
 };
 
@@ -317,6 +349,17 @@ watch(
   }
 );
 
+// 监听显示股票列表变化，自动选择第一只
+watch(
+  () => stockStore.displayStocks,
+  (newStocks) => {
+    if (newStocks.length > 0 && !stockStore.currentStock) {
+      stockStore.setCurrentStock(newStocks[0].code);
+    }
+  },
+  { deep: true }
+);
+
 // 生命周期
 onMounted(async () => {
   await stockStore.loadFromStorage();
@@ -324,6 +367,7 @@ onMounted(async () => {
   startTimer();
   window.addEventListener("resize", handleResize);
 
+  // 设置canvas焦点
   setTimeout(() => {
     canvasRef.value?.parentElement?.focus();
   }, 100);
@@ -338,13 +382,70 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 样式保持不变 */
 .kline-ctrl {
   display: flex;
   flex-direction: column;
   height: 100%;
   outline: none;
   position: relative;
+}
+
+.stock-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.nav-btn {
+  background: #333;
+  border: none;
+  color: #fff;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #ff6b6b;
+  transform: scale(1.05);
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stock-info {
+  flex: 1;
+  text-align: center;
+}
+
+.stock-name {
+  font-size: 14px;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.stock-code {
+  font-size: 12px;
+  color: #ff6b6b;
+  font-family: monospace;
+  margin-right: 12px;
+}
+
+.page-info {
+  font-size: 11px;
+  color: #999;
+  background: #333;
+  padding: 2px 6px;
+  border-radius: 10px;
 }
 
 .kline-type-bar {

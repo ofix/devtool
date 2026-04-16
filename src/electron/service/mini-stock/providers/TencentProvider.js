@@ -66,63 +66,160 @@ class TencentProvider extends DataProvider {
     // 通用请求头
     #getHeaders() {
         return {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
             "Accept-Language": "zh-CN,zh;q=0.9",
-            Referer: "https://finance.qq.com/"
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+            "Referer": "https://gu.qq.com/",
+            "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
         };
     }
 
     /**
+     * 格式化时间戳为可读时间
+     * @param {string} timestamp - 如 '20260416101839'
+     * @returns {string} 如 '2026-04-16 10:18:39'
+     */
+    #formatTime(timestamp) {
+        if (!timestamp || timestamp.length !== 14) return timestamp;
+        const year = timestamp.substring(0, 4);
+        const month = timestamp.substring(4, 6);
+        const day = timestamp.substring(6, 8);
+        const hour = timestamp.substring(8, 10);
+        const minute = timestamp.substring(10, 12);
+        const second = timestamp.substring(12, 14);
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
+    /**
      * 腾讯财经 - 批量获取股票实时行情
-     * @param {Array} codes 股票代码数组 ['000001','600000','002594']
+     * @param {Array} shares 股票数组
      * @returns {Promise<Array>} 格式化实时行情列表
      */
-    async getBatchQuotes(codes) {
+    async getQuote(shares) {
         try {
-            if (!codes || codes.length === 0) return [];
-
+            if (!shares || shares.length === 0) return [];
             // 自动拼接前缀：6开头=sh，0/3开头=sz
-            const stockList = codes.map(code => {
-                const c = code.toString().trim();
-                return c.startsWith('6') ? `sh${c}` : `sz${c}`;
+            const stockList = shares.map(share => {
+                return share.market == 'SH' ? `sh${share.code}` : `sz${share.code}`;
             }).join(',');
 
             const url = `https://web.sqt.gtimg.cn/utf8/q=${stockList}&r=${Math.random()}`;
-
-            const res = await fetch(url, {
+            const res = await axios.get(url, {
                 headers: this.#getHeaders(),
+                timeout: 10000
             });
-
-            const text = await res.text();
-            if (!text) return [];
-
+            let data = res.data;
             // 解析腾讯专用格式
             const result = [];
-            const lines = text.split(';').filter(i => i.trim());
+            const lines = data.split(';').filter(i => i.trim());
 
             for (const line of lines) {
                 const match = line.match(/v_(sh|sz)(\d+)="([^"]+)"/);
                 if (!match) continue;
-
-                // const prefix = match[1]; // sh/sz
-                const code = match[2];   // 纯代码
                 const fields = match[3].split('~');
+                // 判断数据类型（深市51开头 或 沪市1开头）
+                const dataType = fields[0];
+                const isSZ = dataType === '51';  // 深市
+                const isSH = dataType === '1';   // 沪市
 
-                // 字段映射（腾讯官方固定字段）
-                result.push({
-                    code: code,                           // 股票代码
-                    name: fields[0] || '',                // 名称
-                    price: parseFloat(fields[1]) || 0,    // 当前价格
-                    open: parseFloat(fields[2]) || 0,     // 今开
-                    yclose: parseFloat(fields[3]) || 0,   // 昨收
-                    high: parseFloat(fields[4]) || 0,     // 最高
-                    low: parseFloat(fields[5]) || 0,      // 最低
-                    change: parseFloat(fields[7]) || 0,   // 涨跌额
-                    increase: parseFloat(fields[8]) || 0, // 涨跌幅%
-                    volume: fields[9] || '',              // 成交量
-                    amount: fields[10] || '',             // 成交额
-                    time: fields[30] || '',               // 时间
-                });
+                if (!isSZ && !isSH) {
+                    console.warn('未知的数据格式:', dataType);
+                    continue;
+                }
+                let share = {
+                    code: fields[2],                       // 股票代码
+                    name: fields[1],                       // 名称
+                    close: parseFloat(fields[3]),          // 当前价格
+                    open: parseFloat(fields[5]),           // 今开
+                    yclose: parseFloat(fields[4]),         // 昨收
+                    high: parseFloat(fields[33]),          // 最高
+                    low: parseFloat(fields[34]),           // 最低
+                    change: parseFloat(fields[31]),        // 涨跌额
+                    changePercent: parseFloat(fields[32]), // 涨跌幅%
+                    volume: parseInt(fields[6], 10),       // 成交量
+                    amount: 0,                              // 成交额
+                    turnover: 0,                            // 换手率
+                    time: this.#formatTime(fields[30]), // 当前时间
+                }
+                // 计算成交额（元）
+                if (fields[35]) {
+                    const parts = fields[35].split('/');
+                    if (parts.length >= 3) {
+                        share.amount = parseFloat(parts[2]);  // 成交额（元）
+                    }
+                }
+                // 换手率
+                if (isSZ) {
+                    if (fields[38]) share.turnover = parseFloat(fields[38]);
+                } else {
+                    if (fields[36]) share.turnover = parseFloat(fields[36]);
+                }
+                result.push(share);
+
+                // 深市特有字段（51开头）
+                // if (isSZ) {
+                //     share.外盘 = parseInt(fields[7], 10);
+                //     share.内盘 = parseInt(fields[8], 10);
+
+                //     // 卖五档（位置9-18）
+                //     share.sell = {
+                //         level1: { price: parseFloat(fields[9]), volume: parseInt(fields[10], 10) },
+                //         level2: { price: parseFloat(fields[11]), volume: parseInt(fields[12], 10) },
+                //         level3: { price: parseFloat(fields[13]), volume: parseInt(fields[14], 10) },
+                //         level4: { price: parseFloat(fields[15]), volume: parseInt(fields[16], 10) },
+                //         level5: { price: parseFloat(fields[17]), volume: parseInt(fields[18], 10) }
+                //     };
+
+                //     // 买五档（位置19-28）
+                //     share.buy = {
+                //         level1: { price: parseFloat(fields[19]), volume: parseInt(fields[20], 10) },
+                //         level2: { price: parseFloat(fields[21]), volume: parseInt(fields[22], 10) },
+                //         level3: { price: parseFloat(fields[23]), volume: parseInt(fields[24], 10) },
+                //         level4: { price: parseFloat(fields[25]), volume: parseInt(fields[26], 10) },
+                //         level5: { price: parseFloat(fields[27]), volume: parseInt(fields[28], 10) }
+                //     };
+
+                //     // 其他指标（位置36之后）
+                //     if (fields[36]) share.委比 = parseFloat(fields[36]);
+                //     if (fields[37]) share.委差 = parseFloat(fields[37]);
+
+                //     if (fields[39]) share.市盈率 = parseFloat(fields[39]);
+                //     if (fields[40]) share.市净率 = parseFloat(fields[40]);
+                //     if (fields[45]) share.每股收益 = parseFloat(fields[45]);
+                //     if (fields[46]) share.流通股本 = parseFloat(fields[46]);
+                //     if (fields[47]) share.总股本 = parseFloat(fields[47]);
+                //     if (fields[48]) share.流通市值 = parseFloat(fields[48]);
+                //     if (fields[49]) share.总市值 = parseFloat(fields[49]);
+
+                // }
+                // // 沪市特有字段（1开头）
+                // else if (isSH) {
+                //     // 沪市的买卖档位位置略有不同
+                //     share.sell = {
+                //         level1: { price: parseFloat(fields[7]), volume: parseInt(fields[8], 10) },
+                //         level2: { price: parseFloat(fields[9]), volume: parseInt(fields[10], 10) },
+                //         level3: { price: parseFloat(fields[11]), volume: parseInt(fields[12], 10) },
+                //         level4: { price: parseFloat(fields[13]), volume: parseInt(fields[14], 10) },
+                //         level5: { price: parseFloat(fields[15]), volume: parseInt(fields[16], 10) }
+                //     };
+
+                //     share.buy = {
+                //         level1: { price: parseFloat(fields[17]), volume: parseInt(fields[18], 10) },
+                //         level2: { price: parseFloat(fields[19]), volume: parseInt(fields[20], 10) },
+                //         level3: { price: parseFloat(fields[21]), volume: parseInt(fields[22], 10) },
+                //         level4: { price: parseFloat(fields[23]), volume: parseInt(fields[24], 10) },
+                //         level5: { price: parseFloat(fields[25]), volume: parseInt(fields[26], 10) }
+                //     };
+
+                //     if (fields[37]) share.市盈率 = parseFloat(fields[37]);
+                //     if (fields[38]) share.市净率 = parseFloat(fields[38]);
+                //     if (fields[43]) share.每股收益 = parseFloat(fields[43]);
+                //     if (fields[44]) share.流通股本 = parseFloat(fields[44]);
+                //     if (fields[45]) share.总股本 = parseFloat(fields[45]);
+                //     if (fields[46]) share.流通市值 = parseFloat(fields[46]);
+                //     if (fields[47]) share.总市值 = parseFloat(fields[47]);
+                // }
             }
             return result;
         } catch (err) {

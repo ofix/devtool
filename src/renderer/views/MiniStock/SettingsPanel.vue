@@ -47,7 +47,7 @@
           <button
             v-for="source in dataSources"
             :key="source.value"
-            :class="{ active: dataSource === source.value }"
+            :class="{ active: dataProvider === source.value }"
             @click="setDataSource(source.value)"
           >
             {{ source.label }}
@@ -63,44 +63,52 @@
             <label>显示/隐藏窗口</label>
             <input
               type="text"
-              v-model="shortcuts.toggleWindow"
-              @focus="recordingKey = 'toggleWindow'"
-              @blur="recordingKey = null"
+              :value="shortcuts.toggleWindow"
+              @focus="startRecording('toggleWindow')"
+              @blur="stopRecording"
               @keydown="captureShortcut"
-              placeholder="点击录制"
+              :placeholder="
+                recordingKey === 'toggleWindow' ? '按下快捷键...' : '点击录制'
+              "
             />
           </div>
           <div class="shortcut-item">
             <label>搜索面板</label>
             <input
               type="text"
-              v-model="shortcuts.search"
-              @focus="recordingKey = 'search'"
-              @blur="recordingKey = null"
+              :value="shortcuts.search"
+              @focus="startRecording('search')"
+              @blur="stopRecording"
               @keydown="captureShortcut"
-              placeholder="点击录制"
+              :placeholder="
+                recordingKey === 'search' ? '按下快捷键...' : '点击录制'
+              "
             />
           </div>
           <div class="shortcut-item">
             <label>自选股面板</label>
             <input
               type="text"
-              v-model="shortcuts.favorites"
-              @focus="recordingKey = 'favorites'"
-              @blur="recordingKey = null"
+              :value="shortcuts.favorites"
+              @focus="startRecording('favorites')"
+              @blur="stopRecording"
               @keydown="captureShortcut"
-              placeholder="点击录制"
+              :placeholder="
+                recordingKey === 'favorites' ? '按下快捷键...' : '点击录制'
+              "
             />
           </div>
           <div class="shortcut-item">
             <label>设置面板</label>
             <input
               type="text"
-              v-model="shortcuts.settings"
-              @focus="recordingKey = 'settings'"
-              @blur="recordingKey = null"
+              :value="shortcuts.settings"
+              @focus="startRecording('settings')"
+              @blur="stopRecording"
               @keydown="captureShortcut"
-              placeholder="点击录制"
+              :placeholder="
+                recordingKey === 'settings' ? '按下快捷键...' : '点击录制'
+              "
             />
           </div>
         </div>
@@ -117,8 +125,8 @@
             <input
               type="radio"
               value="sync"
-              v-model="kLineMode"
-              @change="setKLineMode('sync')"
+              v-model="klineMode"
+              @change="setKlineMode('sync')"
             />
             同步切换（所有股票K线类型同步）
           </label>
@@ -126,8 +134,8 @@
             <input
               type="radio"
               value="independent"
-              v-model="kLineMode"
-              @change="setKLineMode('independent')"
+              v-model="klineMode"
+              @change="setKlineMode('independent')"
             />
             独立切换（各股票K线类型独立）
           </label>
@@ -146,6 +154,9 @@
             <span>{{ stock.name }} ({{ stock.code }})</span>
             <button @click="removeFavorite(stock.code)">删除</button>
           </div>
+          <div v-if="favorites.length === 0" class="empty-favorites">
+            暂无自选股
+          </div>
         </div>
       </div>
     </div>
@@ -156,182 +167,142 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from "vue";
-import { useConfigStore } from "@/stores/StoreStockConfig";
+import { useStockConfigStore } from "@/stores/StoreStockConfig";
 import { useStockStore } from "@/stores/StoreStock";
+import { storeToRefs } from "pinia";
 
-export default {
-  name: "SettingsPanel",
-  emits: ["close", "config-changed"],
+// Emits
+const emit = defineEmits(["close", "config-changed"]);
 
-  setup(props, { emit }) {
-    const configStore = useConfigStore();
-    const stockStore = useStockStore();
+// Stores
+const configStore = useStockConfigStore();
+const stockStore = useStockStore();
 
-    const theme = ref("dark");
-    const emaPeriods = [10, 20, 30, 60, 99, 255, 905];
-    const emaColors = ref({});
-    const dataSource = ref("eastmoney");
-    const shortcuts = ref({
-      toggleWindow: "Ctrl+Esc",
-      search: "F1",
-      favorites: "F2",
-      settings: "F3",
-    });
-    const kLineMode = ref("sync");
-    const favorites = ref([]);
-    const recordingKey = ref(null);
+// 使用 storeToRefs 解构响应式状态
+const { theme, dataProvider, klineMode, emaColors, shortcuts } =
+  storeToRefs(configStore);
+const { favorites } = storeToRefs(stockStore);
 
-    const dataSources = [
-      { label: "东方财富", value: "eastmoney" },
-      { label: "腾讯财经", value: "tencent" },
-      { label: "百度财经", value: "baidu" },
-      { label: "Yahoo Finance", value: "yahoo" },
-    ];
+// 本地状态（不需要同步到 store 的）
+const emaPeriods = [10, 20, 30, 60, 99, 255, 905];
+const recordingKey = ref(null);
 
-    const setTheme = (newTheme) => {
-      theme.value = newTheme;
-      document.documentElement.setAttribute("data-theme", newTheme);
-      emit("config-changed", "theme", newTheme);
-    };
+// Data sources configuration
+const dataSources = [
+  { label: "东方财富", value: "eastmoney" },
+  { label: "腾讯财经", value: "tencent" },
+  { label: "百度财经", value: "baidu" },
+  { label: "Yahoo Finance", value: "yahoo" },
+];
 
-    const updateEMAColor = (period, color) => {
-      emaColors.value[period] = color;
-      emit("config-changed", "emaColors", emaColors.value);
-    };
-
-    const setDataSource = (source) => {
-      dataSource.value = source;
-      emit("config-changed", "dataProvider", source);
-    };
-
-    const setKLineMode = (mode) => {
-      kLineMode.value = mode;
-      emit("config-changed", "kLineMode", mode);
-    };
-
-    const captureShortcut = (event) => {
-      if (!recordingKey.value) return;
-
-      event.preventDefault();
-
-      const keys = [];
-      if (event.ctrlKey) keys.push("Ctrl");
-      if (event.altKey) keys.push("Alt");
-      if (event.shiftKey) keys.push("Shift");
-      if (event.metaKey) keys.push("Meta");
-
-      let key = "";
-      if (event.key === " ") key = "Space";
-      else if (event.key === "Escape") key = "Esc";
-      else if (event.key === "Delete") key = "Del";
-      else if (event.key.length === 1) key = event.key.toUpperCase();
-      else key = event.key;
-
-      if (key && !["Control", "Alt", "Shift", "Meta"].includes(key)) {
-        keys.push(key);
-        shortcuts.value[recordingKey.value] = keys.join("+");
-      }
-
-      recordingKey.value = null;
-    };
-
-    const resetShortcuts = () => {
-      shortcuts.value = {
-        toggleWindow: "Ctrl+Esc",
-        search: "F1",
-        favorites: "F2",
-        settings: "F3",
-      };
-    };
-
-    const removeFavorite = (code) => {
-      stockStore.removeFavorite(code);
-      loadFavorites();
-    };
-
-    const loadFavorites = () => {
-      favorites.value = stockStore.favorites;
-    };
-
-    const saveSettings = async () => {
-      await window.electron.setConfig("settings", {
-        theme: theme.value,
-        emaColors: emaColors.value,
-        dataProvider: dataSource.value,
-        kLineMode: kLineMode.value,
-      });
-
-      await window.electron.setConfig("shortcuts", shortcuts.value);
-
-      emit("config-changed", "all", {
-        theme: theme.value,
-        emaColors: emaColors.value,
-        dataProvider: dataSource.value,
-        kLineMode: kLineMode.value,
-        shortcuts: shortcuts.value,
-      });
-
-      emit("close");
-    };
-
-    const loadSettings = async () => {
-      const savedTheme = await window.electron.getConfig("settings.theme");
-      const savedColors = await window.electron.getConfig("settings.emaColors");
-      const savedDataSource = await window.electron.getConfig(
-        "settings.dataProvider"
-      );
-      const savedKLineMode =
-        await window.electron.getConfig("settings.kLineMode");
-      const savedShortcuts = await window.electron.getConfig("shortcuts");
-
-      theme.value = savedTheme || "dark";
-      emaColors.value = savedColors || {
-        10: "#FF6B6B",
-        20: "#4ECDC4",
-        30: "#45B7D1",
-        60: "#96CEB4",
-        99: "#FFEAA7",
-        255: "#DDA0DD",
-        905: "#98D8C8",
-      };
-      dataSource.value = savedDataSource || "eastmoney";
-      kLineMode.value = savedKLineMode || "sync";
-      shortcuts.value = savedShortcuts || {
-        toggleWindow: "Ctrl+Esc",
-        search: "F1",
-        favorites: "F2",
-        settings: "F3",
-      };
-    };
-
-    onMounted(() => {
-      loadSettings();
-      loadFavorites();
-    });
-
-    return {
-      theme,
-      emaPeriods,
-      emaColors,
-      dataSource,
-      shortcuts,
-      kLineMode,
-      favorites,
-      dataSources,
-      recordingKey,
-      setTheme,
-      updateEMAColor,
-      setDataSource,
-      setKLineMode,
-      captureShortcut,
-      resetShortcuts,
-      removeFavorite,
-      saveSettings,
-    };
-  },
+// Methods - 直接调用 store 的 actions
+const setTheme = (newTheme) => {
+  configStore.updateTheme(newTheme);
+  document.documentElement.setAttribute("data-theme", newTheme);
+  emit("config-changed", "theme", newTheme);
 };
+
+const updateEMAColor = (period, color) => {
+  configStore.updateEMAColor(period, color);
+  emit("config-changed", "emaColors", emaColors.value);
+};
+
+const setDataSource = (source) => {
+  configStore.updateDataProvider(source);
+  emit("config-changed", "dataProvider", source);
+};
+
+const setKlineMode = (mode) => {
+  configStore.updateKlineMode(mode);
+  emit("config-changed", "klineMode", mode);
+};
+
+const startRecording = (key) => {
+  recordingKey.value = key;
+};
+
+const stopRecording = () => {
+  recordingKey.value = null;
+};
+
+const captureShortcut = (event) => {
+  if (!recordingKey.value) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const keys = [];
+  if (event.ctrlKey) keys.push("Ctrl");
+  if (event.altKey) keys.push("Alt");
+  if (event.shiftKey) keys.push("Shift");
+  if (event.metaKey) keys.push("Win");
+
+  // 获取按键名称
+  let key = "";
+  if (event.key === " ") key = "Space";
+  else if (event.key === "Escape") key = "Esc";
+  else if (event.key === "Delete") key = "Del";
+  else if (event.key === "ArrowUp") key = "↑";
+  else if (event.key === "ArrowDown") key = "↓";
+  else if (event.key === "ArrowLeft") key = "←";
+  else if (event.key === "ArrowRight") key = "→";
+  else if (event.key.length === 1) key = event.key.toUpperCase();
+  else key = event.key;
+
+  // 过滤掉修饰键本身
+  if (key && !["Control", "Alt", "Shift", "Meta"].includes(key)) {
+    keys.push(key);
+    const shortcut = keys.join("+");
+
+    // 直接更新 store 中的快捷键
+    shortcuts.value[recordingKey.value] = shortcut;
+    configStore.updateShortcut(recordingKey.value, shortcut);
+    emit("config-changed", "shortcuts", shortcuts.value);
+  }
+
+  recordingKey.value = null;
+};
+
+const resetShortcuts = () => {
+  // 重置 shortcuts 的值
+  shortcuts.value = {
+    toggleWindow: "Ctrl+Esc",
+    search: "F1",
+    favorites: "F2",
+    settings: "F3",
+  };
+  configStore.updateShortcuts(shortcuts.value);
+  emit("config-changed", "shortcuts", shortcuts.value);
+};
+
+const removeFavorite = (code) => {
+  stockStore.removeFavorite(code);
+  // favorites 会自动更新，因为它是响应式的
+};
+
+const saveSettings = async () => {
+  // 配置已经通过各个 setter 方法实时保存到 store
+  // 这里只需要触发保存到本地存储
+  await configStore.saveAllToStorage();
+
+  emit("config-changed", "all", {
+    theme: theme.value,
+    emaColors: emaColors.value,
+    dataProvider: dataProvider.value,
+    klineMode: klineMode.value,
+    shortcuts: shortcuts.value,
+  });
+
+  emit("close");
+};
+
+// Lifecycle
+onMounted(() => {
+  // 应用当前主题到 DOM
+  document.documentElement.setAttribute("data-theme", theme.value);
+});
 </script>
 
 <style scoped>
@@ -396,10 +367,27 @@ export default {
   padding: 15px;
 }
 
+.settings-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 3px;
+}
+
 .setting-section {
   margin-bottom: 25px;
   padding-bottom: 20px;
   border-bottom: 1px solid #444;
+}
+
+.setting-section:last-child {
+  border-bottom: none;
 }
 
 .setting-section h4 {
@@ -423,6 +411,11 @@ export default {
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
+}
+
+.theme-selector button:hover,
+.data-source-selector button:hover {
+  background: #444;
 }
 
 .theme-selector button.active,
@@ -453,6 +446,7 @@ export default {
   border: 1px solid #555;
   border-radius: 4px;
   cursor: pointer;
+  background: transparent;
 }
 
 .shortcuts {
@@ -480,6 +474,13 @@ export default {
   border-radius: 4px;
   text-align: center;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shortcut-item input:focus {
+  outline: none;
+  border-color: #ff6b6b;
+  background: #3a3a3a;
 }
 
 .reset-shortcuts {
@@ -491,6 +492,11 @@ export default {
   cursor: pointer;
   border-radius: 4px;
   font-size: 12px;
+  transition: background 0.2s;
+}
+
+.reset-shortcuts:hover {
+  background: #555;
 }
 
 .mode-selector {
@@ -504,11 +510,29 @@ export default {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  font-size: 13px;
+}
+
+.mode-selector input {
+  cursor: pointer;
 }
 
 .favorite-manage {
   max-height: 200px;
   overflow-y: auto;
+}
+
+.favorite-manage::-webkit-scrollbar {
+  width: 4px;
+}
+
+.favorite-manage::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.favorite-manage::-webkit-scrollbar-thumb {
+  background: #666;
+  border-radius: 2px;
 }
 
 .favorite-item {
@@ -519,6 +543,10 @@ export default {
   border-bottom: 1px solid #444;
 }
 
+.favorite-item span {
+  font-size: 13px;
+}
+
 .favorite-item button {
   padding: 2px 8px;
   background: #e81123;
@@ -527,6 +555,18 @@ export default {
   cursor: pointer;
   border-radius: 3px;
   font-size: 11px;
+  transition: background 0.2s;
+}
+
+.favorite-item button:hover {
+  background: #ff3333;
+}
+
+.empty-favorites {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 13px;
 }
 
 .panel-footer {
@@ -543,6 +583,7 @@ export default {
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
+  transition: background 0.2s;
 }
 
 .save-btn:hover {

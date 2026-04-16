@@ -1,6 +1,6 @@
 import axios from 'axios';
 import DataProvider from "./DataProvider.js"
-class TushareProvider extends DataProvider{
+class TushareProvider extends DataProvider {
     constructor() {
         super();
         this.baseURL = 'http://api.tushare.pro';
@@ -18,6 +18,15 @@ class TushareProvider extends DataProvider{
     setToken(token) {
         this.token = token;
     }
+
+    /**
+     * 获取多只股票行情最新报价
+     * @param {Array} shares 多只股票
+     */
+    async getQuote(shares) {
+
+    }
+
 
     /**
      * 获取Tushare 涨幅榜/跌幅榜 前N只股票

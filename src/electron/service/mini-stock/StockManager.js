@@ -660,10 +660,10 @@ export default class StockManager {
     }
 
     /**
-       * 删除自选股
-       * @param {string} code - 股票代码
-       * @returns {boolean} 是否删除成功
-       */
+     * 删除自选股
+     * @param {string} code - 股票代码
+     * @returns {boolean} 是否删除成功
+     */
     delFavoriteShare(code) {
         if (!code || typeof code !== 'string') {
             console.error('股票代码不能为空');
@@ -848,6 +848,39 @@ export default class StockManager {
         }
         if (providers.hasOwnProperty(this.activeProvider)) {
             console.log(`数据源自 ${providers[this.activeProvider]}`);
+        }
+    }
+
+    /**
+     * 获取多只股票行情最新报价
+     * @param {Array} shares 多只股票
+     */
+    async getQuote(shares) {
+        const provider = this._getProvider();
+        try {
+            let result = await provider.getQuote(shares);
+            return result;
+        } catch (e) {
+            console.log(e);
+            return [];
+        }
+    }
+
+    printQuote(shares) {
+        for (let i = 0; i < shares.length; i++) {
+            let share = shares[i];
+            console.log(`\n\n+++++++++ ${share.name} +++++++++`);
+            console.log(`股票名称: ${share.name}`);
+            console.log(`当前价: ${share.close}`);
+            console.log(`今开: ${share.open}`);
+            console.log(`最高价: ${share.high}`);
+            console.log(`最低价: ${share.low}`);
+            console.log(`涨跌额:${share.change}`);
+            console.log(`涨跌幅: ${share.changePercent}%`);
+            console.log(`换手率: ${share.turnover}`);
+            console.log(`成交额: ${share.amount}`);
+            console.log(`成交量: ${share.volume}`);
+            console.log(`时间: ${share.time}`);
         }
     }
 

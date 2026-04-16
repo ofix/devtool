@@ -18,13 +18,21 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     /**
+     * 百度财经 - 批量获取股票实时行情
+     * @param {Array} shares 股票数组
+     * @returns {Promise<Array>} 格式化实时行情列表
+     */
+    async getQuote(shares) {
+    }
+
+    /**
      * 获取股票分时数据
      * @param {string} code 股票代码
      * @param {string} name 股票名称
      * @param {string} market 股票市场：sh/sz
      * @param {number} ndays 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
      */
-    async getShareMinuteData (code, name, market, ndays = 1) {
+    async getShareMinuteData(code, name, market, ndays = 1) {
         let group = ndays == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
@@ -49,7 +57,7 @@ class BaiduFinanceProvider extends DataProvider {
             throw error;
         }
     }
-    #parseMinuteData (data) {
+    #parseMinuteData(data) {
         try {
             const newMarketData = data?.Result?.newMarketData;
             if (!newMarketData) return [];
@@ -108,7 +116,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string} indexName 指数名称：上证指数
      * @returns 东方财富标准统一格式
      */
-    async getIndexMinuteData (indexName) {
+    async getIndexMinuteData(indexName) {
         const code = this.INDEX_MAP[indexName];
         if (!code) throw new Error(`不支持指数：${indexName}`);
 
@@ -165,7 +173,7 @@ class BaiduFinanceProvider extends DataProvider {
     /**
      * 解析昨收价
      */
-    getPreClose (list) {
+    getPreClose(list) {
         const item = list.find(i => i.ename === 'preClose');
         return item ? parseFloat(item.value) : 0;
     }
@@ -175,7 +183,7 @@ class BaiduFinanceProvider extends DataProvider {
      * 百度：timestamp,time,price,range,ratio,volume,amount,totalVolume,totalAmount
      * 东财："2026-04-10 09:30,价格,均价,最高,最低,成交额"
      */
-    _parseIndexMinuteData (rawStr, dayHigh, dayLow) {
+    _parseIndexMinuteData(rawStr, dayHigh, dayLow) {
         return rawStr.split(';').map(line => {
             const [timestamp, time, price] = line.split(',');
             const fullTime = `2026-${time}`;
@@ -185,7 +193,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度财经 - 获取涨幅榜 / 跌幅榜前 N 只股票
-    async getTopSharesFromBaidu (n, order = "top") {
+    async getTopSharesFromBaidu(n, order = "top") {
         try {
             const isAsc = order !== 'top'; // 涨幅降序，跌幅升序
             const timestamp = Date.now();
@@ -230,7 +238,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度专用请求头（防反爬）
-    #getHeaders () {
+    #getHeaders() {
         return {
             "Accept": "application/vnd.finance-web.v1+json",
             "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -254,7 +262,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string} market 股票市场
      * @return {string} 股票IPO信息，格式 股票代码,上市日期，发行价
      */
-    async getIPOInfo (code, market) {
+    async getIPOInfo(code, market) {
         const response = await axios.get(`https://finance.pae.baidu.com/api/stockwidget`, {
             params: {
                 code: code,
@@ -287,7 +295,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
      * @returns {Promise<Object>} 返回K线数据
      */
-    async getKline (code, name, market, period, startDate, endDate) {
+    async getKline(code, name, market, period, startDate, endDate) {
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
                 params: {
@@ -314,7 +322,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    #parseDayKline (data) {
+    #parseDayKline(data) {
         try {
             const newMarketData = data?.Result?.newMarketData;
             if (!newMarketData) return [];
@@ -356,7 +364,7 @@ class BaiduFinanceProvider extends DataProvider {
 
 
 
-    async searchStock (keyword) {
+    async searchStock(keyword) {
         try {
             const response = await axios.get('https://finance.pae.baidu.com/api/search', {
                 params: {

@@ -6,6 +6,15 @@ class YahooProvider {
     }
 
     /**
+     * 获取多只股票行情最新报价
+     * @param {Array} shares 多只股票
+     */
+    async getQuote(shares) {
+
+    }
+
+
+    /**
      * 获取雅虎财经 涨幅榜/跌幅榜 前N只股票
      * @param {number} n - 获取股票数量
      * @param {string} order - top=涨幅榜, bottom=跌幅榜

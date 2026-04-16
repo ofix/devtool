@@ -1,74 +1,111 @@
-import { reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
+import { defineStore } from 'pinia';
 
-class ConfigStore {
-  constructor() {
-    this.state = reactive({
-      theme: 'dark',
-      dataProvider: 'eastmoney',
-      kLineMode: 'sync',
-      emaColors: {
-        10: '#FF6B6B',
-        20: '#4ECDC4',
-        30: '#45B7D1',
-        60: '#96CEB4',
-        99: '#FFEAA7',
-        255: '#DDA0DD',
-        905: '#98D8C8'
-      },
-      shortcuts: {
-        toggleWindow: 'Ctrl+Esc',
-        search: 'F1',
-        favorites: 'F2',
-        settings: 'F3'
-      }
+export const useStockConfigStore = defineStore('StockConfig', () => {
+    // ============ State ============
+    const theme = ref('dark');
+    const dataProvider = ref('eastmoney');
+    const klineMode = ref('sync');
+    const emaColors = reactive({
+        10: '#FF6B6B', 20: '#4ECDC4', 30: '#45B7D1',
+        60: '#96CEB4', 99: '#FFEAA7', 255: '#DDA0DD', 905: '#98D8C8'
+    });
+    const shortcuts = reactive({
+        toggleWindow: 'Ctrl+Esc', search: 'F1',
+        favorites: 'F2', settings: 'F3'
     });
 
-    this.loadFromStorage();
-  }
+    // ============ Getters ============
+    const isDarkTheme = computed(() => theme.value === 'dark');
+    const getEMAColor = (period) => emaColors[period] || '#FFFFFF';
+    const getShortcut = (action) => shortcuts[action] || '';
 
-  async loadFromStorage () {
-    const theme = await window.electron?.getConfig('settings.theme');
-    const dataProvider = await window.electron?.getConfig('settings.dataProvider');
-    const kLineMode = await window.electron?.getConfig('settings.kLineMode');
-    const emaColors = await window.electron?.getConfig('settings.emaColors');
-    const shortcuts = await window.electron?.getConfig('shortcuts');
+    // ============ Actions ============
+    const save = async (key, value) => {
+        try {
+            await window.channel?.setConfig(`settings.${key}`, value);
+        } catch (error) {
+            console.error(`保存失败: ${key}`, error);
+        }
+    };
 
-    if (theme) this.state.theme = theme;
-    if (dataProvider) this.state.dataProvider = dataProvider;
-    if (kLineMode) this.state.kLineMode = kLineMode;
-    if (emaColors) this.state.emaColors = emaColors;
-    if (shortcuts) this.state.shortcuts = shortcuts;
-  }
+    const updateTheme = (newTheme) => {
+        if (!['dark', 'light'].includes(newTheme)) return;
+        theme.value = newTheme;
+        save('theme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    };
 
-  updateConfig (key, value) {
-    this.state[key] = value;
-  }
+    const updateDataProvider = (provider) => {
+        if (!['eastmoney', 'sina', 'tencent'].includes(provider)) return;
+        dataProvider.value = provider;
+        save('dataProvider', provider);
+    };
 
-  get theme () {
-    return this.state.theme;
-  }
+    const updateKlineMode = (mode) => {
+        if (!['sync', 'async', 'hybrid'].includes(mode)) return;
+        klineMode.value = mode;
+        save('klineMode', mode);
+    };
 
-  get dataProvider () {
-    return this.state.dataProvider;
-  }
+    const updateEMAColor = (period, color) => {
+        if (emaColors.hasOwnProperty(period)) {
+            emaColors[period] = color;
+            save('emaColors', emaColors);
+        }
+    };
 
-  get kLineMode () {
-    return this.state.kLineMode;
-  }
+    const updateShortcut = (action, key) => {
+        if (shortcuts.hasOwnProperty(action)) {
+            shortcuts[action] = key;
+            save('shortcuts', shortcuts);
+        }
+    };
 
-  get emaColors () {
-    return this.state.emaColors;
-  }
+    const resetConfig = () => {
+        theme.value = 'dark';
+        dataProvider.value = 'eastmoney';
+        klineMode.value = 'sync';
+        Object.assign(emaColors, {
+            10: '#FF6B6B', 20: '#4ECDC4', 30: '#45B7D1',
+            60: '#96CEB4', 99: '#FFEAA7', 255: '#DDA0DD', 905: '#98D8C8'
+        });
+        Object.assign(shortcuts, {
+            toggleWindow: 'Ctrl+Esc', search: 'F1',
+            favorites: 'F2', settings: 'F3'
+        });
+        Promise.all([
+            save('theme', theme.value),
+            save('dataProvider', dataProvider.value),
+            save('klineMode', klineMode.value),
+            save('emaColors', emaColors),
+            save('shortcuts', shortcuts)
+        ]);
+    };
 
-  get shortcuts () {
-    return this.state.shortcuts;
-  }
-}
+    const loadConfig = async () => {
+        const [t, dp, klm, ec, sc] = await Promise.all([
+            window.channel?.getConfig('settings.theme'),
+            window.channel?.getConfig('settings.dataProvider'),
+            window.channel?.getConfig('settings.klineMode'),
+            window.channel?.getConfig('settings.emaColors'),
+            window.channel?.getConfig('shortcuts')
+        ]);
+        if (t) theme.value = t;
+        if (dp) dataProvider.value = dp;
+        if (klm) klineMode.value = klm;
+        if (ec) Object.assign(emaColors, ec);
+        if (sc) Object.assign(shortcuts, sc);
+        document.documentElement.setAttribute('data-theme', theme.value);
+    };
 
-let instance = null;
-export function useConfigStore () {
-  if (!instance) {
-    instance = new ConfigStore();
-  }
-  return instance;
-}
+    return {
+        // state
+        theme, dataProvider, klineMode, emaColors, shortcuts,
+        // getters
+        isDarkTheme, getEMAColor, getShortcut,
+        // actions
+        updateTheme, updateDataProvider, updateKlineMode,
+        updateEMAColor, updateShortcut, resetConfig, loadConfig
+    };
+});

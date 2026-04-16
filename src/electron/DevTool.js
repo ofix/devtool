@@ -40,7 +40,7 @@ class DevTool {
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
             }, {
-                shortcut: "Ctrl+`",
+                shortcut: "Ctrl+Space",
                 callback: handleCtrl0,
                 description: "显示/隐藏迷你股票窗口"
             }, {

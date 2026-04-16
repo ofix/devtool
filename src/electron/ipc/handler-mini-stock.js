@@ -67,6 +67,12 @@ class StockHandler {
             const result = await this.manager.addSearchShare(code);
             return result;
         });
+
+        // 获取行情最新报价，支持同时查询多只股票实时最新报价
+        ipcMain.handle('mini-stock:get-quote',async(_,shares)=>{
+            const result = await this.manager.getQuote(shares);
+            return result;
+        })
     }
 }
 
