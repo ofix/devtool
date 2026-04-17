@@ -6,19 +6,77 @@ export default class SinaProvider extends DataProvider {
         super();
     }
 
-    /**
-     * 获取多只股票行情最新报价
-     * @param {Array} shares 多只股票
-     */
-    async getQuote(shares) {
-        const codes = shares.map(s => `${s.market}${s.code}`).join(',');
-        const url = `http://hq.sinajs.cn/list=${codes}`;
 
-        const response = await fetch(url);
-        const text = await response.text();
-
-        return this.#parseQuoteResponse(text);
-    }
+      /**
+       * 获取多只股票行情最新报价
+       * @param {Array} shares 多只股票，格式：[{ market: 's_sh', code: '600905' }, ...]
+       */
+      async getQuote(shares) {
+        try {
+          // 1. 拼接股票代码参数
+          const codes = shares.map(s => `${s.market}${s.code}`).join(',');
+          const url = `https://hq.sinajs.cn/list=${codes}`;
+    
+          // 2. axios 请求（解决中文乱码 + 跨域/编码问题）
+          const response = await axios({
+            method: 'get',
+            url: url,
+            responseEncoding: 'GB18030', // 新浪接口编码是 GB2312，必须指定
+            headers: this.getHeaders(),
+          });
+    
+          const text = response.data;
+          // 3. 解析返回数据
+          return this.#parseQuoteResponse(text);
+        } catch (error) {
+          console.error('获取股票行情失败：', error.message);
+          throw new Error('股票行情接口请求异常');
+        }
+      }
+    
+      /**
+       * 解析新浪财经返回的原始文本
+       * @param {string} responseText 原始响应文本
+       * @returns {Array} 格式化后的股票数据
+       */
+      #parseQuoteResponse(responseText) {
+        const result = [];
+        // 按行拆分数据
+        const lines = responseText.split('\n').filter(line => line.trim().startsWith('var hq_str_'));
+    
+        for (const line of lines) {
+          try {
+            // 提取 key 和 数据字符串
+            const match = line.match(/var hq_str_(.*?)="(.*?)";/);
+            if (!match) continue;
+    
+            const stockCodeFull = match[1]; // 完整代码：s_sh600905
+            const dataStr = match[2];
+            const dataArr = dataStr.split(',');
+    
+            // 数据为空则跳过
+            if (dataArr.length < 6) continue;
+    
+            // 格式化输出（你可以根据需要增减字段）
+            const stockInfo = {
+              code: stockCodeFull,          // 完整股票代码
+              name: dataArr[0],             // 股票名称
+              nowPrice: dataArr[1],         // 当前价格
+              change: dataArr[2],           // 涨跌额
+              changePercent: dataArr[3],    // 涨跌幅(%)
+              volume: dataArr[4],           // 成交量(手)
+              amount: dataArr[5]            // 成交额(万元)
+            };
+    
+            result.push(stockInfo);
+          } catch (e) {
+            continue;
+          }
+        }
+    
+        return result;
+      }
+    
 
     /**
      * 解析多只股票实时行情响应数据
