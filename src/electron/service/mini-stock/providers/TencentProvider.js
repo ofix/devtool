@@ -14,13 +14,13 @@ class TencentProvider extends DataProvider {
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
      * @returns {Promise<Array>} 带实时行情的排行榜数据
      */
-    async getShareRankList(n, order = "top") {
+    async getTopShares(n, order = "top") {
         try {
             const rankUrl = new URL('https://proxy.finance.qq.com/cgi/cgi-bin/rank/hs/getBoardRankList');
             rankUrl.searchParams.set('_appver', '11.17.0');
             rankUrl.searchParams.set('board_code', 'aStock');
             rankUrl.searchParams.set('sort_type', 'price');
-            rankUrl.searchParams.set('direct', order = "top" ? 'up' : 'down');
+            rankUrl.searchParams.set('direct', order == "top" ? 'up' : 'down');
             rankUrl.searchParams.set('offset', '0');
             rankUrl.searchParams.set('count', Math.min(n, 100));
 
@@ -40,12 +40,11 @@ class TencentProvider extends DataProvider {
             // 从榜单提取股票代码
             const rankList = rankData.data.list;
 
-
             return rankList.map(rank => {
                 return {
                     code: rank.code,               // 代码
                     name: rank.name,               // 名称
-                    increase: rank.changeRatio,    // 涨跌幅%（榜单）
+                    changeRatio: rank.changeRatio, // 涨跌幅%（榜单）
                     change: rank.change,           // 涨跌额（榜单）
                     price: rank.lastPrice,         // 现价（实时）
                     open: rank.open,               // 今开
@@ -60,19 +59,6 @@ class TencentProvider extends DataProvider {
             console.error('腾讯排行榜获取失败:', err);
             return [];
         }
-    }
-
-
-    // 通用请求头
-    #getHeaders() {
-        return {
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-            "Referer": "https://gu.qq.com/",
-            "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-        };
     }
 
     /**
@@ -106,7 +92,7 @@ class TencentProvider extends DataProvider {
 
             const url = `https://web.sqt.gtimg.cn/utf8/q=${stockList}&r=${Math.random()}`;
             const res = await axios.get(url, {
-                headers: this.#getHeaders(),
+                headers: this.headers(),
                 timeout: 10000
             });
             let data = res.data;
@@ -138,9 +124,9 @@ class TencentProvider extends DataProvider {
                     change: parseFloat(fields[31]),        // 涨跌额
                     changePercent: parseFloat(fields[32]), // 涨跌幅%
                     volume: parseInt(fields[6], 10),       // 成交量
-                    amount: 0,                              // 成交额
-                    turnover: 0,                            // 换手率
-                    time: this.#formatTime(fields[30]), // 当前时间
+                    amount: 0,                             // 成交额
+                    turnover: 0,                           // 换手率
+                    time: this.#formatTime(fields[30]),    // 当前时间
                 }
                 // 计算成交额（元）
                 if (fields[35]) {
@@ -245,33 +231,86 @@ class TencentProvider extends DataProvider {
         }
     }
 
-    async getMinuteData(code, market) {
+
+    /**
+     * 获取腾讯财经股票分时数据 → 返回【对象数组】
+     * @param {Object} share share 股票对象 格式如下: {name:'',code:'',code:''};
+     * @param {number} days 1=当日, 5=五日
+     * @returns {Promise<Array>} 分时数据对象列表
+     */
+    async getMinuteKlines(share, days = 1) {
+        let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
         try {
-            const symbol = this.getSymbol(code, market);
-            const response = await axios.get(`${this.baseURL}/qt/quote=${symbol}`);
+            const { data } = await axios.get('https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
+                params: {
+                    code: shareCode,
+                    days: days === 5 ? 5 : undefined // 不传=当日
+                },
+                headers: this.headers(),
+                timeout: 5000
+            });
 
-            // 腾讯返回格式：v_sz000001="1~平安银行~000001~11.23~...";
-            const data = response.data;
-            const match = data.match(/="(.+)"/);
-            if (!match) return null;
+            const root = data.data[stockCode];
+            const qt = root.qt[stockCode];
+            const dayDataList = days === 5 ? root.data : [root.data];
 
-            const items = match[1].split('~');
-            return {
-                price: parseFloat(items[3]),
-                change: parseFloat(items[4]),
-                changePercent: parseFloat(items[5]),
-                volume: parseFloat(items[6]),
-                amount: parseFloat(items[7]),
-                open: parseFloat(items[9]),
-                high: parseFloat(items[10]),
-                low: parseFloat(items[11]),
-                close: parseFloat(items[3])
-            };
-        } catch (error) {
-            console.error('TencentProvider getRealtimeData error:', error);
-            return null;
+            // 昨日收盘价
+            const preClose = parseFloat(dayData.prec || qt[4]);
+
+            // 统一返回：[[day1],[day2],[day3],[day4],[day5]]
+            return dayDataList.map(dayData => {
+                const lines = dayData.data;
+                let totalVolume = 0;
+                let totalAmount = 0;
+                const list = [];
+
+                // 遍历计算分时 + 累加
+                lines.forEach(item => {
+                    const [time, price, vol, amt] = item.split(' ');
+                    const p = parseFloat(price);
+                    const v = parseInt(vol);
+                    const a = parseFloat(amt);
+
+                    totalVolume += v;
+                    totalAmount += a;
+                    const avgPrice = totalVolume > 0 ? totalAmount / totalVolume / 100 : p;
+
+                    // 每分钟涨跌额 & 涨跌幅
+                    const change = p - preClose;
+                    const changeRatio = (change / preClose) * 100;
+
+                    list.push({
+                        time,
+                        price: p,
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        volume: v,
+                        amount: a,
+                        change: parseFloat(change.toFixed(2)), // 每分钟涨跌额
+                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额,
+                        totalVolume,
+                        totalAmount
+                    });
+                });
+
+                const open = days === 1
+                    ? parseFloat(qt[5])           // 单日：用 qt[5]
+                    : list[0]?.price || 0         // 五日：用当天第一根K线价格
+
+                return {
+                    preClose: preClose, // 昨日收盘价
+                    open: open,         // 开盘价
+                    totalVolume,        // 当日总成交量
+                    totalAmount,        // 当日总成交额
+                    data: list          // 当日分时列表
+                };
+            });
+        } catch (err) {
+            console.error('获取失败:', err.message);
+            return days === 5 ? [[], [], [], [], []] : [[]];
         }
     }
+
+
 
     async searchStock(keyword) {
         try {

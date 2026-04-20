@@ -26,88 +26,123 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     /**
-     * 获取股票分时数据
-     * @param {string} code 股票代码
-     * @param {string} name 股票名称
-     * @param {string} market 股票市场：sh/sz
-     * @param {number} ndays 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
+     * 获取百度财经股票分时数据 → 输出【腾讯财经统一格式】
+     * @param {Object} share 股票对象 {name:'', code:'', market:''}
+     * @param {number} days 1=当日, 5=五日
+     * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
      */
-    async getShareMinuteData(code, name, market, ndays = 1) {
-        let group = ndays == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
+    async getMinuteKlines(share, days = 1) {
+        let group = days == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
                 params: {
                     srcid: '5353',
                     pointType: 'string',
                     group: group,
-                    query: code,
-                    code: code,
+                    query: share.code,
+                    code: share.code,
                     market_type: 'ab',
                     newFormat: 1,
-                    name: name,
+                    name: share.name,
                     is_kc: 0,
-                    finClientType: 'pc',
                     finClientType: 'pc',
                 }
             });
 
-            return this.#parseMinuteData(response.data);
+            // 统一解析成腾讯格式
+            return this.#parseMinuteKlines(response.data, days);
         } catch (error) {
             console.error('BaiduFinanceProvider getKLineData error:', error);
-            throw error;
+            return days === 5 ? [[], [], [], [], []] : [[]];
         }
     }
-    #parseMinuteData(data) {
+
+    /**
+     * 百度财经分时数据解析成统一格式
+     */
+    #parseMinuteKlines(data, days) {
         try {
-            const newMarketData = data?.Result?.newMarketData;
+            const Result = data?.Result;
+            const newMarketData = Result?.newMarketData;
             if (!newMarketData) return [];
 
             const { keys, marketData } = newMarketData;
             if (!keys || !marketData) return [];
 
-            let lines = [];
+            const preClose = Result?.preClose || Result?.yestclose || 0;
+            const allDays = [];
 
-            // --------------------------
-            // 兼容 当日分时（数组）
-            // --------------------------
+            // 处理百度数据结构（1日/5日兼容）
+            let dayDataList = [];
             if (Array.isArray(marketData)) {
-                lines = marketData.flatMap(item => {
-                    if (!item.p) return [];
-                    return item.p.split(';').filter(line => line.trim() !== '');
-                });
+                dayDataList = marketData;
+            } else {
+                dayDataList = [{ p: marketData }];
             }
-            // --------------------------
-            // 兼容 五日分时（字符串）
-            // --------------------------
-            else if (typeof marketData === 'string') {
-                lines = marketData.split(';').filter(line => line.trim() !== '');
-            }
+            // 逐天解析
+            dayDataList.forEach(dayItem => {
+                if (!dayItem.p) return;
+                const lines = dayItem.p.split(';').filter(Boolean);
+                const list = [];
 
-            // 统一解析
-            return lines.map(line => {
-                const values = line.split(',');
-                const item = {};
+                let totalVolume = 0;
+                let totalAmount = 0;
 
-                keys.forEach((key, index) => {
-                    item[key] = values[index];
+                lines.forEach(line => {
+                    const values = line.split(',');
+                    const item = {};
+                    keys.forEach((k, i) => (item[k] = values[i]));
+
+                    // 字段映射
+                    const time = item.time;
+                    const price = parseFloat(item.price) || 0;
+                    const avgPrice = parseFloat(item.avgPrice) || 0;
+                    const volume = parseFloat(item.volume) / 100 || 0; // 股 → 手
+                    const amount = parseFloat(item.amount) || 0;
+
+                    totalVolume += volume;
+                    totalAmount += amount;
+
+                    // 每分钟涨跌额 & 涨跌幅（统一标准）
+                    const change = price - preClose;
+                    const changeRatio = (change / preClose * 100) || 0;
+
+                    list.push({
+                        time,
+                        price,
+                        avgPrice,
+                        volume,
+                        amount,
+                        totalVolume: Math.round(totalVolume),
+                        totalAmount: Math.round(totalAmount),
+                        change: parseFloat(change.toFixed(2)),
+                        changeRatio: parseFloat(changeRatio.toFixed(2)),
+                    });
                 });
 
-                return {
-                    timestamp: Number(item.timestamp),
-                    time: item.time,
-                    price: parseFloat(item.price) || 0,
-                    avgPrice: parseFloat(item.avgPrice) || 0,
-                    change: parseFloat(item.range) || 0,
-                    changeRatio: parseFloat(item.ratio) || 0,
-                    volume: parseFloat(item.volume) / 100 || 0,
-                    amount: parseFloat(item.amount) || 0,
-                    totalVolume: parseFloat(item.totalVolume) / 100 || 0,
-                    totalAmount: parseFloat(item.totalAmount) || 0,
-                };
+                if (!list.length) return;
+
+                // 日期（百度无返回，用当天或空）
+                const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
+
+                // 开盘价
+                const open = list[0]?.price || 0;
+
+                // 输出统一格式
+                allDays.push({
+                    preClose: parseFloat(preClose),
+                    open,
+                    date,
+                    totalVolume: Math.round(totalVolume),
+                    totalAmount: Math.round(totalAmount),
+                    data:list,
+                });
             });
+
+            return allDays;
         } catch (e) {
-            console.error('百度分时K线解析失败', e);
-            return [];
+            console.error('百度分时解析失败', e);
+            return days === 5 ? [[], [], [], [], []] : [[]];
         }
     }
 

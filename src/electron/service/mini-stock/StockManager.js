@@ -96,6 +96,16 @@ export default class StockManager {
         };
     }
 
+    /**
+     * 手动设置各个供应商的浏览器Header
+     */
+    setBrowserHeaders(browserHeaders) {
+        for (let [key, value] of Object.entries(browserHeaders)) {
+            provider = this.providers[key];
+            provider.setBrowserHeaders(value);
+        }
+    }
+
     getFilePaths() {
         return {
             favorite: this.favoriteFilePath,
