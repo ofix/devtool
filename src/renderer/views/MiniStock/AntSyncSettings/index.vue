@@ -445,7 +445,7 @@ const newProvider = ref({
     username: "",
     password: "",
   },
-  headers: [],
+  headers: {},
 });
 
 // Methods
@@ -529,6 +529,7 @@ async function handleSave() {
 
     // 保存到本地存储或调用API
     localStorage.setItem("spider_providers", JSON.stringify(providers.value));
+    window.channel.saveProviderSettings(JSON.stringify(providers.value, "", 3));
 
     hasUnsavedChanges.value = false;
     lastSaveTime.value = new Date().toLocaleString();

@@ -186,4 +186,6 @@ contextBridge.exposeInMainWorld('channel', {
     syncBkList: (type) => ipcRenderer.invoke('ant-sync:sync-bk-list', type),
     getBkShares: (type, bkCode) => ipcRenderer.invoke('ant-sync:get-bk-shares', type, bkCode),
     syncBkShares: (type, bkList) => ipcRenderer.invoke('ant-sync:sync-bk-shares', type, bkList),
+    saveProviderSettings: (data) => ipcRenderer.invoke('ant-sync:save-provider-settings', data),
+    loadProviderSettings:()=>ipcRenderer.invoke('ant-sync:load-provider-settings'),
 })

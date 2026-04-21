@@ -9,8 +9,8 @@ class AntSyncHandler {
     }
 
     registerHandlers() {
-        ipcMain.handle('ant-sync:get-bk-overview',async(_)=>{
-            if(!this.manager.inited){
+        ipcMain.handle('ant-sync:get-bk-overview', async (_) => {
+            if (!this.manager.inited) {
                 await this.manager.init();
             }
             return this.manager.getBkOverview();
@@ -41,7 +41,18 @@ class AntSyncHandler {
             return [];
             // return await this.manager.syncBkShares(bkList, type);
         });
-
+        ipcMain.handle('ant-sync:save-provider-settings', async (_, data) => {
+            if (!this.manager.inited) {
+                await this.manager.init();
+            }
+            this.manager.saveProviderSettings(data);
+        });
+        ipcMain.handle('ant-sync:load-provider-settings', async (_) => {
+            if (!this.manager.inited) {
+                await this.manager.init();
+            }
+            return this.manager.getProviderSettings();
+        });
     }
 }
 

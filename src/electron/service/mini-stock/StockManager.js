@@ -57,6 +57,7 @@ export default class StockManager {
         this.stockListFilePath = path.join(__dirname, '../../data/stock_list.csv');
         this.searchHistoryFilePath = path.join(__dirname, '../../data/search_history.json');
         this.ipoInfoFilePath = path.join(__dirname, '../../data/ipo.csv');
+
         this.bkConcepts = new Map();
         this.bkRegions = new Map();
         this.bkIndustries = new Map();
@@ -65,6 +66,9 @@ export default class StockManager {
         this.bkConceptFilePath = path.join(__dirname, '../../data/eastmoney_bk_concept.json');
         this.bkRegionFilePath = path.join(__dirname, '../../data/eastmoney_bk_region.json');
         this.bkIndustryFilePath = path.join(__dirname, '../../data/eastmoney_bk_industry.json');
+        // 供应商配置
+        this.providerSettingsFilePath = path.join(__dirname, '../../data/provider_settings.json');
+        this.providerSettings = {};
 
         // 代码=>股票映射
         this.codeShareMap = new Map();
@@ -103,6 +107,59 @@ export default class StockManager {
         for (let [key, value] of Object.entries(browserHeaders)) {
             provider = this.providers[key];
             provider.setBrowserHeaders(value);
+        }
+    }
+
+    /**
+     * 加载供应商配置
+     */
+    async _loadProviderSettings() {
+        try {
+            let filePath = this.providerSettingsFilePath;
+            const exists = await this.isFileExists(filePath);
+            if (!exists) {
+                console.warn(`文件不存在：${filePath}`);
+                this.providerSettings = {};
+                return this.providerSettings;
+            }
+            const content = await fs.promises.readFile(filePath, 'utf8');
+            this.providerSettings = JSON.parse(content);
+            return this.providerSettings;
+        } catch (e) {
+            console.log("load provider settings failed", e);
+            this.providerSettings = {};
+            return this.providerSettings;
+        }
+
+    }
+
+    getProviderSettings(){
+        return this.providerSettings;
+    }
+
+    /**
+     * 保存供应商配置
+     * @param {Object|string} data - 配置数据对象或JSON字符串
+     */
+    async saveProviderSettings(data) {
+        try {
+            // 处理输入数据格式
+            let configData;
+            if (typeof data === 'string') {
+                configData = JSON.parse(data);
+            } else {
+                configData = data;
+            }
+            // 更新内存中的配置
+            this.providerSettings = configData;
+            // 设置每个供应商的自定义headers
+            
+            const jsonString = typeof data === 'string' ? data : JSON.stringify(data, null, 3);
+            await fs.promises.writeFile(this.providerSettingsFilePath, jsonString, 'utf8');
+            return true;
+        } catch (e) {
+            console.error("save provider settings failed", e);
+            return false;
         }
     }
 
@@ -155,6 +212,7 @@ export default class StockManager {
         await this._loadIPOInfo();
         await this._loadBkMenu();
         await this._loadBkList();
+        await this._loadProviderSettings();
         this.inited = true;
         // 分时缓存自动清理
         // const minuteCleanupTimer = setInterval(() => {
