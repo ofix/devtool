@@ -2,27 +2,39 @@
   <el-card class="config-card" shadow="never">
     <template #header>
       <div class="card-header">
+        <!-- 标题区域 -->
         <span class="icon-text"><IconRequestHeaders />请求头</span>
         <div class="header-actions">
+          <!-- 轮询状态标签：开启时显示 -->
           <el-tag
-            v-if="httpHeaders?.pollMode && httpHeaders.pollMode !== 'off'"
+            v-if="
+              requestHeaders?.strategy?.pollMode &&
+              requestHeaders.strategy.pollMode !== 'off'
+            "
             type="success"
             size="small"
             class="poll-tag"
           >
-            {{ httpHeaders.pollMode === "sequence" ? "顺序轮询" : "随机轮询" }}
-            (每{{ httpHeaders.pollInterval }}次)
+            {{
+              requestHeaders.strategy.pollMode === "sequence"
+                ? "顺序轮询"
+                : "随机轮询"
+            }}
+            (每{{ requestHeaders.strategy.pollInterval }}次)
           </el-tag>
+          <!-- 展开/收起按钮 -->
           <el-button link type="primary" @click="expanded = !expanded">
             {{ expanded ? "收起" : "展开" }}
           </el-button>
         </div>
       </div>
     </template>
+
     <el-collapse-transition>
       <div v-show="expanded">
         <!-- 轮询配置栏 -->
         <div class="poll-bar">
+          <!-- 轮询模式单选框 -->
           <el-radio-group
             v-model="localPollMode"
             @change="handlePollModeChange"
@@ -32,6 +44,7 @@
             <el-radio label="random">随机轮询</el-radio>
           </el-radio-group>
 
+          <!-- 轮询间隔滑块 -->
           <div style="display: flex; align-items: center; margin-left: 20px">
             <span style="margin-right: 10px">轮询间隔：</span>
             <el-slider
@@ -46,39 +59,42 @@
           </div>
         </div>
 
-        <!-- Tab 形式管理多套 Headers -->
+        <!-- Headers 配置集 Tab -->
         <div class="headers-tabs">
           <el-tabs
             v-model="activeTabId"
             type="border-card"
             @tab-click="handleTabClick"
+            @tab-remove="deleteSet"
           >
+            <!-- 遍历渲染所有配置集 -->
             <el-tab-pane
-              v-for="set in httpHeaders.sets"
+              v-for="set in requestHeaders.sets"
               :key="set.id"
               :name="set.id"
               :label="set.name"
-              :closable="httpHeaders.sets.length > 1"
-              @close="deleteSet(set)"
+              :closable="requestHeaders.sets.length > 1"
             >
               <template #label>
                 <div class="tab-label">
                   <span>{{ set.name }}</span>
+                  <!-- 当前默认使用的配置集标记 -->
                   <el-icon
-                    v-if="set.id === httpHeaders.currentSetId"
+                    v-if="set.id === requestHeaders.currentSetId"
                     class="default-icon"
                     title="当前使用"
                   >
                     <StarFilled />
                   </el-icon>
+                  <!-- 配置集更多操作下拉菜单 -->
                   <el-dropdown
                     trigger="click"
                     @click.stop
                     @command="(cmd) => handleTabCommand(cmd, set)"
                   >
-                    <el-icon class="tab-more" @click.stop
-                      ><MoreFilled
-                    /></el-icon>
+                    <el-icon class="tab-more" @click.stop>
+                      <MoreFilled />
+                    </el-icon>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="setDefault">
@@ -93,51 +109,45 @@
                           <el-icon><CopyDocument /></el-icon>
                           复制
                         </el-dropdown-item>
-                        <el-dropdown-item
-                          v-if="httpHeaders.sets.length > 1"
-                          command="delete"
-                          divided
-                        >
-                          <el-icon><Delete /></el-icon>
-                          删除
-                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
                 </div>
               </template>
 
-              <!-- Headers 编辑表格 -->
+              <!-- Header 编辑表格 -->
               <div class="headers-editor">
                 <div class="editor-toolbar">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    @click="addHeaderToSet(set)"
-                  >
+                  <el-button type="primary" @click="addHeaderToSet(set)">
                     <el-icon><Plus /></el-icon>
                     添加 Header
                   </el-button>
-                  <el-button size="small" @click="openPasteDialog(set)">
+                  <el-button @click="openPasteDialog(set)">
                     <el-icon><DocumentCopy /></el-icon>
                     从浏览器粘贴
                   </el-button>
-                  <el-button size="small" @click="openPresetSelector(set)">
+                  <el-button @click="openPresetSelector(set)">
                     <el-icon><Upload /></el-icon>
                     导入预设
                   </el-button>
-                  <el-button size="small" @click="exportSet(set)">
+                  <el-button @click="exportSet(set)">
                     <el-icon><Download /></el-icon>
                     导出
                   </el-button>
+                  <el-button @click="previewHeaders">
+                    <el-icon><View /></el-icon>
+                    预览当前 Headers
+                  </el-button>
                 </div>
 
+                <!-- Header 表格 -->
                 <el-table
-                  :data="getHeadersList(set)"
+                  :data="getReactiveHeaders(set)"
                   stripe
                   size="small"
                   border
                 >
+                  <!-- 启用开关 -->
                   <el-table-column label="启用" width="70" align="center">
                     <template #default="{ row }">
                       <el-switch
@@ -147,6 +157,7 @@
                       />
                     </template>
                   </el-table-column>
+                  <!-- Header 名称 -->
                   <el-table-column label="Header 名称" width="200">
                     <template #default="{ row }">
                       <el-input
@@ -157,6 +168,7 @@
                       />
                     </template>
                   </el-table-column>
+                  <!-- Header 值（可编辑div） -->
                   <el-table-column label="Header 值" min-width="350">
                     <template #default="{ row }">
                       <div class="editable-value-wrapper">
@@ -171,12 +183,14 @@
                             }
                           "
                           v-html="row.value"
+                          placeholder="请输入Header值"
                         ></div>
                       </div>
                     </template>
                   </el-table-column>
+                  <!-- 删除操作 -->
                   <el-table-column label="操作" width="100">
-                    <template #default="{ row, $index }">
+                    <template #default="{ $index }">
                       <el-button
                         link
                         type="danger"
@@ -189,9 +203,10 @@
                   </el-table-column>
                 </el-table>
 
+                <!-- 空状态提示 -->
                 <div
                   class="table-footer"
-                  v-if="getHeadersList(set).length === 0"
+                  v-if="getReactiveHeaders(set).length === 0"
                 >
                   <el-empty
                     description="暂无 Header，点击上方按钮添加"
@@ -201,10 +216,10 @@
               </div>
             </el-tab-pane>
 
-            <!-- 添加新配置集的 Tab -->
+            <!-- 新建配置 Tab -->
             <el-tab-pane name="__add__" :disabled="false">
               <template #label>
-                <div class="tab-add" @click="addHeadersSet">
+                <div class="tab-add" @click="addSet">
                   <el-icon><Plus /></el-icon>
                   <span>新建配置</span>
                 </div>
@@ -213,59 +228,13 @@
           </el-tabs>
         </div>
 
-        <!-- 当前使用状态 + 计数 + 轮询位置 -->
-        <div class="status-bar">
-          <div class="status-info">
-            <el-icon><InfoFilled /></el-icon>
-            <span>
-              当前使用：<strong>{{ currentHeadersSet?.name }}</strong>
-              <span v-if="pollStatusText" class="poll-hint">{{
-                pollStatusText
-              }}</span>
-            </span>
-
-            <!-- 请求计数 + 轮询进度 -->
-            <div class="poll-stats" v-if="httpHeaders.pollMode !== 'off'">
-              <el-tag size="small" type="info"
-                >总请求：{{ provider.requestCount || 0 }}</el-tag
-              >
-              <el-tag size="small" type="success">
-                当前轮询：第 {{ currentPollIndex }} 个 / 共
-                {{ enabledSets.length }} 个
-              </el-tag>
-              <el-tag size="small" type="warning">
-                下次切换：还剩 {{ remainingToNextSwitch }} 次
-              </el-tag>
-            </div>
-          </div>
-
-          <div class="status-actions">
-            <el-button size="small" @click="previewHeaders">
-              <el-icon><View /></el-icon>
-              预览当前 Headers
-            </el-button>
-            <el-button size="small" type="primary" @click="testCurrentHeaders">
-              <el-icon><Connection /></el-icon>
-              测试请求
-            </el-button>
-            <el-button
-              size="small"
-              @click="resetRequestCount"
-              type="danger"
-              link
-            >
-              重置计数
-            </el-button>
-          </div>
-        </div>
-
         <!-- 预览对话框 -->
         <el-dialog
           v-model="previewDialogVisible"
           title="当前 Headers 预览"
           width="700px"
         >
-          <el-table :data="previewHeadersList" size="small" border>
+          <el-table :data="previewSet" size="small" border>
             <el-table-column prop="name" label="Header 名称" width="200" />
             <el-table-column
               prop="value"
@@ -292,12 +261,12 @@
           </template>
         </el-dialog>
 
-        <!-- 粘贴解析弹窗 -->
+        <!-- 粘贴解析弹窗组件 -->
         <PasteHeadersDialog
           ref="pasteDialogRef"
           @confirm="(headers) => handlePasteConfirm(headers, currentPasteSet)"
         />
-        <!-- 使用预设选择器组件 -->
+        <!-- 预设选择器组件 -->
         <PresetSelector
           v-model="showPresetSelector"
           @confirm="handlePresetConfirm"
@@ -308,7 +277,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
@@ -329,27 +298,29 @@ import IconRequestHeaders from "@/icons/IconRequestHeaders.vue";
 import PasteHeadersDialog from "./PasteHeadersDialog.vue";
 import PresetSelector from "./PresetSelector.vue";
 
+//////////////////////////////////// Props & Emit ////////////////////////////////////
 const props = defineProps({
-  provider: { type: Object, required: true },
+  provider: { type: Object, required: true }, // 数据源
 });
-const emit = defineEmits(["change"]);
+const emit = defineEmits(["change"]); // 数据变更事件
 
-const expanded = ref(true);
-const activeTabId = ref(null);
-const renameDialogVisible = ref(false);
-const renamingSet = ref(null);
+//////////////////////////////////// 响应式状态 ////////////////////////////////////
+const expanded = ref(true); // 面板展开状态
+const activeTabId = ref("default"); // 当前激活的Tab
+const renameDialogVisible = ref(false); // 重命名弹窗
+const renamingSet = ref(null); // 正在重命名的配置集
 const renamingName = ref("");
-const previewDialogVisible = ref(false);
-const previewHeadersList = ref([]);
-const pasteDialogRef = ref(null);
-const currentPasteSet = ref(null);
-const showPresetSelector = ref(false);
-const currentPresetSet = ref(null);
+const previewDialogVisible = ref(false); // 预览弹窗
+const previewSet = ref([]); // 预览数据
+const pasteDialogRef = ref(null); // 粘贴弹窗ref
+const currentPasteSet = ref(null); // 当前粘贴目标
+const showPresetSelector = ref(false); // 预设选择器
+const currentPresetSet = ref(null); // 当前预设目标
 
-const localPollMode = ref("off");
-const localPollInterval = ref(3);
+const localPollMode = ref("off"); // 轮询模式本地值
+const localPollInterval = ref(3); // 轮询间隔本地值
 
-// 浏览器预设
+//////////////////////////////////// 浏览器预设Headers ////////////////////////////////////
 const browserPresets = {
   "Chrome (Windows)": {
     "User-Agent":
@@ -377,7 +348,7 @@ const browserPresets = {
   },
   "Firefox (Windows)": {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100100 Firefox/119.0",
     Accept:
       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language":
@@ -414,10 +385,11 @@ const browserPresets = {
   },
 };
 
-// 配置
-const httpHeaders = computed({
+//////////////////////////////////// 核心计算属性：HttpHeaders配置 ////////////////////////////////////
+const requestHeaders = computed({
   get: () => {
-    if (!props.provider.httpHeaders) {
+    // 初始化默认值
+    if (!props.provider.requestHeaders) {
       const defaultSet = {
         id: "default",
         name: "默认配置",
@@ -429,7 +401,7 @@ const httpHeaders = computed({
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         },
       };
-      props.provider.httpHeaders = {
+      props.provider.requestHeaders = {
         strategy: {
           pollMode: "off",
           pollInterval: 3,
@@ -438,140 +410,94 @@ const httpHeaders = computed({
         requestCount: 0,
         sets: [defaultSet],
       };
+      nextTick(() => {
+        setTimeout(() => {
+          activeTabId.value = defaultSet.id;
+          console.log("activeTabId = ", defaultSet.id);
+        }, 0);
+      });
     }
-    localPollMode.value = props.provider.httpHeaders.strategy.pollMode;
-    localPollInterval.value = props.provider.httpHeaders.strategy.pollInterval;
-    return props.provider.httpHeaders;
+
+    // 同步本地值
+    localPollMode.value = props.provider.requestHeaders.strategy.pollMode;
+    localPollInterval.value =
+      props.provider.requestHeaders.strategy.pollInterval;
+    return props.provider.requestHeaders;
   },
   set: (val) => {
-    props.provider.httpHeaders = val;
-    localPollMode.value = val.strategy.pollMode;
-    localPollInterval.value = val.strategy.pollInterval;
+    props.provider.requestHeaders = val;
+    localPollMode.value = val.strategy?.pollMode;
+    localPollInterval.value = val.strategy?.pollInterval;
     emitChange();
   },
 });
 
-// 启用的配置集
-const enabledSets = computed(() =>
-  httpHeaders.value.sets.filter((s) => s.enabled)
+// 已启用的配置集列表
+const enabledSets = computed(
+  () => requestHeaders.value.sets?.filter((s) => s.enabled) || []
 );
 
-// 当前轮询到第几个（从 1 开始）
-const currentPollIndex = computed(() => {
-  const idx = enabledSets.value.findIndex(
-    (s) => s.id === httpHeaders.value.currentSetId
-  );
-  return idx >= 0 ? idx + 1 : 1;
-});
-
-// 剩余次数
-const remainingToNextSwitch = computed(() => {
-  const interval = httpHeaders.value.strategy.pollInterval || 3;
-  const count = props.provider.httpHeaders.requestCount || 0;
-  return interval - (count % interval);
-});
-
-// 状态文字
-const pollStatusText = computed(() => {
-  if (httpHeaders.value.strategy.pollMode === "off") return "";
-  return httpHeaders.value.strategy.pollMode === "sequence"
-    ? "（顺序轮询中）"
-    : "（随机轮询中）";
-});
-
-// 切换
+//////////////////////////////////// 轮询模式/间隔修改 ////////////////////////////////////
 function handlePollModeChange(val) {
-  httpHeaders.value.strategy.pollMode = val;
+  requestHeaders.value.strategy.pollMode = val;
   emitChange();
 }
-
 function handlePollIntervalChange(val) {
-  httpHeaders.value.strategy.pollInterval = val;
+  requestHeaders.value.strategy.pollInterval = val;
   emitChange();
 }
 
-// 当前集
-const currentHeadersSet = computed(() => {
-  const cid = httpHeaders.value.currentSetId;
+// 当前使用的Header配置集
+const currentSet = computed(() => {
+  const cid = requestHeaders.value.currentSetId;
   return (
-    httpHeaders.value.sets.find((s) => s.id === cid) ||
-    httpHeaders.value.sets[0]
+    requestHeaders.value.sets?.find((s) => s.id === cid) ||
+    requestHeaders.value.sets?.[0]
   );
 });
 
-// 核心 Headers + 轮询逻辑
-const currentHeaders = computed(() => {
-  if (!currentHeadersSet.value) return {};
-  const headers = {};
-  const list = getHeadersList(currentHeadersSet.value);
-  list.forEach((h) => {
-    if (h.enabled && h.name?.trim()) headers[h.name.trim()] = h.value;
+//////////////////////////////////// Header 数组/对象转换工具 ////////////////////////////////////
+/**
+ * 将配置集中的headers对象转为数组用于表格编辑
+ */
+function getReactiveHeaders(set) {
+  if (!set) return [];
+  if (!set.headers) set.headers = {};
+
+  // 已有数组缓存直接返回
+  if (set._headers) return set._headers;
+
+  // 对象转数组
+  const arr = [];
+  const disabled = set._disabledHeaders || {};
+  Object.entries(set.headers).forEach(([name, val], i) => {
+    arr.push({
+      id: `${set.id}_${i}`,
+      enabled: !disabled[name],
+      name,
+      value: val,
+      desc: "",
+    });
   });
-
-  const mode = httpHeaders.value.pollMode;
-  if (mode === "off" || enabledSets.value.length < 2) return headers;
-
-  const reqCount = props.provider.httpsHeaders.requestCount || 0;
-  const interval = httpHeaders.value.strategy.pollInterval || 3;
-
-  if (reqCount > 0 && reqCount % interval === 0) {
-    let next;
-    if (mode === "sequence") {
-      const idx = enabledSets.value.findIndex(
-        (s) => s.id === httpHeaders.value.currentSetId
-      );
-      next = enabledSets.value[(idx + 1) % enabledSets.value.length];
-    } else {
-      const others = enabledSets.value.filter(
-        (s) => s.id !== httpHeaders.value.currentSetId
-      );
-      next = others[Math.floor(Math.random() * others.length)];
-    }
-    if (next) httpHeaders.value.currentSetId = next.id;
-  }
-
-  props.provider.httpsHeaders.requestCount = reqCount + 1;
-  return headers;
-});
-
-// 重置计数
-function resetRequestCount() {
-  props.provider.requestCount = 0;
-  ElMessage.success("请求计数已重置");
-  emitChange();
+  set._headers = arr;
+  return arr;
 }
 
-function getHeadersList(collection) {
-  if (!collection.headers) return [];
-  if (!Array.isArray(collection.headers)) {
-    if (collection._headers) return collection._headers;
-    const arr = [];
-    const disabled = collection._disabledHeaders || {};
-    Object.entries(collection.headers).forEach(([name, val], i) => {
-      arr.push({
-        id: `${collection.id}_${i}`,
-        enabled: !disabled[name],
-        name,
-        value: val,
-        desc: "",
-      });
-    });
-    collection._headers = arr;
-    return arr;
-  }
-  return set.headers || [];
-}
-
+/**
+ * 批量确保所有配置集为数组格式
+ */
 function ensureHeadersArray() {
-  if (httpHeaders.value?.collection)
-    httpHeaders.value.collection.forEach((collection) => {
-      if (set.headers && !Array.isArray(set.headers) && !set._headers)
-        getHeadersList(set);
-    });
+  if (!requestHeaders.value?.sets) return;
+  requestHeaders.value.sets.forEach((set) => {
+    if (set.headers && !Array.isArray(set.headers)) getReactiveHeaders(set);
+  });
 }
 
+/**
+ * 将表格数组同步回对象格式（用于保存/接口）
+ */
 function syncHeadersToObject(set) {
-  const arr = getHeadersList(set);
+  const arr = getReactiveHeaders(set);
   const obj = {},
     disabled = {};
   arr.forEach((h) => {
@@ -582,16 +508,16 @@ function syncHeadersToObject(set) {
   });
   set.headers = obj;
   set._disabledHeaders = disabled;
-  delete set._headers;
 }
 
+//////////////////////////////////// Header 增删改 ////////////////////////////////////
 function updateHeaders(set) {
   syncHeadersToObject(set);
   emitChange();
 }
 
-function addHeaderToSet(collection) {
-  const arr = getHeadersList(collection);
+function addHeaderToSet(set) {
+  const arr = getReactiveHeaders(set);
   arr.push({
     id: Date.now() + "",
     enabled: true,
@@ -599,45 +525,70 @@ function addHeaderToSet(collection) {
     value: "",
     desc: "",
   });
-  collection.headers = arr;
+  set._headers = arr;
   emitChange();
 }
 
 function removeHeaderFromSet(set, i) {
-  const arr = getHeadersList(set);
-  arr.splice(i, 1);
-  set._headers = arr;
+  if (!set || !set._headers || i < 0) return;
+  // 直接删除原数组
+  set._headers.splice(i, 1);
+  // 同步回对象
   syncHeadersToObject(set);
   emitChange();
 }
 
-function addHeadersSet() {
+//////////////////////////////////// 配置集 增删/复制/重命名 ////////////////////////////////////
+function addSet() {
   const newSet = {
     id: Date.now() + "",
-    name: `配置${httpHeaders.value.sets.length + 1}`,
+    name: `配置${requestHeaders.value.sets.length + 1}`,
     enabled: true,
-    headers: { "User-Agent": "Mozilla/5.0" },
+    headers: [{ "User-Agent": "Mozilla/5.0" }],
   };
-  httpHeaders.value.sets.push(newSet);
-  activeTabId.value = newSet.id;
+  // 创建新数组，整体赋值给 computed
+  const newSets = [...requestHeaders.value.sets, newSet];
+  requestHeaders.value.sets = newSets;
+
+  nextTick(() => {
+    setTimeout(() => {
+      activeTabId.value = newSet.id;
+    }, 0);
+  });
   ensureHeadersArray();
   emitChange();
-  ElMessage.success("已添加");
 }
 
-function deleteSet(set) {
-  if (httpHeaders.value.sets.length <= 1)
-    return ElMessage.warning("至少保留一个");
-  ElMessageBox.confirm(`确定删除 ${set.name}？`)
+function deleteSet(setId) {
+  const set = requestHeaders.value.sets.find((s) => s.id === setId);
+  if (!set) return;
+
+  if (requestHeaders.value.sets.length <= 1) {
+    ElMessage.warning("至少保留一个配置集");
+    return;
+  }
+
+  ElMessageBox.confirm(`确定删除【${set.name}】吗？`, "提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning",
+  })
     .then(() => {
-      const i = httpHeaders.value.sets.findIndex((s) => s.id === set.id);
-      if (i !== -1) {
-        httpHeaders.value.sets.splice(i, 1);
-        if (httpHeaders.value.currentSetId === set.id)
-          httpHeaders.value.currentSetId = httpHeaders.value.sets[0].id;
-        emitChange();
-        ElMessage.success("删除成功");
+      // 创建新数组，不要用 splice
+      const newSets = requestHeaders.value.sets.filter((s) => s.id !== setId);
+      requestHeaders.value.sets = newSets;
+
+      // 更新默认选中
+      if (requestHeaders.value.currentSetId === setId) {
+        requestHeaders.value.currentSetId = newSets[0].id;
       }
+
+      // 删除后自动选中第一个
+      nextTick(() => {
+        activeTabId.value = newSets[0].id;
+      });
+
+      emitChange();
     })
     .catch(() => {});
 }
@@ -649,19 +600,25 @@ function duplicateSet(set) {
     name: `${set.name}(副本)`,
     headers: { ...set.headers },
   };
-  httpHeaders.value.sets.push(newSet);
-  activeTabId.value = newSet.id;
+  const newSets = [...requestHeaders.value.sets, newSet];
+  requestHeaders.value.sets = newSets;
+
+  nextTick(() => {
+    setTimeout(() => {
+      activeTabId.value = newSet.id;
+    }, 0);
+  });
   ensureHeadersArray();
   emitChange();
-  ElMessage.success("复制成功");
 }
 
 function setAsDefault(set) {
-  httpHeaders.value.currentSetId = set.id;
+  requestHeaders.value.currentSetId = set.id;
   emitChange();
-  ElMessage.success("已设为默认");
+  ElMessage.success("已设为默认使用");
 }
 
+// Tab 下拉命令处理
 function handleTabCommand(cmd, set) {
   switch (cmd) {
     case "setDefault":
@@ -675,23 +632,22 @@ function handleTabCommand(cmd, set) {
     case "duplicate":
       duplicateSet(set);
       break;
-    case "delete":
-      deleteSet(set);
-      break;
   }
 }
 
+// 确认重命名
 function confirmRename() {
   if (renamingSet.value && renamingName.value.trim()) {
     renamingSet.value.name = renamingName.value.trim();
     emitChange();
-    ElMessage.success("重命名成功");
   }
   renameDialogVisible.value = false;
 }
 
-function handleTabClick() {}
+// Tab点击（预留）
+function handleTabClick(pane, event) {}
 
+//////////////////////////////////// 粘贴/导入预设/导出 ////////////////////////////////////
 function openPasteDialog(set) {
   currentPasteSet.value = set;
   pasteDialogRef.value?.open();
@@ -700,13 +656,13 @@ function openPasteDialog(set) {
 function handlePasteConfirm(headers, set) {
   if (!set) return;
   const h = set.headers || {};
-  headers.forEach((i) => {
-    if (i.name) h[i.name] = i.value;
+  headers.forEach((item) => {
+    if (item.name) h[item.name] = item.value;
   });
   set.headers = h;
   delete set._headers;
   emitChange();
-  ElMessage.success(`导入 ${headers.length} 个`);
+  ElMessage.success(`成功导入 ${headers.length} 个Header`);
 }
 
 function openPresetSelector(set) {
@@ -714,6 +670,7 @@ function openPresetSelector(set) {
   showPresetSelector.value = true;
 }
 
+// 导入浏览器预设
 function handlePresetConfirm(name) {
   if (!currentPresetSet.value) return;
   const pre = browserPresets[name];
@@ -722,12 +679,15 @@ function handlePresetConfirm(name) {
     Object.entries(pre).forEach(([k, v]) => (h[k] = v));
     currentPresetSet.value.headers = h;
     delete currentPresetSet.value._headers;
+    getReactiveHeaders(currentPresetSet.value);
+    ElMessage.success("已导入浏览器预设");
     emitChange();
-    ElMessage.success("已导入预设");
   }
   currentPresetSet.value = null;
+  showPresetSelector.value = false;
 }
 
+// 导出配置集
 function exportSet(set) {
   syncHeadersToObject(set);
   const data = { name: set.name, headers: set.headers };
@@ -741,9 +701,10 @@ function exportSet(set) {
   ElMessage.success("导出成功");
 }
 
+//////////////////////////////////// 预览 & 复制 ////////////////////////////////////
 function previewHeaders() {
-  const h = currentHeadersSet.value.headers;
-  previewHeadersList.value = Object.entries(h).map(([name, value]) => ({
+  const h = currentSet.value.headers || {};
+  previewSet.value = Object.entries(h).map(([name, value]) => ({
     name,
     value,
   }));
@@ -752,30 +713,30 @@ function previewHeaders() {
 
 function copyHeaders() {
   const obj = {};
-  previewHeadersList.value.forEach((i) => (obj[i.name] = i.value));
+  previewSet.value.forEach((item) => (obj[item.name] = item.value));
   navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
-  ElMessage.success("已复制");
+  ElMessage.success("已复制到剪贴板");
 }
-function testCurrentHeaders() {
-  ElMessage.info(
-    `当前：${currentHeadersSet.value.name}，请求计数：${props.provider.requestCount || 0}`
-  );
-}
+
+// //////////////////////////////////// 配置暴露 & 事件 ////////////////////////////////////
 function getConfig() {
-  return { httpHeaders: httpHeaders.value };
+  return requestHeaders.value;
 }
+
 function emitChange() {
   emit("change", getConfig());
 }
+
+// 初始化/重置配置
 function resetConfig() {
-  if (!props.provider.httpHeaders) {
+  if (!props.provider.requestHeaders) {
     const def = {
       id: "default",
       name: "默认配置",
       enabled: true,
       headers: { "User-Agent": "Mozilla/5.0" },
     };
-    props.provider.httpHeaders = {
+    props.provider.requestHeaders = {
       strategy: {
         pollMode: "off",
         pollInterval: 3,
@@ -786,19 +747,25 @@ function resetConfig() {
     };
   }
   ensureHeadersArray();
-  if (activeTabId.value === null && httpHeaders.value.sets.length) {
-    activeTabId.value = httpHeaders.value.currentSetId;
+  // 默认激活当前Tab
+  if (activeTabId.value === null && requestHeaders.value.sets?.length) {
+    activeTabId.value = requestHeaders.value.currentSetId;
   }
 }
+
+// 监听provider变化
 watch(
   () => props.provider,
   () => resetConfig(),
   { immediate: true, deep: true }
 );
+
+// 暴露方法给父组件
 defineExpose({ getConfig, resetConfig });
 </script>
 
 <style scoped>
+/* 卡片整体样式 */
 .config-card {
   margin-bottom: 0;
 }
@@ -811,15 +778,18 @@ defineExpose({ getConfig, resetConfig });
 .poll-tag {
   margin-right: 12px;
 }
+
+/* 轮询配置栏 */
 .poll-bar {
   padding: 12px 0;
-  border-bottom: 1px solid #ebeef5;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* flex-wrap: wrap; */
   gap: 10px;
 }
+
+/* Tab区域 */
 .headers-tabs {
   margin-bottom: 16px;
 }
@@ -851,6 +821,8 @@ defineExpose({ getConfig, resetConfig });
   color: #409eff;
   cursor: pointer;
 }
+
+/* 编辑器区域 */
 .headers-editor {
   padding: 16px;
 }
@@ -865,41 +837,7 @@ defineExpose({ getConfig, resetConfig });
   text-align: center;
 }
 
-.status-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  margin-top: 16px;
-  gap: 8px;
-}
-.status-info {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  flex-wrap: wrap;
-}
-.poll-hint {
-  color: #909399;
-  font-size: 12px;
-  margin-left: 8px;
-}
-.poll-stats {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-.status-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
+/* 可编辑div样式 */
 .editable-value-wrapper {
   position: relative;
   width: 100%;
@@ -931,7 +869,7 @@ defineExpose({ getConfig, resetConfig });
   border-color: #409eff;
   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
 }
-.editable-value:empty:before {
+.editable-value:empty::before {
   content: attr(placeholder);
   color: #c0c4cc;
 }

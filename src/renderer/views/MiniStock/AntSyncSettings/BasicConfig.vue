@@ -57,7 +57,7 @@
                 <el-input
                   v-model="formData.desc"
                   type="textarea"
-                  rows="2"
+                  :rows="2"
                   placeholder="供应商描述"
                   @input="emitChange"
                 />
