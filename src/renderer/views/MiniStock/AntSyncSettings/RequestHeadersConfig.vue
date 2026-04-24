@@ -498,16 +498,18 @@ function ensureHeadersArray() {
  */
 function syncHeadersToObject(set) {
   const arr = getReactiveHeaders(set);
-  const obj = {},
-    disabled = {};
+  const obj = {};
+  // const disabled = {};
   arr.forEach((h) => {
     if (h.name?.trim()) {
-      obj[h.name.trim()] = h.value;
-      if (!h.enabled) disabled[h.name.trim()] = true;
+      if (h.enabled) {
+        obj[h.name.trim()] = h.value;
+      }
+      // if (!h.enabled) disabled[h.name.trim()] = true;
     }
   });
   set.headers = obj;
-  set._disabledHeaders = disabled;
+  // set._disabledHeaders = disabled;
 }
 
 //////////////////////////////////// Header 增删改 ////////////////////////////////////
