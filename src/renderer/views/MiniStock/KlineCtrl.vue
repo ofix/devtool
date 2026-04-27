@@ -44,8 +44,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import KlineRenderer from "./Components/KlineRenderer";
-import { useStockConfigStore } from "@/stores/StoreStockConfig";
-import { useStockStore } from "@/stores/StoreStock";
 
 // Props
 const props = defineProps({
@@ -105,30 +103,6 @@ emaPeriods.forEach((period) => {
   emaVisible.value[period] = true;
 });
 
-// 加载K线数据
-const loadKlineData = async () => {
-  if (!stockStore.currentStock) return;
-
-  try {
-    const endDate = new Date().toISOString().split("T")[0];
-    const startDate = getStartDate(currentType.value);
-
-    const data = await window.channel.getKlines(
-      stockStore.currentStock,
-      "a", // market
-      currentType.value,
-      startDate,
-      endDate
-    );
-
-    klineData.value = data;
-    if (renderer.value) {
-      renderer.value.setData(data);
-    }
-  } catch (error) {
-    console.error("加载K线数据失败:", error);
-  }
-};
 
 // 获取开始日期
 const getStartDate = (type) => {
@@ -217,7 +191,6 @@ const isTradingTime = () => {
 // 切换K线类型
 const changeType = (type) => {
   currentType.value = type;
-  loadKlineData();
 };
 
 // 切换EMA显隐
@@ -243,7 +216,6 @@ const handlePrevStock = () => {
   if (hasPrevInPage.value || stockStore.hasPrevPage) {
     stockStore.prevStock();
     emit("stock-changed", stockStore.currentStock);
-    loadKlineData();
   }
 };
 
@@ -252,7 +224,6 @@ const handleNextStock = () => {
   if (hasNextInPage.value || stockStore.hasNextPage) {
     stockStore.nextStock();
     emit("stock-changed", stockStore.currentStock);
-    loadKlineData();
   }
 };
 
@@ -309,13 +280,6 @@ const initCanvas = () => {
       ema: configStore.emaColors,
     },
   });
-
-  emit("kline-ready", stockStore.currentStock, {
-    updateConfig,
-    refresh: loadKlineData,
-  });
-
-  loadKlineData();
   isInitialized.value = true;
 };
 
@@ -343,7 +307,6 @@ watch(
   () => stockStore.currentStock,
   (newCode, oldCode) => {
     if (newCode && newCode !== oldCode && isInitialized.value) {
-      loadKlineData();
       emit("stock-changed", newCode);
     }
   }

@@ -2,27 +2,24 @@
   <el-card class="config-card" shadow="never">
     <template #header>
       <div class="card-header">
-        <!-- 标题区域 -->
         <span class="icon-text"><IconRequestHeaders />请求头</span>
         <div class="header-actions">
-          <!-- 轮询状态标签：开启时显示 -->
           <el-tag
             v-if="
-              requestHeaders?.strategy?.pollMode &&
-              requestHeaders.strategy.pollMode !== 'off'
+              localConfig.strategy?.pollMode &&
+              localConfig.strategy.pollMode !== 'off'
             "
             type="success"
             size="small"
             class="poll-tag"
           >
             {{
-              requestHeaders.strategy.pollMode === "sequence"
+              localConfig.strategy.pollMode === "sequence"
                 ? "顺序轮询"
                 : "随机轮询"
             }}
-            (每{{ requestHeaders.strategy.pollInterval }}次)
+            (每{{ localConfig.strategy.pollInterval }}次)
           </el-tag>
-          <!-- 展开/收起按钮 -->
           <el-button link type="primary" @click="expanded = !expanded">
             {{ expanded ? "收起" : "展开" }}
           </el-button>
@@ -32,61 +29,53 @@
 
     <el-collapse-transition>
       <div v-show="expanded">
-        <!-- 轮询配置栏 -->
         <div class="poll-bar">
-          <!-- 轮询模式单选框 -->
           <el-radio-group
-            v-model="localPollMode"
-            @change="handlePollModeChange"
+            v-model="localConfig.strategy.pollMode"
+            @change="emitChange"
           >
             <el-radio label="off">关闭轮询</el-radio>
             <el-radio label="sequence">顺序轮询</el-radio>
             <el-radio label="random">随机轮询</el-radio>
           </el-radio-group>
 
-          <!-- 轮询间隔滑块 -->
           <div style="display: flex; align-items: center; margin-left: 20px">
             <span style="margin-right: 10px">轮询间隔：</span>
             <el-slider
-              v-model="localPollInterval"
+              v-model="localConfig.strategy.pollInterval"
               :min="1"
               :max="20"
               :step="1"
               :marks="{ 1: '1次', 5: '5次', 10: '10次', 20: '20次' }"
               style="width: 260px"
-              @change="handlePollIntervalChange"
+              @change="emitChange"
             />
           </div>
         </div>
 
-        <!-- Headers 配置集 Tab -->
         <div class="headers-tabs">
           <el-tabs
             v-model="activeTabId"
             type="border-card"
-            @tab-click="handleTabClick"
-            @tab-remove="deleteSet"
+            @tab-remove="handleTabRemove"
           >
-            <!-- 遍历渲染所有配置集 -->
             <el-tab-pane
-              v-for="set in requestHeaders.sets"
+              v-for="set in localConfig.sets"
               :key="set.id"
               :name="set.id"
               :label="set.name"
-              :closable="requestHeaders.sets.length > 1"
+              :closable="localConfig.sets.length > 1"
             >
               <template #label>
                 <div class="tab-label">
                   <span>{{ set.name }}</span>
-                  <!-- 当前默认使用的配置集标记 -->
                   <el-icon
-                    v-if="set.id === requestHeaders.currentSetId"
+                    v-if="set.id === localConfig.strategy.currentSetId"
                     class="default-icon"
                     title="当前使用"
                   >
                     <StarFilled />
                   </el-icon>
-                  <!-- 配置集更多操作下拉菜单 -->
                   <el-dropdown
                     trigger="click"
                     @click.stop
@@ -115,18 +104,17 @@
                 </div>
               </template>
 
-              <!-- Header 编辑表格 -->
               <div class="headers-editor">
                 <div class="editor-toolbar">
-                  <el-button type="primary" @click="addHeaderToSet(set)">
+                  <el-button type="primary" @click="addHeaderToSet(set.id)">
                     <el-icon><Plus /></el-icon>
                     添加 Header
                   </el-button>
-                  <el-button @click="openPasteDialog(set)">
+                  <el-button @click="openPasteDialog(set.id)">
                     <el-icon><DocumentCopy /></el-icon>
                     从浏览器粘贴
                   </el-button>
-                  <el-button @click="openPresetSelector(set)">
+                  <el-button @click="openPresetSelector(set.id)">
                     <el-icon><Upload /></el-icon>
                     导入预设
                   </el-button>
@@ -140,62 +128,56 @@
                   </el-button>
                 </div>
 
-                <!-- Header 表格 -->
                 <el-table
-                  :data="getReactiveHeaders(set)"
+                  :data="mapSetHeaders[set.id] || []"
                   stripe
                   size="small"
                   border
                 >
-                  <!-- 启用开关 -->
                   <el-table-column label="启用" width="70" align="center">
-                    <template #default="{ row }">
+                    <template #default="{ row, $index }">
                       <el-switch
-                        v-model="row.enabled"
+                        :model-value="row.enabled"
                         size="small"
-                        @change="updateHeaders(set)"
+                        @update:model-value="
+                          (val) => toggleHeaderEnabled(set.id, $index, val)
+                        "
                       />
                     </template>
                   </el-table-column>
-                  <!-- Header 名称 -->
                   <el-table-column label="Header 名称" width="200">
-                    <template #default="{ row }">
+                    <template #default="{ row, $index }">
                       <el-input
-                        v-model="row.name"
+                        :model-value="row.name"
                         size="small"
                         placeholder="如: User-Agent"
-                        @change="updateHeaders(set)"
+                        @update:model-value="
+                          (val) => updateHeaderName(set.id, $index, val)
+                        "
                       />
                     </template>
                   </el-table-column>
-                  <!-- Header 值（可编辑div） -->
                   <el-table-column label="Header 值" min-width="350">
-                    <template #default="{ row }">
-                      <div class="editable-value-wrapper">
-                        <div
-                          :contenteditable="true"
-                          class="editable-value"
-                          :class="{ 'is-long': row.value?.length > 100 }"
-                          @blur="
-                            (e) => {
-                              row.value = e.target.innerText;
-                              updateHeaders(set);
-                            }
-                          "
-                          v-html="row.value"
-                          placeholder="请输入Header值"
-                        ></div>
-                      </div>
+                    <template #default="{ row, $index }">
+                      <el-input
+                        :model-value="row.value"
+                        type="textarea"
+                        :autosize="{ minRows: 1, maxRows: 6 }"
+                        size="small"
+                        placeholder="请输入Header值"
+                        @update:model-value="
+                          (val) => updateHeaderValue(set.id, $index, val)
+                        "
+                      />
                     </template>
                   </el-table-column>
-                  <!-- 删除操作 -->
-                  <el-table-column label="操作" width="100">
+                  <el-table-column label="操作" width="100" fixed="right">
                     <template #default="{ $index }">
                       <el-button
                         link
                         type="danger"
                         size="small"
-                        @click="removeHeaderFromSet(set, $index)"
+                        @click="removeHeaderFromSet(set.id, $index)"
                       >
                         删除
                       </el-button>
@@ -203,11 +185,7 @@
                   </el-table-column>
                 </el-table>
 
-                <!-- 空状态提示 -->
-                <div
-                  class="table-footer"
-                  v-if="getReactiveHeaders(set).length === 0"
-                >
+                <div class="table-footer" v-if="!mapSetHeaders[set.id]?.length">
                   <el-empty
                     description="暂无 Header，点击上方按钮添加"
                     :image-size="80"
@@ -216,8 +194,7 @@
               </div>
             </el-tab-pane>
 
-            <!-- 新建配置 Tab -->
-            <el-tab-pane name="__add__" :disabled="false">
+            <el-tab-pane name="__add__">
               <template #label>
                 <div class="tab-add" @click="addSet">
                   <el-icon><Plus /></el-icon>
@@ -228,7 +205,6 @@
           </el-tabs>
         </div>
 
-        <!-- 预览对话框 -->
         <el-dialog
           v-model="previewDialogVisible"
           title="当前 Headers 预览"
@@ -248,25 +224,26 @@
           </template>
         </el-dialog>
 
-        <!-- 重命名对话框 -->
         <el-dialog
           v-model="renameDialogVisible"
           title="重命名配置集"
           width="400px"
         >
-          <el-input v-model="renamingName" placeholder="请输入新名称" />
+          <el-input
+            v-model="renamingName"
+            placeholder="请输入新名称"
+            @keyup.enter="confirmRename"
+          />
           <template #footer>
             <el-button @click="renameDialogVisible = false">取消</el-button>
             <el-button type="primary" @click="confirmRename">确认</el-button>
           </template>
         </el-dialog>
 
-        <!-- 粘贴解析弹窗组件 -->
         <PasteHeadersDialog
           ref="pasteDialogRef"
-          @confirm="(headers) => handlePasteConfirm(headers, currentPasteSet)"
+          @confirm="handlePasteConfirm"
         />
-        <!-- 预设选择器组件 -->
         <PresetSelector
           v-model="showPresetSelector"
           @confirm="handlePresetConfirm"
@@ -277,7 +254,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick } from "vue";
+import { ref, watch, onMounted, reactive, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
@@ -286,41 +263,49 @@ import {
   MoreFilled,
   Edit,
   CopyDocument,
-  Delete,
   DocumentCopy,
   Download,
   Upload,
-  InfoFilled,
   View,
-  Connection,
 } from "@element-plus/icons-vue";
 import IconRequestHeaders from "@/icons/IconRequestHeaders.vue";
 import PasteHeadersDialog from "./PasteHeadersDialog.vue";
 import PresetSelector from "./PresetSelector.vue";
 
-//////////////////////////////////// Props & Emit ////////////////////////////////////
 const props = defineProps({
-  provider: { type: Object, required: true }, // 数据源
+  provider: { type: Object, required: true },
 });
-const emit = defineEmits(["change"]); // 数据变更事件
+const emit = defineEmits(["change"]);
 
-//////////////////////////////////// 响应式状态 ////////////////////////////////////
-const expanded = ref(true); // 面板展开状态
-const activeTabId = ref("default"); // 当前激活的Tab
-const renameDialogVisible = ref(false); // 重命名弹窗
-const renamingSet = ref(null); // 正在重命名的配置集
+// 响应式状态
+const expanded = ref(true);
+const activeTabId = ref("");
+const renameDialogVisible = ref(false);
+const renamingSet = ref(null);
 const renamingName = ref("");
-const previewDialogVisible = ref(false); // 预览弹窗
-const previewSet = ref([]); // 预览数据
-const pasteDialogRef = ref(null); // 粘贴弹窗ref
-const currentPasteSet = ref(null); // 当前粘贴目标
-const showPresetSelector = ref(false); // 预设选择器
-const currentPresetSet = ref(null); // 当前预设目标
+const previewDialogVisible = ref(false);
+const previewSet = ref([]);
+const pasteDialogRef = ref(null);
+const currentPasteSetId = ref(null);
+const showPresetSelector = ref(false);
+const currentPresetSetId = ref(null);
 
-const localPollMode = ref("off"); // 轮询模式本地值
-const localPollInterval = ref(3); // 轮询间隔本地值
+// 本地配置
+const localConfig = reactive({
+  strategy: {
+    pollMode: "off",
+    pollInterval: 3,
+    currentSetId: "",
+  },
+  requestCount: 0,
+  sets: [],
+});
 
-//////////////////////////////////// 浏览器预设Headers ////////////////////////////////////
+// 存储每个配置集的 headers 数组（包含 enabled 状态）
+// 数据结构: [{ id, name, value, enabled }]
+const mapSetHeaders = reactive({});
+
+// 浏览器预设
 const browserPresets = {
   "Chrome (Windows)": {
     "User-Agent":
@@ -328,247 +313,278 @@ const browserPresets = {
     Accept:
       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Sec-Ch-Ua":
-      '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Upgrade-Insecure-Requests": "1",
-  },
-  "Chrome (macOS)": {
-    "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
   },
   "Firefox (Windows)": {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100100 Firefox/119.0",
     Accept:
       "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language":
-      "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Upgrade-Insecure-Requests": "1",
+    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,en-US;q=0.3,en;q=0.2",
   },
   "Safari (macOS)": {
     "User-Agent":
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh-Hans;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-  },
-  "Edge (Windows)": {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-  },
-  "Mobile (iPhone)": {
-    "User-Agent":
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh-Hans;q=0.9",
-  },
-  "Mobile (Android)": {
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.163 Mobile Safari/537.36",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
   },
 };
 
-//////////////////////////////////// 核心计算属性：HttpHeaders配置 ////////////////////////////////////
-const requestHeaders = computed({
-  get: () => {
-    // 初始化默认值
-    if (!props.provider.requestHeaders) {
-      const defaultSet = {
-        id: "default",
-        name: "默认配置",
-        enabled: true,
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept: "*/*",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        },
-      };
-      props.provider.requestHeaders = {
-        strategy: {
-          pollMode: "off",
-          pollInterval: 3,
-          currentSetId: "default",
-        },
-        requestCount: 0,
-        sets: [defaultSet],
-      };
-      nextTick(() => {
-        setTimeout(() => {
-          activeTabId.value = defaultSet.id;
-          console.log("activeTabId = ", defaultSet.id);
-        }, 0);
-      });
-    }
-
-    // 同步本地值
-    localPollMode.value = props.provider.requestHeaders.strategy.pollMode;
-    localPollInterval.value =
-      props.provider.requestHeaders.strategy.pollInterval;
-    return props.provider.requestHeaders;
-  },
-  set: (val) => {
-    props.provider.requestHeaders = val;
-    localPollMode.value = val.strategy?.pollMode;
-    localPollInterval.value = val.strategy?.pollInterval;
-    emitChange();
-  },
-});
-
-// 已启用的配置集列表
-const enabledSets = computed(
-  () => requestHeaders.value.sets?.filter((s) => s.enabled) || []
-);
-
-//////////////////////////////////// 轮询模式/间隔修改 ////////////////////////////////////
-function handlePollModeChange(val) {
-  requestHeaders.value.strategy.pollMode = val;
-  emitChange();
-}
-function handlePollIntervalChange(val) {
-  requestHeaders.value.strategy.pollInterval = val;
-  emitChange();
+// 生成唯一ID
+function generateId() {
+  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// 当前使用的Header配置集
-const currentSet = computed(() => {
-  const cid = requestHeaders.value.currentSetId;
-  return (
-    requestHeaders.value.sets?.find((s) => s.id === cid) ||
-    requestHeaders.value.sets?.[0]
-  );
-});
-
-//////////////////////////////////// Header 数组/对象转换工具 ////////////////////////////////////
-/**
- * 将配置集中的headers对象转为数组用于表格编辑
- */
-function getReactiveHeaders(set) {
-  if (!set) return [];
-  if (!set.headers) set.headers = {};
-
-  // 已有数组缓存直接返回
-  if (set._headers) return set._headers;
-
-  // 对象转数组
-  const arr = [];
-  const disabled = set._disabledHeaders || {};
-  Object.entries(set.headers).forEach(([name, val], i) => {
-    arr.push({
-      id: `${set.id}_${i}`,
-      enabled: !disabled[name],
-      name,
-      value: val,
-      desc: "",
-    });
-  });
-  set._headers = arr;
-  return arr;
-}
-
-/**
- * 批量确保所有配置集为数组格式
- */
-function ensureHeadersArray() {
-  if (!requestHeaders.value?.sets) return;
-  requestHeaders.value.sets.forEach((set) => {
-    if (set.headers && !Array.isArray(set.headers)) getReactiveHeaders(set);
-  });
-}
-
-/**
- * 将表格数组同步回对象格式（用于保存/接口）
- */
-function syncHeadersToObject(set) {
-  const arr = getReactiveHeaders(set);
-  const obj = {};
-  // const disabled = {};
-  arr.forEach((h) => {
-    if (h.name?.trim()) {
-      if (h.enabled) {
-        obj[h.name.trim()] = h.value;
-      }
-      // if (!h.enabled) disabled[h.name.trim()] = true;
-    }
-  });
-  set.headers = obj;
-  // set._disabledHeaders = disabled;
-}
-
-//////////////////////////////////// Header 增删改 ////////////////////////////////////
-function updateHeaders(set) {
-  syncHeadersToObject(set);
-  emitChange();
-}
-
-function addHeaderToSet(set) {
-  const arr = getReactiveHeaders(set);
-  arr.push({
-    id: Date.now() + "",
-    enabled: true,
-    name: "",
-    value: "",
-    desc: "",
-  });
-  set._headers = arr;
-  emitChange();
-}
-
-function removeHeaderFromSet(set, i) {
-  if (!set || !set._headers || i < 0) return;
-  // 直接删除原数组
-  set._headers.splice(i, 1);
-  // 同步回对象
-  syncHeadersToObject(set);
-  emitChange();
-}
-
-//////////////////////////////////// 配置集 增删/复制/重命名 ////////////////////////////////////
-function addSet() {
-  const newSet = {
-    id: Date.now() + "",
-    name: `配置${requestHeaders.value.sets.length + 1}`,
-    enabled: true,
-    headers: [{ "User-Agent": "Mozilla/5.0" }],
+// 获取默认配置
+function getDefaultConfig() {
+  const defaultSetId = generateId();
+  const defaultSet = {
+    id: defaultSetId,
+    name: "默认配置",
   };
-  // 创建新数组，整体赋值给 computed
-  const newSets = [...requestHeaders.value.sets, newSet];
-  requestHeaders.value.sets = newSets;
-
-  nextTick(() => {
-    setTimeout(() => {
-      activeTabId.value = newSet.id;
-    }, 0);
-  });
-  ensureHeadersArray();
-  emitChange();
+  return {
+    strategy: {
+      pollMode: "off",
+      pollInterval: 3,
+      currentSetId: defaultSetId,
+    },
+    requestCount: 0,
+    sets: [defaultSet],
+  };
 }
 
-function deleteSet(setId) {
-  const set = requestHeaders.value.sets.find((s) => s.id === setId);
+// 从 props 同步数据到本地
+function syncFromProps() {
+  const source = props.provider?.requestHeaders;
+
+  if (!source || !source.sets || source.sets.length === 0) {
+    const defaultConfig = getDefaultConfig();
+    Object.assign(localConfig, defaultConfig);
+    activeTabId.value = localConfig.sets[0]?.id || "";
+
+    // 初始化默认 headers
+    const defaultHeaders = [
+      {
+        id: generateId(),
+        name: "User-Agent",
+        value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        enabled: true,
+      },
+      {
+        id: generateId(),
+        name: "Accept",
+        value: "*/*",
+        enabled: true,
+      },
+      {
+        id: generateId(),
+        name: "Accept-Language",
+        value: "zh-CN,zh;q=0.9",
+        enabled: true,
+      },
+    ];
+    mapSetHeaders[defaultSetId] = defaultHeaders;
+    syncArrayToObject(defaultSetId);
+  } else {
+    // 深拷贝配置
+    const copy = JSON.parse(JSON.stringify(source));
+    Object.assign(localConfig, copy);
+    activeTabId.value =
+      localConfig.strategy.currentSetId || localConfig.sets[0]?.id || "";
+
+    // 重建 headers 数组
+    rebuildAllHeadersArrays();
+  }
+}
+
+// 重建所有 headers 数组
+function rebuildAllHeadersArrays() {
+  Object.keys(mapSetHeaders).forEach((key) => {
+    delete mapSetHeaders[key];
+  });
+
+  localConfig.sets?.forEach((set) => {
+    // 检查是否已有 headers 数组格式（包含 enabled）
+    if (
+      set.headers &&
+      Array.isArray(set.headers) &&
+      set.headers[0]?.enabled !== undefined
+    ) {
+      // 已经是新格式
+      mapSetHeaders[set.id] = set.headers.map((h) => ({ ...h }));
+    } else if (
+      set.headers &&
+      typeof set.headers === "object" &&
+      !Array.isArray(set.headers)
+    ) {
+      // 旧格式对象转数组
+      mapSetHeaders[set.id] = objectToHeadersArray(set.headers);
+    } else {
+      mapSetHeaders[set.id] = [];
+    }
+  });
+}
+
+// 对象转数组（旧格式兼容）
+function objectToHeadersArray(headersObj) {
+  return Object.entries(headersObj).map(([name, value]) => ({
+    id: generateId(),
+    name,
+    value: String(value),
+    enabled: true, // 默认启用
+  }));
+}
+
+// 数组转对象（只包含启用的 header）
+function headersArrayToObject(arr) {
+  const obj = {};
+  arr.forEach((item) => {
+    if (item.enabled && item.name && item.name.trim()) {
+      obj[item.name.trim()] = item.value;
+    }
+  });
+  return obj;
+}
+
+// 获取完整对象格式（包含禁用的，用于保存完整状态）
+function getFullHeadersObject(arr) {
+  const obj = {};
+  arr.forEach((item) => {
+    if (item.name && item.name.trim()) {
+      obj[item.name.trim()] = {
+        value: item.value,
+        enabled: item.enabled,
+      };
+    }
+  });
+  return obj;
+}
+
+// 从完整对象恢复数组
+function fullObjectToHeadersArray(fullObj) {
+  return Object.entries(fullObj).map(([name, data]) => ({
+    id: generateId(),
+    name,
+    value: data.value || data, // 兼容旧格式
+    enabled: typeof data === "object" ? data.enabled !== false : true,
+  }));
+}
+
+// 同步指定配置集的数组到对象（只保存启用的）
+function syncArrayToObject(setId) {
+  const set = localConfig.sets?.find((s) => s.id === setId);
   if (!set) return;
 
-  if (requestHeaders.value.sets.length <= 1) {
+  const arr = mapSetHeaders[setId];
+  if (arr) {
+    // 只保存启用的 headers 到 headers 字段
+    set.headers = headersArrayToObject(arr);
+
+    // 可选：保存完整状态到另一个字段（用于保留禁用状态）
+    // set._fullHeaders = getFullHeadersObject(arr);
+  }
+  emitChange();
+}
+
+// 切换 Header 启用状态
+function toggleHeaderEnabled(setId, index, enabled) {
+  const arr = mapSetHeaders[setId];
+  if (!arr || index < 0 || index >= arr.length) return;
+
+  arr[index].enabled = enabled;
+  mapSetHeaders[setId] = [...arr]; // 触发响应式更新
+  syncArrayToObject(setId);
+}
+
+// 添加 Header
+function addHeaderToSet(setId) {
+  const arr = mapSetHeaders[setId] || [];
+  arr.push({
+    id: generateId(),
+    name: "",
+    value: "",
+    enabled: true,
+  });
+  mapSetHeaders[setId] = [...arr];
+  syncArrayToObject(setId);
+  ElMessage.success("已添加新的 Header");
+}
+
+// 删除 Header
+function removeHeaderFromSet(setId, index) {
+  const arr = mapSetHeaders[setId];
+  if (!arr || index < 0 || index >= arr.length) return;
+
+  arr.splice(index, 1);
+  mapSetHeaders[setId] = [...arr];
+  syncArrayToObject(setId);
+  ElMessage.success("已删除 Header");
+}
+
+// 更新 Header 名称
+function updateHeaderName(setId, index, newName) {
+  const arr = mapSetHeaders[setId];
+  if (!arr || index < 0 || index >= arr.length) return;
+
+  if (!newName || !newName.trim()) {
+    ElMessage.warning("Header 名称不能为空");
+    return;
+  }
+
+  newName = newName.trim();
+  const oldName = arr[index].name;
+
+  // 检查是否重名（排除自身）
+  if (oldName !== newName) {
+    const isDuplicate = arr.some(
+      (item, idx) => idx !== index && item.name === newName
+    );
+    if (isDuplicate) {
+      ElMessage.warning(`Header "${newName}" 已存在`);
+      return;
+    }
+  }
+
+  arr[index].name = newName;
+  mapSetHeaders[setId] = [...arr];
+  syncArrayToObject(setId);
+}
+
+// 更新 Header 值
+function updateHeaderValue(setId, index, newValue) {
+  const arr = mapSetHeaders[setId];
+  if (!arr || index < 0 || index >= arr.length) return;
+
+  arr[index].value = newValue;
+  syncArrayToObject(setId);
+}
+
+// 添加配置集
+function addSet() {
+  const newSet = {
+    id: generateId(),
+    name: `配置${localConfig.sets.length + 1}`,
+    headers: { "User-Agent": "Mozilla/5.0" },
+  };
+
+  localConfig.sets.push(newSet);
+  mapSetHeaders[newSet.id] = objectToHeadersArray(newSet.headers);
+
+  // 等待 DOM 渲染完成
+  setTimeout(() => {
+    activeTabId.value = newSet.id;
+    emitChange();
+  }, 0);
+}
+
+// 删除配置集
+function handleTabRemove(setId) {
+  if (localConfig.sets.length <= 1) {
     ElMessage.warning("至少保留一个配置集");
     return;
   }
+
+  const set = localConfig.sets.find((s) => s.id === setId);
+  if (!set) return;
 
   ElMessageBox.confirm(`确定删除【${set.name}】吗？`, "提示", {
     confirmButtonText: "确定",
@@ -576,51 +592,57 @@ function deleteSet(setId) {
     type: "warning",
   })
     .then(() => {
-      // 创建新数组，不要用 splice
-      const newSets = requestHeaders.value.sets.filter((s) => s.id !== setId);
-      requestHeaders.value.sets = newSets;
+      const index = localConfig.sets.findIndex((s) => s.id === setId);
+      if (index !== -1) {
+        localConfig.sets.splice(index, 1);
+        delete mapSetHeaders[setId];
 
-      // 更新默认选中
-      if (requestHeaders.value.currentSetId === setId) {
-        requestHeaders.value.currentSetId = newSets[0].id;
+        if (localConfig.strategy.currentSetId === setId) {
+          localConfig.strategy.currentSetId = localConfig.sets[0].id;
+        }
+
+        if (activeTabId.value === setId) {
+          activeTabId.value = localConfig.sets[0].id;
+        }
+
+        emitChange();
+        ElMessage.success("删除成功");
       }
-
-      // 删除后自动选中第一个
-      nextTick(() => {
-        activeTabId.value = newSets[0].id;
-      });
-
-      emitChange();
     })
     .catch(() => {});
 }
 
+// 复制配置集
 function duplicateSet(set) {
+  const newSetId = generateId();
+  const sourceArr = mapSetHeaders[set.id] || [];
   const newSet = {
-    ...set,
-    id: Date.now() + "",
+    id: newSetId,
     name: `${set.name}(副本)`,
-    headers: { ...set.headers },
+    headers: {},
   };
-  const newSets = [...requestHeaders.value.sets, newSet];
-  requestHeaders.value.sets = newSets;
+  localConfig.sets.push(newSet);
 
-  nextTick(() => {
-    setTimeout(() => {
-      activeTabId.value = newSet.id;
-    }, 0);
-  });
-  ensureHeadersArray();
+  // 深拷贝数组
+  mapSetHeaders[newSetId] = sourceArr.map((item) => ({
+    ...item,
+    id: generateId(),
+  }));
+
+  syncArrayToObject(newSetId);
+  activeTabId.value = newSetId;
   emitChange();
+  ElMessage.success("复制成功");
 }
 
+// 设为默认
 function setAsDefault(set) {
-  requestHeaders.value.currentSetId = set.id;
+  localConfig.strategy.currentSetId = set.id;
   emitChange();
   ElMessage.success("已设为默认使用");
 }
 
-// Tab 下拉命令处理
+// Tab 命令处理
 function handleTabCommand(cmd, set) {
   switch (cmd) {
     case "setDefault":
@@ -642,180 +664,233 @@ function confirmRename() {
   if (renamingSet.value && renamingName.value.trim()) {
     renamingSet.value.name = renamingName.value.trim();
     emitChange();
+    ElMessage.success("重命名成功");
   }
   renameDialogVisible.value = false;
+  renamingSet.value = null;
 }
 
-// Tab点击（预留）
-function handleTabClick(pane, event) {}
-
-//////////////////////////////////// 粘贴/导入预设/导出 ////////////////////////////////////
-function openPasteDialog(set) {
-  currentPasteSet.value = set;
+// 粘贴
+function openPasteDialog(setId) {
+  currentPasteSetId.value = setId;
   pasteDialogRef.value?.open();
 }
 
-function handlePasteConfirm(headers, set) {
-  if (!set) return;
-  const h = set.headers || {};
+function handlePasteConfirm(headers) {
+  if (!currentPasteSetId.value) return;
+
+  const arr = mapSetHeaders[currentPasteSetId.value] || [];
+
   headers.forEach((item) => {
-    if (item.name) h[item.name] = item.value;
+    if (item.name && item.name.trim()) {
+      const existing = arr.find((h) => h.name === item.name.trim());
+      if (existing) {
+        existing.value = item.value || "";
+        existing.enabled = true;
+      } else {
+        arr.push({
+          id: generateId(),
+          name: item.name.trim(),
+          value: item.value || "",
+          enabled: true,
+        });
+      }
+    }
   });
-  set.headers = h;
-  delete set._headers;
-  emitChange();
+
+  mapSetHeaders[currentPasteSetId.value] = [...arr];
+  syncArrayToObject(currentPasteSetId.value);
   ElMessage.success(`成功导入 ${headers.length} 个Header`);
+  currentPasteSetId.value = null;
 }
 
-function openPresetSelector(set) {
-  currentPresetSet.value = set;
+// 预设
+function openPresetSelector(setId) {
+  currentPresetSetId.value = setId;
   showPresetSelector.value = true;
 }
 
-// 导入浏览器预设
 function handlePresetConfirm(name) {
-  if (!currentPresetSet.value) return;
-  const pre = browserPresets[name];
-  if (pre) {
-    const h = currentPresetSet.value.headers || {};
-    Object.entries(pre).forEach(([k, v]) => (h[k] = v));
-    currentPresetSet.value.headers = h;
-    delete currentPresetSet.value._headers;
-    getReactiveHeaders(currentPresetSet.value);
-    ElMessage.success("已导入浏览器预设");
-    emitChange();
-  }
-  currentPresetSet.value = null;
+  const preset = browserPresets[name];
+  if (!preset || !currentPresetSetId.value) return;
+
+  const arr = mapSetHeaders[currentPresetSetId.value] || [];
+
+  Object.entries(preset).forEach(([key, value]) => {
+    const existing = arr.find((h) => h.name === key);
+    if (existing) {
+      existing.value = value;
+      existing.enabled = true;
+    } else {
+      arr.push({
+        id: generateId(),
+        name: key,
+        value,
+        enabled: true,
+      });
+    }
+  });
+
+  mapSetHeaders[currentPresetSetId.value] = [...arr];
+  syncArrayToObject(currentPresetSetId.value);
+  ElMessage.success(`已导入预设: ${name}`);
+  currentPresetSetId.value = null;
   showPresetSelector.value = false;
 }
 
-// 导出配置集
+// 导出
 function exportSet(set) {
-  syncHeadersToObject(set);
-  const data = { name: set.name, headers: set.headers };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
+  // 导出时只导出启用的 headers
+  const enabledHeaders = {};
+  const arr = mapSetHeaders[set.id] || [];
+  arr.forEach((item) => {
+    if (item.enabled && item.name && item.name.trim()) {
+      enabledHeaders[item.name.trim()] = item.value;
+    }
   });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${set.name}.json`;
-  a.click();
-  ElMessage.success("导出成功");
+
+  const data = {
+    name: set.name,
+    headers: enabledHeaders,
+    exportTime: new Date().toISOString(),
+  };
+
+  try {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${set.name}_headers.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success("导出成功");
+  } catch (error) {
+    console.error("导出失败:", error);
+    ElMessage.error("导出失败");
+  }
 }
 
-//////////////////////////////////// 预览 & 复制 ////////////////////////////////////
+// 预览（只显示启用的）
 function previewHeaders() {
-  const h = currentSet.value.headers || {};
-  previewSet.value = Object.entries(h).map(([name, value]) => ({
-    name,
-    value,
-  }));
+  const currentId = localConfig.strategy.currentSetId;
+  const arr = mapSetHeaders[currentId] || [];
+
+  previewSet.value = arr
+    .filter((item) => item.enabled && item.name && item.name.trim())
+    .map(({ name, value }) => ({ name, value }));
+
   previewDialogVisible.value = true;
 }
 
+// 复制 Headers（只复制启用的）
 function copyHeaders() {
-  const obj = {};
-  previewSet.value.forEach((item) => (obj[item.name] = item.value));
-  navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
-  ElMessage.success("已复制到剪贴板");
+  try {
+    const obj = {};
+    previewSet.value.forEach((item) => {
+      obj[item.name] = item.value;
+    });
+    navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
+    ElMessage.success("已复制到剪贴板");
+  } catch (error) {
+    ElMessage.error("复制失败");
+  }
 }
 
-// //////////////////////////////////// 配置暴露 & 事件 ////////////////////////////////////
-function getConfig() {
-  return requestHeaders.value;
-}
-
+// 触发变更
 function emitChange() {
-  emit("change", getConfig());
+  // 确保所有数据都已同步
+  localConfig.sets.forEach((set) => {
+    const arr = mapSetHeaders[set.id];
+    if (arr) {
+      set.headers = headersArrayToObject(arr);
+    }
+  });
+
+  const copy = JSON.parse(JSON.stringify(localConfig));
+  emit("change", copy);
 }
 
-// 初始化/重置配置
+// 获取配置
+function getConfig() {
+  emitChange();
+  return JSON.parse(JSON.stringify(localConfig));
+}
+
+// 重置配置
 function resetConfig() {
-  if (!props.provider.requestHeaders) {
-    const def = {
-      id: "default",
-      name: "默认配置",
-      enabled: true,
-      headers: { "User-Agent": "Mozilla/5.0" },
-    };
-    props.provider.requestHeaders = {
-      strategy: {
-        pollMode: "off",
-        pollInterval: 3,
-        currentSetId: "default",
-      },
-      requestCount: 0,
-      sets: [def],
-    };
-  }
-  ensureHeadersArray();
-  // 默认激活当前Tab
-  if (activeTabId.value === null && requestHeaders.value.sets?.length) {
-    activeTabId.value = requestHeaders.value.currentSetId;
-  }
+  syncFromProps();
 }
 
-// 监听provider变化
+// 监听 props 变化
 watch(
-  () => props.provider,
-  () => resetConfig(),
-  { immediate: true, deep: true }
+  () => props.provider?.requestHeaders,
+  () => {
+    syncFromProps();
+  },
+  { deep: true }
 );
 
-// 暴露方法给父组件
+// 初始化
+onMounted(() => {
+  syncFromProps();
+});
+
 defineExpose({ getConfig, resetConfig });
 </script>
 
 <style scoped>
-/* 卡片整体样式 */
 .config-card {
   margin-bottom: 0;
 }
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-weight: 500;
 }
+
 .poll-tag {
   margin-right: 12px;
 }
 
-/* 轮询配置栏 */
 .poll-bar {
   padding: 12px 0;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  /* flex-wrap: wrap; */
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* Tab区域 */
 .headers-tabs {
   margin-bottom: 16px;
 }
-.headers-tabs :deep(.el-tabs__header) {
-  margin-bottom: 0;
-}
+
 .tab-label {
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
 .default-icon {
   font-size: 12px;
   color: #e6a23c;
 }
+
 .tab-more {
   font-size: 12px;
   color: #909399;
   opacity: 0;
   transition: opacity 0.2s;
 }
+
 .tab-label:hover .tab-more {
   opacity: 1;
 }
+
 .tab-add {
   display: flex;
   align-items: center;
@@ -824,58 +899,19 @@ defineExpose({ getConfig, resetConfig });
   cursor: pointer;
 }
 
-/* 编辑器区域 */
 .headers-editor {
   padding: 16px;
 }
+
 .editor-toolbar {
   margin-bottom: 16px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .table-footer {
   margin-top: 16px;
   text-align: center;
-}
-
-/* 可编辑div样式 */
-.editable-value-wrapper {
-  position: relative;
-  width: 100%;
-  min-height: 32px;
-}
-.editable-value {
-  width: 100%;
-  min-height: 32px;
-  padding: 4px 8px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  cursor: text;
-  transition: all 0.2s;
-  word-wrap: break-word;
-  word-break: break-all;
-  white-space: pre-wrap;
-  outline: none;
-  max-height: 200px;
-}
-.editable-value.is-long {
-  max-height: 240px;
-  background: #fafafa;
-}
-.editable-value:focus {
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
-}
-.editable-value:empty::before {
-  content: attr(placeholder);
-  color: #c0c4cc;
-}
-:deep(.el-table__cell) {
-  vertical-align: top;
 }
 </style>

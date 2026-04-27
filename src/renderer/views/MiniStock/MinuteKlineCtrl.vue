@@ -63,7 +63,7 @@
   
   <script setup>
   import { ref, onMounted, onUnmounted, watch } from 'vue';
-  import MinuteKlineRenderer from './MinuteKlineRenderer';
+  import MinuteKlineRenderer from './Components/MinuteKlineRenderer';
   
   const props = defineProps({
     stockCode: {

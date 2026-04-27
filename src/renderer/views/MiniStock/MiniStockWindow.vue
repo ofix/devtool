@@ -1,433 +1,286 @@
 <template>
-  <div class="kline-ctrl" tabindex="0" @keydown="handleKeyDown">
-    <!-- K线类型切换 -->
-    <div class="kline-type-bar">
-      <button
-        v-for="type in klineTypes"
-        :key="type.value"
-        :class="{ active: currentType === type.value }"
-        @click="changeType(type.value)"
-      >
-        {{ type.label }}
-      </button>
+  <div class="stock-panel" @keydown="handleKeyDown" tabindex="0">
+    <!-- 1×4 横向股票网格 -->
+    <div class="grid-1x4">
+      <div class="stock-item" v-for="(stock, idx) in displayList" :key="idx">
+        <!-- 股票头部信息 -->
+        <div class="stock-header" v-if="stock">
+          <span class="code">{{ stock.code }}</span>
+          <span class="name">{{ stock.name }}</span>
+          <span class="price" :class="stock.change >= 0 ? 'up' : 'down'">
+            {{ (stock.price || 0).toFixed(2) }}
+          </span>
+          <span class="change">
+            {{ stock.change >= 0 ? "+" : ""
+            }}{{ (stock.change || 0).toFixed(2) }} ({{
+              (stock.changePercent || 0).toFixed(2)
+            }}%)
+          </span>
+          <el-button size="mini" @click="toggleType(stock.code)">
+            {{ chartTypes[stock.code] === "kline" ? "分时" : "日K" }}
+          </el-button>
+        </div>
+
+        <!-- 图表 -->
+        <div class="chart" v-if="stock">
+          <KlineCtrl
+            v-if="chartTypes[stock.code] === 'kline'"
+            :code="stock.code"
+            :market="stock.market"
+          />
+          <MinuteKlineCtrl v-else :code="stock.code" :market="stock.market" />
+        </div>
+
+        <!-- 空面板 -->
+        <div class="empty" v-else>暂无股票</div>
+      </div>
     </div>
 
-    <!-- Canvas画布 -->
-    <canvas
-      ref="canvasRef"
-      :width="width"
-      :height="height"
-      @wheel="handleWheel"
-    ></canvas>
-
-    <!-- EMA指标按钮 -->
-    <div class="ema-buttons">
-      <button
-        v-for="period in emaPeriods"
-        :key="period"
-        :class="{ active: emaVisible[period] }"
-        @click="toggleEMA(period)"
-      >
-        EMA{{ period }}
-      </button>
-    </div>
-
-    <!-- 副图切换 -->
-    <div class="subchart-switch">
-      <button @click="toggleSubChart">
-        {{ subChartMode === "volume" ? "成交量" : "成交额" }}
-      </button>
-    </div>
+    <!-- 按住 Tab 弹出左侧搜索面板 -->
+    <SearchPanel class="search-popup" v-show="showSearch" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from "vue";
-import KlineRenderer from "./Components/KlineRenderer";
-import { useConfigStore } from "../../stores/StoreStockConfig";
-import { useStockStore } from "../../stores/StoreStock";
+import { ref, onMounted, onUnmounted } from "vue";
+import KlineCtrl from "./KlineCtrl.vue";
+import MinuteKlineCtrl from "./MinuteKlineCtrl.vue";
+import SearchPanel from "./SearchPanel.vue";
 
-// Props
-const props = defineProps({
-  height: {
-    type: Number,
-    default: 300,
-  },
-});
+/////////////////// 常量配置 ///////////////////
+const PAGE_SIZE = 4;
+const REFRESH_INTERVAL = 5000;
 
-// Emits
-const emit = defineEmits(["kline-ready", "stock-changed"]);
+/////////////////// 本地状态 ///////////////////
+const watchList = ref([]); // 总观察列表
+const currentPage = ref(0); // 当前页码
+const displayList = ref([]); // 当前显示 4 只
+const chartTypes = ref({}); // 每只股票独立图表类型
+const currentStock = ref(null);
 
-// Stores
-const configStore = useConfigStore();
-const stockStore = useStockStore();
+const showSearch = ref(false);
+const searchKey = ref("");
+const searchResult = ref([]);
 
-// Refs
-const canvasRef = ref(null);
-const renderer = ref(null);
-const currentType = ref("day");
-const emaPeriods = [10, 20, 30, 60, 99, 255, 905];
-const emaVisible = ref({});
-const subChartMode = ref("amount");
-const width = ref(0);
-const klineData = ref([]);
-const updateTimer = ref(null);
-const isInitialized = ref(false);
+let refreshTimer = null;
 
-// Computed
-const klineTypes = [
-  { label: "日K", value: "day" },
-  { label: "周K", value: "week" },
-  { label: "月K", value: "month" },
-  { label: "年K", value: "year" },
-  { label: "分时", value: "minute" },
-  { label: "5日分时", value: "5minute" },
-];
-
-// 初始化EMA可见性
-emaPeriods.forEach((period) => {
-  emaVisible.value[period] = true;
-});
-
-// 处理键盘事件（只在K线图内生效）
-const handleKeyDown = (e) => {
-  // 阻止事件冒泡，避免与父组件冲突
-  e.stopPropagation();
-
-  switch (e.key) {
-    case "ArrowLeft":
-      e.preventDefault();
-      if (renderer.value) renderer.value.pan("left");
-      break;
-    case "ArrowRight":
-      e.preventDefault();
-      if (renderer.value) renderer.value.pan("right");
-      break;
-    case "ArrowUp":
-      e.preventDefault();
-      if (renderer.value) renderer.value.zoom("in");
-      break;
-    case "ArrowDown":
-      e.preventDefault();
-      if (renderer.value) renderer.value.zoom("out");
-      break;
-  }
-};
-
-// 加载K线数据
-const loadKlineData = async () => {
-  if (!stockStore.currentStock) return;
-
-  try {
-    const endDate = new Date().toISOString().split("T")[0];
-    const startDate = getStartDate(currentType.value);
-
-    const data = await window.channel.getKlines(
-      stockStore.currentStock,
-      "a",
-      currentType.value,
-      startDate,
-      endDate
-    );
-
-    klineData.value = data;
-    if (renderer.value) {
-      renderer.value.setData(data);
-    }
-  } catch (error) {
-    console.error("加载K线数据失败:", error);
-  }
-};
-
-// 获取开始日期
-const getStartDate = (type) => {
-  const now = new Date();
-  switch (type) {
-    case "day":
-      return new Date(now.setFullYear(now.getFullYear() - 1))
-        .toISOString()
-        .split("T")[0];
-    case "week":
-      return new Date(now.setFullYear(now.getFullYear() - 2))
-        .toISOString()
-        .split("T")[0];
-    case "month":
-      return new Date(now.setFullYear(now.getFullYear() - 5))
-        .toISOString()
-        .split("T")[0];
-    case "year":
-      return new Date(now.setFullYear(now.getFullYear() - 10))
-        .toISOString()
-        .split("T")[0];
-    default:
-      return new Date(now.setMonth(now.getMonth() - 1))
-        .toISOString()
-        .split("T")[0];
-  }
-};
-
-// 加载实时数据
-const loadMinuteData = async () => {
-  if (!isTradingTime() || !stockStore.currentStock) return;
-
-  try {
-    const minuteData = await window.channel.getMinuteData([
-      stockStore.currentStock,
-    ]);
-    if (
-      minuteData &&
-      minuteData[stockStore.currentStock] &&
-      klineData.value.length > 0
-    ) {
-      const lastCandle = klineData.value[klineData.value.length - 1];
-      const rt = minuteData[stockStore.currentStock];
-
-      lastCandle.close = rt.price;
-      lastCandle.high = Math.max(lastCandle.high, rt.price);
-      lastCandle.low = Math.min(lastCandle.low, rt.price);
-      lastCandle.volume = rt.volume;
-      lastCandle.amount = rt.amount;
-
-      stockStore.updateStockData(stockStore.currentStock, {
-        price: rt.price,
-        change: rt.change,
-        changePercent: rt.changePercent,
-      });
-
-      if (renderer.value) {
-        renderer.value.render();
-      }
-    }
-  } catch (error) {
-    console.error("加载实时数据失败:", error);
-  }
-};
-
-// 判断是否交易时间
-const isTradingTime = () => {
-  const now = new Date();
-  const day = now.getDay();
-  const time = now.getHours() * 100 + now.getMinutes();
-
-  if (day === 0 || day === 6) return false;
-
-  const morningStart = 930,
-    morningEnd = 1130;
-  const afternoonStart = 1300,
-    afternoonEnd = 1500;
-
-  return (
-    (time >= morningStart && time < morningEnd) ||
-    (time >= afternoonStart && time < afternoonEnd)
-  );
-};
-
-// 切换K线类型
-const changeType = (type) => {
-  currentType.value = type;
-  loadKlineData();
-};
-
-// 切换EMA显隐
-const toggleEMA = (period) => {
-  emaVisible.value[period] = !emaVisible.value[period];
-  if (renderer.value && renderer.value.emaRenderer) {
-    renderer.value.emaRenderer.toggleLine(period, emaVisible.value[period]);
-    renderer.value.render();
-  }
-};
-
-// 切换副图
-const toggleSubChart = () => {
-  subChartMode.value = subChartMode.value === "volume" ? "amount" : "volume";
-  if (renderer.value && renderer.value.volumeRenderer) {
-    renderer.value.volumeRenderer.setDisplayMode(subChartMode.value);
-    renderer.value.render();
-  }
-};
-
-// 鼠标滚轮
-const handleWheel = (event) => {
-  event.preventDefault();
-  if (event.deltaY < 0) {
-    renderer.value?.zoom("in");
-  } else {
-    renderer.value?.zoom("out");
-  }
-};
-
-// 更新配置
-const updateConfig = (config) => {
-  if (renderer.value) {
-    Object.assign(renderer.value.config, config);
-    renderer.value.render();
-  }
-};
-
-// 初始化Canvas
-const initCanvas = () => {
-  if (!canvasRef.value) return;
-
-  const rect = canvasRef.value.parentElement.getBoundingClientRect();
-  width.value = rect.width;
-
-  renderer.value = new KlineRenderer(canvasRef.value, {
-    theme: configStore.theme,
-    colors: {
-      ema: configStore.emaColors,
-    },
-  });
-
-  emit("kline-ready", stockStore.currentStock, {
-    updateConfig,
-    refresh: loadKlineData,
-  });
-
-  loadKlineData();
-  isInitialized.value = true;
-};
-
-// 窗口大小变化
-const handleResize = () => {
-  if (canvasRef.value && renderer.value) {
-    const rect = canvasRef.value.parentElement.getBoundingClientRect();
-    width.value = rect.width;
-    canvasRef.value.width = width.value;
-    canvasRef.value.height = props.height;
-    renderer.value.resize();
-  }
-};
-
-// 启动定时更新
-const startTimer = () => {
-  if (updateTimer.value) clearInterval(updateTimer.value);
-  updateTimer.value = setInterval(() => {
-    loadMinuteData();
-  }, 3000);
-};
-
-// 监听当前股票变化
-watch(
-  () => stockStore.currentStock,
-  (newCode, oldCode) => {
-    if (newCode && newCode !== oldCode && isInitialized.value) {
-      loadKlineData();
-      emit("stock-changed", newCode);
-    }
-  }
-);
-
-// 生命周期
+/////////////////// 生命周期 ///////////////////
 onMounted(async () => {
-  await stockStore.loadFromStorage();
-  initCanvas();
-  startTimer();
-  window.addEventListener("resize", handleResize);
-
-  setTimeout(() => {
-    canvasRef.value?.parentElement?.focus();
-  }, 100);
+  await loadFavoriteStocks();
+  updateDisplay();
+  startAutoRefresh();
+  window.addEventListener("keydown", handleGlobalKey);
 });
 
 onUnmounted(() => {
-  if (updateTimer.value) {
-    clearInterval(updateTimer.value);
-  }
-  window.removeEventListener("resize", handleResize);
+  clearInterval(refreshTimer);
+  window.removeEventListener("keydown", handleGlobalKey);
 });
+
+// 初始化：加载自选股
+async function loadFavoriteStocks() {
+  const fav = await window.channel.favoriteShares();
+  if (fav?.length) {
+    watchList.value = fav;
+  }
+}
+
+// 更新显示列表
+function updateDisplay() {
+  const start = currentPage.value * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  displayList.value = watchList.value.slice(start, end);
+
+  // 自动补齐空面板，保持 4 个
+  while (displayList.value.length < PAGE_SIZE) {
+    displayList.value.push(null);
+  }
+
+  // 初始化图表类型
+  displayList.value.forEach((s) => {
+    if (s && !chartTypes.value[s.code]) chartTypes.value[s.code] = "minute";
+  });
+}
+
+// 翻页
+function nextPage() {
+  const max = Math.ceil(watchList.value.length / PAGE_SIZE);
+  if (currentPage.value < max - 1) {
+    currentPage.value++;
+    updateDisplay();
+  }
+}
+
+function prevPage() {
+  if (currentPage.value > 0) {
+    currentPage.value--;
+    updateDisplay();
+  }
+}
+
+// 独立切换图表类型
+function toggleType(code) {
+  chartTypes.value[code] =
+    chartTypes.value[code] === "kline" ? "minute" : "kline";
+}
+
+// 搜索
+async function doSearch() {
+  if (!searchKey.value) return;
+  searchResult.value =
+    (await window.channel.searchShares(searchKey.value)) || [];
+}
+
+// 添加股票
+async function selectStock(stock) {
+  if (!watchList.value.find((s) => s.code === stock.code)) {
+    watchList.value.push(stock);
+    await window.channel.addSearchShare(stock.code);
+    updateDisplay();
+  }
+  showSearch.value = false;
+}
+
+// 键盘控制
+function handleGlobalKey(e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    showSearch.value = true;
+  }
+}
+
+function handleKeyDown(e) {
+  if (e.ctrlKey && e.key === "ArrowUp") {
+    e.preventDefault();
+    prevPage();
+  }
+  if (e.ctrlKey && e.key === "ArrowDown") {
+    e.preventDefault();
+    nextPage();
+  }
+}
+
+// 自动刷新
+function startAutoRefresh() {
+  // 先立即刷新一次
+  refreshRealTimeData();
+
+  // 之后定时刷新
+  refreshTimer = setInterval(async () => {
+    if (isTradingTime()) {
+      await refreshRealTimeData();
+    }
+  }, REFRESH_INTERVAL);
+}
+
+// 根据每只股票自己的K线类型拉取数据
+async function refreshRealTimeData() {
+  for (const stock of displayList.value) {
+    if (!stock || !stock.code) continue;
+
+    // 获取当前股票自己的图表类型
+    const type = chartTypes.value[stock.code];
+
+    let data = null;
+    if (type === "minute") {
+      // 分时图 → 拉分时数据
+      data = await window.channel.getMinuteKline(stock.code, 1);
+    } else if (type === "kline") {
+      // 日K → 拉日K数据
+      data = await window.channel.getKline(
+        stock.code,
+        stock.market,
+        "day",
+        "",
+        ""
+      );
+    }
+
+    if (data) {
+      Object.assign(stock, data);
+    }
+  }
+}
+
+// 交易时间判断
+function isTradingTime() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  return (h === 9 && m >= 30) || (h >= 10 && h <= 11) || (h >= 13 && h <= 14);
+}
 </script>
 
 <style scoped>
-/* 样式保持不变 */
-.kline-ctrl {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  outline: none;
+.stock-panel {
+  width: 100%;
+  height: 100vh;
+  background: #111;
+  color: #fff;
   position: relative;
 }
 
-.kline-type-bar {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 8px;
-  padding: 4px;
-  background: #252525;
-  border-radius: 4px;
+/* 1×4 横向布局 */
+.grid-1x4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 100%;
+  gap: 6px;
 }
 
-.kline-type-bar button {
-  background: none;
-  border: none;
-  color: #999;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 3px;
-  font-size: 11px;
-  transition: all 0.2s;
-}
-
-.kline-type-bar button:hover {
-  background: #333;
-}
-
-.kline-type-bar button.active {
-  background: #ff6b6b;
-  color: #fff;
-}
-
-canvas {
-  flex: 1;
-  width: 100%;
+.stock-item {
   background: #1a1a1a;
-  border-radius: 4px;
-}
-
-.ema-buttons {
+  padding: 6px;
+  border-radius: 6px;
   display: flex;
-  gap: 4px;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.ema-buttons button {
-  background: #252525;
-  border: none;
-  color: #ff6b6b;
-  padding: 2px 6px;
-  cursor: pointer;
-  border-radius: 3px;
-  font-size: 10px;
-  transition: all 0.2s;
+.stock-header {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
-.ema-buttons button:hover {
-  background: #333;
+.chart {
+  flex: 1;
+  min-height: 0;
 }
 
-.ema-buttons button.active {
-  background: #ff6b6b;
-  color: #fff;
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  height: 100%;
 }
 
-.subchart-switch {
+.up {
+  color: #ff4444;
+}
+.down {
+  color: #00c853;
+}
+
+/* 搜索弹出层 */
+.search-popup {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100%;
+  background: #181818;
+  z-index: 999;
+  padding: 10px;
 }
-
-.subchart-switch button {
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  color: #fff;
-  padding: 2px 6px;
+.search-result {
+  margin-top: 10px;
+}
+.search-result > div {
+  padding: 6px 10px;
+  border-bottom: 1px solid #333;
   cursor: pointer;
-  border-radius: 3px;
-  font-size: 10px;
-}
-
-.light .subchart-switch button {
-  background: rgba(255, 255, 255, 0.8);
-  color: #333;
 }
 </style>

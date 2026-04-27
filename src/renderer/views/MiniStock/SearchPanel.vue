@@ -63,15 +63,10 @@
   
   <script setup>
   import { ref, watch, computed, nextTick } from "vue";
-  import { useStockStore } from "@/stores/StoreStock";
-  import { storeToRefs } from "pinia";
   
   // Emits
   const emit = defineEmits(["close", "select-stock"]);
-  
-  // Stores
-  const stockStore = useStockStore();
-  const { addFavorite, removeFavorite, isFavorite: checkIsFavorite } = stockStore;
+
   
   // Reactive state
   const keyword = ref("");
