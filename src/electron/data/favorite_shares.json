@@ -1,0 +1,51 @@
+[
+  {
+    "code": "002468",
+    "name": "申通快递",
+    "market": "SZ",
+    "pinyin": "STKD",
+    "favorite": true
+  },
+  {
+    "code": "002252",
+    "name": "上海莱士",
+    "market": "SZ",
+    "pinyin": "SHLS",
+    "favorite": true
+  },
+  {
+    "code": "002950",
+    "name": "奥美医疗",
+    "market": "SZ",
+    "pinyin": "AMYL",
+    "favorite": true
+  },
+  {
+    "code": "000650",
+    "name": "仁和药业",
+    "market": "SZ",
+    "pinyin": "RHYY",
+    "favorite": true
+  },
+  {
+    "code": "002752",
+    "name": "昇兴股份",
+    "market": "SZ",
+    "pinyin": "SXGF",
+    "favorite": true
+  },
+  {
+    "code": "300759",
+    "name": "康龙化成",
+    "market": "SZ",
+    "pinyin": "KLHC",
+    "favorite": true
+  },
+  {
+    "code": "603708",
+    "name": "家家悦",
+    "market": "SH",
+    "pinyin": "JJY",
+    "favorite": true
+  }
+]
