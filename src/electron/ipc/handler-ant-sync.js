@@ -3,7 +3,7 @@ import StockManager from '../service/mini-stock/StockManager.js';
 
 class AntSyncHandler {
     constructor() {
-        this.manager = new StockManager();
+        this.manager = StockManager.getInstance();
         this.manager.init();
         this.registerHandlers();
     }

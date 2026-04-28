@@ -3,7 +3,7 @@ import StockManager from '../service/mini-stock/StockManager.js';
 
 class StockHandler {
     constructor() {
-        this.manager = new StockManager();
+        this.manager = StockManager.getInstance();
         this.registerHandlers();
     }
 
@@ -20,7 +20,7 @@ class StockHandler {
 
         ipcMain.handle('mini-stock:minute-kline', async (event, codes, days = 1) => {
             try {
-                const data = await this.manager.getMinuteData(codes, days);
+                const data = await this.manager.getShareMinuteData(codes, days);
                 return data;
             } catch (error) {
                 console.error('获取分时K线失败:', error);

@@ -1,48 +1,44 @@
 <template>
   <div class="search-overlay" @click.self="$emit('close')">
     <div class="search-panel" @click.stop>
-      <!-- 搜索框：固定置顶 -->
+      <!-- 搜索框 -->
       <div class="search-box">
-        <input
+        <el-input
           ref="searchInput"
           v-model="keyword"
-          type="text"
           placeholder="代码/名称/拼音/*"
           @input="onSearch"
           @keyup.enter="selectCurrent"
           @keyup.down.prevent="nextResult"
           @keyup.up.prevent="prevResult"
+          clearable
           autofocus
         />
-        <button class="clear-btn" v-if="keyword" @click="keyword = ''">
-          ×
-        </button>
       </div>
 
-      <!-- 搜索结果：同花顺标准左右布局 -->
+      <!-- 搜索结果 -->
       <div class="search-results" ref="resultsRef">
         <div
-          v-for="(stock, index) in searchResults"
-          :key="`${stock.market}_${stock.code}`"
-          class="stock-item"
+          v-for="(share, index) in searchResults"
+          :key="`${share.market}_${share.code}`"
+          class="share-item"
           :class="{ active: currentIndex === index }"
-          @click="selectStock(stock)"
+          @click="selectStock(share)"
           @mouseenter="currentIndex = index"
         >
-          <!-- 左侧：名称 + 市场 + 代码 一起排列 -->
           <div class="top">
-            <span class="name">{{ stock.name }}</span>
-            <span class="market">{{ getMarketLabel(stock) }}</span>
+            <span class="name">{{ share.name }}</span>
+            <span class="market">{{ getMarketLabel(share) }}</span>
           </div>
           <div class="bottom">
-            <span class="code">{{ stock.code }}</span>
-            <!-- 右侧：收藏按钮 -->
+            <span class="code">{{ share.code }}</span>
             <button
               class="favorite"
-              :class="{ favorited: isFavorite(stock) }"
-              @click.stop="toggleFavorite(stock)"
+              :class="{ favorited: share.favorite }"
+              @click.stop="toggleFavorite(share)"
             >
-              {{ isFavorite(stock) ? "★" : "☆" }}
+              <IconFavorite v-if="share.favorite" class="favorite-icon" />
+              <IconFavoriteEmpty v-else class="favorite-icon" />
             </button>
           </div>
         </div>
@@ -62,11 +58,13 @@
 
 <script setup>
 import { ref, watch, nextTick } from "vue";
+import IconFavorite from "@/icons/IconFavorite.vue";
+import IconFavoriteEmpty from "@/icons/IconFavoriteEmpty.vue";
 
 const props = defineProps({
   initialKey: { type: String, default: "" },
 });
-const emit = defineEmits(["close", "select-share"]);
+const emit = defineEmits(["close", "select-share", "add-favorite"]);
 
 const keyword = ref("");
 const searchResults = ref([]);
@@ -75,11 +73,10 @@ const currentIndex = ref(-1);
 const searchInput = ref(null);
 const resultsRef = ref(null);
 
-// 初始按键
+// 自动聚焦
 watch(
   () => props.initialKey,
-  (k) => {
-    // keyword.value = k;
+  (val) => {
     nextTick(() => searchInput.value?.focus());
   },
   { immediate: true }
@@ -87,7 +84,7 @@ watch(
 
 // 搜索
 const onSearch = async () => {
-  const k = keyword.value.trim();
+  const k = keyword.value?.trim();
   if (!k) {
     searchResults.value = [];
     currentIndex.value = -1;
@@ -105,15 +102,15 @@ const onSearch = async () => {
   }
 };
 
-// 选中
-const selectStock = (s) => emit("select-share", s);
+// 列表 Enter / 点击 都触发选中给父组件
+const selectShare = (s) => emit("select-share", s);
 const selectCurrent = () => {
   if (currentIndex.value >= 0 && searchResults.value[currentIndex.value]) {
-    selectStock(searchResults.value[currentIndex.value]);
+    selectShare(searchResults.value[currentIndex.value]);
   }
 };
 
-// 上下切换
+// 上下
 const nextResult = () => {
   if (currentIndex.value < searchResults.value.length - 1) {
     currentIndex.value++;
@@ -127,7 +124,6 @@ const prevResult = () => {
   }
 };
 
-// 自动滚动
 const scrollToActive = () => {
   nextTick(() => {
     const container = resultsRef.value;
@@ -136,20 +132,35 @@ const scrollToActive = () => {
   });
 };
 
-// 市场转换（创业板判断）
-const getMarketLabel = (stock) => {
-  const { market, code } = stock;
-  if (market === "SZ") return code.startsWith("3") ? "创业板" : "深市";
-  if (market === "SH") return "沪市";
-  if (market === "bj") return "北交所";
-  if (market === "hk") return "港股";
-  if (market === "us") return "美股";
+// 市场转换
+const getMarketLabel = (share) => {
+  const { market, code } = share;
+  const mk = (market || "").toLowerCase();
+  if (mk === "sz") return code.startsWith("3") ? "创业板" : "深市";
+  if (mk === "sh") return "沪市";
+  if (mk === "bj") return "北交所";
+  if (mk === "hk") return "港股";
+  if (mk === "us") return "美股";
   return market;
 };
 
-// 收藏
-const isFavorite = (stock) => false;
-const toggleFavorite = (stock) => console.log("收藏", stock);
+// 自选收藏（调用接口 + 通知父组件）
+const toggleFavorite = async (share) => {
+  try {
+    // 调用底层接口添加自选
+    if (share.favorite) {
+      share.favorite = false;
+      await window.channel.delFavoriteShare(share.code);
+    } else {
+      share.favorite = true;
+      await window.channel.addFavoriteShare(share.code);
+    }
+    // 通知父组件刷新自选列表
+    emit("add-favorite", share);
+  } catch (err) {
+    console.error("添加自选失败", err);
+  }
+};
 
 // 防抖
 let timer;
@@ -181,69 +192,57 @@ watch(keyword, () => {
   overflow: hidden;
 }
 
-/* 搜索框 */
 .search-box {
   padding: 12px;
   border-bottom: 1px solid #eee;
-  position: relative;
-}
-.search-box input {
-  width: 100%;
-  height: 32px;
-  padding: 0 8px;
-  background: #f5f5f7;
-  border: none;
-  border-radius: 8px;
-  outline: none;
-  font-size: 15px;
-}
-.clear-btn {
-  position: absolute;
-  right: 18px;
-  top: 22px;
-  background: none;
-  border: none;
-  color: #999;
-  cursor: pointer;
 }
 
-/* 同花顺标准列表 */
+/* el-input 样式美化 */
+:deep(.el-input__wrapper) {
+  height: 32px;
+  box-shadow: none;
+  background: #f5f5f7;
+  border-radius: 6px;
+}
+:deep(.el-input__inner) {
+  height: 32px;
+}
+
 .search-results {
   flex: 1;
   overflow-y: auto;
   padding: 4px 0;
 }
-.stock-item {
-  padding: 4px 6px;
+
+.share-item {
+  padding: 6px 10px;
   cursor: pointer;
-  display: flex;
   height: 52px;
+  display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
 }
-.stock-item.active {
+.share-item.active {
   background: #e8f4ff;
 }
 
-/* 左侧：名称 市场 代码 横向排列 */
 .top,
 .bottom {
   display: flex;
-  width: 100%;
-  align-items: left;
   justify-content: space-between;
-  gap: 10px;
+  align-items: center;
 }
+
 .name {
   font-size: 14px;
   color: #222;
-  min-width: 70px;
 }
 .market {
-  font-size: 14px;
+  font-size: 12px;
   color: #666;
   background: #f1f3f5;
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: 4px;
 }
 .code {
@@ -251,18 +250,23 @@ watch(keyword, () => {
   color: #888;
 }
 
-/* 右侧收藏 */
 .favorite {
   background: none;
   border: none;
-  font-size: 16px;
-  color: #666;
+  color: #999;
   cursor: pointer;
-  margin-top: -4px;
-  margin-right: 4px;
 }
+
 .favorite.favorited {
-  color: #ffcc00;
+  color: #ff0000;
+}
+
+.favorite-icon {
+  display: inline-block;
+  font-size: 14px !important; /* 你想要的大小 */
+  width: 14px !important;
+  height: 14px !important;
+  line-height: 1;
 }
 
 .no-results,
@@ -280,24 +284,20 @@ watch(keyword, () => {
   border-top: 1px solid #eee;
 }
 
-/* 滚动条整体宽度 */
+/* 滚动条 */
 .search-results::-webkit-scrollbar {
   width: 5px;
 }
-/* 滚动条轨道 */
 .search-results::-webkit-scrollbar-track {
   background: transparent;
 }
-/* 滚动条滑块 */
 .search-results::-webkit-scrollbar-thumb {
   background-color: #dcdcdc;
   border-radius: 3px;
 }
-/* hover 加深 */
 .search-results::-webkit-scrollbar-thumb:hover {
   background-color: #bbbbbb;
 }
-/* 完全隐藏滚动条上下按钮 */
 .search-results::-webkit-scrollbar-button {
   display: none;
 }
