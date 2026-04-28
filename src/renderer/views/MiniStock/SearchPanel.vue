@@ -1,25 +1,26 @@
 <template>
+  <div class="search-overlay" @click.self="$emit('close')">
     <div class="search-panel" @click.stop>
-      <div class="panel-header">
-        <h3>搜索股票</h3>
-        <button class="close-btn" @click="$emit('close')">×</button>
-      </div>
-  
+      <!-- 搜索框：固定置顶 -->
       <div class="search-box">
         <input
           ref="searchInput"
           v-model="keyword"
           type="text"
-          placeholder="输入股票代码或名称..."
+          placeholder="代码/名称/拼音/*"
           @input="onSearch"
           @keyup.enter="selectCurrent"
-          @keyup.down="nextResult"
-          @keyup.up="prevResult"
+          @keyup.down.prevent="nextResult"
+          @keyup.up.prevent="prevResult"
           autofocus
         />
+        <button class="clear-btn" v-if="keyword" @click="keyword = ''">
+          ×
+        </button>
       </div>
-  
-      <div class="search-results" v-if="!loading">
+
+      <!-- 搜索结果：同花顺标准左右布局 -->
+      <div class="search-results" ref="resultsRef">
         <div
           v-for="(stock, index) in searchResults"
           :key="`${stock.market}_${stock.code}`"
@@ -28,14 +29,16 @@
           @click="selectStock(stock)"
           @mouseenter="currentIndex = index"
         >
-          <div class="stock-info">
-            <span class="stock-code">{{ stock.code }}</span>
-            <span class="stock-name">{{ stock.name }}</span>
-            <span class="stock-market">{{ getMarketLabel(stock.market) }}</span>
+          <!-- 左侧：名称 + 市场 + 代码 一起排列 -->
+          <div class="top">
+            <span class="name">{{ stock.name }}</span>
+            <span class="market">{{ getMarketLabel(stock) }}</span>
           </div>
-          <div class="stock-actions">
+          <div class="bottom">
+            <span class="code">{{ stock.code }}</span>
+            <!-- 右侧：收藏按钮 -->
             <button
-              class="favorite-btn"
+              class="favorite"
               :class="{ favorited: isFavorite(stock) }"
               @click.stop="toggleFavorite(stock)"
             >
@@ -43,194 +46,261 @@
             </button>
           </div>
         </div>
-  
-        <div v-if="searchResults.length === 0 && keyword && !loading" class="no-results">
+        <div
+          v-if="!loading && keyword && searchResults.length === 0"
+          class="no-results"
+        >
           未找到相关股票
         </div>
       </div>
-  
-      <div v-if="loading" class="loading">
-        <div class="spinner"></div>
-        <span>搜索中...</span>
-      </div>
-  
-      <div class="panel-footer" v-if="hasResults">
-        <span>共 {{ resultCount }} 条结果</span>
-        <span class="shortcut-hint">↑↓ 选择 | Enter 确认</span>
-      </div>
-    </div>
-  </template>
-  
-  <script setup>
-  import { ref, watch, computed, nextTick } from "vue";
-  
-  // Emits
-  const emit = defineEmits(["close", "select-stock"]);
 
-  
-  // Reactive state
-  const keyword = ref("");
-  const searchResults = ref([]);
-  const loading = ref(false);
-  const currentIndex = ref(-1);
-  const searchInput = ref(null);
-  
-  // Computed
-  const hasResults = computed(() => searchResults.value.length > 0);
-  const resultCount = computed(() => searchResults.value.length);
-  
-  // Methods
-  const onSearch = async () => {
-    const trimmedKeyword = keyword.value.trim();
-    
-    if (!trimmedKeyword) {
-      searchResults.value = [];
-      currentIndex.value = -1;
-      return;
+      <div v-if="loading" class="loading">搜索中…</div>
+      <div class="hint" v-if="keyword">↑↓ 切换 · Enter 确认 · Esc 关闭</div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch, nextTick } from "vue";
+
+const props = defineProps({
+  initialKey: { type: String, default: "" },
+});
+const emit = defineEmits(["close", "select-share"]);
+
+const keyword = ref("");
+const searchResults = ref([]);
+const loading = ref(false);
+const currentIndex = ref(-1);
+const searchInput = ref(null);
+const resultsRef = ref(null);
+
+// 初始按键
+watch(
+  () => props.initialKey,
+  (k) => {
+    if (k) {
+      keyword.value = k;
+      nextTick(() => searchInput.value?.focus());
     }
-  
-    loading.value = true;
-    
-    try {
-      const results = await window.channel.searchStock(trimmedKeyword);
-      searchResults.value = results.slice(0, 20);
-      currentIndex.value = searchResults.value.length > 0 ? 0 : -1;
-    } catch (error) {
-      console.error("搜索失败:", error);
-      searchResults.value = [];
-      currentIndex.value = -1;
-    } finally {
-      loading.value = false;
-    }
-  };
-  
-  const selectStock = (stock) => {
-    emit("select-stock", stock);
-  };
-  
-  const selectCurrent = () => {
-    if (currentIndex.value >= 0 && searchResults.value[currentIndex.value]) {
-      selectStock(searchResults.value[currentIndex.value]);
-    } else if (searchResults.value.length > 0) {
-      selectStock(searchResults.value[0]);
-    }
-  };
-  
-  const nextResult = () => {
-    if (currentIndex.value < searchResults.value.length - 1) {
-      currentIndex.value++;
-      scrollToCurrent();
-    }
-  };
-  
-  const prevResult = () => {
-    if (currentIndex.value > 0) {
-      currentIndex.value--;
-      scrollToCurrent();
-    }
-  };
-  
-  const scrollToCurrent = () => {
-    nextTick(() => {
-      const activeElement = document.querySelector('.stock-item.active');
-      if (activeElement) {
-        activeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    });
-  };
-  
-  const isFavorite = (stock) => {
-    return checkIsFavorite(stock.code);
-  };
-  
-  const toggleFavorite = (stock) => {
-    if (isFavorite(stock)) {
-      removeFavorite(stock.code);
-    } else {
-      addFavorite(stock);
-    }
-  };
-  
-  const getMarketLabel = (market) => {
-    const labels = {
-      a: "A股",
-      hk: "港股",
-      us: "美股",
-      sh: "沪市",
-      sz: "深市",
-      bj: "北交所",
-    };
-    return labels[market] || market;
-  };
-  
-  // Debounced search
-  let searchTimeout;
-  watch(keyword, () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      onSearch();
-    }, 300);
+  },
+  { immediate: true }
+);
+
+// 搜索
+const onSearch = async () => {
+  const k = keyword.value.trim();
+  if (!k) {
+    searchResults.value = [];
+    currentIndex.value = -1;
+    return;
+  }
+  loading.value = true;
+  try {
+    const res = await window.channel.searchShares(k);
+    searchResults.value = res || [];
+    currentIndex.value = searchResults.value.length ? 0 : -1;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 选中
+const selectStock = (s) => emit("select-share", s);
+const selectCurrent = () => {
+  if (currentIndex.value >= 0 && searchResults.value[currentIndex.value]) {
+    selectStock(searchResults.value[currentIndex.value]);
+  }
+};
+
+// 上下切换
+const nextResult = () => {
+  if (currentIndex.value < searchResults.value.length - 1) {
+    currentIndex.value++;
+    scrollToActive();
+  }
+};
+const prevResult = () => {
+  if (currentIndex.value > 0) {
+    currentIndex.value--;
+    scrollToActive();
+  }
+};
+
+// 自动滚动
+const scrollToActive = () => {
+  nextTick(() => {
+    const container = resultsRef.value;
+    const item = container?.children[currentIndex.value];
+    if (item) item.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
-  
-  // Reset current index when results change
-  watch(searchResults, () => {
-    currentIndex.value = searchResults.value.length > 0 ? 0 : -1;
-  });
-  
-  // Focus input on mount
-  import { onMounted } from "vue";
-  onMounted(() => {
-    searchInput.value?.focus();
-  });
-  </script>
-  
-  <style scoped>
-  /* 样式与之前相同，增加以下样式 */
-  
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
-    gap: 12px;
-    color: #999;
-  }
-  
-  .spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid #444;
-    border-top-color: #ff6b6b;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .panel-footer {
-    padding: 10px 15px;
-    border-top: 1px solid #444;
-    font-size: 11px;
-    color: #666;
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .shortcut-hint {
-    font-family: monospace;
-  }
-  
-  .stock-item.active {
-    background: #3a3a3a;
-    border-left: 3px solid #ff6b6b;
-  }
-  
-  .stock-item.active .stock-code {
-    color: #ff8c8c;
-  }
-  </style>
+};
+
+// 市场转换（创业板判断）
+const getMarketLabel = (stock) => {
+  const { market, code } = stock;
+  if (market === "SZ") return code.startsWith("3") ? "创业板" : "深市";
+  if (market === "SH") return "沪市";
+  if (market === "bj") return "北交所";
+  if (market === "hk") return "港股";
+  if (market === "us") return "美股";
+  return market;
+};
+
+// 收藏
+const isFavorite = (stock) => false;
+const toggleFavorite = (stock) => console.log("收藏", stock);
+
+// 防抖
+let timer;
+watch(keyword, () => {
+  clearTimeout(timer);
+  timer = setTimeout(onSearch, 200);
+});
+</script>
+
+<style scoped>
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.search-panel {
+  width: 280px;
+  height: 100%;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 搜索框 */
+.search-box {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  background: #f5f5f7;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 15px;
+}
+.clear-btn {
+  position: absolute;
+  right: 18px;
+  top: 22px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+}
+
+/* 同花顺标准列表 */
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.stock-item {
+  padding: 4px 6px;
+  cursor: pointer;
+  display:flex;
+  height: 52px;
+  flex-direction:column;
+  gap: 2px;
+}
+.stock-item.active {
+  background: #e8f4ff;
+}
+
+/* 左侧：名称 市场 代码 横向排列 */
+.top, .bottom{
+  display: flex;
+  width:100%;
+  align-items: left;
+  justify-content: space-between;
+  gap: 10px;
+}
+.name {
+  font-size: 14px;
+  color: #222;
+  min-width: 70px;
+}
+.market {
+  font-size: 14px;
+  color: #666;
+  background: #f1f3f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.code {
+  font-size: 14px;
+  color: #888;
+}
+
+/* 右侧收藏 */
+.favorite {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #666;
+  cursor: pointer;
+  margin-top:-4px;
+  margin-right:4px;
+}
+.favorite.favorited {
+  color: #ffcc00;
+}
+
+.no-results,
+.loading {
+  padding: 30px 0;
+  text-align: center;
+  color: #999;
+}
+
+.hint {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  padding: 8px 0;
+  border-top: 1px solid #eee;
+}
+
+
+/* 滚动条整体宽度 */
+.search-results::-webkit-scrollbar {
+  width: 5px;
+}
+/* 滚动条轨道 */
+.search-results::-webkit-scrollbar-track {
+  background: transparent;
+}
+/* 滚动条滑块 */
+.search-results::-webkit-scrollbar-thumb {
+  background-color: #dcdcdc;
+  border-radius: 3px;
+}
+/* hover 加深 */
+.search-results::-webkit-scrollbar-thumb:hover {
+  background-color: #bbbbbb;
+}
+/* 完全隐藏滚动条上下按钮 */
+.search-results::-webkit-scrollbar-button {
+  display: none;
+}
+</style>

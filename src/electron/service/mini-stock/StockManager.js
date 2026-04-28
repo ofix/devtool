@@ -206,7 +206,7 @@ export default class StockManager {
         // 初始化存储
         this.storage = new KlineStorage(this.diskKlineDir);
         await this.storage.init();
-        await this._loadStockList();
+        await this._loadShareList();
         this._loadSearchHistory();
         this._loadFavoriteShares();
         await this._loadIPOInfo();
@@ -403,9 +403,9 @@ export default class StockManager {
     }
 
     // 搜索本地股票
-    async searchLocalStock(keyword) {
+    async searchLocalShares(keyword) {
         if (!this.loaded) {
-            await this._loadStockList();
+            await this._loadShareList();
         }
 
         if (!keyword) return [];
@@ -503,7 +503,7 @@ export default class StockManager {
     }
 
     // 加载本地股票列表
-    async _loadStockList() {
+    async _loadShareList() {
         return new Promise((resolve, reject) => {
             const stream = fs.createReadStream(this.stockListFilePath);
             stream.pipe(csv({ headers: false }))

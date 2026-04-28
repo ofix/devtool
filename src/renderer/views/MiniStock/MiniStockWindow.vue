@@ -2,7 +2,12 @@
   <div class="stock-panel" @keydown="handleKeyDown" tabindex="0">
     <!-- 1×4 横向股票网格 -->
     <div class="grid-1x4">
-      <div class="stock-item" v-for="(stock, idx) in displayList" :key="idx">
+      <div
+        class="stock-item"
+        v-for="(stock, idx) in displayList"
+        :key="idx"
+        :class="{ active: activeShareIndex === idx }"
+      >
         <!-- 股票头部信息 -->
         <div class="stock-header" v-if="stock">
           <span class="code">{{ stock.code }}</span>
@@ -37,7 +42,12 @@
     </div>
 
     <!-- 按住 Tab 弹出左侧搜索面板 -->
-    <SearchPanel class="search-popup" v-show="showSearch" />
+    <SearchPanel
+      class="search-popup"
+      :initial-key="searchKeyword"
+      @select-share="handleSelectShare"
+      v-show="showSearchPanel"
+    />
   </div>
 </template>
 
@@ -56,13 +66,14 @@ const watchList = ref([]); // 总观察列表
 const currentPage = ref(0); // 当前页码
 const displayList = ref([]); // 当前显示 4 只
 const chartTypes = ref({}); // 每只股票独立图表类型
-const currentStock = ref(null);
+const currentShare = ref(null);
 
-const showSearch = ref(false);
-const searchKey = ref("");
-const searchResult = ref([]);
+const showSearchPanel = ref(false);
+const activeShareIndex = ref(-1); // 当前选中的股票下标
 
 let refreshTimer = null;
+// 传给子组件的触发按键（字母 或 *）
+const searchKeyword = ref("");
 
 /////////////////// 生命周期 ///////////////////
 onMounted(async () => {
@@ -76,6 +87,61 @@ onUnmounted(() => {
   clearInterval(refreshTimer);
   window.removeEventListener("keydown", handleGlobalKey);
 });
+
+// 全局键盘控制
+function handleGlobalKey(e) {
+  // 如果面板已经打开，按下Escape 键优先关闭搜索面板
+  if (showSearchPanel.value && e.key == "Escape") {
+    showSearchPanel.value = false;
+    searchKeyword.value = "";
+    return;
+  }
+
+  // 如果搜索面板没有打开，判断当前是否存在选中的股票，然后取消选中的股票
+  if (activeShareIndex.value != -1 && e.key == "Escape") {
+    activeShareIndex.value = -1;
+    return;
+  }
+
+  if (e.ctrlKey || e.shiftKey) {
+    // 如果按下了控制键，则不处理
+    return;
+  }
+
+  const key = e.key;
+
+  // 规则：只允许【字母 A-Z】 + 【*】 触发打开面板
+  const isLetter = /^[a-zA-Z]$/.test(key);
+  const isStar = key === "*";
+
+  // 符合条件 → 打开面板
+  if (isLetter || isStar) {
+    // e.preventDefault(); // 防止输入到其他输入框
+    showSearchPanel.value = true;
+    if (searchKeyword.value == "") {
+      searchKeyword.value = key;
+    }
+  }
+}
+
+// 关闭股票搜索面板
+function closeSearchPanel() {
+  showPanel.value = false;
+  searchKeyword.value = "";
+}
+
+// 选中股票
+function handleSelectShare(share) {
+  closeSearchPanel();
+  currentShare.value = share; // 当前选中的股票
+  console.log("选中股票：", share);
+  // 获取当前选中股票的类别，
+  // 找到选中股票在 displayList 里的索引 → 高亮边框
+  const index = displayList.value.findIndex(
+    (item) => item?.code === share.code
+  );
+  activeShareIndex.value = index;
+}
 
 // 初始化：加载自选股
 async function loadFavoriteStocks() {
@@ -124,36 +190,40 @@ function toggleType(code) {
     chartTypes.value[code] === "kline" ? "minute" : "kline";
 }
 
-// 搜索
-async function doSearch() {
-  if (!searchKey.value) return;
-  searchResult.value =
-    (await window.channel.searchShares(searchKey.value)) || [];
-}
-
-// 添加股票
-async function selectStock(stock) {
-  if (!watchList.value.find((s) => s.code === stock.code)) {
-    watchList.value.push(stock);
-    await window.channel.addSearchShare(stock.code);
-    updateDisplay();
-  }
-  showSearch.value = false;
-}
-
-// 键盘控制
-function handleGlobalKey(e) {
-  if (e.key === "Tab") {
-    e.preventDefault();
-    showSearch.value = true;
-  }
-}
-
 function handleKeyDown(e) {
+  // 禁止浏览器默认行为
+  if (e.ctrlKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+  }
+
+  // Ctrl + 左/右 切换选中股票
+  if (e.ctrlKey && e.key === "ArrowRight") {
+    console.log("arrow right key down");
+    if (activeShareIndex.value === -1) {
+      // 无选中 → 选第一个
+      activeShareIndex.value = 0;
+    } else {
+      // 有选中 → +1，到顶回到 0
+      activeShareIndex.value = (activeShareIndex.value + 1) % 4;
+    }
+  }
+
+  if (e.ctrlKey && e.key === "ArrowLeft") {
+    if (activeShareIndex.value === -1) {
+      // 无选中 → 选最后一个
+      activeShareIndex.value = 3;
+    } else {
+      // 有选中 → -1，到底回到 3
+      activeShareIndex.value = (activeShareIndex.value - 1 + 4) % 4;
+    }
+  }
+
+  // 股票翻页逻辑
   if (e.ctrlKey && e.key === "ArrowUp") {
     e.preventDefault();
     prevPage();
   }
+
   if (e.ctrlKey && e.key === "ArrowDown") {
     e.preventDefault();
     nextPage();
@@ -236,6 +306,14 @@ function isTradingTime() {
   flex-direction: column;
 }
 
+/* 选中股票的高亮边框 */
+.stock-item.active {
+  border: 1px solid #4dabf7;
+  background: #222;
+  box-shadow: 0 0 12px rgba(77, 171, 247, 0.3);
+  transition: all 0.2s ease;
+}
+
 .stock-header {
   display: flex;
   gap: 8px;
@@ -262,25 +340,5 @@ function isTradingTime() {
 }
 .down {
   color: #00c853;
-}
-
-/* 搜索弹出层 */
-.search-popup {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 260px;
-  height: 100%;
-  background: #181818;
-  z-index: 999;
-  padding: 10px;
-}
-.search-result {
-  margin-top: 10px;
-}
-.search-result > div {
-  padding: 6px 10px;
-  border-bottom: 1px solid #333;
-  cursor: pointer;
 }
 </style>
