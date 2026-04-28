@@ -158,7 +158,7 @@ class WndManager extends Singleton {
 
     getMiniStockWndConfig() {
         const { width, height } = screen.getPrimaryDisplay().size;
-        const miniHeight = Math.floor(height / 4);
+        const miniHeight = Math.floor(height / 3);
         return {
             browserWindow: {
                 x: 0, y: height - miniHeight, width: width, height: miniHeight, transparent: false,

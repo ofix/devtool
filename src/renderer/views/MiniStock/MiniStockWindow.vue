@@ -116,7 +116,6 @@ function handleGlobalKey(e) {
 
   // 符合条件 → 打开面板
   if (isLetter || isStar) {
-    // e.preventDefault(); // 防止输入到其他输入框
     showSearchPanel.value = true;
     if (searchKeyword.value == "") {
       searchKeyword.value = key;
@@ -126,7 +125,7 @@ function handleGlobalKey(e) {
 
 // 关闭股票搜索面板
 function closeSearchPanel() {
-  showPanel.value = false;
+  showSearchPanel.value = false;
   searchKeyword.value = "";
 }
 

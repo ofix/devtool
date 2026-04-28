@@ -79,10 +79,8 @@ const resultsRef = ref(null);
 watch(
   () => props.initialKey,
   (k) => {
-    if (k) {
-      keyword.value = k;
-      nextTick(() => searchInput.value?.focus());
-    }
+    // keyword.value = k;
+    nextTick(() => searchInput.value?.focus());
   },
   { immediate: true }
 );
@@ -218,9 +216,9 @@ watch(keyword, () => {
 .stock-item {
   padding: 4px 6px;
   cursor: pointer;
-  display:flex;
+  display: flex;
   height: 52px;
-  flex-direction:column;
+  flex-direction: column;
   gap: 2px;
 }
 .stock-item.active {
@@ -228,9 +226,10 @@ watch(keyword, () => {
 }
 
 /* 左侧：名称 市场 代码 横向排列 */
-.top, .bottom{
+.top,
+.bottom {
   display: flex;
-  width:100%;
+  width: 100%;
   align-items: left;
   justify-content: space-between;
   gap: 10px;
@@ -259,8 +258,8 @@ watch(keyword, () => {
   font-size: 16px;
   color: #666;
   cursor: pointer;
-  margin-top:-4px;
-  margin-right:4px;
+  margin-top: -4px;
+  margin-right: 4px;
 }
 .favorite.favorited {
   color: #ffcc00;
@@ -280,7 +279,6 @@ watch(keyword, () => {
   padding: 8px 0;
   border-top: 1px solid #eee;
 }
-
 
 /* 滚动条整体宽度 */
 .search-results::-webkit-scrollbar {
