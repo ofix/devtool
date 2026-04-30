@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import StockManager from '../service/mini-stock/StockManager.js';
+import eventBus from "../service/EventBus.js";
 
 class AntSyncHandler {
     constructor() {
@@ -45,7 +46,8 @@ class AntSyncHandler {
             if (!this.manager.inited) {
                 await this.manager.init();
             }
-            this.manager.saveProviderSettings(data);
+            await this.manager.saveProviderSettings(data);
+            eventBus.emit("ProviderSettings:Updated");
         });
         ipcMain.handle('ant-sync:load-provider-settings', async (_) => {
             if (!this.manager.inited) {

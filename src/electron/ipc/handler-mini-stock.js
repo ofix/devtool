@@ -18,9 +18,11 @@ class StockHandler {
             }
         });
 
-        ipcMain.handle('mini-stock:minute-kline', async (event, codes, days = 1) => {
+        ipcMain.handle('mini-stock:minute-kline', async (event, shares, days = 1) => {
             try {
-                const data = await this.manager.getShareMinuteData(codes, days);
+                console.log("++++++++ 获取分时数据 +++++++++");
+                console.log(shares);
+                const data = await this.manager.getShareMinuteData(shares, days);
                 return data;
             } catch (error) {
                 console.error('获取分时K线失败:', error);

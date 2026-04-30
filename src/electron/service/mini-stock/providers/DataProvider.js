@@ -1,4 +1,5 @@
 import fs from 'fs';
+import axios from 'axios';
 import { constants as fsConstants } from 'fs';
 export default class DataProvider {
     constructor() {
@@ -19,6 +20,10 @@ export default class DataProvider {
 
     setBrowserHeaders(browserHeaders) {
         this.browserHeaders = browserHeaders;
+    }
+
+    addBrowserHeaders(browserHeader){
+        this.browserHeaders.push(browserHeader);
     }
 
     expireCurrentBrowserHeader() {
@@ -54,6 +59,19 @@ export default class DataProvider {
 
         // 所有 header 都不可用
         return this.commonHeaders;
+    }
+
+    async httpGet(url,params,responseCallback){
+        const response = await axios.get(url, {
+            params:params,
+            timeout: 10000,
+            headers: this.headers(),
+        });
+        if(responseCallback){
+            return responseCallback(response);
+        }else{
+            return response;
+        }
     }
 
     commonHeaders() {
@@ -107,7 +125,7 @@ export default class DataProvider {
      * @param {Object} share 股票对象 格式如下: {name:'',code:'',code:''};
      * @param {number} days 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
      */
-    async getMinuteKlines(share, days = 1) {
+    async getShareMinuteData(shares, days = 1) {
         throw new Error('子类必须实现 getShareMinuteData 方法');
     }
 

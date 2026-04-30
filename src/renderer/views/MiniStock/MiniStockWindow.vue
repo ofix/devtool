@@ -1,39 +1,43 @@
 <template>
-  <div class="stock-panel" @keydown="handleKeyDown" tabindex="0">
+  <div class="share-panel" @keydown="handleKeyDown" tabindex="0">
     <!-- 1×4 横向股票网格 -->
     <div class="grid-1x4">
       <div
-        class="stock-item"
-        v-for="(stock, idx) in displayList"
+        class="share-item"
+        v-for="(share, idx) in displayList"
         :key="idx"
         :class="{ active: activeShareIndex === idx }"
       >
         <!-- 股票头部信息 -->
-        <div class="stock-header" v-if="stock">
-          <span class="code">{{ stock.code }}</span>
-          <span class="name">{{ stock.name }}</span>
-          <span class="price" :class="stock.change >= 0 ? 'up' : 'down'">
-            {{ (stock.price || 0).toFixed(2) }}
+        <div class="share-header" v-if="share">
+          <span class="code">{{ share.code }}</span>
+          <span class="name">{{ share.name }}</span>
+          <span class="price" :class="share.change >= 0 ? 'up' : 'down'">
+            {{ (share.price || 0).toFixed(2) }}
           </span>
           <span class="change">
-            {{ stock.change >= 0 ? "+" : ""
-            }}{{ (stock.change || 0).toFixed(2) }} ({{
-              (stock.changePercent || 0).toFixed(2)
+            {{ share.change >= 0 ? "+" : ""
+            }}{{ (share.change || 0).toFixed(2) }} ({{
+              (share.changePercent || 0).toFixed(2)
             }}%)
           </span>
-          <el-button size="mini" @click="toggleType(stock.code)">
-            {{ chartTypes[stock.code] === "kline" ? "分时" : "日K" }}
+          <el-button size="mini" @click="toggleType(share.code)">
+            {{ chartTypes[share.code] === "kline" ? "分时" : "日K" }}
           </el-button>
         </div>
 
         <!-- 图表 -->
-        <div class="chart" v-if="stock">
+        <div class="chart" v-if="share">
           <KlineCtrl
-            v-if="chartTypes[stock.code] === 'kline'"
-            :code="stock.code"
-            :market="stock.market"
+            v-if="chartTypes[share.code] === 'kline'"
+            :code="share.code"
+            :market="share.market"
           />
-          <MinuteKlineCtrl v-else :code="stock.code" :market="stock.market" />
+          <MinuteKlineCtrl
+            v-else
+            :share="share"
+            :data="minuteKlineData[share.code]"
+          />
         </div>
 
         <!-- 空面板 -->
@@ -70,6 +74,8 @@ const currentShare = ref(null);
 
 const showSearchPanel = ref(false);
 const activeShareIndex = ref(-1); // 当前选中的股票下标
+const minuteKlineData = ref({}); // 分时数据
+const klineData = ref({}); // K线数据
 
 let refreshTimer = null;
 // 传给子组件的触发按键（字母 或 *）
@@ -229,10 +235,12 @@ function handleKeyDown(e) {
   }
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // 自动刷新
-function startAutoRefresh() {
+async function startAutoRefresh() {
   // 先立即刷新一次
-  refreshRealTimeData();
+  await refreshRealTimeData();
 
   // 之后定时刷新
   refreshTimer = setInterval(async () => {
@@ -244,29 +252,39 @@ function startAutoRefresh() {
 
 // 根据每只股票自己的K线类型拉取数据
 async function refreshRealTimeData() {
-  for (const stock of displayList.value) {
-    if (!stock || !stock.code) continue;
+  for (const share of displayList.value) {
+    if (!share || !share.code) continue;
 
     // 获取当前股票自己的图表类型
-    const type = chartTypes.value[stock.code];
+    const type = chartTypes.value[share.code];
 
     let data = null;
     if (type === "minute") {
       // 分时图 → 拉分时数据
-      data = await window.channel.getMinuteKline(stock.code, 1);
+      // 👇 【关键修复】只传递纯数据对象，禁止传响应式/Vue对象
+      const oneShare = {
+        code: share.code,
+        market: share.market,
+        name: share.name,
+      };
+      data = await window.channel.getMinuteKlines(oneShare, 1);
+      console.log(data);
+      minuteKlineData.value[share.code] = data;
+      await sleep(5000);
     } else if (type === "kline") {
       // 日K → 拉日K数据
       data = await window.channel.getKline(
-        stock.code,
-        stock.market,
+        share.code,
+        share.market,
         "day",
         "",
         ""
       );
+      klineData.value[share.code] = data;
     }
 
     if (data) {
-      Object.assign(stock, data);
+      Object.assign(share, data);
     }
   }
 }
@@ -281,7 +299,7 @@ function isTradingTime() {
 </script>
 
 <style scoped>
-.stock-panel {
+.share-panel {
   width: 100%;
   height: 100vh;
   background: #111;
@@ -297,7 +315,7 @@ function isTradingTime() {
   gap: 6px;
 }
 
-.stock-item {
+.share-item {
   background: #1a1a1a;
   padding: 6px;
   border-radius: 6px;
@@ -306,14 +324,14 @@ function isTradingTime() {
 }
 
 /* 选中股票的高亮边框 */
-.stock-item.active {
+.share-item.active {
   border: 1px solid #4dabf7;
   background: #222;
   box-shadow: 0 0 12px rgba(77, 171, 247, 0.3);
   transition: all 0.2s ease;
 }
 
-.stock-header {
+.share-header {
   display: flex;
   gap: 8px;
   font-size: 13px;

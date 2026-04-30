@@ -1,4 +1,3 @@
-// MinuteKlineRenderer.js
 export default class MinuteKlineRenderer {
     constructor(canvas, config = {}) {
       this.canvas = canvas;

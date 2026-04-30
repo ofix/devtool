@@ -174,7 +174,7 @@ contextBridge.exposeInMainWorld('channel', {
     // 股票行情
     searchShares: (keyword) => ipcRenderer.invoke('mini-stock:search-shares', keyword),
     getKline: (codes, market, period, startDate, endDate) => ipcRenderer.invoke('mini-stock:kline', codes, market, period, startDate, endDate),
-    getMinuteKline: (codes, days = 1) => ipcRenderer.invoke('mini-stock:minute-kline', codes, days),
+    getMinuteKlines: (shares, days = 1) => ipcRenderer.invoke('mini-stock:minute-kline', shares, days),
     shareRankList: (n, order = "top") => ipcRenderer.invoke('mini-stock:share-rank-list', n, order),
     favoriteShares: () => ipcRenderer.invoke('mini-stock:favorite-shares'),
     addFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:add-favorite-share', code),

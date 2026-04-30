@@ -86,16 +86,18 @@ const parsedHeaders = ref([]);
 // 解析Headers（兼容 单行/分行/浏览器复制 全格式）
 function parseHeaders(text) {
   const headers = [];
-  const lines = text.split(/\r?\n/).map((line) => line.trimEnd()); // 保留缩进，只去除换行符
+  const lines = text.split(/\r?\n/).map((line) => line.trimEnd());
 
-  let lastHeaderName = null; // 记录上一个header名称
-  let skipRequestLine = !includeRequestLine.value;
+  let lastHeaderName = null;
+  const skipRequestLine = !includeRequestLine.value;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trimEnd();
+    const line = lines[i];
     if (!line) continue;
 
-    // 处理 分行Header（如 :authority: \n value）
+    // --------------------------
+    // 上一行是 header 名 → 当前行是值
+    // --------------------------
     if (lastHeaderName !== null) {
       headers.push({
         name: lastHeaderName,
@@ -106,7 +108,9 @@ function parseHeaders(text) {
       continue;
     }
 
+    // --------------------------
     // 跳过请求行（GET / POST ...）
+    // --------------------------
     if (
       skipRequestLine &&
       /^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s/i.test(line)
@@ -114,29 +118,33 @@ function parseHeaders(text) {
       continue;
     }
 
-    // 匹配 Header 名称（支持 :authority: 这种格式）
-    const colonMatch = line.match(/^([^:\n]+):\s*$/);
-    if (colonMatch) {
-      lastHeaderName = colonMatch[1].trim();
+    // --------------------------
+    // 匹配：name:  （单独一行，值在下一行）
+    // --------------------------
+    const singleLineKeyMatch = line.match(/^(.+):\s*$/);
+    if (singleLineKeyMatch) {
+      lastHeaderName = singleLineKeyMatch[1].trim();
+      console.log("lastHeaderName: ", lastHeaderName);
       continue;
     }
 
-    // 匹配单行 Header（name: value）
-    const colonIndex = line.indexOf(":");
-    if (colonIndex > 0) {
-      const name = line.substring(0, colonIndex).trim();
-      const value = line.substring(colonIndex + 1).trim();
-      if (name && value) {
-        headers.push({
-          name,
-          value,
-          desc: `从浏览器导入 - ${name}`,
-        });
-      }
+    // --------------------------
+    // 匹配：name: value （同一行）
+    // --------------------------
+    const inlineColonIdx = line.indexOf(": ");
+    if (inlineColonIdx > 0) {
+      const name = line.substring(0, inlineColonIdx).trim();
+      const value = line.substring(inlineColonIdx + 1).trim();
+      headers.push({
+        name,
+        value,
+        desc: `从浏览器导入 - ${name}`,
+      });
+      continue;
     }
   }
 
-  return headers;
+  return headers; // 👈 你原来的代码漏了 return！这是大问题！
 }
 
 watch(rawText, (newVal) => {

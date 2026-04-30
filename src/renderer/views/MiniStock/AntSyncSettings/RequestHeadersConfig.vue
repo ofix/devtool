@@ -801,20 +801,19 @@ function copyHeaders() {
 // 触发变更
 function emitChange() {
   // 确保所有数据都已同步
-  localConfig.sets.forEach((set) => {
-    const arr = mapSetHeaders[set.id];
-    if (arr) {
-      set.headers = headersArrayToObject(arr);
-    }
-  });
+    localConfig.sets.forEach((set) => {
+      const arr = mapSetHeaders[set.id];
+      if (arr) {
+        set.headers = headersArrayToObject(arr);
+      }
+    });
 
-  const copy = JSON.parse(JSON.stringify(localConfig));
-  emit("change", copy);
+    const copy = JSON.parse(JSON.stringify(localConfig));
+    emit("change", copy);
 }
 
 // 获取配置
 function getConfig() {
-  emitChange();
   return JSON.parse(JSON.stringify(localConfig));
 }
 

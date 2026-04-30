@@ -1,4 +1,3 @@
-import axios from 'axios';
 import DataProvider from "./DataProvider.js";
 
 class BaiduFinanceProvider extends DataProvider {
@@ -31,11 +30,11 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {number} days 1=当日, 5=五日
      * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
      */
-    async getMinuteKlines(share, days = 1) {
+    async getShareMinuteData(share, days = 1) {
         let group = days == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
-            const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
-                params: {
+            const response = await this.httpGet(`https://finance.pae.baidu.com/vapi/v1/getquotation`,
+                {
                     srcid: '5353',
                     pointType: 'string',
                     group: group,
@@ -47,12 +46,12 @@ class BaiduFinanceProvider extends DataProvider {
                     is_kc: 0,
                     finClientType: 'pc',
                 }
-            });
+            );
 
             // 统一解析成腾讯格式
-            return this.#parseMinuteKlines(response.data, days);
+            return this.#parseShareMinuteData(response.data, days);
         } catch (error) {
-            console.error('BaiduFinanceProvider getKLineData error:', error);
+            console.error('BaiduFinanceProvider getShareMinuteData error:', error);
             return days === 5 ? [[], [], [], [], []] : [[]];
         }
     }
@@ -60,7 +59,7 @@ class BaiduFinanceProvider extends DataProvider {
     /**
      * 百度财经分时数据解析成统一格式
      */
-    #parseMinuteKlines(data, days) {
+    #parseShareMinuteData(data, days) {
         try {
             const Result = data?.Result;
             const newMarketData = Result?.newMarketData;
@@ -108,15 +107,13 @@ class BaiduFinanceProvider extends DataProvider {
                     const changeRatio = (change / preClose * 100) || 0;
 
                     list.push({
-                        time,
-                        price,
-                        avgPrice,
-                        volume,
-                        amount,
-                        totalVolume: Math.round(totalVolume),
-                        totalAmount: Math.round(totalAmount),
-                        change: parseFloat(change.toFixed(2)),
-                        changeRatio: parseFloat(changeRatio.toFixed(2)),
+                        time,  // 时间
+                        price, // 当前价
+                        avgPrice, // 分时均价
+                        volume, // 成交量
+                        amount, // 成交额
+                        change: parseFloat(change.toFixed(2)), // 涨跌额
+                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 涨跌幅
                     });
                 });
 
@@ -130,12 +127,12 @@ class BaiduFinanceProvider extends DataProvider {
 
                 // 输出统一格式
                 allDays.push({
-                    preClose: parseFloat(preClose),
-                    open,
-                    date,
-                    totalVolume: Math.round(totalVolume),
-                    totalAmount: Math.round(totalAmount),
-                    data:list,
+                    preClose: parseFloat(preClose), // 昨日成交价
+                    open, // 开盘价
+                    date, // 日期
+                    totalVolume: Math.round(totalVolume), // 总成交量
+                    totalAmount: Math.round(totalAmount), // 总成交额
+                    data: list,
                 });
             });
 
@@ -394,10 +391,6 @@ class BaiduFinanceProvider extends DataProvider {
             return [];
         }
     }
-
-
-
-
 
     async searchStock(keyword) {
         try {

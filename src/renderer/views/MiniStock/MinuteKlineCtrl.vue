@@ -1,44 +1,32 @@
 <template>
-    <div class="minute-kline-ctrl" tabindex="0">
-      <!-- 分时图类型切换 -->
-      <div class="chart-type-bar">
-        <button
-          v-for="type in chartTypes"
-          :key="type.value"
-          :class="{ active: currentType === type.value }"
-          @click="changeType(type.value)"
-        >
-          {{ type.label }}
-        </button>
-      </div>
-  
+    <div class="minute-kline-ctrl" tabindex="0">  
       <!-- 分时图信息栏 -->
       <div class="minute-info-bar">
-        <div class="current-price">
-          <span class="label">最新价</span>
+        <div class="share-name"> <!-- 股票名称 股票代码 -->
+            {{props.share.name}} ({{ props.share.code }})
+        </div>
+        <div class="current-price"> <!-- 股票当前价格 -->
           <span class="value" :class="getPriceClass(currentPrice)">
             {{ formatPrice(currentPrice) }}
           </span>
         </div>
-        <div class="change-info">
-          <span class="label">涨跌</span>
-          <span class="value" :class="getPriceClass(change)">
-            {{ formatChange(change) }}
-          </span>
-        </div>
-        <div class="percent-info">
-          <span class="label">涨幅</span>
+        <div class="price-info"> <!-- 股票涨幅 -->
           <span class="value" :class="getPriceClass(changePercent)">
             {{ formatPercent(changePercent) }}%
           </span>
         </div>
-        <div class="volume-info">
-          <span class="label">成交量</span>
-          <span class="value">{{ formatVolume(volume) }}</span>
+        <div class="price-info"> <!-- 股票最高价 -->
+          <span class="value" :class="getPriceClass(changePercent)">
+            {{ formatPrice(maxPrice) }}
+          </span>
         </div>
-        <div class="amount-info">
-          <span class="label">成交额</span>
-          <span class="value">{{ formatAmount(amount) }}</span>
+        <div class="price-info"> <!-- 股票最低价 -->
+          <span class="value" :class="getPriceClass(changePercent)">
+            {{ formatPrice(minPrice) }}
+          </span>
+        </div>
+        <div class="button"> <!-- 股票最低价 -->
+          <el-button>参考价</el-button>
         </div>
       </div>
   
@@ -66,13 +54,13 @@
   import MinuteKlineRenderer from './Components/MinuteKlineRenderer';
   
   const props = defineProps({
-    stockCode: {
-      type: String,
-      required: true
+    share:{
+        type: Object,
+        required:true,
     },
-    market: {
-      type: String,
-      default: 'a'
+    data:{
+        type: Object,
+        required: true,
     },
     height: {
       type: Number,
@@ -101,6 +89,8 @@
   const currentPrice = ref(0);
   const change = ref(0);
   const changePercent = ref(0);
+  const maxPrice = ref(0);
+  const minPrice = ref(10000);
   const volume = ref(0);
   const amount = ref(0);
   
@@ -110,10 +100,6 @@
     return price.toFixed(2);
   };
   
-  const formatChange = (change) => {
-    if (change === undefined || change === null) return '--';
-    return change > 0 ? `+${change.toFixed(2)}` : change.toFixed(2);
-  };
   
   const formatPercent = (percent) => {
     if (percent === undefined || percent === null) return '--';
@@ -137,38 +123,6 @@
   const getPriceClass = (value) => {
     if (value === undefined || value === null || value === 0) return '';
     return value > 0 ? 'up' : 'down';
-  };
-  
-  // 加载分时数据
-  const loadMinuteData = async () => {
-    try {
-      const data = await window.channel.getMinuteKlineData(
-        props.stockCode,
-        props.market,
-        currentType.value
-      );
-  
-      if (data && data.length > 0) {
-        renderer?.setData(data);
-        
-        // 更新信息栏
-        const lastItem = data[data.length - 1];
-        const preClose = data[0].preClose || data[0].price;
-        currentPrice.value = lastItem.price;
-        volume.value = lastItem.volume;
-        amount.value = lastItem.amount;
-        change.value = currentPrice.value - preClose;
-        changePercent.value = (change.value / preClose) * 100;
-      }
-    } catch (error) {
-      console.error('加载分时数据失败:', error);
-    }
-  };
-  
-  // 切换图表类型
-  const changeType = (type) => {
-    currentType.value = type;
-    loadMinuteData();
   };
   
   // 切换副图
@@ -215,12 +169,7 @@
     renderer = new MinuteKlineRenderer(canvasRef.value, {
       theme: 'dark'
     });
-  
-    emit('minute-ready', props.stockCode, {
-      refresh: loadMinuteData
-    });
-  
-    loadMinuteData();
+    renderer.setData(props.data);  
   };
   
   // 窗口大小变化
@@ -231,10 +180,10 @@
       renderer.resize();
     }
   };
-  
+
   // 监听股票切换
-  watch(() => props.stockCode, () => {
-    loadMinuteData();
+  watch(() => props.data, () => {
+    renderer.setData(props.data);
   });
   
   // 生命周期
@@ -257,36 +206,7 @@
     outline: none;
     position: relative;
   }
-  
-  .chart-type-bar {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 8px;
-    padding: 4px;
-    background: #252525;
-    border-radius: 4px;
-  }
-  
-  .chart-type-bar button {
-    background: none;
-    border: none;
-    color: #999;
-    padding: 4px 12px;
-    cursor: pointer;
-    border-radius: 3px;
-    font-size: 12px;
-    transition: all 0.2s;
-  }
-  
-  .chart-type-bar button:hover {
-    background: #333;
-  }
-  
-  .chart-type-bar button.active {
-    background: #ff6b6b;
-    color: #fff;
-  }
-  
+    
   .minute-info-bar {
     display: flex;
     gap: 20px;

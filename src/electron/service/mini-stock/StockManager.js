@@ -8,6 +8,7 @@ import csv from 'csv-parser';
 import LRUCache from '../../core/LRUCache.js';
 import Trie from "../../core/Trie.js";
 import Singleton from "../Singleton.js";
+import eventBus from "../EventBus.js";
 import EastMoneyProvider from './providers/EastMoneyProvider.js';
 import TencentProvider from './providers/TencentProvider.js';
 import YahooProvider from './providers/YahooProvider.js';
@@ -103,16 +104,6 @@ export default class StockManager extends Singleton {
     }
 
     /**
-     * 手动设置各个供应商的浏览器Header
-     */
-    setBrowserHeaders(browserHeaders) {
-        for (let [key, value] of Object.entries(browserHeaders)) {
-            provider = this.providers[key];
-            provider.setBrowserHeaders(value);
-        }
-    }
-
-    /**
      * 加载供应商配置
      */
     async _loadProviderSettings() {
@@ -126,6 +117,15 @@ export default class StockManager extends Singleton {
             }
             const content = await fs.promises.readFile(filePath, 'utf8');
             this.providerSettings = JSON.parse(content);
+            // 初始化请求Headers
+            this.providerSettings.forEach(settings => {
+                const provider = this.providers[settings.id];
+                settings?.requestHeaders?.sets && provider.setBrowserHeaders(
+                    settings.requestHeaders.sets.map(set => ({
+                        enable: true, expired: false, count: 0, headers: set.headers
+                    }))
+                )
+            })
             return this.providerSettings;
         } catch (e) {
             console.log("load provider settings failed", e);
@@ -191,6 +191,14 @@ export default class StockManager extends Singleton {
         }
     }
 
+    _setupEventListeners() {
+        // 订阅ProviderSettings更新事件
+        eventBus.on('ProviderSettings:Updated', (config) => {
+            console.log("[√]ProviderSettings:Updated");
+            this._loadProviderSettings();
+        })
+    }
+
     async init() {
         if (this.inited) {
             return;
@@ -218,6 +226,7 @@ export default class StockManager extends Singleton {
         await this._loadBkMenu();
         await this._loadBkList();
         await this._loadProviderSettings();
+        this._setupEventListeners();
         this.inited = true;
         // 分时缓存自动清理
         // const minuteCleanupTimer = setInterval(() => {
@@ -1430,13 +1439,13 @@ export default class StockManager extends Singleton {
         const resultData = [];
 
         // 循环处理每一只股票（一只股票一个缓存）
-        for (const code of list) {
+        for (const share of list) {
             // ✅ 每只股票独立缓存 key
-            const cacheKey = `${code}_${ndays}`;
+            const cacheKey = `${share.code}_${ndays}`;
             const cached = this.cache.minute.get(cacheKey);
 
             // 缓存有效（5秒）直接用
-            if (cached && (Date.now() - cached.timestamp) < 5000) {
+            if (cached && (Date.now() - cached.timestamp) < 5000000) {
                 this.stats.cacheHits++;
                 resultData.push(cached.data);
                 continue;
@@ -1446,9 +1455,8 @@ export default class StockManager extends Singleton {
 
             // 真正请求接口
             try {
-                const { market, symbol } = this._parseCode(code);
                 const provider = this.providers.baidu;
-                const data = await provider.getMinuteData(code, symbol, market, ndays);
+                const data = await provider.getShareMinuteData(share, ndays);
 
                 // ✅ 单独写入当前股票缓存
                 this.cache.minute.set(cacheKey, {

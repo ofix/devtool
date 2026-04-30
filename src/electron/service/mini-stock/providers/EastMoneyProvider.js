@@ -93,12 +93,12 @@ class EastMoneyProvider extends DataProvider {
 
     /**
      * 获取股票分时数据
-     * @param {string} code 股票代码
-     * @param {string} name 股票名称
-     * @param {string} market 股票市场：sh/sz
+     * @param {string} share.code 股票代码
+     * @param {string} share.name 股票名称
+     * @param {string} share.market 股票市场：sh/sz
      * @param {number} ndays 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
      */
-    async getShareMinuteData(code, name, market, ndays = 1) {
+    async getShareMinuteData(share, ndays = 1) {
 
     }
 
