@@ -221,9 +221,9 @@ async function testAPIs() {
             "pinyin": "KEB"
         }
     ];
-    manager.setProvider('tencent');
-    let result = await manager.getQuote(shares);
-    manager.printQuote(result);
+    manager.setProvider('baidu');
+    let result = await manager.getShareMinuteData(shares[0],1);
+    console.log(result);
 }
 
 // testBaiduIPOInfo();

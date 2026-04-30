@@ -68,7 +68,6 @@ class BaiduFinanceProvider extends DataProvider {
             const { keys, marketData } = newMarketData;
             if (!keys || !marketData) return [];
 
-            const preClose = Result?.preClose || Result?.yestclose || 0;
             const allDays = [];
 
             // 处理百度数据结构（1日/5日兼容）
@@ -76,7 +75,7 @@ class BaiduFinanceProvider extends DataProvider {
             if (Array.isArray(marketData)) {
                 dayDataList = marketData;
             } else {
-                dayDataList = [{ p: marketData }];
+                dayDataList = [marketData];
             }
             // 逐天解析
             dayDataList.forEach(dayItem => {
@@ -86,11 +85,18 @@ class BaiduFinanceProvider extends DataProvider {
 
                 let totalVolume = 0;
                 let totalAmount = 0;
+                let preClose = 0;
+                let iLine = 0;
 
                 lines.forEach(line => {
                     const values = line.split(',');
                     const item = {};
                     keys.forEach((k, i) => (item[k] = values[i]));
+
+                    if(iLine == 0){
+                        preClose = item.price - item.range;
+                        iLine++;
+                    }
 
                     // 字段映射
                     const time = item.time;
@@ -103,8 +109,8 @@ class BaiduFinanceProvider extends DataProvider {
                     totalAmount += amount;
 
                     // 每分钟涨跌额 & 涨跌幅（统一标准）
-                    const change = price - preClose;
-                    const changeRatio = (change / preClose * 100) || 0;
+                    const change = parseFloat(item.range) || 0;
+                    const changeRatio = parseFloat(item.ratio) || 0;
 
                     list.push({
                         time,  // 时间
