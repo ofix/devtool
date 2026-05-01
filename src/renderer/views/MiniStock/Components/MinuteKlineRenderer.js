@@ -66,7 +66,7 @@ export default class MinuteKlineRenderer {
     }
 
     setData(data) {
-        if (!data) return;
+        if (!data || !data.data) return;
 
         this.data = data.data;
         this.preClosePrice = data.preClose;

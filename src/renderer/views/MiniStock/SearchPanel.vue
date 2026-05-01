@@ -18,7 +18,7 @@
 
       <!-- 搜索结果 -->
       <div class="search-results" ref="resultsRef">
-        <div
+        <!-- <div
           v-for="(share, index) in searchResults"
           :key="`${share.market}_${share.code}`"
           class="share-item"
@@ -41,7 +41,15 @@
               <IconFavoriteEmpty v-else class="favorite-icon" />
             </button>
           </div>
-        </div>
+        </div> -->
+        <el-table-v2
+          :columns="columns"
+          :data="searchResults"
+          :width="280"
+          :height="320"
+          :header-height="0"
+          class="share-table-list"
+        />
         <div
           v-if="!loading && keyword && searchResults.length === 0"
           class="no-results"
@@ -50,13 +58,13 @@
         </div>
       </div>
 
-      <div v-if="loading" class="loading">搜索中…</div>
+      <!-- <div v-if="loading" class="loading">搜索中…</div> -->
       <div class="hint" v-if="keyword">↑↓ 切换 · Enter 确认 · Esc 关闭</div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="jsx">
 import { ref, watch, nextTick } from "vue";
 import IconFavorite from "@/icons/IconFavorite.vue";
 import IconFavoriteEmpty from "@/icons/IconFavoriteEmpty.vue";
@@ -73,13 +81,45 @@ const currentIndex = ref(-1);
 const searchInput = ref(null);
 const resultsRef = ref(null);
 
+// 列定义（使用 cellRenderer 自定义渲染）
+const columns = [
+  {
+    key: "code",
+    width: 280,
+    cellRenderer: ({ rowData }) => (
+      <div class={["share-item"]} onClick={() => selectStock(rowData)}>
+        <div class="top">
+          <span class="name">{rowData.name}</span>
+          <span class="market">{getMarketLabel(rowData)}</span>
+        </div>
+        <div class="bottom">
+          <span class="code">{rowData.code}</span>
+          <button
+            class={["favorite", rowData.favorite && "favorited"]}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(rowData);
+            }}
+          >
+            {rowData.favorite ? (
+              <IconFavorite class="favorite-icon" />
+            ) : (
+              <IconFavoriteEmpty class="favorite-icon" />
+            )}
+          </button>
+        </div>
+      </div>
+    ),
+  },
+];
+
 // 自动聚焦
 watch(
   () => props.initialKey,
   (val) => {
     nextTick(() => searchInput.value?.focus());
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // 搜索
@@ -214,8 +254,9 @@ watch(keyword, () => {
   padding: 4px 0;
 }
 
-.share-item {
+:deep(.share-item) {
   padding: 6px 10px;
+  width: 100%;
   cursor: pointer;
   height: 52px;
   display: flex;
@@ -223,45 +264,45 @@ watch(keyword, () => {
   justify-content: center;
   gap: 4px;
 }
-.share-item.active {
+:deep(.share-item.active) {
   background: #e8f4ff;
 }
 
-.top,
-.bottom {
+:deep(.top),
+:deep(.bottom) {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.name {
+:deep(.name) {
   font-size: 14px;
   color: #222;
 }
-.market {
+:deep(.market) {
   font-size: 12px;
   color: #666;
   background: #f1f3f5;
   padding: 1px 6px;
   border-radius: 4px;
 }
-.code {
+:deep(.code) {
   font-size: 14px;
   color: #888;
 }
 
-.favorite {
+:deep(.favorite) {
   background: none;
   border: none;
   color: #999;
   cursor: pointer;
 }
 
-.favorite.favorited {
+:deep(.favorite.favorited) {
   color: #ff0000;
 }
 
-.favorite-icon {
+:deep(.favorite-icon) {
   display: inline-block;
   font-size: 14px !important; /* 你想要的大小 */
   width: 14px !important;
