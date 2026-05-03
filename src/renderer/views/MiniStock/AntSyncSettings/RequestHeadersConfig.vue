@@ -382,8 +382,8 @@ function syncFromProps() {
         enabled: true,
       },
     ];
-    mapSetHeaders[defaultSetId] = defaultHeaders;
-    syncArrayToObject(defaultSetId);
+    mapSetHeaders[activeTabId.value] = defaultHeaders;
+    syncArrayToObject(activeTabId.value);
   } else {
     // 深拷贝配置
     const copy = JSON.parse(JSON.stringify(source));
@@ -801,15 +801,15 @@ function copyHeaders() {
 // 触发变更
 function emitChange() {
   // 确保所有数据都已同步
-    localConfig.sets.forEach((set) => {
-      const arr = mapSetHeaders[set.id];
-      if (arr) {
-        set.headers = headersArrayToObject(arr);
-      }
-    });
+  localConfig.sets.forEach((set) => {
+    const arr = mapSetHeaders[set.id];
+    if (arr) {
+      set.headers = headersArrayToObject(arr);
+    }
+  });
 
-    const copy = JSON.parse(JSON.stringify(localConfig));
-    emit("change", copy);
+  const copy = JSON.parse(JSON.stringify(localConfig));
+  emit("change", copy);
 }
 
 // 获取配置

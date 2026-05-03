@@ -13,7 +13,7 @@ export const isWin = process.platform === 'win32'
 export const isMac = process.platform === 'darwin'
 export const isLinux = process.platform === 'linux'
 
-function handleCtrl0() {
+function handleCtrl0 () {
     console.log("Ctrl+0 pressed");
     const wndManager = WndManager.getInstance();
     let wnd = wndManager.getWindow('MiniStockWnd');
@@ -40,7 +40,7 @@ class DevTool {
                 },
                 description: '打开截图工具' // 补充：每个快捷键独立描述
             }, {
-                shortcut: "Ctrl+Space",
+                shortcut: "Ctrl+Esc",
                 callback: handleCtrl0,
                 description: "显示/隐藏迷你股票窗口"
             }, {
@@ -81,12 +81,12 @@ class DevTool {
         ];
     }
 
-    init() {
+    init () {
         const ipcManager = IPCManager.getInstance();
         this.registerAppShortcuts();
     }
 
-    createMainWnd() {
+    createMainWnd () {
         this.mainWnd = new BrowserWindow({
             width: 1280,
             height: 960,
@@ -139,7 +139,7 @@ class DevTool {
         });
     }
 
-    registerAppShortcuts() {
+    registerAppShortcuts () {
         // 获取快捷键管理器单例
         const shortcutManager = ShortcutManager.getInstance();
         shortcutManager.init();

@@ -21,7 +21,7 @@
               (share.changePercent || 0).toFixed(2)
             }}%)
           </span>
-          <el-button size="mini" @click="toggleType(share.code)">
+          <el-button size="small" @click="toggleType(share.code)">
             {{ chartTypes[share.code] === "kline" ? "分时" : "日K" }}
           </el-button>
         </div>

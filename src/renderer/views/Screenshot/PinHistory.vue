@@ -35,7 +35,7 @@
           <div class="create-time">{{ formatTime(item.createTime) }}</div>
           <div class="item-actions">
             <el-button
-              size="mini"
+              size="small"
               type="primary"
               icon="el-icon-refresh"
               @click="handleReopen(item.pinId)"
@@ -44,7 +44,7 @@
               重新钉图
             </el-button>
             <el-button
-              size="mini"
+              size="small"
               type="danger"
               icon="el-icon-delete"
               @click="handleDelete(item.pinId)"

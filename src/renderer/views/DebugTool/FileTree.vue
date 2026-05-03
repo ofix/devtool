@@ -136,7 +136,7 @@
             "
             v-model="editName"
             class="edit-input"
-            size="mini"
+            size="small"
             :style="{
               marginLeft:
                 data.type === FileNodeType.FILE ||
