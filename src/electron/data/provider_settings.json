@@ -1,0 +1,220 @@
+[
+   {
+      "id": "eastmoney",
+      "name": "东方财富",
+      "builtin": true,
+      "enabled": true,
+      "baseUrl": "https://push2.eastmoney.com",
+      "timeout": 30,
+      "desc": "东方财富板块数据",
+      "crawlStrategy": {
+         "minInterval": 2,
+         "maxInterval": 5,
+         "pauseThreshold": 50,
+         "pauseDuration": 10,
+         "maxRetries": 3,
+         "concurrentRequests": 1,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false,
+      "requestHeaders": {
+         "strategy": {
+            "pollMode": "off",
+            "pollInterval": 3,
+            "currentSetId": "1777806760318_hhedlzk65"
+         },
+         "requestCount": 0,
+         "sets": [
+            {
+               "id": "1777806760318_hhedlzk65",
+               "name": "默认配置",
+               "headers": {
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15",
+                  "Accept": "application/vnd.finance-web.v1+json",
+                  "Accept-Language": "zh-CN,zh-Hans;q=0.9",
+                  "Accept-Encoding": "gzip, deflate, br",
+                  "Acs-Token": "1777788005890_1777806800918_eI0dtbz3tsyqeWS/IXzc/bwA6Tb6G7POs2UMEzbrTqKermESy613U0yubrKXpwFLoPT923ulhlergQ3M9+Ihvrj1o+wRBxSe+i5BSxvlKuThBXtwYiryDssRm5wAeSaCbDlxHiJ3yGWxHKcsLHw0P4+411vaugEkcmgDRSr9hJtHFIIGbdRhB9JhRpwWJAgaxwANd7+xCzUzGoASk52LEf6ANvtar8Qop1EOeMrG7Cl3PoUeQO78mcInMx2QeNfxiFkprKP4KLqdVCsVWKpiGtrIGdBHQfoZWUVxuQjijjXTWPLgUcER9fF6kqXsfoyTLACmGVpSiYL2p6Pvcm9vpqY2plKVPLp6xJZtp/UZALAOzy8Oqx/jdNSE7TITEgFBZgD5rXi19YBfWqDEgqTM5g==",
+                  "Cookie": "ppfuid=FOCoIC3q5fKa8fgJnwzbE0LGziLN3VHbX8wfShDP6RCsfXQp/69CStRUAcn/QmhIlFDxPrAc/s5tJmCocrihdwitHd04Lvs3Nfz26Zt2honnQBqGZJ1+FooMMOy9VfBMHd4KSE2lo7q2jM/4leBJXqt+nMkIsYwpNA4XBVB5BGpKv8rf9RxKxeW8+CymWcpQ+OO4Nr3qE7Ca/682qkmAyPKlxopkhSdy8TWv4iu/xwHqAylyX9RqpcWHFB7PbPfTsAWTof8FuLBgffZ/0Uxl9589krRDcZw2i5aBqx+5lkk1v2iwj13daM+9aWJ5GJCQu/SUbF5jV5AUyz/jBiIgKdxDT28FggPkjANiNTdVH47OQHvyhUQrrHDS6OPGdMUXeHCBgi0CWDVWKfMtqsX5XrwJQEHrpPNUkK+H/zwKCElQWIxeuHw5ASxG2MwrUp+xSecr9yhMSRLVoFktEC1isL4gyfkpwDU27NvT6qNN6TCvK/S9Ff5RtLDcahg8QCqqP/JUZA7BRBFh68uqDQax10gfXgGxCNf3Sx8e4KXUBrqV/g3hEEf9luu8oPziRIwanIJY1XZupqPZgmfh8BLwT9YUuyc0u8RKTitzO23hSwGX7sI4U3M5cfLBwVX5m74NveYUNi7Li87S8ZbXy31eyxBDK4IiDGlt1VFsxDIz0RsVHZudegSJ4zYa95fLOW41HdqdlVsa4ORVPwaoYgWzWigT4KUSvejPWWbczD37o0JAMY0Xq/mt7JbC+fPJzgUfmXbEAhdEYSLFWghnNLB0ilwBQRy7id/GqpZoEO7o1hrmpvbvnglxgd/P779uVcbvHJMc4xeuRg7bfpEY/vwboUN7ctLr76yiuzEadGZy9g0vF0XKWllgPxD3MLnkzl4o/x5a3E+Qkao4W1aMhW15Bgywf8BpImierD5YuJm8aNh+b2nRqUTK6NqmhPLvsfMNxShTXBRJdrnFL9nqFcSvY6cuLQt09VwaPPyWktx1V5J+b2nRqUTK6NqmhPLvsfMNZ/k8RFFJMWot30FNQcvJjgmLcRAsZA9ozVp4fEbVslkfSzVKL8rDNNpNjO7rOJCKUwXtmNU/nsKC0PSzAP3Kq4wL4SK3t1tHw4eMSEHL2FCmmrSArB56dw/GBL+N3SuP; ab_sr=1.0.1_OTA2ODQ2MTIwN2UxYjFkNzUyOTQwMTkxM2JiYTFlMzc3MzI1NDAxMzQ2NTUzM2VmYTQwZDFkMDllMzdhMTAyOWRlMmM0OWQzMzI1ZmFkYWNlYjM4ODY3NTgwZTE3OGQxNjRjNzI3YjA3NmIzN2EyM2JmYjQ5OGU2OTI0NTc5YjBlYTRjODNlNmFmMGU4OGE3Yzg1ZGU1MzNiZmM1Mzc3Zg==; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; H_PS_PSSID=60277_67603_67861_68166_68447_68741_69170_69190_69203_69226_69245_69241_69231_69234_68779_69250_69373_69398_69400_69402_69397_69413_69428_69448_69431_69453_69460_69343_69338_69347_69345_69348_69351_69340_69500_69506_69559_69554_69579_69586_69651_69667_69662_69660_69673; PSINO=1; delPer=0; BAIDUID=D5665C7087FA8BE951148F626D822D81:FG=1; BIDUPSID=D5665C7087FA8BE909AC0359E62252AC; PSTM=1777806601",
+                  "Origin": "https://finance.baidu.com",
+                  "Priority": "u=3, i",
+                  "Referer": "https://finance.baidu.com/",
+                  "Sec-Fetch-Dest": "empty",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Site": "same-site"
+               }
+            }
+         ]
+      }
+   },
+   {
+      "id": "tonghuashun",
+      "name": "同花顺",
+      "builtin": true,
+      "enabled": true,
+      "baseUrl": "https://data.10jqka.com.cn",
+      "timeout": 30,
+      "desc": "同花顺板块数据",
+      "crawlStrategy": {
+         "minInterval": 3,
+         "maxInterval": 6,
+         "pauseThreshold": 40,
+         "pauseDuration": 12,
+         "maxRetries": 3,
+         "concurrentRequests": 1,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false
+   },
+   {
+      "id": "baidu",
+      "name": "百度财经",
+      "builtin": true,
+      "enabled": true,
+      "baseUrl": "https://gushitong.baidu.com",
+      "timeout": 30,
+      "desc": "百度财经板块数据",
+      "crawlStrategy": {
+         "minInterval": 2,
+         "maxInterval": 4,
+         "pauseThreshold": 60,
+         "pauseDuration": 8,
+         "maxRetries": 2,
+         "concurrentRequests": 1,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false,
+      "requestHeaders": {
+         "strategy": {
+            "pollMode": "off",
+            "pollInterval": 3,
+            "currentSetId": "1777806915834_l4tpa8z8x"
+         },
+         "requestCount": 0,
+         "sets": [
+            {
+               "id": "1777806915834_l4tpa8z8x",
+               "name": "默认配置",
+               "headers": {
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15",
+                  "Accept": "application/vnd.finance-web.v1+json",
+                  "Accept-Language": "zh-CN,zh-Hans;q=0.9",
+                  "Accept-Encoding": "gzip, deflate, br",
+                  "Acs-Token": "1777788005890_1777806800918_eI0dtbz3tsyqeWS/IXzc/bwA6Tb6G7POs2UMEzbrTqKermESy613U0yubrKXpwFLoPT923ulhlergQ3M9+Ihvrj1o+wRBxSe+i5BSxvlKuThBXtwYiryDssRm5wAeSaCbDlxHiJ3yGWxHKcsLHw0P4+411vaugEkcmgDRSr9hJtHFIIGbdRhB9JhRpwWJAgaxwANd7+xCzUzGoASk52LEf6ANvtar8Qop1EOeMrG7Cl3PoUeQO78mcInMx2QeNfxiFkprKP4KLqdVCsVWKpiGtrIGdBHQfoZWUVxuQjijjXTWPLgUcER9fF6kqXsfoyTLACmGVpSiYL2p6Pvcm9vpqY2plKVPLp6xJZtp/UZALAOzy8Oqx/jdNSE7TITEgFBZgD5rXi19YBfWqDEgqTM5g==",
+                  "Cookie": "ppfuid=FOCoIC3q5fKa8fgJnwzbE0LGziLN3VHbX8wfShDP6RCsfXQp/69CStRUAcn/QmhIlFDxPrAc/s5tJmCocrihdwitHd04Lvs3Nfz26Zt2honnQBqGZJ1+FooMMOy9VfBMHd4KSE2lo7q2jM/4leBJXqt+nMkIsYwpNA4XBVB5BGpKv8rf9RxKxeW8+CymWcpQ+OO4Nr3qE7Ca/682qkmAyPKlxopkhSdy8TWv4iu/xwHqAylyX9RqpcWHFB7PbPfTsAWTof8FuLBgffZ/0Uxl9589krRDcZw2i5aBqx+5lkk1v2iwj13daM+9aWJ5GJCQu/SUbF5jV5AUyz/jBiIgKdxDT28FggPkjANiNTdVH47OQHvyhUQrrHDS6OPGdMUXeHCBgi0CWDVWKfMtqsX5XrwJQEHrpPNUkK+H/zwKCElQWIxeuHw5ASxG2MwrUp+xSecr9yhMSRLVoFktEC1isL4gyfkpwDU27NvT6qNN6TCvK/S9Ff5RtLDcahg8QCqqP/JUZA7BRBFh68uqDQax10gfXgGxCNf3Sx8e4KXUBrqV/g3hEEf9luu8oPziRIwanIJY1XZupqPZgmfh8BLwT9YUuyc0u8RKTitzO23hSwGX7sI4U3M5cfLBwVX5m74NveYUNi7Li87S8ZbXy31eyxBDK4IiDGlt1VFsxDIz0RsVHZudegSJ4zYa95fLOW41HdqdlVsa4ORVPwaoYgWzWigT4KUSvejPWWbczD37o0JAMY0Xq/mt7JbC+fPJzgUfmXbEAhdEYSLFWghnNLB0ilwBQRy7id/GqpZoEO7o1hrmpvbvnglxgd/P779uVcbvHJMc4xeuRg7bfpEY/vwboUN7ctLr76yiuzEadGZy9g0vF0XKWllgPxD3MLnkzl4o/x5a3E+Qkao4W1aMhW15Bgywf8BpImierD5YuJm8aNh+b2nRqUTK6NqmhPLvsfMNxShTXBRJdrnFL9nqFcSvY6cuLQt09VwaPPyWktx1V5J+b2nRqUTK6NqmhPLvsfMNZ/k8RFFJMWot30FNQcvJjgmLcRAsZA9ozVp4fEbVslkfSzVKL8rDNNpNjO7rOJCKUwXtmNU/nsKC0PSzAP3Kq4wL4SK3t1tHw4eMSEHL2FCmmrSArB56dw/GBL+N3SuP; ab_sr=1.0.1_OTA2ODQ2MTIwN2UxYjFkNzUyOTQwMTkxM2JiYTFlMzc3MzI1NDAxMzQ2NTUzM2VmYTQwZDFkMDllMzdhMTAyOWRlMmM0OWQzMzI1ZmFkYWNlYjM4ODY3NTgwZTE3OGQxNjRjNzI3YjA3NmIzN2EyM2JmYjQ5OGU2OTI0NTc5YjBlYTRjODNlNmFmMGU4OGE3Yzg1ZGU1MzNiZmM1Mzc3Zg==; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; H_PS_PSSID=60277_67603_67861_68166_68447_68741_69170_69190_69203_69226_69245_69241_69231_69234_68779_69250_69373_69398_69400_69402_69397_69413_69428_69448_69431_69453_69460_69343_69338_69347_69345_69348_69351_69340_69500_69506_69559_69554_69579_69586_69651_69667_69662_69660_69673; PSINO=1; delPer=0; BAIDUID=D5665C7087FA8BE951148F626D822D81:FG=1; BIDUPSID=D5665C7087FA8BE909AC0359E62252AC; PSTM=1777806601",
+                  "Origin": "https://finance.baidu.com",
+                  "Priority": "u=3, i",
+                  "Referer": "https://finance.baidu.com/",
+                  "Sec-Fetch-Dest": "empty",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Site": "same-site"
+               }
+            }
+         ]
+      }
+   },
+   {
+      "id": "tencent",
+      "name": "腾讯财经",
+      "builtin": true,
+      "enabled": true,
+      "baseUrl": "https://web.ifzq.gtimg.cn",
+      "timeout": 30,
+      "desc": "腾讯财经板块数据",
+      "crawlStrategy": {
+         "minInterval": 2,
+         "maxInterval": 5,
+         "pauseThreshold": 50,
+         "pauseDuration": 10,
+         "maxRetries": 3,
+         "concurrentRequests": 1,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false
+   },
+   {
+      "id": "sina",
+      "name": "新浪财经",
+      "builtin": true,
+      "enabled": true,
+      "baseUrl": "https://stock.finance.sina.com.cn",
+      "timeout": 30,
+      "desc": "新浪财经板块数据",
+      "crawlStrategy": {
+         "minInterval": 2,
+         "maxInterval": 5,
+         "pauseThreshold": 50,
+         "pauseDuration": 10,
+         "maxRetries": 3,
+         "concurrentRequests": 1,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false
+   },
+   {
+      "id": "tushare",
+      "name": "Tushare",
+      "builtin": true,
+      "enabled": false,
+      "baseUrl": "https://api.tushare.pro",
+      "timeout": 30,
+      "desc": "Tushare 专业数据接口",
+      "crawlStrategy": {
+         "minInterval": 1,
+         "maxInterval": 2,
+         "pauseThreshold": 100,
+         "pauseDuration": 5,
+         "maxRetries": 2,
+         "concurrentRequests": 2,
+         "enableDeduplication": true
+      },
+      "proxy": {
+         "enabled": false,
+         "type": "HTTP",
+         "host": "",
+         "port": "",
+         "username": "",
+         "password": ""
+      },
+      "dirty": false
+   }
+]

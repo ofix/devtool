@@ -1,37 +1,5 @@
 <template>
     <div class="minute-kline-ctrl" tabindex="0">
-        <!-- 分时图信息栏 -->
-        <div class="minute-info-bar">
-            <div class="share-name">
-                <!-- 股票名称 股票代码 -->
-                {{ props.share.name }} ({{ props.share.code }})
-            </div>
-            <div class="current-price">
-                <!-- 股票当前价格 -->
-                <span class="value" :class="getPriceClass(currentPrice)">
-                    {{ formatPrice(currentPrice) }}
-                </span>
-            </div>
-            <div class="price-info">
-                <!-- 股票涨幅 -->
-                <span class="value" :class="getPriceClass(changePercent)">
-                    {{ formatPercent(changePercent) }}%
-                </span>
-            </div>
-            <div class="price-info">
-                <!-- 股票最高价 -->
-                <span class="value" :class="getPriceClass(changePercent)">
-                    {{ formatPrice(maxPrice) }}
-                </span>
-            </div>
-            <div class="price-info">
-                <!-- 股票最低价 -->
-                <span class="value" :class="getPriceClass(changePercent)">
-                    {{ formatPrice(minPrice) }}
-                </span>
-            </div>
-        </div>
-
         <!-- Canvas画布 -->
         <canvas
             ref="canvasRef"
@@ -69,61 +37,50 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["minute-ready"]);
-
 // Refs
 const canvasRef = ref(null);
 let renderer = null;
 
 // 状态
-const currentType = ref("minute");
-const chartTypes = [
-    { label: "分时", value: "minute" },
-    { label: "5日分时", value: "5day" },
-];
+// const currentType = ref("minute");
+// const chartTypes = [
+//     { label: "分时", value: "minute" },
+//     { label: "5日分时", value: "5day" },
+// ];
 
 const subChartMode = ref("volume");
 const width = ref(0);
 const height = ref(props.height);
 
-// 实时数据
-const currentPrice = ref(0);
-const change = ref(0);
-const changePercent = ref(0);
-const maxPrice = ref(0);
-const minPrice = ref(10000);
-const volume = ref(0);
-const amount = ref(0);
+// // 格式化函数
+// const formatPrice = (price) => {
+//     if (price === undefined || price === null) return "--";
+//     return price.toFixed(2);
+// };
 
-// 格式化函数
-const formatPrice = (price) => {
-    if (price === undefined || price === null) return "--";
-    return price.toFixed(2);
-};
+// const formatPercent = (percent) => {
+//     if (percent === undefined || percent === null) return "--";
+//     return percent > 0 ? `+${percent.toFixed(2)}` : percent.toFixed(2);
+// };
 
-const formatPercent = (percent) => {
-    if (percent === undefined || percent === null) return "--";
-    return percent > 0 ? `+${percent.toFixed(2)}` : percent.toFixed(2);
-};
+// const formatVolume = (vol) => {
+//     if (vol === undefined || vol === null) return "--";
+//     if (vol >= 100000000) return (vol / 100000000).toFixed(2) + "亿";
+//     if (vol >= 10000) return (vol / 10000).toFixed(2) + "万";
+//     return vol.toString();
+// };
 
-const formatVolume = (vol) => {
-    if (vol === undefined || vol === null) return "--";
-    if (vol >= 100000000) return (vol / 100000000).toFixed(2) + "亿";
-    if (vol >= 10000) return (vol / 10000).toFixed(2) + "万";
-    return vol.toString();
-};
+// const formatAmount = (amt) => {
+//     if (amt === undefined || amt === null) return "--";
+//     if (amt >= 100000000) return (amt / 100000000).toFixed(2) + "亿";
+//     if (amt >= 10000) return (amt / 10000).toFixed(2) + "万";
+//     return amt.toString();
+// };
 
-const formatAmount = (amt) => {
-    if (amt === undefined || amt === null) return "--";
-    if (amt >= 100000000) return (amt / 100000000).toFixed(2) + "亿";
-    if (amt >= 10000) return (amt / 10000).toFixed(2) + "万";
-    return amt.toString();
-};
-
-const getPriceClass = (value) => {
-    if (value === undefined || value === null || value === 0) return "";
-    return value > 0 ? "up" : "down";
-};
+// const getPriceClass = (value) => {
+//     if (value === undefined || value === null || value === 0) return "";
+//     return value > 0 ? "up" : "down";
+// };
 
 // 切换副图
 const toggleSubChart = () => {
@@ -155,16 +112,9 @@ const handleMouseLeave = () => {
     renderer?.hideCrosshair();
 };
 
-// 鼠标滚轮
-const handleWheel = (e) => {
-    e.preventDefault();
-    // 缩放功能（可选）
-};
-
 // 初始化Canvas
 const initCanvas = () => {
     if (!canvasRef.value) return;
-
     const rect = canvasRef.value.parentElement.getBoundingClientRect();
     width.value = rect.width;
 
@@ -187,8 +137,8 @@ const handleResize = () => {
 watch(
     () => props.data,
     () => {
-        console.log("数据更新，重新渲染分时图");
-        console.log(props.data);
+        // console.log("数据更新，重新渲染分时图");
+        // console.log(props.data);
         renderer.setData(props.data?.[0]);
     }
 );
@@ -214,7 +164,7 @@ onUnmounted(() => {
     position: relative;
 }
 
-.minute-info-bar {
+/* .minute-info-bar {
     display: flex;
     gap: 20px;
     padding: 8px 12px;
@@ -241,7 +191,7 @@ onUnmounted(() => {
 
 .minute-info-bar .value.down {
     color: #26a69a;
-}
+} */
 
 canvas {
     flex: 1;

@@ -18,787 +18,568 @@ class KlineRenderer {
                 background: '#1a1a1a',
                 highLight: '#ff6b6b',
                 lowLight: '#4ecdc4',
-                crosshair: '#ffffff',
-                ...config.colors
+                crosshair: '#ffffff'
             },
-            showEMA: [10, 20, 30],
-            marketType: 'main',
+            showEMA: [10, 20, 30, 60, 99],
             ...config
         };
 
+        // 业务数据
         this.data = [];
-        this.viewRange = { start: 0, end: 100 };
-        this.candleWidth = 8;
-        this.candleSpacing = 2;
+        this.viewRange = { start: 0, end: 0 };
+
+        // 布局尺寸
+        this.mainChartHeight = 0;
+        this.volumeChartHeight = 0;
+        this.chartTop = 20;
+        this.chartLeft = 50;
+        this.chartRight = 20;
+        this.chartWidth = 0;
+
+        // K线核心布局参数（复刻Flutter）
+        this.visibleCount = 0;
+        this.klineStep = 0;
+        this.klineWidth = 0;
+
+        // 价格、成交量计算变量
+        this.maxRangePrice = 0;
+        this.minRangePrice = 0;
+        this.priceRatio = 1;
+        this.maxVolume = 0;
+
+        // 鼠标状态
+        this.isDragging = false;
+        this.dragStartX = 0;
+        this.dragStartViewStart = 0;
         this.selectedIndex = -1;
 
+        // 离屏画布
+        this.offscreenCanvas = null;
+        this.offscreenCtx = null;
+        this.needOffscreenRedraw = true;
+
+        // 子渲染器
         this.emaRenderer = new EMARenderer(this.ctx, this.config);
-        this.volumeRenderer = new VolumeRenderer(this.ctx, this.config);
         this.infoPanel = new KlineInfoPanel(this.ctx, {
             colors: this.config.colors,
             width: 220
         });
 
+        this.initOffscreenCanvas();
         this.setupCanvas();
         this.bindEvents();
     }
 
-    bindEvents() {
+    initOffscreenCanvas () {
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+    }
+
+    syncOffscreenSize () {
+        this.offscreenCanvas.width = this.canvas.width;
+        this.offscreenCanvas.height = this.canvas.height;
+    }
+
+    setupCanvas () {
+        const rect = this.canvas.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+
+        this.mainChartHeight = rect.height * 0.7;
+        this.volumeChartHeight = rect.height * 0.2;
+        this.chartWidth = rect.width - this.chartLeft - this.chartRight;
+    }
+
+    bindEvents () {
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
         this.handleMouseLeave = this.handleMouseLeave.bind(this);
+        this.handleMouseWheel = this.handleMouseWheel.bind(this);
 
         window.addEventListener('keydown', this.handleKeyDown);
         this.canvas.addEventListener('mousemove', this.handleMouseMove);
         this.canvas.addEventListener('mousedown', this.handleMouseDown);
         window.addEventListener('mouseup', this.handleMouseUp);
         this.canvas.addEventListener('mouseleave', this.handleMouseLeave);
+        this.canvas.addEventListener('wheel', this.handleMouseWheel, { passive: false });
 
-        let resizeTimeout;
+        let resizeTimer;
         window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => this.resize(), 100);
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                this.resize();
+            }, 100);
         });
     }
 
-    handleMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        // 检查是否在拖动面板
-        if (this.infoPanel.isDragging) {
-            this.infoPanel.onDrag(mouseX, mouseY, this.canvas.width, this.canvas.height);
-            this.render();
-            return;
-        }
-
-        // 检查是否点击在信息面板上（用于拖动检测）
-        if (this.infoPanel.isPointInside(mouseX, mouseY)) {
-            this.canvas.style.cursor = 'move';
-            return;
-        } else {
-            this.canvas.style.cursor = 'default';
-        }
-
-        // 检查是否在图表区域内
-        if (mouseX >= this.chartLeft && mouseX <= this.chartLeft + this.chartWidth &&
-            mouseY >= this.chartTop && mouseY <= this.chartTop + this.mainChartHeight) {
-            const selectedIndex = this.getIndexFromX(mouseX);
-            if (selectedIndex !== this.selectedIndex) {
-                this.selectedIndex = selectedIndex;
-                this.updateInfoPanelData();
-                this.render();
-            }
-        } else if (this.selectedIndex !== -1) {
-            this.selectedIndex = -1;
-            this.infoPanel.reset();
-            this.render();
-        }
-    }
-
-    handleMouseDown(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        // 检查是否点击在信息面板上
-        if (this.infoPanel.isPointInside(mouseX, mouseY)) {
-            this.infoPanel.startDrag(mouseX, mouseY);
-            e.preventDefault();
-        }
-    }
-
-    handleMouseUp() {
-        this.infoPanel.endDrag();
-    }
-
-    handleMouseLeave() {
-        this.selectedIndex = -1;
-        this.infoPanel.reset();
-        this.render();
-    }
-
-    updateInfoPanelData() {
-        if (this.selectedIndex !== -1 && this.data[this.selectedIndex]) {
-            const selectedCandle = this.data[this.selectedIndex];
-            const prevCandle = this.selectedIndex > 0 ? this.data[this.selectedIndex - 1] : null;
-
-            // 绑定涨跌停判断函数
-            const getLimitPercentFn = (candle, prevClose) => {
-                return this.getLimitPercent(candle, prevClose);
-            };
-
-            this.infoPanel.setData(
-                this.selectedIndex,
-                selectedCandle,
-                prevCandle,
-                getLimitPercentFn
-            );
-        } else {
-            this.infoPanel.reset();
-        }
-    }
-
-    moveSelection(direction) {
-        if (this.data.length === 0) return;
-
-        let newIndex = this.selectedIndex;
-        if (direction === 'left') {
-            newIndex = this.selectedIndex > 0 ? this.selectedIndex - 1 : 0;
-        } else {
-            newIndex = this.selectedIndex < this.data.length - 1 ? this.selectedIndex + 1 : this.data.length - 1;
-        }
-
-        if (newIndex !== this.selectedIndex) {
-            this.selectedIndex = newIndex;
-            this.updateInfoPanelData();
-
-            // 自动滚动视图
-            if (this.selectedIndex < this.viewRange.start) {
-                this.viewRange.start = Math.max(0, this.selectedIndex);
-                this.viewRange.end = Math.min(this.data.length, this.viewRange.start + (this.viewRange.end - this.viewRange.start));
-                this.updateViewRange();
-            } else if (this.selectedIndex >= this.viewRange.end) {
-                this.viewRange.end = Math.min(this.data.length, this.selectedIndex + 1);
-                this.viewRange.start = Math.max(0, this.viewRange.end - (this.viewRange.end - this.viewRange.start));
-                this.updateViewRange();
-            }
-
-            this.render();
-        }
-    }
-
-    setData(data) {
-        this.data = data;
-        this.updateViewRange();
-        this.calculateIndicators();
-        this.selectedIndex = this.data.length > 0 ? this.data.length - 1 : -1;
-        this.updateInfoPanelData();
-        this.render();
-    }
-
-    setupCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
-        this.mainChartHeight = rect.height * 0.7;
-        this.volumeChartHeight = rect.height * 0.2;
-        this.chartTop = 20;
-        this.chartLeft = 50;
-        this.chartRight = 20;
-        this.chartWidth = rect.width - this.chartLeft - this.chartRight;
-    }
-
-    handleKeyDown(e) {
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            this.zoom('in');
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            this.zoom('out');
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            this.moveSelection('left');
-        } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            this.moveSelection('right');
-        }
-    }
-
-
-    getIndexFromX(x) {
+    // 计算klineStep、klineWidth 核心布局
+    preCalculate () {
         const { start, end } = this.viewRange;
-        const visibleCount = end - start;
-        const candleTotalWidth = this.candleWidth + this.candleSpacing;
-        const maxCandles = Math.floor(this.chartWidth / candleTotalWidth);
+        if (start >= end) return;
 
-        let actualCandleWidth = this.candleWidth;
-        if (visibleCount > maxCandles) {
-            actualCandleWidth = (this.chartWidth / visibleCount) - this.candleSpacing;
+        this.visibleCount = end - start;
+        const count = Math.max(1, this.visibleCount);
+
+        // 步长 = 图表宽度 / 可见根数
+        this.klineStep = this.chartWidth / count;
+        // 先算 80% 宽度, 留20%空隙
+        let rawWidth = this.klineStep * 0.8;
+        // 转整数（四舍五入）
+        let width = Math.round(rawWidth);
+        // 强制变成奇数
+        if (width % 2 === 0) {
+            width = width > 0 ? width - 1 : 1;
         }
+        // 最小宽度限制（防止太细）
+        if (width < 1) width = 1;
+        this.klineWidth = width;
 
-        const relativeX = x - this.chartLeft;
-        const index = Math.floor(relativeX / (actualCandleWidth + this.candleSpacing));
-
-        if (index >= 0 && index < visibleCount) {
-            return start + index;
-        }
-
-        return -1;
-    }
-
-    getXFromIndex(index) {
-        const { start } = this.viewRange;
-        const visibleCount = this.viewRange.end - this.viewRange.start;
-        const candleTotalWidth = this.candleWidth + this.candleSpacing;
-        const maxCandles = Math.floor(this.chartWidth / candleTotalWidth);
-
-        let actualCandleWidth = this.candleWidth;
-        if (visibleCount > maxCandles) {
-            actualCandleWidth = (this.chartWidth / visibleCount) - this.candleSpacing;
-        }
-
-        const relativeIndex = index - start;
-        return this.chartLeft + relativeIndex * (actualCandleWidth + this.candleSpacing) + actualCandleWidth / 2;
-    }
-
-    updateViewRange() {
-        if (!this.data.length) return;
-
-        const totalCandles = this.data.length;
-        const visibleCandles = Math.floor(this.chartWidth / (this.candleWidth + this.candleSpacing));
-
-        let end = this.viewRange.start + visibleCandles;
-        if (end > totalCandles) {
-            end = totalCandles;
-            this.viewRange.start = Math.max(0, end - visibleCandles);
-        }
-
-        this.viewRange.end = end;
-    }
-
-    calculateIndicators() {
-        const emaPeriods = [...new Set([...this.config.showEMA, 10, 20, 30, 60, 99, 255, 905])];
-        emaPeriods.forEach(period => {
-            this.emaRenderer.calculateEMA(this.data, period);
-        });
-    }
-
-    isSTStock(stockCode) {
-        return stockCode && (stockCode.includes('ST') || stockCode.includes('*ST'));
-    }
-
-    getLimitPercent(candle, prevClose) {
-        if (!prevClose || prevClose === 0) return null;
-
-        const changePercent = ((candle.close - prevClose) / prevClose) * 100;
-        const isUp = candle.close >= prevClose;
-
-        let limitPercent = 10;
-
-        if (this.config.marketType === 'chiNext') {
-            limitPercent = 20;
-        } else if (this.config.marketType === 'star') {
-            limitPercent = 20;
-        } else if (this.isSTStock(candle.code)) {
-            limitPercent = 5;
-        }
-
-        if (isUp && Math.abs(changePercent - limitPercent) < 0.01) {
-            return { isLimit: true, type: 'up', percent: limitPercent };
-        } else if (!isUp && Math.abs(changePercent + limitPercent) < 0.01) {
-            return { isLimit: true, type: 'down', percent: limitPercent };
-        }
-
-        return { isLimit: false };
-    }
-
-    getPriceRange() {
-        const { start, end } = this.viewRange;
-        let maxPrice = -Infinity;
-        let minPrice = Infinity;
+        // 计算价格区间
+        let maxP = -Infinity, minP = Infinity;
+        const hasEMA = this.config.showEMA?.length;
 
         for (let i = start; i < end; i++) {
-            const candle = this.data[i];
-            if (candle.high > maxPrice) maxPrice = candle.high;
-            if (candle.low < minPrice) minPrice = candle.low;
+            const item = this.data[i];
+            maxP = Math.max(maxP, item.high);
+            minP = Math.min(minP, item.low);
         }
 
-        if (this.config.showEMA && this.config.showEMA.length > 0) {
-            for (let period of this.config.showEMA) {
-                const emaData = this.emaRenderer.getEMAData(period);
-                if (emaData && emaData.length) {
-                    for (let i = start; i < end && i < emaData.length; i++) {
-                        const emaValue = emaData[i];
-                        if (emaValue !== null && emaValue !== undefined) {
-                            if (emaValue > maxPrice) maxPrice = emaValue;
-                            if (emaValue < minPrice) minPrice = emaValue;
-                        }
-                    }
+        if (hasEMA) {
+            for (const period of this.config.showEMA) {
+                const emaArr = this.emaRenderer.getEMAData(period);
+                if (!emaArr) continue;
+                for (let i = start; i < end && i < emaArr.length; i++) {
+                    const val = emaArr[i];
+                    if (val == null) continue;
+                    maxP = Math.max(maxP, val);
+                    minP = Math.min(minP, val);
                 }
             }
         }
 
-        const padding = (maxPrice - minPrice) * 0.05;
-        return {
-            max: maxPrice + padding,
-            min: minPrice - padding
-        };
+        const pad = (maxP - minP) * 0.05;
+        this.maxRangePrice = maxP + pad;
+        this.minRangePrice = minP - pad;
+        this.priceRatio = this.maxRangePrice - this.minRangePrice;
+
+        // 最大成交量
+        this.maxVolume = 0;
+        for (let i = start; i < end; i++) {
+            this.maxVolume = Math.max(this.maxVolume, this.data[i].volume);
+        }
     }
 
-    getActualHighLow() {
-        const { start, end } = this.viewRange;
-        let high = -Infinity;
-        let low = Infinity;
-        let highIndex = start;
-        let lowIndex = start;
+    priceToY (price) {
+        if (this.priceRatio === 0) return this.chartTop + this.mainChartHeight / 2;
+        return this.chartTop + (this.maxRangePrice - price) / this.priceRatio * this.mainChartHeight;
+    }
 
-        for (let i = start; i < end; i++) {
-            const candle = this.data[i];
-            if (candle.high > high) {
-                high = candle.high;
-                highIndex = i;
-            }
-            if (candle.low < low) {
-                low = candle.low;
-                lowIndex = i;
-            }
+    // ST 判断
+    isSTStock (code) {
+        return code?.includes('ST') || code?.includes('*ST');
+    }
+
+    // 正确涨跌停判断：按股票代码前缀，不依赖全局marketType
+    getLimitPercent (candle, prevClose) {
+        if (!prevClose || !candle.code) return { isLimit: false };
+
+        const change = ((candle.close - prevClose) / prevClose) * 100;
+        const isUp = change > 0;
+        let limit = 10;
+
+        // ST优先级最高
+        if (this.isSTStock(candle.code)) {
+            limit = 5;
+        } else if (candle.code.startsWith('300') || candle.code.startsWith('688')) {
+            // 创业板、科创板 20%
+            limit = 20;
+        } else if (candle.code.startsWith('43') || candle.code.startsWith('83') || candle.code.startsWith('87')) {
+            // 北交所 30%
+            limit = 30;
         }
 
-        return { high, low, highIndex, lowIndex };
+        // 浮点数容错
+        const match = Math.abs(Math.abs(change) - limit) < 0.08;
+        return match ? { isLimit: true, type: isUp ? 'up' : 'down' } : { isLimit: false };
     }
 
-    getMaxVolume() {
-        const { start, end } = this.viewRange;
-        let maxVolume = 0;
+    // 离屏绘制底层：网格、K线、成交量、EMA、坐标轴、高低点
+    drawOffscreenBase () {
+        const ctx = this.offscreenCtx;
+        ctx.fillStyle = this.config.colors.background;
+        ctx.fillRect(0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height);
 
-        for (let i = start; i < end; i++) {
-            const volume = this.data[i].volume;
-            if (volume > maxVolume) maxVolume = volume;
-        }
-
-        return maxVolume;
+        this.drawGrid(ctx);
+        this.drawCandles(ctx);
+        this.drawVolume(ctx);
+        this.drawEMALines();
+        this.drawAxisText(ctx);
+        this.drawHighLowMark(ctx);
     }
 
-    drawGrid() {
-        const { ctx, canvas, mainChartHeight, chartTop, config, chartLeft, chartRight, chartWidth } = this;
-
+    drawGrid (ctx) {
         ctx.save();
-        ctx.strokeStyle = config.colors.grid;
+        ctx.strokeStyle = this.config.colors.grid;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
 
-        const horizontalLines = 5;
-        for (let i = 0; i <= horizontalLines; i++) {
-            const y = chartTop + (mainChartHeight / horizontalLines) * i;
-            ctx.moveTo(chartLeft, y);
-            ctx.lineTo(canvas.width - chartRight, y);
+        // 横线
+        for (let i = 0; i <= 5; i++) {
+            const y = this.chartTop + this.mainChartHeight * i / 5;
+            ctx.moveTo(this.chartLeft, y);
+            ctx.lineTo(this.chartLeft + this.chartWidth, y);
         }
-
+        // 竖线
         for (let i = 0; i <= 10; i++) {
-            const x = chartLeft + (chartWidth / 10) * i;
-            ctx.moveTo(x, chartTop);
-            ctx.lineTo(x, chartTop + mainChartHeight);
+            const x = this.chartLeft + this.chartWidth * i / 10;
+            ctx.moveTo(x, this.chartTop);
+            ctx.lineTo(x, this.chartTop + this.mainChartHeight);
         }
-
         ctx.stroke();
         ctx.restore();
     }
 
-    drawCandlesticks() {
+    // 完全复刻Flutter K线绘制逻辑
+    drawCandles (ctx) {
         const { start, end } = this.viewRange;
         if (start >= end) return;
 
-        const { max: maxPrice, min: minPrice } = this.getPriceRange();
-        const priceRange = maxPrice - minPrice;
-        if (priceRange === 0) return;
+        let nKline = 0;
+        let prevClose = start > 0 ? this.data[start - 1].close : this.data[start].open;
 
-        const { chartLeft, chartWidth, mainChartHeight, chartTop, candleSpacing, ctx, config } = this;
-        const visibleCount = end - start;
-        const candleTotalWidth = this.candleWidth + candleSpacing;
-        const maxCandles = Math.floor(chartWidth / candleTotalWidth);
+        const penUp = new Paint();
+        penUp.color = this.config.colors.up;
+        penUp.strokeWidth = 1;
+        penUp.style = 'stroke';
 
-        let candleWidth = this.candleWidth;
-        if (visibleCount > maxCandles) {
-            candleWidth = (chartWidth / visibleCount) - candleSpacing;
-        }
+        const penDown = new Paint();
+        penDown.color = this.config.colors.down;
+        penDown.strokeWidth = 1;
+        penDown.style = 'stroke';
 
-        ctx.save();
+        const fillUp = new Paint();
+        fillUp.color = this.config.colors.up;
+        fillUp.style = 'fill';
 
-        for (let i = 0; i < visibleCount; i++) {
-            const candle = this.data[start + i];
-            const x = chartLeft + i * (candleWidth + candleSpacing);
+        const fillDown = new Paint();
+        fillDown.color = this.config.colors.down;
+        fillDown.style = 'fill';
 
-            const yHigh = this.priceToY(candle.high, maxPrice, minPrice, mainChartHeight, chartTop);
-            const yLow = this.priceToY(candle.low, maxPrice, minPrice, mainChartHeight, chartTop);
-            const yOpen = this.priceToY(candle.open, maxPrice, minPrice, mainChartHeight, chartTop);
-            const yClose = this.priceToY(candle.close, maxPrice, minPrice, mainChartHeight, chartTop);
+        for (let i = start; i < end; i++) {
+            const item = this.data[i];
+            // 复刻Flutter: x = index * step
+            const x = this.chartLeft + nKline * this.klineStep;
+            // 中心线: x + klineWidth/2
+            const centerX = x + this.klineWidth / 2;
 
-            const isUp = candle.close >= candle.open;
+            const highY = this.priceToY(item.high);
+            const lowY = this.priceToY(item.low);
+            const openY = this.priceToY(item.open);
+            const closeY = this.priceToY(item.close);
 
-            const prevClose = i > 0 ? this.data[start + i - 1].close : candle.open;
-            const limitInfo = this.getLimitPercent(candle, prevClose);
+            const isUp = item.close > item.open;
+            const isDown = item.close < item.open;
+            const limitInfo = this.getLimitPercent(item, prevClose);
 
-            let color;
-            let isLimit = false;
+            // 绘制上下影线（居中中心线）
+            ctx.beginPath();
+            ctx.moveTo(centerX, highY);
+            ctx.lineTo(centerX, lowY);
+            ctx.strokeStyle = isUp ? this.config.colors.up : this.config.colors.down;
+            ctx.lineWidth = 1;
+            ctx.stroke();
 
-            if (limitInfo.isLimit) {
-                isLimit = true;
-                color = limitInfo.type === 'up' ? config.colors.limitUp : config.colors.limitDown;
+            // 绘制实体
+            if (Math.abs(item.close - item.open) > 0.001) {
+                const rectTop = isUp ? closeY : openY;
+                const rectBot = isUp ? openY : closeY;
+                ctx.fillStyle = isUp ? this.config.colors.up : this.config.colors.down;
+                ctx.fillRect(x, rectTop, this.klineWidth, rectBot - rectTop);
             } else {
-                color = isUp ? config.colors.up : config.colors.down;
+                // 一字板
+                ctx.beginPath();
+                ctx.moveTo(x, closeY);
+                ctx.lineTo(x + this.klineWidth, closeY);
+                ctx.stroke();
             }
 
-            ctx.fillStyle = color;
-            ctx.strokeStyle = color;
-
-            ctx.beginPath();
-            ctx.moveTo(x + candleWidth / 2, yHigh);
-            ctx.lineTo(x + candleWidth / 2, yLow);
-            ctx.stroke();
-
-            const bodyTop = Math.min(yOpen, yClose);
-            const bodyHeight = Math.abs(yClose - yOpen);
-
-            if (bodyHeight > 0) {
-                ctx.fillRect(x, bodyTop, candleWidth, Math.max(1, bodyHeight));
-            }
-
-            if (isLimit) {
-                this.drawLimitLine(x, candleWidth, yHigh, yLow, limitInfo.type);
-            }
+            nKline++;
         }
-
-        ctx.restore();
     }
 
-    drawLimitLine(x, candleWidth, yHigh, yLow, type) {
-        const { ctx } = this;
-        const centerX = x + candleWidth / 2;
-        const lineLength = candleWidth * 0.8;
-        const lineWidth = 2;
+    drawVolume (ctx) {
+        if (this.maxVolume === 0) return;
+        const { start, end } = this.viewRange;
+        let nKline = 0;
 
-        ctx.save();
-        ctx.strokeStyle = '#ffffff';
-        ctx.fillStyle = '#ffffff';
-        ctx.lineWidth = lineWidth;
+        const volTop = this.chartTop + this.mainChartHeight + 10;
+        const volHeight = this.volumeChartHeight;
 
-        if (type === 'up') {
-            const y = yHigh - 2;
-            ctx.beginPath();
-            ctx.moveTo(centerX - lineLength / 2, y);
-            ctx.lineTo(centerX + lineLength / 2, y);
-            ctx.stroke();
-        } else {
-            const y = yLow + 2;
-            ctx.beginPath();
-            ctx.moveTo(centerX - lineLength / 2, y);
-            ctx.lineTo(centerX + lineLength / 2, y);
-            ctx.stroke();
+        for (let i = start; i < end; i++) {
+            const item = this.data[i];
+            const x = this.chartLeft + nKline * this.klineStep;
+            const h = (item.volume / this.maxVolume) * volHeight;
+            const y = volTop + volHeight - h;
+
+            const isUp = item.close >= item.open;
+            ctx.fillStyle = isUp ? this.config.colors.up : this.config.colors.down;
+            ctx.fillRect(x, y, this.klineWidth, Math.max(1, h));
+
+            nKline++;
         }
-
-        ctx.restore();
     }
 
-    drawCrosshair() {
-        if (this.selectedIndex === -1) return;
-
-        const { max: maxPrice, min: minPrice } = this.getPriceRange();
-        const { mainChartHeight, chartTop, chartLeft, chartWidth, ctx, config } = this;
-
-        const x = this.getXFromIndex(this.selectedIndex);
-        const selectedCandle = this.data[this.selectedIndex];
-        const y = this.priceToY(selectedCandle.close, maxPrice, minPrice, mainChartHeight, chartTop);
-
-        ctx.save();
-        ctx.strokeStyle = config.colors.crosshair;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-
-        // 垂直十字线
-        ctx.beginPath();
-        ctx.moveTo(x, chartTop);
-        ctx.lineTo(x, chartTop + mainChartHeight);
-        ctx.stroke();
-
-        // 水平十字线
-        ctx.beginPath();
-        ctx.moveTo(chartLeft, y);
-        ctx.lineTo(chartLeft + chartWidth, y);
-        ctx.stroke();
-
-        // 绘制坐标值
-        ctx.setLineDash([]);
-        ctx.font = '11px Arial';
-        ctx.fillStyle = config.colors.crosshair;
-        ctx.fillText(selectedCandle.close.toFixed(2), chartLeft + chartWidth + 5, y + 4);
-
-        // 绘制选中K线的高亮边框
-        const visibleCount = this.viewRange.end - this.viewRange.start;
-        const candleTotalWidth = this.candleWidth + this.candleSpacing;
-        const maxCandles = Math.floor(this.chartWidth / candleTotalWidth);
-
-        let actualCandleWidth = this.candleWidth;
-        if (visibleCount > maxCandles) {
-            actualCandleWidth = (this.chartWidth / visibleCount) - this.candleSpacing;
-        }
-
-        const candleX = this.chartLeft + (this.selectedIndex - this.viewRange.start) * (actualCandleWidth + this.candleSpacing);
-        ctx.strokeStyle = config.colors.crosshair;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(candleX, chartTop, actualCandleWidth, mainChartHeight);
-
-        ctx.restore();
-    }
-
-    formatVolume(volume) {
-        if (volume >= 100000000) {
-            return (volume / 100000000).toFixed(2) + '亿';
-        } else if (volume >= 10000) {
-            return (volume / 10000).toFixed(2) + '万';
-        }
-        return volume.toString();
-    }
-
-    drawHighLowIndicators() {
-        const { high, low, highIndex, lowIndex } = this.getActualHighLow();
-        const { max: maxPrice, min: minPrice } = this.getPriceRange();
-        const { mainChartHeight, chartTop, chartLeft, candleWidth, candleSpacing, ctx, config } = this;
-
-        const visibleCount = this.viewRange.end - this.viewRange.start;
-        const candleTotalWidth = this.candleWidth + candleSpacing;
-        const maxCandles = Math.floor(this.chartWidth / candleTotalWidth);
-
-        let actualCandleWidth = this.candleWidth;
-        if (visibleCount > maxCandles) {
-            actualCandleWidth = (this.chartWidth / visibleCount) - candleSpacing;
-        }
-
-        const highX = chartLeft + (highIndex - this.viewRange.start) * (actualCandleWidth + candleSpacing) + actualCandleWidth / 2;
-        const highY = this.priceToY(high, maxPrice, minPrice, mainChartHeight, chartTop);
-
-        const lowX = chartLeft + (lowIndex - this.viewRange.start) * (actualCandleWidth + candleSpacing) + actualCandleWidth / 2;
-        const lowY = this.priceToY(low, maxPrice, minPrice, mainChartHeight, chartTop);
-
-        ctx.save();
-        this.drawPriceIndicator(highX, highY, high, 'high', config.colors.highLight);
-        this.drawPriceIndicator(lowX, lowY, low, 'low', config.colors.lowLight);
-        ctx.restore();
-    }
-
-    drawPriceIndicator(x, y, price, type, color) {
-        const { ctx, canvas, chartLeft, chartRight, chartTop, mainChartHeight } = this;
-        const arrowSize = 8;
-        const textOffset = 5;
-        const priceText = price.toFixed(2);
-
-        ctx.font = '11px Arial';
-        const textWidth = ctx.measureText(priceText).width;
-        const textHeight = 14;
-
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.lineWidth = 1.5;
-
-        let arrowX = x;
-        let arrowY = y;
-        let textX, textY;
-        let isAbove = true;
-
-        if (y - arrowSize < chartTop) {
-            isAbove = false;
-            arrowY = y + arrowSize;
-        } else if (y + arrowSize > chartTop + mainChartHeight) {
-            isAbove = true;
-            arrowY = y - arrowSize;
-        } else {
-            isAbove = type === 'high';
-            arrowY = isAbove ? y - arrowSize : y + arrowSize;
-        }
-
-        if (x + textWidth / 2 + textOffset > canvas.width - chartRight) {
-            arrowX = Math.min(x, canvas.width - chartRight - textWidth - textOffset);
-        } else if (x - textWidth / 2 - textOffset < chartLeft) {
-            arrowX = Math.max(x, chartLeft + textOffset);
-        } else {
-            arrowX = x;
-        }
-
-        ctx.beginPath();
-        ctx.setLineDash([4, 4]);
-        ctx.moveTo(x, y);
-        ctx.lineTo(arrowX, arrowY);
-        ctx.stroke();
-
-        ctx.setLineDash([]);
-
-        ctx.beginPath();
-        if (isAbove) {
-            ctx.moveTo(arrowX, arrowY);
-            ctx.lineTo(arrowX - arrowSize / 2, arrowY + arrowSize);
-            ctx.lineTo(arrowX + arrowSize / 2, arrowY + arrowSize);
-        } else {
-            ctx.moveTo(arrowX, arrowY);
-            ctx.lineTo(arrowX - arrowSize / 2, arrowY - arrowSize);
-            ctx.lineTo(arrowX + arrowSize / 2, arrowY - arrowSize);
-        }
-        ctx.fill();
-
-        if (isAbove) {
-            textX = arrowX - textWidth / 2;
-            textY = arrowY - textOffset;
-        } else {
-            textX = arrowX - textWidth / 2;
-            textY = arrowY + textOffset + textHeight;
-        }
-
-        textX = Math.max(chartLeft, Math.min(textX, canvas.width - chartRight - textWidth));
-
-        ctx.fillStyle = this.config.colors.background;
-        ctx.fillRect(textX - 2, textY - textHeight, textWidth + 4, textHeight + 2);
-
-        ctx.fillStyle = color;
-        ctx.fillText(priceText, textX, textY);
-
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-    drawEMALines() {
-        if (!this.config.showEMA || this.config.showEMA.length === 0) return;
-
-        const { max: maxPrice, min: minPrice } = this.getPriceRange();
-        const { mainChartHeight, chartTop } = this;
-
+    drawEMALines () {
+        if (!this.config.showEMA?.length) return;
         this.emaRenderer.renderWithRange(
             this.data,
             this.viewRange,
-            maxPrice,
-            minPrice,
-            mainChartHeight,
-            chartTop,
-            this.config.showEMA
+            this.maxRangePrice,
+            this.minRangePrice,
+            this.mainChartHeight,
+            this.chartTop,
+            this.config.showEMA,
+            this.offscreenCtx
         );
     }
 
-    drawVolume() {
+    drawAxisText (ctx) {
+        if (this.priceRatio === 0) return;
+        ctx.save();
+        ctx.fillStyle = this.config.colors.text;
+        ctx.font = '11px Arial';
+
+        for (let i = 0; i <= 5; i++) {
+            const p = this.minRangePrice + this.priceRatio * i / 5;
+            const y = this.priceToY(p);
+            ctx.fillText(p.toFixed(2), 5, y + 4);
+        }
+        ctx.restore();
+    }
+
+    drawHighLowMark (ctx) {
         const { start, end } = this.viewRange;
-        if (start >= end) return;
+        let maxP = -Infinity, minP = Infinity;
+        let maxIdx = start, minIdx = start;
 
-        const maxVolume = this.getMaxVolume();
-        if (maxVolume === 0) return;
-
-        const { chartLeft, candleWidth, candleSpacing, config, ctx } = this;
-        const volumeChartBottom = this.chartTop + this.mainChartHeight + 10;
-        const volumeChartHeight = this.volumeChartHeight;
-        const visibleCount = end - start;
-
-        ctx.save();
-
-        for (let i = 0; i < visibleCount; i++) {
-            const candle = this.data[start + i];
-            const x = chartLeft + i * (candleWidth + candleSpacing);
-            const volumeHeight = (candle.volume / maxVolume) * volumeChartHeight;
-            const y = volumeChartBottom + volumeChartHeight - volumeHeight;
-
-            const isUp = candle.close >= candle.open;
-
-            const prevClose = i > 0 ? this.data[start + i - 1].close : candle.open;
-            const limitInfo = this.getLimitPercent(candle, prevClose);
-
-            if (limitInfo.isLimit) {
-                ctx.fillStyle = limitInfo.type === 'up' ? config.colors.limitUp : config.colors.limitDown;
-            } else {
-                ctx.fillStyle = isUp ? config.colors.up : config.colors.down;
-            }
-
-            ctx.fillRect(x, y, candleWidth, Math.max(1, volumeHeight));
+        for (let i = start; i < end; i++) {
+            const item = this.data[i];
+            if (item.high > maxP) { maxP = item.high; maxIdx = i; }
+            if (item.low < minP) { minP = item.low; minIdx = i; }
         }
 
-        ctx.restore();
+        const offsetMax = maxIdx - start;
+        const offsetMin = minIdx - start;
+
+        const xMax = this.chartLeft + offsetMax * this.klineStep + this.klineWidth / 2;
+        const xMin = this.chartLeft + offsetMin * this.klineStep + this.klineWidth / 2;
+
+        const yMax = this.priceToY(maxP);
+        const yMin = this.priceToY(minP);
+
+        // 简易高低点标记
+        ctx.fillStyle = this.config.colors.highLight;
+        ctx.fillText(maxP.toFixed(2), xMax - 20, yMax - 4);
+        ctx.fillStyle = this.config.colors.lowLight;
+        ctx.fillText(minP.toFixed(2), xMin - 20, yMin + 12);
     }
 
-    drawAxes() {
-        const { ctx, config, chartTop, mainChartHeight } = this;
-        const { max: maxPrice, min: minPrice } = this.getPriceRange();
+    // 绘制十字线、选中叠加层
+    drawOverlay () {
+        if (this.selectedIndex === -1) return;
+        const idx = this.selectedIndex;
+        const offset = idx - this.viewRange.start;
+        const x = this.chartLeft + offset * this.klineStep + this.klineWidth / 2;
 
-        if (maxPrice === minPrice) return;
+        const item = this.data[idx];
+        const y = this.priceToY(item.close);
 
-        ctx.fillStyle = config.colors.text;
-        ctx.font = '12px Arial';
-        ctx.save();
+        this.ctx.save();
+        this.ctx.strokeStyle = this.config.colors.crosshair;
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([5, 5]);
 
-        for (let i = 0; i <= 4; i++) {
-            const price = minPrice + (maxPrice - minPrice) * (i / 4);
-            const y = this.priceToY(price, maxPrice, minPrice, mainChartHeight, chartTop);
-            ctx.fillText(price.toFixed(2), 5, y + 4);
-        }
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, this.chartTop);
+        this.ctx.lineTo(x, this.chartTop + this.mainChartHeight);
+        this.ctx.moveTo(this.chartLeft, y);
+        this.ctx.lineTo(this.chartLeft + this.chartWidth, y);
+        this.ctx.stroke();
 
-        ctx.font = '10px Arial';
-        let marketText = '';
-        switch (this.config.marketType) {
-            case 'chiNext':
-                marketText = '创业板';
-                break;
-            case 'star':
-                marketText = '科创板';
-                break;
-            default:
-                marketText = '主板';
-        }
-        ctx.fillText(`${marketText} | 涨停板: ${this.getLimitPercentDisplay()}%`, 10, 15);
-
-        ctx.restore();
+        this.ctx.setLineDash([]);
+        this.ctx.fillStyle = this.config.colors.crosshair;
+        this.ctx.font = '11px Arial';
+        this.ctx.fillText(item.close.toFixed(2), this.chartLeft + this.chartWidth + 4, y + 4);
+        this.ctx.restore();
     }
 
-    getLimitPercentDisplay() {
-        if (this.config.marketType === 'chiNext' || this.config.marketType === 'star') {
-            return 20;
-        }
-        return 10;
-    }
-
-    priceToY(price, maxPrice, minPrice, mainChartHeight, chartTop) {
-        const ratio = (price - minPrice) / (maxPrice - minPrice);
-        return chartTop + mainChartHeight * (1 - ratio);
-    }
-
-    zoom(direction) {
-        const zoomFactor = direction === 'in' ? 0.8 : 1.2;
-        const oldWidth = this.viewRange.end - this.viewRange.start;
-        let newWidth = Math.floor(oldWidth * zoomFactor);
-
-        newWidth = Math.max(5, Math.min(newWidth, this.data.length));
-
-        const center = this.viewRange.start + oldWidth / 2;
-        let newStart = Math.floor(center - newWidth / 2);
-
-        newStart = Math.max(0, Math.min(newStart, this.data.length - newWidth));
-        const newEnd = Math.min(this.data.length, newStart + newWidth);
-
-        this.viewRange = { start: newStart, end: newEnd };
-        this.render();
-    }
-
-    render() {
+    fullRender () {
         if (!this.data.length) return;
+        this.preCalculate();
 
-        this.clearCanvas();
-        this.drawGrid();
-        this.drawCandlesticks();
-        this.drawHighLowIndicators();
-        this.drawEMALines();
-        this.drawVolume();
-        this.drawCrosshair();
-        this.infoPanel.render();  // 渲染信息面板
-        this.drawAxes();
+        if (this.needOffscreenRedraw) {
+            this.syncOffscreenSize();
+            this.drawOffscreenBase();
+            this.needOffscreenRedraw = false;
+        }
+
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+        this.drawOverlay();
     }
 
-    clearCanvas() {
-        this.ctx.fillStyle = this.config.colors.background;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    layerRender () {
+        if (!this.data.length) return;
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+        this.drawOverlay();
     }
 
-    resize() {
+    zoom (direction) {
+        const total = this.data.length;
+        if (total === 0) return;
+
+        const oldStart = this.viewRange.start;
+        const oldEnd = this.viewRange.end;
+        const oldSize = oldEnd - oldStart;
+
+        // 行业标准缩放系数
+        const scale = direction === 'in' ? 0.7 : 1.3;
+        let newSize = Math.max(1, Math.min(Math.round(oldSize * scale), total));
+
+        // ==========================================
+        // 【核心专业逻辑】
+        // 1. 有选中K线 → 取它在屏幕上的百分比位置
+        // 2. 无选中 → 取屏幕中心 50%
+        // ==========================================
+        let screenPercent = 0.5; // 默认居中
+
+        if (this.selectedIndex >= 0 && this.selectedIndex < total) {
+            // 计算选中K线在【当前视图】中的百分比位置（0~1）
+            // 这个百分比在缩放中【永久保持不变】
+            screenPercent = (this.selectedIndex - oldStart) / oldSize;
+        }
+
+        // ==========================================
+        // 根据固定百分比，计算新的视图范围
+        // ==========================================
+        const newStart = this.selectedIndex - newSize * screenPercent;
+        const newEnd = newStart + newSize;
+
+        this.viewRange.start = Math.round(newStart);
+        this.viewRange.end = Math.round(newEnd);
+
+        this.needOffscreenRedraw = true;
+        this.fullRender();
+    }
+
+    handleMouseWheel (e) {
+        e.preventDefault();
+        this.zoom(e.deltaY > 0 ? 'out' : 'in');
+    }
+
+    handleMouseDown (e) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.dragStartX = e.clientX - rect.left;
+        this.dragStartViewStart = this.viewRange.start;
+        this.isDragging = true;
+        this.canvas.style.cursor = 'grabbing';
+    }
+
+    handleMouseMove (e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        if (this.isDragging) {
+            const delta = mx - this.dragStartX;
+            const shiftCount = Math.round(-delta / this.klineStep);
+            this.viewRange.start = this.dragStartViewStart + shiftCount;
+
+            this.needOffscreenRedraw = true;
+            this.fullRender();
+            return;
+        }
+
+        // 拾取K线下标
+        if (mx >= this.chartLeft && mx <= this.chartLeft + this.chartWidth) {
+            const relX = mx - this.chartLeft;
+            const idxInView = Math.floor(relX / this.klineStep);
+            const realIdx = this.viewRange.start + idxInView;
+            if (realIdx >= this.viewRange.start && realIdx < this.viewRange.end) {
+                if (this.selectedIndex !== realIdx) {
+                    this.selectedIndex = realIdx;
+                    this.layerRender();
+                }
+                return;
+            }
+        }
+
+        if (this.selectedIndex !== -1) {
+            this.selectedIndex = -1;
+            this.layerRender();
+        }
+    }
+
+    handleMouseUp () {
+        this.isDragging = false;
+        this.canvas.style.cursor = 'default';
+    }
+
+    handleMouseLeave () {
+        this.isDragging = false;
+        this.selectedIndex = -1;
+        this.layerRender();
+    }
+
+    handleKeyDown (e) {
+        switch (e.key) {
+            case 'ArrowUp':
+                e.preventDefault();
+                this.zoom('in');
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                this.zoom('out');
+                break;
+        }
+    }
+
+    setData (list) {
+        this.data = list || [];
+        this.initViewRange();
+        this.needOffscreenRedraw = true;
+        this.emaRenderer.updateKlineData(this.data);
+        this.fullRender();
+    }
+
+    initViewRange () {
+        if (this.data.length > 120) {
+            this.viewRange.start = this.data.length - 120;
+            this.viewRange.end = this.data.length; // 默认显示最近120根
+        } else {
+            this.viewRange.start = 0;
+            this.viewRange.end = this.data.length; // 显示全部
+        }
+    }
+
+    render () {
+        this.fullRender();
+    }
+
+    resize () {
         this.setupCanvas();
-        this.updateViewRange();
-        this.render();
+        this.needOffscreenRedraw = true;
+        this.fullRender();
     }
 
-    destroy() {
+    destroy () {
         window.removeEventListener('keydown', this.handleKeyDown);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         window.removeEventListener('mouseup', this.handleMouseUp);
         this.canvas.removeEventListener('mouseleave', this.handleMouseLeave);
+        this.canvas.removeEventListener('wheel', this.handleMouseWheel);
     }
 }
 

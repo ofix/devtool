@@ -9,6 +9,7 @@ export default class MinuteKlineRenderer {
                 avgPriceLine: '#ffd93d',
                 volumeUp: '#ef5350',
                 volumeDown: '#26a69a',
+                volumeEqual: '#aaaaaa',
                 grid: '#333333',
                 text: '#ffffff',
                 background: '#1a1a1a',
@@ -198,10 +199,14 @@ export default class MinuteKlineRenderer {
         }
 
         // 垂直网格线
-        const verticalLines = 6;
+        const verticalLines = 4;
+        const step = (chartWidth - chartLeft - chartRight) / verticalLines;
         for (let i = 0; i <= verticalLines; i++) {
-            const x = chartLeft + ((chartWidth - chartLeft - chartRight) / verticalLines) * i;
+            let x = chartLeft + step * i;
             ctx.moveTo(x, chartTop);
+            if (i == verticalLines) {
+                x = x - 1;
+            }
             ctx.lineTo(x, chartTop + mainChartHeight);
         }
 
@@ -263,7 +268,7 @@ export default class MinuteKlineRenderer {
         ctx.beginPath();
         ctx.strokeStyle = config.colors.avgPriceLine;
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
+        // ctx.setLineDash([5, 5]);
 
         let isFirst = true;
         for (let i = 0; i < this.data.length; i++) {
@@ -294,22 +299,29 @@ export default class MinuteKlineRenderer {
     }
 
     drawVolume () {
-        const { ctx, chartLeft, chartRight, chartTop, mainChartHeight, config } = this;
-        const step = (this.chartWidth - chartLeft - chartRight) / this.totalMinutes;
-        const volumeChartTop = chartTop + mainChartHeight + 10;
-        const volumeChartHeight = this.subChartHeight - 10;
+        const { ctx, chartLeft, chartTop, mainChartHeight, config, data, totalMinutes, chartWidth, subChartHeight, maxVolume, preClosePrice } = this;
 
-        for (let i = 0; i < this.data.length; i++) {
-            const item = this.data[i];
+        const step = (chartWidth - chartLeft - (this.chartRight || 0)) / totalMinutes;
+        const volTop = chartTop + mainChartHeight + 10;
+        const volHeight = subChartHeight - 10;
+        const barWidth = Math.max(2, step * 0.6);
+
+        const { volumeUp, volumeDown, volumeEqual } = config.colors;
+
+        data.forEach((item, i) => {
+            const prev = data[i - 1];
+            const height = Math.max(1, (item.volume / maxVolume) * volHeight);
             const x = chartLeft + i * step;
-            const barWidth = Math.max(2, step * 0.6);
-            const barHeight = (item.volume / this.maxVolume) * volumeChartHeight;
-            const y = volumeChartTop + volumeChartHeight - barHeight;
+            const y = volTop + volHeight - height;
 
-            const isUp = item.price >= this.preClosePrice;
-            ctx.fillStyle = isUp ? config.colors.volumeUp : config.colors.volumeDown;
-            ctx.fillRect(x, y, barWidth, Math.max(1, barHeight));
-        }
+            // 精简颜色判断
+            const isUp = i === 0
+                ? item.price >= preClosePrice
+                : item.price >= prev.price;
+
+            ctx.fillStyle = isUp ? volumeUp : volumeDown;
+            ctx.fillRect(x, y, barWidth, height);
+        });
     }
 
     drawMACD () {
@@ -392,7 +404,7 @@ export default class MinuteKlineRenderer {
     }
 
     drawAxes () {
-        const { ctx, chartTop, mainChartHeight, chartLeft, chartWidth, config } = this;
+        const { ctx, chartTop, mainChartHeight, chartLeft, chartRight, chartWidth, config } = this;
         const priceRange = this.maxPrice - this.minPrice;
         const font = '10px Arial';
         ctx.font = font;
@@ -425,11 +437,20 @@ export default class MinuteKlineRenderer {
 
         // 时间标签：恢复默认文本色
         ctx.fillStyle = config.colors.text;
-        const timeLabels = ['9:30', '10:30', '11:30', '13:00', '14:00', '15:00'];
-        const step = (chartWidth - chartLeft - this.chartRight) / (timeLabels.length - 1);
+        const timeLabels = ['9:30', '10:30', '11:30/13:00', '14:00', '15:00'];
+        const step = (chartWidth - chartLeft - chartRight) / (timeLabels.length - 1);
+        let x = chartLeft;
         for (let i = 0; i < timeLabels.length; i++) {
-            const x = chartLeft + i * step;
-            ctx.fillText(timeLabels[i], x - 15, this.chartHeight - 10);
+            let targetX = x - 12;
+            if (i == 0) {
+                targetX = x + 6;
+            } else if (i == 2) {
+                targetX = x - 25;
+            } if (i == timeLabels.length - 1) {
+                targetX = x - 24;
+            }
+            ctx.fillText(timeLabels[i], targetX, this.mainChartHeight + 10);
+            x = x + step;
         }
 
         // 还原画布状态

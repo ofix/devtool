@@ -21,7 +21,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {Array} shares 股票数组
      * @returns {Promise<Array>} 格式化实时行情列表
      */
-    async getQuote(shares) {
+    async getQuote (shares) {
     }
 
     /**
@@ -30,7 +30,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {number} days 1=当日, 5=五日
      * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
      */
-    async getShareMinuteData(share, days = 1) {
+    async getShareMinuteData (share, days = 1) {
         let group = days == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
             const response = await this.httpGet(`https://finance.pae.baidu.com/vapi/v1/getquotation`,
@@ -59,7 +59,7 @@ class BaiduFinanceProvider extends DataProvider {
     /**
      * 百度财经分时数据解析成统一格式
      */
-    #parseShareMinuteData(data, days) {
+    #parseShareMinuteData (data, days) {
         try {
             const Result = data?.Result;
             const newMarketData = Result?.newMarketData;
@@ -93,7 +93,7 @@ class BaiduFinanceProvider extends DataProvider {
                     const item = {};
                     keys.forEach((k, i) => (item[k] = values[i]));
 
-                    if(iLine == 0){
+                    if (iLine == 0) {
                         preClose = item.price - item.range;
                         iLine++;
                     }
@@ -136,6 +136,8 @@ class BaiduFinanceProvider extends DataProvider {
                     preClose: parseFloat(preClose), // 昨日成交价
                     open, // 开盘价
                     date, // 日期
+                    price: list.length > 1 ? list[list.length - 1].price : 0,// 当前价
+                    changeRatio: list.length > 1 ? list[list.length - 1].changeRatio : 0, // 涨跌幅
                     totalVolume: Math.round(totalVolume), // 总成交量
                     totalAmount: Math.round(totalAmount), // 总成交额
                     data: list,
@@ -154,7 +156,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string} indexName 指数名称：上证指数
      * @returns 东方财富标准统一格式
      */
-    async getIndexMinuteData(indexName) {
+    async getIndexMinuteData (indexName) {
         const code = this.INDEX_MAP[indexName];
         if (!code) throw new Error(`不支持指数：${indexName}`);
 
@@ -211,7 +213,7 @@ class BaiduFinanceProvider extends DataProvider {
     /**
      * 解析昨收价
      */
-    getPreClose(list) {
+    getPreClose (list) {
         const item = list.find(i => i.ename === 'preClose');
         return item ? parseFloat(item.value) : 0;
     }
@@ -221,7 +223,7 @@ class BaiduFinanceProvider extends DataProvider {
      * 百度：timestamp,time,price,range,ratio,volume,amount,totalVolume,totalAmount
      * 东财："2026-04-10 09:30,价格,均价,最高,最低,成交额"
      */
-    _parseIndexMinuteData(rawStr, dayHigh, dayLow) {
+    _parseIndexMinuteData (rawStr, dayHigh, dayLow) {
         return rawStr.split(';').map(line => {
             const [timestamp, time, price] = line.split(',');
             const fullTime = `2026-${time}`;
@@ -231,7 +233,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度财经 - 获取涨幅榜 / 跌幅榜前 N 只股票
-    async getTopSharesFromBaidu(n, order = "top") {
+    async getTopSharesFromBaidu (n, order = "top") {
         try {
             const isAsc = order !== 'top'; // 涨幅降序，跌幅升序
             const timestamp = Date.now();
@@ -276,7 +278,7 @@ class BaiduFinanceProvider extends DataProvider {
     }
 
     // 百度专用请求头（防反爬）
-    #getHeaders() {
+    #getHeaders () {
         return {
             "Accept": "application/vnd.finance-web.v1+json",
             "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -300,7 +302,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string} market 股票市场
      * @return {string} 股票IPO信息，格式 股票代码,上市日期，发行价
      */
-    async getIPOInfo(code, market) {
+    async getIPOInfo (code, market) {
         const response = await axios.get(`https://finance.pae.baidu.com/api/stockwidget`, {
             params: {
                 code: code,
@@ -333,7 +335,7 @@ class BaiduFinanceProvider extends DataProvider {
      * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
      * @returns {Promise<Object>} 返回K线数据
      */
-    async getKline(code, name, market, period, startDate, endDate) {
+    async getKline (code, name, market, period, startDate, endDate) {
         try {
             const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
                 params: {
@@ -360,7 +362,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    #parseDayKline(data) {
+    #parseDayKline (data) {
         try {
             const newMarketData = data?.Result?.newMarketData;
             if (!newMarketData) return [];
@@ -398,7 +400,7 @@ class BaiduFinanceProvider extends DataProvider {
         }
     }
 
-    async searchStock(keyword) {
+    async searchStock (keyword) {
         try {
             const response = await axios.get('https://finance.pae.baidu.com/api/search', {
                 params: {
