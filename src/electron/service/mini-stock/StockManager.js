@@ -9,6 +9,7 @@ import LRUCache from '../../core/LRUCache.js';
 import Trie from "../../core/Trie.js";
 import Singleton from "../Singleton.js";
 import eventBus from "../EventBus.js";
+import TaskQueue from "./TaskQueue.js";
 import EastMoneyProvider from './providers/EastMoneyProvider.js';
 import TencentProvider from './providers/TencentProvider.js';
 import YahooProvider from './providers/YahooProvider.js';
@@ -1242,7 +1243,11 @@ export default class StockManager extends Singleton {
 
         let data;
         try {
-            data = await provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
+            // 增加排队机制，同一个数据供应商
+            data = await global.taskQueue.addTask(provider,()=>{
+                return provider.getKline(code,market, 'day',startTimestamp,endTimestamp);
+            });
+            // data = await provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
         } catch (err) {
             console.error(`拉取 ${code} 日K失败:`, err.message);
             return [];
@@ -1431,7 +1436,7 @@ export default class StockManager extends Singleton {
     }
 
     // 分时、股票列表、搜索（正确版：单只独立缓存）
-    async getShareMinuteData(shares, ndays = 1) {
+    async getShareMinuteKline(shares, ndays = 1) {
         const isSingle = !Array.isArray(shares);
         const list = isSingle ? [shares] : shares;
 
@@ -1455,8 +1460,10 @@ export default class StockManager extends Singleton {
 
             // 真正请求接口
             try {
-                const provider = this.providers.baidu;
-                const data = await provider.getShareMinuteData(share, ndays);
+                const provider = this.getProvider()
+                const data = global.taskQueue.addTask(provider,`${share.code}.${share.ndays}`, ()=>{
+                    return provider.getShareMinuteKline(share,ndays);
+                })
 
                 // ✅ 单独写入当前股票缓存
                 this.cache.minute.set(cacheKey, {

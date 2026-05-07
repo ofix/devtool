@@ -33,6 +33,139 @@ class EastMoneyProvider extends DataProvider {
     }
 
     /**
+     * 获取股票日/周/月/年数据
+     * @param {Share} code 股票对象
+     * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
+     * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
+     * @returns {Promise<Object>} 返回K线数据
+     */
+    async getShareDayKline(share, startDate, endDate) {
+        try {
+            // 转换周期格式
+            const klt = this.#convertPeriod('day');
+            const secid = this.#getSecId(share.code, share.market);
+
+            const response = await this.httpGet(`${this.baseURL}/stock/kline/get`, {
+                secid: secid,
+                fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
+                fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+                klt: klt,
+                fqt: 1, // 复权类型：0不复权，1前复权，2后复权
+                beg: startDate,
+                end: endDate
+            });
+            console.log(response.data);
+            return this.parseKLineData(response.data);
+        } catch (error) {
+            console.error('EastMoneyProvider getKLineData error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取东方财富股票分时数据 → 输出【腾讯财经统一格式】
+     * @param {Share} share 股票对象 {name:'', code:'', market:''}
+     * @param {number} days 1=当日, 5=五日
+     * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
+     */
+    async getShareMinuteKline(share, days = 1) {
+        try {
+            const secid = this.#getSecId(share.code, share.market);
+            const response = await this.httpGet('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
+                secid: secid,
+                fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
+                fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
+                ut: 'fa5fd1943c7b386f172d6893dbfba10b',
+                ndays: days,
+                cb: 'callback'
+            });
+
+            // 解析 JSONP
+            let jsonStr = response.data.replace(/^\w+\(/, '').replace(/\);$/, '');
+            const data = JSON.parse(jsonStr).data;
+            if (!data || !data.trends) return [];
+
+            // 股票基本信息
+            const preClose = data.preClose || 0; // 东方财富自带昨收
+            return data.trends.map((dayTrend, index) => {
+                const lines = dayTrend.split('\n');
+                const dayData = [];
+                let totalVolume = 0;
+                let totalAmount = 0;
+
+                lines.forEach(item => {
+                    const f = item.split(',');
+                    if (f.length < 7) return;
+
+                    const time = f[0];
+                    const price = parseFloat(f[1]) || 0;
+                    const avgPrice = parseFloat(f[2]) || 0;
+                    const volume = parseInt(f[5]) || 0;
+                    const amount = parseFloat(f[6]) || 0;
+
+                    totalVolume += volume;
+                    totalAmount += amount;
+
+                    // 每分钟涨跌额 & 涨跌幅
+                    const change = price - preClose;
+                    const changeRatio = (change / preClose * 100) || 0;
+
+                    dayData.push({
+                        time,
+                        price,
+                        avgPrice,
+                        volume,
+                        amount,
+                        change: parseFloat(change.toFixed(2)),
+                        changeRatio: parseFloat(changeRatio.toFixed(2))
+                    });
+                });
+
+                // 开盘价 = 当天第一根K线
+                const open = dayData[0]?.price || 0;
+                // 日期（东方财富返回的时间串 20250920）
+                const date = lines[0]?.split(',')[0]?.slice(0, 8) || '';
+
+                return {
+                    preClose: preClose,
+                    open: open,
+                    date: date,
+                    totalVolume: totalVolume,
+                    totalAmount: totalAmount,
+                    data: dayData
+                };
+            });
+        } catch (error) {
+            console.error('getMinuteKlines 错误:', error);
+            return days === 5 ? [[], [], [], [], []] : [[]];
+        }
+    }
+
+    #convertPeriod(period) {
+        const periodMap = {
+            'day': 101,
+            'week': 102,
+            'month': 103,
+            'year': 104,
+            'minute': 1,    // 1分钟
+            '5minute': 5    // 5分钟
+        };
+        return periodMap[period] || 101;
+    }
+
+    #getSecId(code, market) {
+        if (market === 'a') {
+            // 判断上海还是深圳
+            if (code.startsWith('6')) {
+                return `1.${code}`; // 上海
+            } else {
+                return `0.${code}`; // 深圳
+            }
+        }
+        return code;
+    }
+
+    /**
      * 获取多只股票行情最新报价
      * @param {Array} shares 多只股票
      */
@@ -92,17 +225,6 @@ class EastMoneyProvider extends DataProvider {
     }
 
     /**
-     * 获取股票分时数据
-     * @param {string} share.code 股票代码
-     * @param {string} share.name 股票名称
-     * @param {string} share.market 股票市场：sh/sz
-     * @param {number} ndays 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
-     */
-    async getShareMinuteData(share, ndays = 1) {
-
-    }
-
-    /**
      * 获取 东方财富 涨幅榜/跌幅榜 前N只股票
      * @param {number} n - 获取股票数量
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
@@ -111,8 +233,6 @@ class EastMoneyProvider extends DataProvider {
     async getShareRankList(n, order = "top") {
 
     }
-
-
 
     #getHeaders() {
         const timestamp = Date.now();
@@ -340,174 +460,7 @@ class EastMoneyProvider extends DataProvider {
         return marketMap[marketCode] || '未知';
     }
 
-    async getKline(code, market, period, startDate, endDate) {
-        try {
-            // 转换周期格式
-            const klt = this.convertPeriod(period);
-            const secid = this.getSecId(code, market);
 
-            const response = await axios.get(`${this.baseURL}/stock/kline/get`, {
-                params: {
-                    secid: secid,
-                    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-                    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
-                    klt: klt,
-                    fqt: 1, // 复权类型：0不复权，1前复权，2后复权
-                    beg: startDate,
-                    end: endDate
-                },
-                headers: this.headers
-            });
-            console.log(response.data);
-            return this.parseKLineData(response.data);
-        } catch (error) {
-            console.error('EastMoneyProvider getKLineData error:', error);
-            throw error;
-        }
-    }
-
-    /**
-  * 获取东方财富股票分时数据 → 输出【腾讯财经统一格式】
-  * @param {Object} share 股票对象 {name:'', code:'', market:''}
-  * @param {number} days 1=当日, 5=五日
-  * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
-  */
-    async getMinuteKlines(share, days = 1) {
-        try {
-            const secid = this.getSecId(share.code, share.market);
-            const response = await axios.get('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
-                params: {
-                    secid: secid,
-                    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-                    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-                    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
-                    ndays: days,
-                    cb: 'callback'
-                },
-                headers: this.headers(),
-            });
-
-            // 解析 JSONP
-            let jsonStr = response.data.replace(/^\w+\(/, '').replace(/\);$/, '');
-            const data = JSON.parse(jsonStr).data;
-            if (!data || !data.trends) return [];
-
-            // 股票基本信息
-            const preClose = data.preClose || 0; // 东方财富自带昨收
-            return data.trends.map((dayTrend, index) => {
-                const lines = dayTrend.split('\n');
-                const dayData = [];
-                let totalVolume = 0;
-                let totalAmount = 0;
-
-                lines.forEach(item => {
-                    const f = item.split(',');
-                    if (f.length < 7) return;
-
-                    const time = f[0];
-                    const price = parseFloat(f[1]) || 0;
-                    const avgPrice = parseFloat(f[2]) || 0;
-                    const volume = parseInt(f[5]) || 0;
-                    const amount = parseFloat(f[6]) || 0;
-
-                    totalVolume += volume;
-                    totalAmount += amount;
-
-                    // 每分钟涨跌额 & 涨跌幅
-                    const change = price - preClose;
-                    const changeRatio = (change / preClose * 100) || 0;
-
-                    dayData.push({
-                        time,
-                        price,
-                        avgPrice,
-                        volume,
-                        amount,
-                        totalVolume,
-                        totalAmount,
-                        change: parseFloat(change.toFixed(2)),
-                        changeRatio: parseFloat(changeRatio.toFixed(2))
-                    });
-                });
-
-                // 开盘价 = 当天第一根K线
-                const open = dayData[0]?.price || 0;
-                // 日期（东方财富返回的时间串 20250920）
-                const date = lines[0]?.split(',')[0]?.slice(0, 8) || '';
-
-                return {
-                    preClose: preClose,
-                    open: open,
-                    date: date,
-                    totalVolume: totalVolume,
-                    totalAmount: totalAmount,
-                    data: dayData
-                };
-            });
-
-        } catch (error) {
-            console.error('getMinuteKlines 错误:', error);
-            return days === 5 ? [[], [], [], [], []] : [[]];
-        }
-    }
-
-    /**
-   * 获取分时数据
-   * @param {string} code - 股票代码
-   * @param {string} market - 市场 (sh/sz)
-   * @param {number} days - 获取天数，默认1天
-   * @returns {Promise<object>} 处理后的分时数据
-   */
-    async getMinuteKlines(code, market, days = 1) {
-        try {
-            const secid = this.getSecId(code, market);
-            const url = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get';
-
-            const response = await axios.get(url, {
-                params: {
-                    secid: secid,
-                    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-                    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-                    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
-                    ndays: days,
-                    cb: 'callback'
-                },
-                headers: this.headers
-            });
-
-            // 解析JSONP响应
-            const jsonData = this.parseJSONPResponse(response.data);
-            if (!jsonData || !jsonData.data) {
-                return null;
-            }
-
-            // 处理分时数据
-            const processedData = this.parseMinuteKlines(jsonData.data, code, market);
-
-            return processedData;
-        } catch (error) {
-            console.error('EastMoneyProvider getMinuteData error:', error);
-            return null;
-        }
-    }
-
-    /**
-     * 批量获取多个股票的分时数据
-     * @param {Array} shares - 股票列表 [{code, market}, ...]
-     * @param {number} days - 获取天数
-     * @returns {Promise<Array>} 分时数据列表
-     */
-    async batchGetMinuteKlines(shares, days = 1) {
-        const promises = shares.map(stock =>
-            this.getMinuteKlines(stock.code, stock.market, days)
-        );
-
-        const results = await Promise.allSettled(promises);
-
-        return results
-            .filter(result => result.status === 'fulfilled' && result.value)
-            .map(result => result.value);
-    }
 
     async searchStock(keyword) {
         try {
@@ -533,31 +486,7 @@ class EastMoneyProvider extends DataProvider {
         }
     }
 
-    convertPeriod(period) {
-        const periodMap = {
-            'day': 101,
-            'week': 102,
-            'month': 103,
-            'year': 104,
-            'minute': 1,    // 1分钟
-            '5minute': 5    // 5分钟
-        };
-        return periodMap[period] || 101;
-    }
-
-    getSecId(code, market) {
-        if (market === 'a') {
-            // 判断上海还是深圳
-            if (code.startsWith('6')) {
-                return `1.${code}`; // 上海
-            } else {
-                return `0.${code}`; // 深圳
-            }
-        }
-        return code;
-    }
-
-    detectMarket(marketCode) {
+        detectMarket(marketCode) {
         const marketMap = {
             '0': 'a',   // 深圳
             '1': 'a',   // 上海
@@ -567,7 +496,7 @@ class EastMoneyProvider extends DataProvider {
         return marketMap[marketCode] || 'a';
     }
 
-    #parseKlines(data) {
+    #parseKline(data) {
         const klines = data?.data?.klines || [];
         return klines.map(line => {
             const items = line.split(',');
@@ -612,7 +541,7 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} trendStr - 分时数据字符串，格式：时间,价格,均价,涨跌额,涨跌幅,成交量,成交额,换手率
      * @returns {object} 解析后的分时数据对象
      */
-    parseMinuteKlinesItem(trendStr) {
+    parseMinuteKlineItem(trendStr) {
         const fields = trendStr.split(',');
         return {
             time: fields[0],                      // 时间点 (如: 0930, 0931...)
@@ -633,14 +562,14 @@ class EastMoneyProvider extends DataProvider {
      * @param {string} market - 市场
      * @returns {object} 结构化的分时数据
      */
-    parseMinuteKlines(rawData, code, market) {
+    parseMinuteKline(rawData, code, market) {
         if (!rawData || !rawData.trends) {
             return null;
         }
 
         // 解析所有分时数据点
         const minuteDataList = rawData.trends.map(trend =>
-            this.parseMinuteKlinesItem(trend)
+            this.parseMinuteKlineItem(trend)
         );
 
         // 返回结构化的分时数据
@@ -907,7 +836,6 @@ class EastMoneyProvider extends DataProvider {
     _isBkFetchComplete(ctx) {
         return ctx.completePages.length === ctx.totalPages && ctx.totalPages > 0;
     }
-
 
     /**
      * 按页码顺序合并板块成分股数据

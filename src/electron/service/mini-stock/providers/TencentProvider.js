@@ -9,6 +9,116 @@ class TencentProvider extends DataProvider {
     }
 
     /**
+     * 获取股票日/周/月/年数据
+     * @param {Share} share 股票对象
+     * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
+     * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
+     * @returns {Promise<Object>} 返回K线数据
+     */
+    async getShareDayKline(share, startDate, endDate) {
+        try {
+            const symbol = this.getSymbol(share.code, share.market);
+            const response = await this.httpGet(`${this.baseURL}/appstock/app/fqkline/get`, {
+                param: `${symbol},day,${startDate},${endDate},640`,
+                r: Math.random()
+            });
+
+            return this.#parseDayKline(response.data, 'day');
+        } catch (error) {
+            console.error('TencentProvider getKLineData error:', error);
+            throw error;
+        }
+    }
+
+    #parseDayKline(data, period) {
+        const klines = data?.data?.[period === 'day' ? 'qfqday' : period] || [];
+        return klines.map(item => ({
+            date: item[0],
+            open: parseFloat(item[1]),
+            close: parseFloat(item[2]),
+            high: parseFloat(item[3]),
+            low: parseFloat(item[4]),
+            volume: parseFloat(item[5]),
+            amount: parseFloat(item[6])
+        }));
+    }
+
+
+    /**
+     * 获取腾讯财经股票分时数据 → 返回【对象数组】
+     * @param {Object} share share 股票对象 格式如下: {name:'',code:'',code:''};
+     * @param {number} ndays 1=当日, 5=五日
+     * @returns {Promise<Array>} 分时数据对象列表
+     */
+    async getShareMinuteKline(share, ndays = 1) {
+        let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
+        try {
+            const { data } = await this.httpGet('https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
+                code: shareCode,
+                days: ndays === 5 ? 5 : undefined // 不传=当日
+            });
+
+            const root = data.data[shareCode];
+            const qt = root.qt[shareCode];
+            const minuteKlines = ndays === 5 ? root.data : [root.data];
+
+            // 昨日收盘价
+            const preClose = parseFloat(dayData.prec || qt[4]);
+
+            // 统一返回：[[day1],[day2],[day3],[day4],[day5]]
+            return minuteKlines.map(dayData => {
+                const lines = dayData.data;
+                let totalVolume = 0;
+                let totalAmount = 0;
+                const list = [];
+
+                // 遍历计算分时 + 累加
+                lines.forEach(item => {
+                    const [time, price, vol, amt] = item.split(' ');
+                    const p = parseFloat(price);
+                    const v = parseInt(vol);
+                    const a = parseFloat(amt);
+
+                    totalVolume += v;
+                    totalAmount += a;
+                    const avgPrice = totalVolume > 0 ? totalAmount / totalVolume / 100 : p;
+
+                    // 每分钟涨跌额 & 涨跌幅
+                    const change = p - preClose;
+                    const changeRatio = (change / preClose) * 100;
+
+                    list.push({
+                        time,
+                        price: p,
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        volume: v,
+                        amount: a,
+                        change: parseFloat(change.toFixed(2)), // 每分钟涨跌额
+                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额,
+                        totalVolume,
+                        totalAmount
+                    });
+                });
+
+                const open = days === 1
+                    ? parseFloat(qt[5])           // 单日：用 qt[5]
+                    : list[0]?.price || 0         // 五日：用当天第一根K线价格
+
+                return {
+                    preClose: preClose, // 昨日收盘价
+                    open: open,         // 开盘价
+                    totalVolume,        // 当日总成交量
+                    totalAmount,        // 当日总成交额
+                    data: list          // 当日分时列表
+                };
+            });
+        } catch (err) {
+            console.error('获取失败:', err.message);
+            return ndays === 5 ? [[], [], [], [], []] : [[]];
+        }
+    }
+
+    /**
      * 获取Tushare 涨幅榜/跌幅榜 前N只股票
      * @param {number} n - 获取股票数量
      * @param {string} order - top=涨幅榜, bottom=跌幅榜
@@ -214,101 +324,8 @@ class TencentProvider extends DataProvider {
         }
     }
 
-    async getKline(code, market, period, startDate, endDate) {
-        try {
-            const symbol = this.getSymbol(code, market);
-            const response = await axios.get(`${this.baseURL}/appstock/app/fqkline/get`, {
-                params: {
-                    param: `${symbol},${period},${startDate},${endDate},640`,
-                    r: Math.random()
-                }
-            });
-
-            return this.parseKLineData(response.data, period);
-        } catch (error) {
-            console.error('TencentProvider getKLineData error:', error);
-            throw error;
-        }
-    }
 
 
-    /**
-     * 获取腾讯财经股票分时数据 → 返回【对象数组】
-     * @param {Object} share share 股票对象 格式如下: {name:'',code:'',code:''};
-     * @param {number} days 1=当日, 5=五日
-     * @returns {Promise<Array>} 分时数据对象列表
-     */
-    async getMinuteKlines(share, days = 1) {
-        let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
-        try {
-            const { data } = await axios.get('https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
-                params: {
-                    code: shareCode,
-                    days: days === 5 ? 5 : undefined // 不传=当日
-                },
-                headers: this.headers(),
-                timeout: 5000
-            });
-
-            const root = data.data[stockCode];
-            const qt = root.qt[stockCode];
-            const dayDataList = days === 5 ? root.data : [root.data];
-
-            // 昨日收盘价
-            const preClose = parseFloat(dayData.prec || qt[4]);
-
-            // 统一返回：[[day1],[day2],[day3],[day4],[day5]]
-            return dayDataList.map(dayData => {
-                const lines = dayData.data;
-                let totalVolume = 0;
-                let totalAmount = 0;
-                const list = [];
-
-                // 遍历计算分时 + 累加
-                lines.forEach(item => {
-                    const [time, price, vol, amt] = item.split(' ');
-                    const p = parseFloat(price);
-                    const v = parseInt(vol);
-                    const a = parseFloat(amt);
-
-                    totalVolume += v;
-                    totalAmount += a;
-                    const avgPrice = totalVolume > 0 ? totalAmount / totalVolume / 100 : p;
-
-                    // 每分钟涨跌额 & 涨跌幅
-                    const change = p - preClose;
-                    const changeRatio = (change / preClose) * 100;
-
-                    list.push({
-                        time,
-                        price: p,
-                        avgPrice: parseFloat(avgPrice.toFixed(2)),
-                        volume: v,
-                        amount: a,
-                        change: parseFloat(change.toFixed(2)), // 每分钟涨跌额
-                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额,
-                        totalVolume,
-                        totalAmount
-                    });
-                });
-
-                const open = days === 1
-                    ? parseFloat(qt[5])           // 单日：用 qt[5]
-                    : list[0]?.price || 0         // 五日：用当天第一根K线价格
-
-                return {
-                    preClose: preClose, // 昨日收盘价
-                    open: open,         // 开盘价
-                    totalVolume,        // 当日总成交量
-                    totalAmount,        // 当日总成交额
-                    data: list          // 当日分时列表
-                };
-            });
-        } catch (err) {
-            console.error('获取失败:', err.message);
-            return days === 5 ? [[], [], [], [], []] : [[]];
-        }
-    }
 
 
 
@@ -360,18 +377,7 @@ class TencentProvider extends DataProvider {
         return 'us';
     }
 
-    parseKLineData(data, period) {
-        const klineData = data?.data?.[period === 'day' ? 'qfqday' : period] || [];
-        return klineData.map(item => ({
-            date: item[0],
-            open: parseFloat(item[1]),
-            close: parseFloat(item[2]),
-            high: parseFloat(item[3]),
-            low: parseFloat(item[4]),
-            volume: parseFloat(item[5]),
-            amount: parseFloat(item[6])
-        }));
-    }
+
 }
 
 export default TencentProvider;

@@ -16,13 +16,15 @@ export default class DataProvider {
          */
         this.currentBrowserHeaderIndex = 0;
         this.browserHeaders = []; // 用户设置的请求头，可能有多个
+        this.delayMin = 3000;
+        this.delayMax = 10000;
     }
 
     setBrowserHeaders(browserHeaders) {
         this.browserHeaders = browserHeaders;
     }
 
-    addBrowserHeaders(browserHeader){
+    addBrowserHeaders(browserHeader) {
         this.browserHeaders.push(browserHeader);
     }
 
@@ -61,15 +63,15 @@ export default class DataProvider {
         return this.commonHeaders;
     }
 
-    async httpGet(url,params,responseCallback){
+    async httpGet(url, params, responseCallback) {
         const response = await axios.get(url, {
-            params:params,
+            params: params,
             timeout: 10000,
             headers: this.headers(),
         });
-        if(responseCallback){
+        if (responseCallback) {
             return responseCallback(response);
-        }else{
+        } else {
             return response;
         }
     }
@@ -108,25 +110,22 @@ export default class DataProvider {
 
     /**
      * 获取股票日/周/月/年数据
-     * @param {string} code 股票代码
-     * @param {string} name 股票名称
-     * @param {string} market 股票市场
-     * @param {'day'|'week'|'month'|'year'} period day: 日K线 week: 周K线 month: 月K线 year: 年K线
+     * @param {Share} share 股票对象
      * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
      * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
      * @returns {Promise<Object>} 返回K线数据
      */
-    async getDayKlines(code, name, market, period, startDate, endDate) {
-        throw new Error('子类必须实现 getKline 方法');
+    async getShareDayKline(share, startDate, endDate) {
+        throw new Error('子类必须实现 getShareDayKline 方法');
     }
 
     /**
      * 获取股票分时数据
-     * @param {Object} share 股票对象 格式如下: {name:'',code:'',code:''};
+     * @param {Object} share 股票对象 格式如下: {name:'',code:'',market:''};
      * @param {number} days 获取分时数据的天数，默认为1，表示获取当天的分时数据，5表示获取5日分时数据
      */
-    async getShareMinuteData(shares, days = 1) {
-        throw new Error('子类必须实现 getShareMinuteData 方法');
+    async getShareMinuteKline(share, days = 1) {
+        throw new Error('子类必须实现 getShareMinuteKline 方法');
     }
 
     /**
