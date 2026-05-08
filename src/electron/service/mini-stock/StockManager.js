@@ -9,7 +9,6 @@ import LRUCache from '../../core/LRUCache.js';
 import Trie from "../../core/Trie.js";
 import Singleton from "../Singleton.js";
 import eventBus from "../EventBus.js";
-import TaskQueue from "./TaskQueue.js";
 import EastMoneyProvider from './providers/EastMoneyProvider.js';
 import TencentProvider from './providers/TencentProvider.js';
 import YahooProvider from './providers/YahooProvider.js';
@@ -33,7 +32,9 @@ export default class StockManager extends Singleton {
             tushare: new TushareProvider(),     // Tushare数据
             sina: new SinaProvider(),           // 新浪财经
         };
+        this.apiProviderMap = this.#buildApiProviderMap(this.providers);
         this.activeProvider = 'eastmoney';
+        this.providerIndex = -1;
 
         // 统一缓存结构
         this.cache = {
@@ -101,6 +102,51 @@ export default class StockManager extends Singleton {
             storageWrites: 0,
             providerCalls: 0
         };
+    }
+
+    /**
+     * 生成【接口名 => 支持该接口的供应商列表】的映射表
+     * @param {DataProvider[]} providers 所有供应商实例
+     * @returns {Object} { 接口名: { providers: [], robinIdx: 0 } }
+     */
+    #buildApiProviderMap(providers) {
+        const apiMap = {};
+
+        for (const provider of providers) {
+            const supportedApis = provider.supportedApis?.() || [];
+
+            for (const api of supportedApis) {
+                if (!apiMap[api]) {
+                    apiMap[api] = { providers: [], robinIdx: 0 }; // ✅ 初始 0
+                }
+                if (!apiMap[api].providers.includes(provider)) {
+                    apiMap[api].providers.push(provider);
+                }
+            }
+        }
+
+        return apiMap;
+    }
+
+    /**
+     * 获取下一个可用供应商（自动排除不支持当前接口的）
+     * @param {string} apiName 接口名，如 getShareMinuteKline
+     * @returns {DataProvider}
+     */
+    #getNextProvider(apiName) {
+        const apiInfo = this.apiProviderMap[apiName];
+
+        if (!apiInfo || !apiInfo.providers || apiInfo.providers.length === 0) {
+            throw new Error(`无任何供应商支持接口：${apiName}`);
+        }
+
+        const { providers } = apiInfo;
+
+        // 轮询索引自增（必须保存回去）
+        apiInfo.robinIdx++;
+        const idx = apiInfo.robinIdx % providers.length;
+
+        return providers[idx];
     }
 
     /**
@@ -257,9 +303,8 @@ export default class StockManager extends Singleton {
         );
     }
 
-    getNextProvider() {
-        return this.providers.baidu;
-    }
+
+
 
     // 分时、股票列表、搜索（正确版：单只独立缓存）
     async getShareMinuteKline(share, ndays = 1) {
@@ -315,7 +360,7 @@ export default class StockManager extends Singleton {
         // 缓存没命中，请求后台接口
         let data = null;
         try {
-            const provider = this.getNextProvider();
+            const provider = this.#getNextProvider('getShareMinuteKline');
             data = await global.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
                 return provider.getShareMinuteKline(share, ndays);
             })
@@ -329,6 +374,331 @@ export default class StockManager extends Singleton {
         }
 
         return data;
+    }
+
+    /**
+     * 获取 日/周/月/年 K线
+     * @param {Object} share 股票对象
+     * @param {string} period  周期{day|week|month|year}
+     * @param {string} startDate 开始时间 日期格式 yyyy-mm-dd
+     * @param {string} endDate 结束时间 日期格式 yyyy-mm-dd
+     * @param {Object} options 请求选项
+     */
+    async getShareKline(share, period, startDate, endDate, options = {}) {
+        const {
+            forceRefresh = false,
+            adjustType = 'forward',
+            checkAdjustment = false
+        } = options;
+
+        // 参数验证
+        if (!share || !share?.code || !share?.name) {
+            throw new Error(`Invalid parameters share`);
+        }
+
+        // 起始时间戳（用于存储查询）
+        const startTimestamp = startDate ? new Date(startDate).getTime() : 0;
+        const endTimestamp = endDate ? new Date(endDate).getTime() : Date.now();
+
+        // 除权检查
+        let needRefresh = false;
+        if (checkAdjustment && adjustType !== 'none') {
+            needRefresh = await this._checkAndUpdateAdjustment(code, market);
+            if (needRefresh) {
+                // 清除所有周期的缓存
+                this.#clearShareAllCache(code);
+            }
+        }
+
+        // 内存缓存检查
+        if (!forceRefresh && !needRefresh) {
+            const cached = this.cache[period]?.get(share.code);
+            if (cached) {
+                this.stats.cacheHits++;
+                const filtered = this.#filterKline(cached, startDate, endDate);
+                if (filtered.length > 0 || cached.length === 0) {
+                    return filtered;
+                }
+                // 缓存数据不足，继续从存储读取
+            }
+        }
+
+        this.stats.cacheMisses++;
+
+        // 获取日K数据
+        const dayKlines = await this.#getShareDayKline(
+            share, startTimestamp, endTimestamp, forceRefresh || needRefresh
+        );
+
+        if (!dayKlines?.length) return [];
+
+        // 周期聚合
+        let result = dayKlines;
+        switch (period) {
+            case 'week':
+                result = this.#getShareWeekKline(share, dayKlines);
+                break;
+            case 'month':
+                result = this.#getShareMonthKline(share, dayKlines);
+                break;
+            case 'year':
+                result = this.#getShareYearKline(share, dayKlines);
+                break;
+        }
+
+        // 缓存结果
+        this.cache[period].set(code, result);
+
+        return this.#filterKline(result, startDate, endDate);
+    }
+
+    // 周K
+    #getShareWeekKline(share, dayKlines) {
+        return this.#aggregateKline(dayKlines, (date) => this.#getDayOfWeek(date), share.totalShares);
+    }
+
+    // 月K
+    #getShareMonthKline(share, dayKlines) {
+        return this.#aggregateKline(dayKlines, (date) => this.#getDayOfMonth(date), share.totalShares);
+    }
+
+    // 年K
+    #getShareYearKline(share, dayKlines) {
+        return this.#aggregateKline(dayKlines, (date) => this.#getDayOfYear(date, share.totalShares));
+    }
+
+    // 获取【周一日期】作为周标识 (YYYY-MM-DD)
+    #getDayOfWeek(dateStr) {
+        const d = new Date(dateStr);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff);
+        return d.toISOString().slice(0, 10);
+    }
+
+    // 获取【月份】作为月标识 (YYYY-MM)
+    #getDayOfMonth(dateStr) {
+        return dateStr.slice(0, 7);
+    }
+
+    // 获取【年份】作为年标识 (YYYY)
+    #getDayOfYear(dateStr) {
+        return dateStr.slice(0, 4);
+    }
+
+    /**
+     * 日K 聚合 周K/月K/年K
+     * @param {array} dayKlines 有序日K线
+     * @param {function} getPeriod 周期标识函数
+     * @param {number} totalShares 股票当前总股本（前复权只需传这个）
+     * @returns {array} 周期K线
+     */
+    #aggregateKline(dayKlines, getPeriod, totalShares) {
+        if (!dayKlines || dayKlines.length === 0) return [];
+
+        const result = [];
+        let lastPeriod = null;
+        let current = null;
+
+        for (const k of dayKlines) {
+            const period = getPeriod(k.date);
+
+            if (period !== lastPeriod) {
+                // 新周期
+                current = {
+                    date: period,
+                    open: k.open,
+                    high: k.high,
+                    low: k.low,
+                    close: k.close,
+                    volume: k.volume,
+                    amount: k.amount,
+                    turnover: 0,
+                    change: 0,
+                    changeRatio: 0,
+                };
+                result.push(current);
+                lastPeriod = period;
+            } else {
+                // 合并
+                current.high = Math.max(current.high, k.high);
+                current.low = Math.min(current.low, k.low);
+                current.close = k.close;
+                current.volume += k.volume;
+                current.amount += k.amount;
+            }
+        }
+
+        // 最后统一计算
+        for (let i = 0; i < result.length; i++) {
+            const item = result[i];
+            const preClose = i > 0 ? result[i - 1].close : item.open;
+
+            // 涨跌额
+            item.change = item.close - preClose;
+            // 涨跌幅
+            item.changeRatio = preClose === 0 ? 0 : (item.change / preClose) * 100;
+            // 换手率（前复权正确算法）
+            item.turnover = totalShares > 0 ? item.volume / totalShares : 0;
+        }
+
+        return result;
+    }
+
+    // 除权检查
+    async _checkAndUpdateAdjustment(code, market) {
+        try {
+            const cachedInfo = this.adjustCache.get(code);
+            const provider = this._getProvider(market);
+
+            let latestInfo = null;
+            if (provider.getAdjustFactor) {
+                latestInfo = await provider.getAdjustFactor(code);
+            }
+
+            if (!latestInfo) return false;
+
+            if (!cachedInfo) {
+                this.adjustCache.set(code, latestInfo);
+                await this.#saveDayKlineAdjust(code, latestInfo);
+                return false;
+            }
+
+            const changed =
+                cachedInfo.lastAdjustDate !== latestInfo.lastAdjustDate ||
+                Math.abs((cachedInfo.adjustFactor || 1) - (latestInfo.adjustFactor || 1)) > 0.0001;
+
+            if (changed) {
+                this.adjustCache.set(code, latestInfo);
+                await this.#saveDayKlineAdjust(code, latestInfo);
+                return true;
+            }
+
+            return false;
+        } catch (err) {
+            console.error(`除权检查失败 ${code}:`, err.message);
+            return false;
+        }
+    }
+
+
+    /**
+     * 检查缓存是否足够覆盖查询范围
+     */
+    #isCacheSufficient(cached, startTimestamp, endTimestamp) {
+        if (!cached || cached.length === 0) return false;
+
+        const firstDate = new Date(cached[0].date).getTime();
+        const lastDate = new Date(cached[cached.length - 1].date).getTime();
+
+        return firstDate <= startTimestamp && lastDate >= endTimestamp;
+    }
+
+    // 日K读取逻辑
+    async #getShareDayKline(code, market, startTimestamp, endTimestamp, forceRefresh) {
+        // 检查内存缓存
+        if (!forceRefresh) {
+            const cached = this.cache.day.get(code);
+            if (cached) {
+                // 检查缓存是否覆盖所需范围
+                if (this.#isCacheSufficient(cached, startTimestamp, endTimestamp)) {
+                    this.stats.cacheHits++;
+                    return this.#filterByTimestamp(cached, startTimestamp, endTimestamp);
+                }
+            }
+        }
+
+        this.stats.cacheMisses++;
+
+        // 从存储读取（使用时间范围，提高效率）
+        let records = [];
+        try {
+            this.stats.storageReads++;
+            records = await this.storage.query(code, startTimestamp, endTimestamp);
+            if (records && records.length > 0) {
+                const list = this.#recordsToKlineList(records);
+                this.cache.day.set(code, list);
+                return this.#filterByTimestamp(list, startTimestamp, endTimestamp);
+            }
+        } catch (e) {
+            console.warn(`读取 ${code} 日K失败:`, e.message);
+        }
+
+        // 从网络拉取
+        return this.#fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp);
+    }
+
+    // 拉取 + 写入存储
+    async #fetchAndSaveDayKlines(share, startTimestamp, endTimestamp) {
+        const provider = this.#getNextProvider("getShareDayKline");
+        this.stats.providerCalls++;
+        // 计算拉取的天数范围
+        const startDate = startTimestamp ? new Date(startTimestamp) : new Date(0);
+        const endDate = endTimestamp ? new Date(endTimestamp) : new Date();
+        const days = Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000));
+
+        let data;
+        try {
+            data = await global.taskQueue.addTask(provider, `${share.code}.day`, () => {
+                return provider.getShareDayKline(share, startTimestamp, endTimestamp);
+            });
+        } catch (err) {
+            console.error(`拉取 ${code} 日K失败:`, err.message);
+            return [];
+        }
+
+        if (!data?.length) return [];
+
+        // 转换并写入存储
+        const records = data.map(item => {
+            return new KlineRecord(
+                item.date,        // 成交日期
+                item.open,        // 开盘价
+                item.high,        // 最高价
+                item.low,         // 最低价
+                item.close,       // 收盘价
+                item.volume,      // 成交量
+                item.amount,      // 成交额
+                item.change,      // 涨跌额
+                item.changeRatio, // 涨跌幅
+                item.turnoverRate // 换手率
+            );
+        });
+
+        this.stats.storageWrites++;
+        await this.storage.batchAppend(code, records);
+
+        const list = this.#recordsToKlineList(records);
+        this.cache.day.set(code, list);
+
+        return list;
+    }
+
+    /**
+     * 按时间戳过滤
+     */
+    #filterByTimestamp(list, startTimestamp, endTimestamp) {
+        if (!list?.length) return [];
+        return list.filter(item => {
+            const time = item.timestamp || new Date(item.date).getTime();
+            return (!startTimestamp || time >= startTimestamp) &&
+                (!endTimestamp || time <= endTimestamp);
+        });
+    }
+
+    /**
+     * 将 KlineRecord 数组转换为普通对象数组
+     */
+    #recordsToKlineList(records) {
+        return records.map(record => ({
+            date: record.timestamp,
+            open: record.open,
+            high: record.high,
+            low: record.low,
+            close: record.close,
+            volume: record.volume,
+            amount: record.amount
+        }));
     }
 
     getBkMenu() {
@@ -1097,82 +1467,7 @@ export default class StockManager extends Singleton {
         }
     }
 
-    /**
-     * 获取 日/周/月/年 K线
-     * @param {string} code 股票号码
-     * @param {string} market 市场代号,SH-沪市,SZ-深市
-     * @param {string} period 周期，day|week|month|year
-     * @param {string} startDate 开始时间 日期格式 yyyy-mm-dd
-     * @param {string} endDate 结束时间 日期格式 yyyy-mm-dd
-     * @param {Object} options 请求选项
-     */
-    async getKlines(code, market, period, startDate, endDate, options = {}) {
-        const {
-            forceRefresh = false,
-            adjustType = 'forward',
-            checkAdjustment = false
-        } = options;
 
-        // 参数验证
-        if (!code || !market) {
-            throw new Error(`Invalid parameters: code=${code}, market=${market}`);
-        }
-
-        // 起始时间戳（用于存储查询）
-        const startTimestamp = startDate ? new Date(startDate).getTime() : 0;
-        const endTimestamp = endDate ? new Date(endDate).getTime() : Date.now();
-
-        // 除权检查
-        let needRefresh = false;
-        if (checkAdjustment && adjustType !== 'none') {
-            needRefresh = await this._checkAndUpdateAdjustment(code, market);
-            if (needRefresh) {
-                // 清除所有周期的缓存
-                this._clearCodeCache(code);
-            }
-        }
-
-        // 内存缓存检查
-        if (!forceRefresh && !needRefresh) {
-            const cached = this.cache[period]?.get(code);
-            if (cached) {
-                this.stats.cacheHits++;
-                const filtered = this._filterByDate(cached, startDate, endDate);
-                if (filtered.length > 0 || cached.length === 0) {
-                    return filtered;
-                }
-                // 缓存数据不足，继续从存储读取
-            }
-        }
-
-        this.stats.cacheMisses++;
-
-        // 获取日K数据（唯一数据源）
-        const dailyList = await this._getDayKlines(
-            code, market, startTimestamp, endTimestamp, forceRefresh || needRefresh
-        );
-
-        if (!dailyList?.length) return [];
-
-        // 周期聚合
-        let result = dailyList;
-        switch (period) {
-            case 'week':
-                result = this._getWeekKlines(dailyList);
-                break;
-            case 'month':
-                result = this._getMonthKlines(dailyList);
-                break;
-            case 'year':
-                result = this._getYearKlines(dailyList);
-                break;
-        }
-
-        // 缓存结果
-        this.cache[period].set(code, result);
-
-        return this._filterByDate(result, startDate, endDate);
-    }
 
     /**
      * 输出K线数据
@@ -1221,9 +1516,9 @@ export default class StockManager extends Singleton {
     }
 
     /**
-     * 清除指定代码的所有缓存
+     * 清除指定股票的所有缓存
      */
-    _clearCodeCache(code) {
+    #clearShareAllCache(code) {
         const patterns = ['day', 'week', 'month', 'year'];
         for (const pattern of patterns) {
             const cache = this.cache[pattern];
@@ -1235,279 +1530,26 @@ export default class StockManager extends Singleton {
         }
     }
 
-    // 日K读取逻辑
-    async _getDayKlines(code, market, startTimestamp, endTimestamp, forceRefresh) {
-        // 检查内存缓存
-        if (!forceRefresh) {
-            const cached = this.cache.day.get(code);
-            if (cached) {
-                // 检查缓存是否覆盖所需范围
-                if (this._isCacheSufficient(cached, startTimestamp, endTimestamp)) {
-                    this.stats.cacheHits++;
-                    return this._filterByTimestamp(cached, startTimestamp, endTimestamp);
-                }
-            }
-        }
-
-        this.stats.cacheMisses++;
-
-        // 从存储读取（使用时间范围，提高效率）
-        let records = [];
-        try {
-            this.stats.storageReads++;
-            records = await this.storage.query(code, startTimestamp, endTimestamp);
-
-            if (records && records.length > 0) {
-                const list = this._recordsToKlineList(records);
-                this.cache.day.set(code, list);
-                return this._filterByTimestamp(list, startTimestamp, endTimestamp);
-            }
-        } catch (e) {
-            console.warn(`读取 ${code} 日K失败:`, e.message);
-        }
-
-        // 从网络拉取
-        return this._fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp);
-    }
-
-    /**
-     * 检查缓存是否足够覆盖查询范围
-     */
-    _isCacheSufficient(cached, startTimestamp, endTimestamp) {
-        if (!cached || cached.length === 0) return false;
-
-        const firstDate = new Date(cached[0].date).getTime();
-        const lastDate = new Date(cached[cached.length - 1].date).getTime();
-
-        return firstDate <= startTimestamp && lastDate >= endTimestamp;
-    }
-
-    /**
-     * 将 KlineRecord 数组转换为普通对象数组
-     */
-    _recordsToKlineList(records) {
-        return records.map(record => ({
-            date: record.timestamp,
-            open: record.open,
-            high: record.high,
-            low: record.low,
-            close: record.close,
-            volume: record.volume,
-            amount: record.amount
-        }));
-    }
-
-    /**
-     * 按时间戳过滤
-     */
-    _filterByTimestamp(list, startTimestamp, endTimestamp) {
-        if (!list?.length) return [];
-        return list.filter(item => {
-            const time = item.timestamp || new Date(item.date).getTime();
-            return (!startTimestamp || time >= startTimestamp) &&
-                (!endTimestamp || time <= endTimestamp);
-        });
-    }
-
-    // 拉取 + 写入存储
-    async _fetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
-        // 防止并发拉取同一只股票
-        const loadingKey = `${code}_${market}`;
-        if (this.loadingPromises.has(loadingKey)) {
-            return this.loadingPromises.get(loadingKey);
-        }
-
-        const promise = this._doFetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp);
-        this.loadingPromises.set(loadingKey, promise);
-
-        try {
-            const result = await promise;
-            return result;
-        } finally {
-            this.loadingPromises.delete(loadingKey);
-        }
-    }
-
-    async _doFetchAndSaveDayKlines(code, market, startTimestamp, endTimestamp) {
-        const provider = this._getProvider(market);
-        this.stats.providerCalls++;
-        // 计算拉取的天数范围
-        const startDate = startTimestamp ? new Date(startTimestamp) : new Date(0);
-        const endDate = endTimestamp ? new Date(endTimestamp) : new Date();
-        const days = Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000));
-
-        let data;
-        try {
-            // 增加排队机制，同一个数据供应商
-            data = await global.taskQueue.addTask(provider, () => {
-                return provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
-            });
-            // data = await provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
-        } catch (err) {
-            console.error(`拉取 ${code} 日K失败:`, err.message);
-            return [];
-        }
-
-        if (!data?.length) return [];
-
-        // 转换并写入存储
-        const records = data.map(item => {
-            const timestamp = item.date || item.trade_date;
-            // 确保有 amount 字段
-            const amount = item.amount || (item.volume * (item.open + item.close) / 2);
-
-            return new KlineRecord(
-                typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime(),
-                item.open,
-                item.high,
-                item.low,
-                item.close,
-                item.volume,
-                amount
-            );
-        });
-
-        this.stats.storageWrites++;
-        await this.storage.batchAppend(code, records);
-
-        const list = this._recordsToKlineList(records);
-        this.cache.day.set(code, list);
-
-        return list;
-    }
-
-    // 根据股票日K线获取股票周K线
-    _getWeekKlines(day) {
-        const map = new Map();
-
-        for (const k of day) {
-            const date = new Date(k.date);
-            const year = date.getFullYear();
-            // 更准确的周计算
-            const firstDayOfYear = new Date(year, 0, 1);
-            const dayOfYear = Math.floor((date - firstDayOfYear) / (24 * 60 * 60 * 1000));
-            const weekNum = Math.ceil((dayOfYear + firstDayOfYear.getDay() + 1) / 7);
-            const key = `${year}-W${weekNum.toString().padStart(2, '0')}`;
-
-            if (!map.has(key)) {
-                map.set(key, { ...k });
-            } else {
-                const item = map.get(key);
-                item.high = Math.max(item.high, k.high);
-                item.low = Math.min(item.low, k.low);
-                item.close = k.close;
-                item.volume += k.volume;
-                item.amount = (item.amount || 0) + (k.amount || 0);
-            }
-        }
-
-        return Array.from(map.values());
-    }
-
-    // 基于股票日K线获取股票月线
-    _getMonthKlines(day) {
-        const map = new Map();
-
-        for (const k of day) {
-            const date = new Date(k.date);
-            const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-
-            if (!map.has(key)) {
-                map.set(key, { ...k });
-            } else {
-                const item = map.get(key);
-                item.high = Math.max(item.high, k.high);
-                item.low = Math.min(item.low, k.low);
-                item.close = k.close;
-                item.volume += k.volume;
-                item.amount = (item.amount || 0) + (k.amount || 0);
-            }
-        }
-
-        return Array.from(map.values());
-    }
-
-    // 基于股票日K线获取股票年K线
-    _getYearKlines(day) {
-        const map = new Map();
-
-        for (const k of day) {
-            const year = new Date(k.date).getFullYear();
-            const key = year.toString();
-
-            if (!map.has(key)) {
-                map.set(key, { ...k });
-            } else {
-                const item = map.get(key);
-                item.high = Math.max(item.high, k.high);
-                item.low = Math.min(item.low, k.low);
-                item.close = k.close;
-                item.volume += k.volume;
-                item.amount = (item.amount || 0) + (k.amount || 0);
-            }
-        }
-
-        return Array.from(map.values());
-    }
-
-    // 除权检查
-    async _checkAndUpdateAdjustment(code, market) {
-        try {
-            const cachedInfo = this.adjustCache.get(code);
-            const provider = this._getProvider(market);
-
-            let latestInfo = null;
-            if (provider.getAdjustFactor) {
-                latestInfo = await provider.getAdjustFactor(code);
-            }
-
-            if (!latestInfo) return false;
-
-            if (!cachedInfo) {
-                this.adjustCache.set(code, latestInfo);
-                await this._saveAdjustInfo(code, latestInfo);
-                return false;
-            }
-
-            const changed =
-                cachedInfo.lastAdjustDate !== latestInfo.lastAdjustDate ||
-                Math.abs((cachedInfo.adjustFactor || 1) - (latestInfo.adjustFactor || 1)) > 0.0001;
-
-            if (changed) {
-                this.adjustCache.set(code, latestInfo);
-                await this._saveAdjustInfo(code, latestInfo);
-                return true;
-            }
-
-            return false;
-        } catch (err) {
-            console.error(`除权检查失败 ${code}:`, err.message);
-            return false;
-        }
-    }
-
-    async _saveAdjustInfo(code, info) {
+    // 保存前复权日K线数据
+    async #saveDayKlineAdjust(code, klines) {
         if (!this.diskEnabled) return;
 
         try {
             const file = path.join(this.diskKlineDir, `${code}_adjust.json`);
-            await fs.writeFile(file, JSON.stringify({
-                ...info,
-                updateTime: Date.now()
-            }, null, 2));
+            await fs.writeFile(file, JSON.stringify(klines, null, 2));
         } catch (err) {
             console.error(`保存除权信息失败 ${code}:`, err.message);
         }
     }
 
-    // 工具函数
-    _filterByDate(data, startDate, endDate) {
-        if (!data?.length) return [];
+    // 过滤指定日期的K线
+    #filterKline(klines, startDate, endDate) {
+        if (!klines?.length) return [];
 
         const start = startDate ? new Date(startDate).getTime() : 0;
         const end = endDate ? new Date(endDate).getTime() : Infinity;
 
-        return data.filter(item => {
+        return klines.filter(item => {
             const time = item.date ? new Date(item.date).getTime() : item.timestamp;
             return time >= start && time <= end;
         });

@@ -32,6 +32,13 @@ class EastMoneyProvider extends DataProvider {
         };
     }
 
+    supportApis(){
+        return [
+            'getShareMinuteKline',
+            'getShareDayKline',
+        ];
+    }
+
     /**
      * 获取股票日/周/月/年数据
      * @param {Share} code 股票对象

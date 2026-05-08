@@ -94,10 +94,8 @@ export default class DataProvider {
         };
     }
 
-    supportMethods() {
-        return [
-            'headers', // 通用请求头实现方法
-        ]
+    supportApis(){
+        return [];
     }
 
     /**

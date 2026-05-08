@@ -79,12 +79,12 @@ class TaskQueue {
         const { provider } = task;
   
         try {
-          // 1. 随机延时（保留你原有逻辑）
+          // 随机延时（保留你原有逻辑）
           const { delayMin, delayMax } = provider;
           const delay = Math.random() * (delayMax - delayMin) + delayMin;
           await new Promise(r => setTimeout(r, delay));
   
-          // 2. 带超时执行任务
+          // 带超时执行任务
           const result = await this.runWithTimeout(task);
           task.resolve(result);
   

@@ -8,6 +8,13 @@ class TencentProvider extends DataProvider {
         this.baseURL = 'https://web.ifzq.gtimg.cn';
     }
 
+    supportApis(){
+        return [
+            'getShareMinuteKline',
+            'getShareDayKline',
+        ];
+    }
+
     /**
      * 获取股票日/周/月/年数据
      * @param {Share} share 股票对象

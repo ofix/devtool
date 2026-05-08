@@ -7,12 +7,12 @@ export default class THSProvider extends DataProvider {
         super();
     }
 
-    supportMethods() {
+    supportApis() {
         return [
-            'getQuote',        // 获取多只股票行情最新报价
-            'getTopShares',    // 跌幅榜/涨幅榜前N只股票，最多100只
-            'getShareDayKline',    // 获取日K线
+            'getShareDayKline',     // 获取日K线
             'getShareMinuteKline',  // 获取分时线，支持 1~5日分时数据
+            'getQuote',             // 获取多只股票行情最新报价
+            'getTopShares',         // 跌幅榜/涨幅榜前N只股票，最多100只
         ]
     }
 
