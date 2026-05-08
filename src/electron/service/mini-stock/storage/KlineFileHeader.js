@@ -12,6 +12,7 @@ export class KlineFileHeader {
         this.endTime = 0;
         this.issuePrice = 0;      // IPO发行价
         this.issueDate = 0;       // IPO发行日期（秒级时间戳）
+        this.totalShares = 0;     // 总股本
         this.checksum = 0;
     }
 
@@ -34,6 +35,9 @@ export class KlineFileHeader {
         // IPO信息（8+8=16字节）
         buffer.writeDoubleBE(this.issuePrice, offset); offset += 8;
         buffer.writeBigUInt64BE(BigInt(this.issueDate), offset); offset += 8;
+
+        // 总股本
+        buffer.writeBigUInt64BE(BigInt(this.totalShares)); offset += 8;
 
         // 计算CRC（不包括checksum字段本身）
         const crc = crc32(buffer.subarray(0, offset));
@@ -73,6 +77,9 @@ export class KlineFileHeader {
         header.issuePrice = buffer.readDoubleBE(offset); offset += 8;
         header.issueDate = Number(buffer.readBigUInt64BE(offset)); offset += 8;
         header.checksum = buffer.readUInt32BE(offset);
+
+        // 读取总股本
+        header.totalShares = Number(buffer.readBigUint64BE(offset)); offset += 8;
 
         // 验证CRC
         const calculatedCrc = crc32(buffer.subarray(0, offset));
@@ -117,6 +124,21 @@ export class KlineFileHeader {
             issueDate: this.issueDate,
             issueDateStr: this.issueDate ? new Date(this.issueDate * 1000).toISOString().split('T')[0] : null
         };
+    }
+
+    /**
+     * 设置总股本
+     * @param {number} totalShares  总股本
+     */
+    setTotalShares(totalShares){
+        this.totalShares = totalShares;
+    }
+
+    /**
+     * 获取总股本
+     */
+    gettotalShares(){
+        return this.totalShares;
     }
 
     /**

@@ -392,7 +392,7 @@ export class KlineStorage {
         if (startIdx == 0) {
             preClose = header.issuePrice;// 如果是第一天，获取收盘价
         } else {
-            let record = this.readRecordAt(startIdx - 1); // 获取前一天的收盘价
+            let record = await this.readRecordAt(startIdx - 1); // 获取前一天的收盘价
             preClose = record.close;
         }
 
@@ -489,21 +489,60 @@ export class KlineStorage {
      * @param {*} handle 
      */
     async recovery(handle) {
-        const { dataFd, header } = handle;
-        const stat = await dataFd.stat();
+        // 从WAL文件中恢复数据
+        const { shareCode, wal, header, dataFd } = handle;
 
-        const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
-        if (stat.size !== expectedSize) {
-            console.warn(`File size mismatch for ${handle.shareCode}, repairing...`);
-            const validSize = HEADER_SIZE + Math.floor((stat.size - HEADER_SIZE) / RECORD_SIZE) * RECORD_SIZE;
-            if (validSize >= HEADER_SIZE) {
-                await dataFd.truncate(validSize);
-                header.count = (validSize - HEADER_SIZE) / RECORD_SIZE;
-                const headerBuf = await header.serialize();
-                await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
-                await dataFd.sync();
-            }
+        // 1. 先修复文件结构
+        await this.repairFile(handle);
+
+        // 2. 读取 WAL 里所有未确认的记录
+        const walRecords = await wal.readAll();
+        if (!walRecords || walRecords.length === 0) return;
+
+        console.log(`[WAL] Recovering ${walRecords.length} records for ${shareCode}`);
+
+        // 3. 过滤掉已经写入 .dat 的数据（只恢复新的）
+        const validRecords = walRecords.filter(r => r.timestamp > header.endTime);
+        if (validRecords.length === 0) {
+            await wal.clear();
+            return;
         }
+
+        // 4. 直接写入数据文件
+        const buf = Buffer.alloc(validRecords.length * RECORD_SIZE);
+        let offset = 0;
+        for (const r of validRecords) {
+            r.pack().copy(buf, offset);
+            offset += RECORD_SIZE;
+        }
+
+
+        const pos = HEADER_SIZE + header.count * RECORD_SIZE;
+        await dataFd.write(buf, 0, buf.length, pos);
+
+        // 5. 更新头部
+        header.count += validRecords.length;
+        header.updateTimeRange(validRecords.at(-1));
+        const hBuf = header.serialize();
+        await dataFd.write(hBuf, 0, HEADER_SIZE, 0);
+        await dataFd.sync();
+
+        // 6. 恢复完成，清空 WAL
+        await wal.clear();
+        // const stat = await dataFd.stat();
+
+        // const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
+        // if (stat.size !== expectedSize) {
+        //     console.warn(`File size mismatch for ${handle.shareCode}, repairing...`);
+        //     const validSize = HEADER_SIZE + Math.floor((stat.size - HEADER_SIZE) / RECORD_SIZE) * RECORD_SIZE;
+        //     if (validSize >= HEADER_SIZE) {
+        //         await dataFd.truncate(validSize);
+        //         header.count = (validSize - HEADER_SIZE) / RECORD_SIZE;
+        //         const headerBuf = await header.serialize();
+        //         await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
+        //         await dataFd.sync();
+        //     }
+        // }
     }
 
     /**

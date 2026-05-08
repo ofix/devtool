@@ -8,17 +8,17 @@ export class KlineRecord {
      * @param {number} high - 最高
      * @param {number} low - 最低
      * @param {number} close - 收盘
-     * @param {number} turnoverratio - 换手率
      * @param {number} volume - 成交量
      * @param {number} amount - 成交额
+     * @param {number} turnoverratio - 换手率
      * @param {number|null} preClose - 昨日收盘价（仅运行时使用，不存入文件）
      */
     constructor(
         timestamp,
         open, high, low, close,
-        turnoverRatio,
         volume,
         amount,
+        turnoverRatio,
         preClose = null  // 可选参数，仅用于运行时计算
     ) {
         this.timestamp = timestamp;
@@ -122,7 +122,7 @@ export class KlineRecord {
         // 解包时 preClose 为 null，需要后续调用 setPreClose 设置
         return new KlineRecord(
             timestamp, open, high, low, close,
-            turnoverRatio, volume, amount,
+            volume, amount, turnoverRatio,
             null  // preClose 初始为 null
         );
     }
