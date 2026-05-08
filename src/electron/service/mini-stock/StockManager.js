@@ -41,8 +41,7 @@ export default class StockManager extends Singleton {
             week: new LRUCache(300),       // 周K缓存
             week: new LRUCache(300),       // 月K缓存
             year: new LRUCache(200),       // 年K缓存
-            minute: new LRUCache(100),     // 分时缓存
-            fiveMinute: new LRUCache(100), // 5日分时
+            minute: new LRUCache(100),     // 分时/5日分时缓存
             stock: new LRUCache(1)         // 股票列表缓存
         };
 
@@ -234,6 +233,102 @@ export default class StockManager extends Singleton {
         //     this._cleanMinuteCache();
         // }, 30000);
         // this.timers.push(minuteCleanupTimer);
+    }
+
+    /**
+     * 比较两个日期字符串是否是【同一天】
+     * @param {string} date1 日期字符串
+     * @param {string} date2 日期字符串
+     * @returns {boolean}
+     */
+    isSameDay(date1, date2) {
+        const d1 = new Date(date1);
+        const d2 = new Date(date2);
+        // 检查是否是有效日期
+        if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+            return false;
+        }
+
+        // 只比较 年/月/日
+        return (
+            d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate()
+        );
+    }
+
+    getNextProvider() {
+        return this.providers.baidu;
+    }
+
+    // 分时、股票列表、搜索（正确版：单只独立缓存）
+    async getShareMinuteKline(share, ndays = 1) {
+        const CHACHE_THREHOLD = 5000 * 1000; // 缓存有效期为5秒
+        const cacheKey = `${share.code}.${ndays}`;
+        const cache = this.cache.minute.get(cacheKey);
+        // 1. 当日分时（ndays=1）
+        //    缓存 5 秒
+        //    命中直接返回
+        //    不重复请求
+        // 2. 5 日分时（ndays≠1），缓存命中不再请求
+        //    缓存命中后检查最后一天是不是今天
+        //    是今天：如果分时缓存更新 → 替换当天数据
+        //    不是今天：滑动窗口 slice(1) → 删除最旧一天，加入最新一天分时缓存
+        if (cache) {
+            this.stats.cacheHits++;
+            if (ndays == 1) {
+                if ((Date.now() - cache.timestamp) < CHACHE_THREHOLD) {
+                    console.log(`[分时缓存][${share.name}][${share.code}]命中`);
+                    return cache.data;
+                }
+            } else {
+                let data = cache.data;
+                if (Array.isArray(data) && data.length == 5) {
+                    // 最近一天数据的日期
+                    let newestDay = data[4];
+                    const cacheToday = this.cache.minute.get(`${share.code}.1`);
+                    if (this.isSameDay(newestDay?.date, Date.now())) {
+                        // 检查当天分时缓存是否更新，如果是则合并数据
+                        if (cacheToday && cacheToday.timestamp > newestDay.timestamp) {
+                            data[4] = cacheToday.data;
+                            console.log(`[5日分时缓存][替换][${share.name}][${share.code}]命中`);
+                        }
+                        // 如果当日分时缓存不存在则不处理
+                        return data;
+                    } else {
+                        if (cacheToday) { // 假设当天分时缓存数据不存在脏数据(跨日期的可能，不适用美股)
+                            let merged = data.slice(1);
+                            merged.push(cacheToday.data);
+                            this.cache.minute.set(cacheKey, {
+                                data: merged,
+                                timestamp: Date.now()
+                            })
+                            console.log(`[5日分时缓存][合并][${share.name}][${share.code}]命中`);
+                            return merged;
+                        }
+                        return data;
+                    }
+                }
+            }
+        }
+
+        // 缓存没命中，请求后台接口
+        let data = null;
+        try {
+            const provider = this.getNextProvider();
+            data = await global.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
+                return provider.getShareMinuteKline(share, ndays);
+            })
+
+            this.cache.minute.set(cacheKey, {
+                data: data,
+                timestamp: Date.now()
+            });
+        } catch (err) {
+            console.error(`获取分时数据失败 ${share.code},${share.name},${ndays}:`, err.message);
+        }
+
+        return data;
     }
 
     getBkMenu() {
@@ -1244,8 +1339,8 @@ export default class StockManager extends Singleton {
         let data;
         try {
             // 增加排队机制，同一个数据供应商
-            data = await global.taskQueue.addTask(provider,()=>{
-                return provider.getKline(code,market, 'day',startTimestamp,endTimestamp);
+            data = await global.taskQueue.addTask(provider, () => {
+                return provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
             });
             // data = await provider.getKline(code, market, 'day', startTimestamp, endTimestamp);
         } catch (err) {
@@ -1435,62 +1530,7 @@ export default class StockManager extends Singleton {
         return { market: 'a', symbol: code };
     }
 
-    // 分时、股票列表、搜索（正确版：单只独立缓存）
-    async getShareMinuteKline(shares, ndays = 1) {
-        const isSingle = !Array.isArray(shares);
-        const list = isSingle ? [shares] : shares;
 
-        // 用来存放最终结果
-        const resultData = [];
-
-        // 循环处理每一只股票（一只股票一个缓存）
-        for (const share of list) {
-            // ✅ 每只股票独立缓存 key
-            const cacheKey = `${share.code}_${ndays}`;
-            const cached = this.cache.minute.get(cacheKey);
-
-            // 缓存有效（5秒）直接用
-            if (cached && (Date.now() - cached.timestamp) < 5000000) {
-                this.stats.cacheHits++;
-                resultData.push(cached.data);
-                continue;
-            }
-
-            this.stats.cacheMisses++;
-
-            // 真正请求接口
-            try {
-                const provider = this.getProvider()
-                const data = global.taskQueue.addTask(provider,`${share.code}.${share.ndays}`, ()=>{
-                    return provider.getShareMinuteKline(share,ndays);
-                })
-
-                // ✅ 单独写入当前股票缓存
-                this.cache.minute.set(cacheKey, {
-                    data: data,
-                    timestamp: Date.now()
-                });
-
-                resultData.push(data);
-            } catch (err) {
-                console.error(`获取分时数据失败 ${code}:`, err.message);
-                resultData.push(null);
-
-                // 失败也存个空缓存，避免频繁重试
-                this.cache.minute.set(cacheKey, {
-                    data: null,
-                    timestamp: Date.now()
-                });
-            }
-        }
-
-        // 返回格式保持和原来一致
-        if (isSingle) {
-            return resultData[0];
-        } else {
-            return Object.fromEntries(list.map((c, i) => [c, resultData[i]]));
-        }
-    }
 
     async getStockList() {
         const cached = this.cache.stock.get('list');
