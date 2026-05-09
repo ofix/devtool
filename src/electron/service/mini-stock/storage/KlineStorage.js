@@ -16,7 +16,7 @@ import LRUCache from '../../../core/LRUCache.js';
  * 1. 二进制格式存储，读写性能极高
  * 2. 批量写入 + 定时刷盘，减少IO
  * 3. 可选WAL预写日志，保证宕机数据不丢失（默认关闭）
- * 4. 内存时间戳索引，二分查找0磁盘IO（核心优化）
+ * 4. 内存时间戳索引【增量优化版】：首次全量，后续按公式增量追加，永不全量重建
  * 5. LRU缓存 + 批量读取，查询速度极快
  */
 export class KlineStorage {
@@ -38,8 +38,8 @@ export class KlineStorage {
         this.recordCache = new LRUCache(this.CACHE_MAX_SIZE);
 
         // 核心优化：时间戳内存索引缓存
-        // key: shareCode, value: 时间戳数组[]
-        // 作用：一次性加载所有时间戳到内存，二分查找完全内存操作，0磁盘IO
+        // key: shareCode, value: 时间戳纯数字数组[]
+        // 策略：首次全量构建，后续增量追加，永不全量重建
         this.timeIndexCache = new Map();
 
         // 定时刷盘定时器
@@ -276,42 +276,63 @@ export class KlineStorage {
     }
 
     /**
-     * 核心优化函数,降低频繁查询IO
-     * 获取股票所有时间戳的内存索引
-     * 1. 缓存命中：直接返回内存数组
-     * 2. 未命中：一次性读取全部数据，提取时间戳存入缓存
-     * 二分查找100%内存操作
+     * 核心优化函数：时间戳内存索引 增量更新版
+     * 规则：
+     * 1. 无缓存：首次全量构建时间戳数组
+     * 2. 有缓存但条数不足：用 索引长度 * RECORD_SIZE 算增量偏移
+     * 3. 只读取新增部分时间戳，原地追加，永不全量重建
+     * 4. 纯数字数组，内存占用极低，二分查询0磁盘IO
      */
     async getTimeIndex(shareCode) {
-        // 缓存命中，直接返回
-        if (this.timeIndexCache.has(shareCode)) {
-            return this.timeIndexCache.get(shareCode);
-        }
-
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
-        const count = header.count;
+        const totalCount = header.count;
 
         // 空数据直接返回空数组
-        if (count === 0) {
+        if (totalCount === 0) {
             this.timeIndexCache.set(shareCode, []);
             return [];
         }
 
-        // 一次性读取所有K线数据（一次IO，性能极高）
-        const buf = Buffer.alloc(count * RECORD_SIZE);
-        await dataFd.read(buf, 0, buf.length, HEADER_SIZE);
+        // 读取内存已有索引
+        let cachedTimestamps = this.timeIndexCache.get(shareCode);
+        const cachedLen = cachedTimestamps ? cachedTimestamps.length : 0;
 
-        // 仅提取时间戳，生成索引数组
-        const timestamps = new Array(count);
-        for (let i = 0; i < count; i++) {
-            // 时间戳在每条记录的前4个字节
-            timestamps[i] = buf.readUInt32LE(i * RECORD_SIZE);
+        // 索引已是最新，直接返回
+        if (cachedLen === totalCount) {
+            return cachedTimestamps;
         }
 
-        // 存入内存缓存
-        this.timeIndexCache.set(shareCode, timestamps);
-        return timestamps;
+        // -------- 按你的公式计算增量读取起始偏移 --------
+        const incrementalOffset = cachedLen * RECORD_SIZE;
+        const needReadCnt = totalCount - cachedLen;
+        const readBufSize = needReadCnt * RECORD_SIZE;
+
+        // 分配缓冲区，只读取新增区间
+        const readBuf = Buffer.alloc(readBufSize);
+        await dataFd.read(
+            readBuf,
+            0,
+            readBufSize,
+            HEADER_SIZE + incrementalOffset
+        );
+
+        // 解析新增时间戳
+        const newTsArr = new Array(needReadCnt);
+        for (let i = 0; i < needReadCnt; i++) {
+            newTsArr[i] = readBuf.readUInt32LE(i * RECORD_SIZE);
+        }
+
+        // 合并索引：无缓存则赋值，有缓存则追加
+        if (!cachedTimestamps) {
+            cachedTimestamps = newTsArr;
+        } else {
+            cachedTimestamps.push(...newTsArr);
+        }
+
+        // 更新缓存
+        this.timeIndexCache.set(shareCode, cachedTimestamps);
+        return cachedTimestamps;
     }
 
     /**
@@ -372,8 +393,9 @@ export class KlineStorage {
 
             // 清空缓冲区
             buffer.records = [];
-            // 数据已更新，清空时间索引（下次查询自动重建）
-            this.timeIndexCache.delete(shareCode);
+
+            // 【关键优化】不再清空时间索引，保留内存索引用于增量更新
+            // this.timeIndexCache.delete(shareCode);
 
         } catch (err) {
             console.error(`Flush failed ${shareCode}:`, err);
@@ -416,7 +438,7 @@ export class KlineStorage {
         // 查询范围无交集
         if (startTs > header.endTime || endTs < header.startTime) return [];
 
-        // ====================== 纯内存二分查找（核心优化，0磁盘IO）
+        // 纯内存二分查找（核心优化，0磁盘IO）
         const timestamps = await this.getTimeIndex(shareCode);
         let left = 0, right = timestamps.length - 1;
         let startIdx = 0;
