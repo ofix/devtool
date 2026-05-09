@@ -422,81 +422,95 @@ export class KlineStorage {
     }
 
     /**
-     * 查询K线数据（支持范围查询 / 全量查询）
-     * 优化点：纯内存二分查找起始位置，0磁盘IO
+     * 查询K线数据（支持任意起止时间，自动处理节假日/无数据）
+     * 1. 起始时间无数据 → 自动取 >= startTime 的第一条有效K线
+     * 2. 结束时间无数据 → 自动取 <= endTime 的最后一条有效K线
+     * 3. 区间内无数据 → 返回空数组
+     * 4. 纯内存二分查找，0磁盘IO
      */
     async query(shareCode, startTime, endTime) {
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
+
         // 空数据直接返回
         if (header.count === 0) return [];
 
-        // 统一转换为秒级时间戳
+        // 统一转秒级时间戳
         const startTs = startTime ? this.toSecTimestamp(startTime) : header.startTime;
         const endTs = endTime ? this.toSecTimestamp(endTime) : header.endTime;
 
-        // 查询范围无交集
-        if (startTs > header.endTime || endTs < header.startTime) return [];
-
-        // 纯内存二分查找（核心优化，0磁盘IO）
+        // 获取内存时间戳索引（已优化增量更新）
         const timestamps = await this.getTimeIndex(shareCode);
-        let left = 0, right = timestamps.length - 1;
-        let startIdx = 0;
+        const len = timestamps.length;
 
-        // 二分查找：第一个 >= 开始时间的索引
-        while (left <= right) {
-            const mid = (left + right) >> 1;
-            const ts = timestamps[mid];
-            if (ts >= startTs) {
+
+        // 查找第一个 >= startTs 的索引（左边界）
+        let L = 0, R = len - 1;
+        let startIdx = len; // 默认越界，表示无数据
+        while (L <= R) {
+            const mid = (L + R) >> 1;
+            if (timestamps[mid] >= startTs) {
                 startIdx = mid;
-                right = mid - 1;
+                R = mid - 1;
             } else {
-                left = mid + 1;
+                L = mid + 1;
             }
         }
 
-        // 获取昨日收盘价，用于计算涨跌
-        let preClose = 0;
-        if (startIdx === 0) {
-            // 第一条数据：使用发行价
-            preClose = header.issuePrice;
-        } else {
-            // 读取前一条记录的收盘价
-            const r = await this.readRecordAt(handle, startIdx - 1);
-            preClose = r.close;
+
+        // 查找最后一个 <= endTs 的索引（右边界）
+        L = 0; R = len - 1;
+        let endIdx = -1;
+        while (L <= R) {
+            const mid = (L + R) >> 1;
+            if (timestamps[mid] <= endTs) {
+                endIdx = mid;
+                L = mid + 1;
+            } else {
+                R = mid - 1;
+            }
         }
 
-        // 批量读取数据（64KB块，减少IO次数）
+
+        // 区间无数据 → 直接返回空
+        if (startIdx > endIdx || startIdx === len || endIdx === -1) {
+            return [];
+        }
+
+
+        // 正确区间：[startIdx, endIdx] 全是有效数据
+        const totalNeed = endIdx - startIdx + 1;
+
+        // 获取前收盘价（正确计算涨跌）
+        let preClose = 0;
+        if (startIdx === 0) {
+            preClose = header.issuePrice;
+        } else {
+            const prevRecord = await this.readRecordAt(handle, startIdx - 1);
+            preClose = prevRecord.close;
+        }
+
+        // 批量读取（保持你原有的高性能块读）
         const results = [];
         let current = startIdx;
         const BLOCK_SIZE = 64 * 1024;
         const RECORDS_PER_BLOCK = Math.floor(BLOCK_SIZE / RECORD_SIZE);
 
-        while (current < timestamps.length) {
-            // 本批次读取数量
-            const batch = Math.min(timestamps.length - current, RECORDS_PER_BLOCK);
+        while (current <= endIdx) {
+            const remain = endIdx - current + 1;
+            const batch = Math.min(remain, RECORDS_PER_BLOCK);
             const buf = Buffer.alloc(batch * RECORD_SIZE);
             const offset = HEADER_SIZE + current * RECORD_SIZE;
 
-            // 批量读取
             await dataFd.read(buf, 0, buf.length, offset);
 
-            let breakFlag = false;
             for (let i = 0; i < batch; i++) {
-                const ts = timestamps[current + i];
-                // 超过结束时间，停止读取
-                if (ts > endTs) {
-                    breakFlag = true;
-                    break;
-                }
-                // 解析记录
                 const record = KlineRecord.unpack(buf.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
                 record.setPreClose(preClose);
                 preClose = record.close;
                 results.push(record);
             }
 
-            if (breakFlag) break;
             current += batch;
         }
 
