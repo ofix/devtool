@@ -10,31 +10,60 @@ import { KlineFileHeader } from './KlineFileHeader.js';
 import { SimpleWAL } from './SimpleWAL.js';
 import LRUCache from '../../../core/LRUCache.js';
 
+/**
+ * 日K线二进制文件存储引擎
+ * 特性：
+ * 1. 二进制格式存储，读写性能极高
+ * 2. 批量写入 + 定时刷盘，减少IO
+ * 3. 可选WAL预写日志，保证宕机数据不丢失（默认关闭）
+ * 4. 内存时间戳索引，二分查找0磁盘IO（核心优化）
+ * 5. LRU缓存 + 批量读取，查询速度极快
+ */
 export class KlineStorage {
-    constructor(basePath) {
+    /**
+     * 构造函数
+     * @param {string} basePath - 数据文件存储根目录
+     * @param {boolean} enableWAL - 是否开启WAL（预写日志），默认关闭
+     */
+    constructor(basePath, enableWAL = false) {
         this.basePath = basePath;
-        // 存储句柄
-        this.handles = new Map(); // shareCode => Handle
-        // 写入缓冲区
-        this.writeBuffer = new Map(); // shareCode => { records: [], flushing: false }
-        // 限制缓存大小，防止内存爆掉
+        this.enableWAL = enableWAL;
+
+        // 文件句柄缓存：shareCode => 文件句柄，避免重复打开文件
+        this.handles = new Map();
+        // 写入缓冲区：shareCode => 待刷盘数据，实现批量写入
+        this.writeBuffer = new Map();
+        // 单条K线记录LRU缓存，加速随机读取（二分/查询单条）
         this.CACHE_MAX_SIZE = 5000;
-        // 二分查找位置缓存（LRU 可选，这里先简单缓存）
         this.recordCache = new LRUCache(this.CACHE_MAX_SIZE);
 
-        // 刷新定时器
+        // 核心优化：时间戳内存索引缓存
+        // key: shareCode, value: 时间戳数组[]
+        // 作用：一次性加载所有时间戳到内存，二分查找完全内存操作，0磁盘IO
+        this.timeIndexCache = new Map();
+
+        // 定时刷盘定时器
         this.flushTimer = null;
-        // 关闭标志
+        // 关闭标记，防止关闭过程中重复操作
         this.isClosing = false;
-        // 统计信息
-        this.stats = new Map(); // shareCode => Stats
+        // 读写统计信息
+        this.stats = new Map();
     }
 
+    /**
+     * 初始化存储引擎
+     * 创建目录 + 启动刷盘定时器
+     */
     async init() {
         await fs.mkdir(this.basePath, { recursive: true });
         this.startFlushTimer();
     }
 
+    /**
+     * 获取股票对应的数据文件路径
+     * @param {string} shareCode - 股票代码
+     * @returns 数据文件(.dat) + WAL文件(.wal)路径
+     */
     getFilePaths(shareCode) {
         return {
             dataPath: path.join(this.basePath, `${shareCode}.dat`),
@@ -43,67 +72,76 @@ export class KlineStorage {
     }
 
     /**
-     * 打开或获取文件句柄
+     * 打开股票数据文件（复用已打开的句柄）
+     * 初始化文件头、WAL、缓冲区、统计信息
      */
     async open(shareCode) {
+        // 复用句柄，避免重复打开
         if (this.handles.has(shareCode)) {
             return this.handles.get(shareCode);
         }
 
         const { dataPath, walPath } = this.getFilePaths(shareCode);
         await fs.mkdir(this.basePath, { recursive: true });
-
-        // 并行打开文件
+        // 打开数据文件（a+：可读可写，不存在则创建）
         const dataFd = await fs.open(dataPath, 'a+');
 
-        const wal = new SimpleWAL(walPath);
-        await wal.open();
+        // 仅开启WAL时初始化
+        let wal = null;
+        if (this.enableWAL) {
+            wal = new SimpleWAL(walPath);
+            await wal.open();
+        }
 
+        // 文件头对象
         const header = new KlineFileHeader();
         const handle = {
             shareCode, dataFd, wal, header,
-            lastFlushTime: Date.now()
+            lastFlushTime: Date.now() // 最后刷盘时间
         };
 
         this.handles.set(shareCode, handle);
 
-        // 初始化缓冲区
+        // 初始化写入缓冲区
         if (!this.writeBuffer.has(shareCode)) {
             this.writeBuffer.set(shareCode, { records: [], flushing: false });
         }
-
-        // 初始化统计
+        // 初始化统计信息
         if (!this.stats.has(shareCode)) {
             this.stats.set(shareCode, {
-                writes: 0,
-                flushes: 0,
-                cacheHits: 0,
-                cacheMisses: 0
+                writes: 0, flushes: 0,
+                cacheHits: 0, cacheMisses: 0
             });
         }
 
-        // 初始化文件
+        // 读取/初始化文件头
         await this.initHeader(handle);
+        // 校验文件完整性
         await this.verifyFileIntegrity(handle);
-        await this.recovery(handle);
+        // WAL恢复（仅开启时执行）
+        if (this.enableWAL) {
+            await this.recovery(handle);
+        }
 
         return handle;
     }
 
     /**
-     * 初始化头部
+     * 初始化文件头
+     * 读取文件头，损坏则自动重建
      */
     async initHeader(handle) {
         const { dataFd, header } = handle;
-
         try {
             const headerBuf = Buffer.alloc(HEADER_SIZE);
             const { bytesRead } = await dataFd.read(headerBuf, 0, HEADER_SIZE, 0);
 
+            // 读取到完整头则反序列化
             if (bytesRead === HEADER_SIZE) {
                 const deserialized = KlineFileHeader.deserialize(headerBuf);
                 Object.assign(header, deserialized);
             } else {
+                // 文件为空，创建新头
                 await this.createNewHeader(handle);
             }
         } catch (err) {
@@ -113,7 +151,7 @@ export class KlineStorage {
     }
 
     /**
-     * 创建新头部
+     * 创建并写入新的文件头
      */
     async createNewHeader(handle) {
         const { dataFd, header } = handle;
@@ -121,17 +159,18 @@ export class KlineStorage {
         const buf = newHeader.serialize();
 
         await dataFd.write(buf, 0, HEADER_SIZE, 0);
-        await dataFd.sync();
-
+        await dataFd.sync(); // 强制刷盘，保证头不丢失
         Object.assign(header, newHeader);
     }
 
     /**
-     * 校验文件完整性
+     * 校验文件大小是否完整
+     * 防止程序崩溃导致文件半截写入
      */
     async verifyFileIntegrity(handle) {
         const { dataFd, header, shareCode } = handle;
         const stat = await dataFd.stat();
+        // 期望文件大小 = 头大小 + 记录数 * 单条记录大小
         const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
 
         if (stat.size !== expectedSize) {
@@ -141,83 +180,78 @@ export class KlineStorage {
     }
 
     /**
-     * 修复文件
+     * 修复损坏的文件：截断到有效记录长度
      */
     async repairFile(handle) {
         const { dataFd, header } = handle;
         const stat = await dataFd.stat();
 
+        // 计算有效数据长度（对齐到整数条记录）
         const validSize = HEADER_SIZE +
             Math.floor((stat.size - HEADER_SIZE) / RECORD_SIZE) * RECORD_SIZE;
 
         if (validSize >= HEADER_SIZE) {
-            await dataFd.truncate(validSize);
+            await dataFd.truncate(validSize); // 截断无效数据
             header.count = (validSize - HEADER_SIZE) / RECORD_SIZE;
 
-            const hBuf = await header.serialize();
+            // 重新写入正确的头
+            const hBuf = header.serialize();
             await dataFd.write(hBuf, 0, HEADER_SIZE, 0);
             await dataFd.sync();
         }
     }
 
-
     /**
-     * 写入单条记录
+     * 追加单条K线记录
+     * 会校验时间顺序：必须严格递增
      */
     async append(shareCode, record) {
+        // 数据合法性校验
         if (!record.validate()) {
             throw new Error(`Invalid record for ${shareCode}: ${record.timestamp}`);
         }
 
         const handle = await this.open(shareCode);
         const endTime = handle.header.endTime || 0;
+        // 日K线时间必须严格递增
         if (record.timestamp <= endTime) {
-            throw new Error(`Record timestamp ${record.timestamp} is not greater than current endTime ${endTime} for ${shareCode}`);
+            throw new Error(`Record timestamp ${record.timestamp} <= endTime ${endTime}`);
         }
+
+        // 写入缓冲区
         const buffer = this.writeBuffer.get(shareCode);
-
-        if (!buffer) {
-            throw new Error(`Buffer not initialized for ${shareCode}`);
-        }
-
         buffer.records.push(record);
 
-        // 更新统计
+        // 更新写入统计
         const stats = this.stats.get(shareCode);
         stats.writes++;
 
-        // 达到批量大小，触发刷新
+        // 达到批量大小，自动刷盘
         if (buffer.records.length >= BATCH_SIZE && !buffer.flushing) {
-            // 异步刷新，不阻塞写入
-            this.flush(shareCode).catch(err => {
-                console.error(`Flush error for ${shareCode}:`, err);
-            });
+            this.flush(shareCode).catch(console.error);
         }
     }
 
     /**
-     * 批量写入
+     * 批量追加K线（高效写入）
+     * 自动过滤已存在的历史数据
      */
     async batchAppend(shareCode, records) {
         if (!records.length) return;
+
+        // 校验所有记录合法性
         for (const r of records) {
-            if (!r.validate()) {
-                throw new Error(`Invalid record in batch for ${shareCode}: ${r.timestamp}`)
-            }
+            if (!r.validate()) throw new Error(`Invalid record in batch ${shareCode}`);
         }
 
         const handle = await this.open(shareCode);
         const endTime = handle.header.endTime || 0;
 
-        // 二分查找：第一个 > endTime 的位置
-        let left = 0;
-        let right = records.length - 1;
-        let firstValid = records.length; // 默认全部无效
-
+        // 二分查找：找到第一个大于当前最后时间的记录位置
+        let left = 0, right = records.length - 1, firstValid = records.length;
         while (left <= right) {
             const mid = (left + right) >> 1;
             const ts = records[mid].timestamp;
-
             if (ts > endTime) {
                 firstValid = mid;
                 right = mid - 1;
@@ -226,73 +260,104 @@ export class KlineStorage {
             }
         }
 
-        // 直接截取有效数据（后面全部是新的）
+        // 只写入新增数据
         const newRecords = records.slice(firstValid);
         if (newRecords.length === 0) return;
 
         const buffer = this.writeBuffer.get(shareCode);
-
-        if (!buffer) {
-            throw new Error(`Buffer not initialized for ${shareCode}`);
-        }
-
         buffer.records.push(...newRecords);
 
+        // 更新统计
         const stats = this.stats.get(shareCode);
         stats.writes += newRecords.length;
 
+        // 立即刷盘
         await this.flush(shareCode).catch(console.error);
     }
 
     /**
-     * 刷新缓冲区到磁盘（带锁防止并发）
+     * 核心优化函数,降低频繁查询IO
+     * 获取股票所有时间戳的内存索引
+     * 1. 缓存命中：直接返回内存数组
+     * 2. 未命中：一次性读取全部数据，提取时间戳存入缓存
+     * 二分查找100%内存操作
+     */
+    async getTimeIndex(shareCode) {
+        // 缓存命中，直接返回
+        if (this.timeIndexCache.has(shareCode)) {
+            return this.timeIndexCache.get(shareCode);
+        }
+
+        const handle = await this.open(shareCode);
+        const { header, dataFd } = handle;
+        const count = header.count;
+
+        // 空数据直接返回空数组
+        if (count === 0) {
+            this.timeIndexCache.set(shareCode, []);
+            return [];
+        }
+
+        // 一次性读取所有K线数据（一次IO，性能极高）
+        const buf = Buffer.alloc(count * RECORD_SIZE);
+        await dataFd.read(buf, 0, buf.length, HEADER_SIZE);
+
+        // 仅提取时间戳，生成索引数组
+        const timestamps = new Array(count);
+        for (let i = 0; i < count; i++) {
+            // 时间戳在每条记录的前4个字节
+            timestamps[i] = buf.readUInt32LE(i * RECORD_SIZE);
+        }
+
+        // 存入内存缓存
+        this.timeIndexCache.set(shareCode, timestamps);
+        return timestamps;
+    }
+
+    /**
+     * 将缓冲区数据刷入磁盘
+     * 带并发锁，防止多次同时刷盘
      */
     async flush(shareCode) {
         const buffer = this.writeBuffer.get(shareCode);
+        // 无数据 / 正在刷盘：直接返回
+        if (!buffer || buffer.records.length === 0 || buffer.flushing) return;
 
-        // 没有数据或正在刷新，直接返回
-        if (!buffer || buffer.records.length === 0 || buffer.flushing) {
-            return;
-        }
-
-        // 设置刷新锁
+        // 加锁：防止并发刷盘
         buffer.flushing = true;
-
         try {
             const handle = this.handles.get(shareCode);
-            if (!handle) {
-                // 句柄可能已被关闭
-                buffer.records = [];
-                return;
-            }
+            if (!handle) { buffer.records = []; return; }
 
             const { dataFd, wal, header } = handle;
             const records = buffer.records;
 
-            // 写入WAL
-            await wal.append(records);
+            // WAL写入：仅开启时执行
+            if (this.enableWAL && wal) await wal.append(records);
 
-            // 准备数据
+            // 批量序列化数据
             const dataBuf = Buffer.alloc(records.length * RECORD_SIZE);
-            let dataOffset = 0;
-            for (let i = 0; i < records.length; i++) {
-                records[i].pack().copy(dataBuf, dataOffset);
-                dataOffset += RECORD_SIZE;
+            let offset = 0;
+            for (const r of records) {
+                r.pack().copy(dataBuf, offset);
+                offset += RECORD_SIZE;
             }
 
-            const dataPos = HEADER_SIZE + header.count * RECORD_SIZE;
-            await dataFd.write(dataBuf, 0, dataBuf.length, dataPos);
-            // 更新头部
+            // 写入数据文件
+            const pos = HEADER_SIZE + header.count * RECORD_SIZE;
+            await dataFd.write(dataBuf, 0, dataBuf.length, pos);
+
+            // 更新文件头：时间范围 + 记录总数
             if (records.length > 0) {
-                header.updateTimeRange(records[0]); // 更新最小时间
-                header.updateTimeRange(records[records.length - 1]); // 更新最大时间
+                header.updateTimeRange(records[0]);
+                header.updateTimeRange(records[records.length - 1]);
             }
             header.count += records.length;
 
-            const headerBuf = await header.serialize();
+            // 写入更新后的文件头
+            const headerBuf = header.serialize();
             await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
-
-            // 强制刷盘
+            // 强制刷盘，保证数据落地
             await dataFd.sync();
 
             // 更新统计
@@ -300,291 +365,230 @@ export class KlineStorage {
             stats.flushes++;
             handle.lastFlushTime = Date.now();
 
-            // 定期清理WAL
-            if (header.count % WAL_CLEAR_THRESHOLD === 0) {
+            // 定期清空WAL
+            if (this.enableWAL && wal && header.count % WAL_CLEAR_THRESHOLD === 0) {
                 await wal.clear();
             }
-            // 刷新成功，清空缓冲区
+
+            // 清空缓冲区
             buffer.records = [];
+            // 数据已更新，清空时间索引（下次查询自动重建）
+            this.timeIndexCache.delete(shareCode);
+
         } catch (err) {
-            console.error(`Flush failed for ${shareCode}:`, err);
-            // 恢复缓冲区数据（避免数据丢失）
-            const buffer = this.writeBuffer.get(shareCode);
-            if (buffer && buffer.records.length === 0) {
-                // 如果清空了但写入失败，需要恢复（这里简化处理）
-                console.error(`Data may be lost for ${shareCode}`);
-            }
+            console.error(`Flush failed ${shareCode}:`, err);
             throw err;
         } finally {
-            // 释放刷新锁
+            // 释放锁
             const buffer = this.writeBuffer.get(shareCode);
-            if (buffer) {
-                buffer.flushing = false;
-            }
+            if (buffer) buffer.flushing = false;
         }
     }
 
-    // 转秒级时间戳
+    /**
+     * 统一时间格式：转换为秒级时间戳
+     * 支持：数字、日期字符串、时间戳字符串
+     */
     toSecTimestamp(time) {
-        // 已经是数字时间戳 → 直接返回
-        if (typeof time === 'number') {
-            return time;
-        }
-
-        // 字符串日期 2020-01-02 → 转秒（本地时区 00:00:00）
+        if (typeof time === 'number') return time;
+        // 2025-01-01 格式
         if (typeof time === 'string' && time.includes('-')) {
-            const date = new Date(`${time} 00:00:00`);
-            return Math.floor(date.getTime() / 1000);
+            return Math.floor(new Date(`${time} 00:00:00`).getTime() / 1000);
         }
-
-        // 字符串数字 "1577836800" → 转数字
+        // 字符串数字
         return Number(time);
     }
 
     /**
-     * 查询K线数据（支持【查全部】+【查范围】）
-     * @param {string} shareCode - 股票代码
-     * @param {number|string} [startTime] - 开始时间（不传=最早）
-     * @param {number|string} [endTime] - 结束时间（不传=最晚）
-     * @returns {Promise<KlineRecord[]>}
+     * 查询K线数据（支持范围查询 / 全量查询）
+     * 优化点：纯内存二分查找起始位置，0磁盘IO
      */
     async query(shareCode, startTime, endTime) {
         const handle = await this.open(shareCode);
         const { header, dataFd } = handle;
+        // 空数据直接返回
         if (header.count === 0) return [];
 
-        // 兼容多种时间格式输入，统一转换为秒级时间戳
-        const startTimestamp = startTime ? this.toSecTimestamp(startTime) : header.startTime;
-        const endTimestamp = endTime ? this.toSecTimestamp(endTime) : header.endTime;
+        // 统一转换为秒级时间戳
+        const startTs = startTime ? this.toSecTimestamp(startTime) : header.startTime;
+        const endTs = endTime ? this.toSecTimestamp(endTime) : header.endTime;
 
-        // 查询范围完全不交集，直接返回空数组
-        if (startTimestamp > header.endTime || endTimestamp < header.startTime) {
-            return []
-        }
+        // 查询范围无交集
+        if (startTs > header.endTime || endTs < header.startTime) return [];
 
-        // 二分查找起始位置
-        let left = 0;
-        let right = header.count - 1;
-        let startIdx = -1;
+        // ====================== 纯内存二分查找（核心优化，0磁盘IO）
+        const timestamps = await this.getTimeIndex(shareCode);
+        let left = 0, right = timestamps.length - 1;
+        let startIdx = 0;
 
-        // 如果查询范围不等于整个时间范围，才进行二分查找；否则直接从头开始读取
-        if (startTimestamp == header.startTime && endTimestamp == header.endTime) {
-            startIdx = 0;
-        } else {
-            while (left <= right) {
-                const mid = (left + right) >> 1;
-                const midRecord = await this.readCachedRecordAt(shareCode, handle, mid);
-
-                if (midRecord.timestamp >= startTimestamp) {
-                    startIdx = mid;
-                    right = mid - 1;
-                } else {
-                    left = mid + 1;
-                }
+        // 二分查找：第一个 >= 开始时间的索引
+        while (left <= right) {
+            const mid = (left + right) >> 1;
+            const ts = timestamps[mid];
+            if (ts >= startTs) {
+                startIdx = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
             }
         }
 
-
-        if (startIdx === -1) return [];
-
-        // 昨日收盘价
+        // 获取昨日收盘价，用于计算涨跌
         let preClose = 0;
-        if (startIdx == 0) {
-            preClose = header.issuePrice;// 如果是第一天，获取收盘价
+        if (startIdx === 0) {
+            // 第一条数据：使用发行价
+            preClose = header.issuePrice;
         } else {
-            let record = await this.readRecordAt(startIdx - 1); // 获取前一天的收盘价
-            preClose = record.close;
+            // 读取前一条记录的收盘价
+            const r = await this.readRecordAt(handle, startIdx - 1);
+            preClose = r.close;
         }
 
-        // 按块大小批量读取
+        // 批量读取数据（64KB块，减少IO次数）
         const results = [];
-        let currentPos = startIdx;
-        const BLOCK_SIZE = 64 * 1024; // 64KB 块大小
-        const RECORDS_PER_BLOCK = Math.floor(BLOCK_SIZE / RECORD_SIZE); // 64KB / 48B ≈ 1365 条/块
+        let current = startIdx;
+        const BLOCK_SIZE = 64 * 1024;
+        const RECORDS_PER_BLOCK = Math.floor(BLOCK_SIZE / RECORD_SIZE);
 
-        while (currentPos < header.count) {
-            // 计算本批次读取数量（不超过剩余数量）
-            const batchCount = Math.min(header.count - currentPos, RECORDS_PER_BLOCK);
-            const batchBytes = batchCount * RECORD_SIZE;
-            const buffer = Buffer.alloc(batchBytes);
-            const offset = HEADER_SIZE + currentPos * RECORD_SIZE;
+        while (current < timestamps.length) {
+            // 本批次读取数量
+            const batch = Math.min(timestamps.length - current, RECORDS_PER_BLOCK);
+            const buf = Buffer.alloc(batch * RECORD_SIZE);
+            const offset = HEADER_SIZE + current * RECORD_SIZE;
 
-            const { bytesRead } = await dataFd.read(buffer, 0, batchBytes, offset);
-            const actualCount = Math.floor(bytesRead / RECORD_SIZE);
+            // 批量读取
+            await dataFd.read(buf, 0, buf.length, offset);
 
-            // 解码并过滤
-            let hasExceeded = false;
-            for (let i = 0; i < actualCount; i++) {
-                const record = KlineRecord.unpack(buffer.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
-                record.setPreClose(preClose); // 必须设置收盘价，否则无法计算涨跌额和涨跌幅
-                preClose = record.close;
-                if (record.timestamp > endTimestamp) {
-                    hasExceeded = true;
+            let breakFlag = false;
+            for (let i = 0; i < batch; i++) {
+                const ts = timestamps[current + i];
+                // 超过结束时间，停止读取
+                if (ts > endTs) {
+                    breakFlag = true;
                     break;
                 }
+                // 解析记录
+                const record = KlineRecord.unpack(buf.subarray(i * RECORD_SIZE, (i + 1) * RECORD_SIZE));
+                record.setPreClose(preClose);
+                preClose = record.close;
                 results.push(record);
             }
 
-            if (hasExceeded) break;
-            currentPos += batchCount;
+            if (breakFlag) break;
+            current += batch;
         }
 
         return results;
     }
 
     /**
-     * 带缓存读取指定位置的记录（二分专用！）
+     * 带LRU缓存的单条记录读取（二分查找专用）
      */
     async readCachedRecordAt(shareCode, handle, index) {
-        const cacheKey = `${shareCode}:${index}`;
-        // 命中缓存：直接内存返回（零IO）
-        if (this.recordCache.has(cacheKey)) {
-            return this.recordCache.get(cacheKey);
+        const key = `${shareCode}:${index}`;
+        // 缓存命中
+        if (this.recordCache.has(key)) {
+            this.stats.get(shareCode).cacheHits++;
+            return this.recordCache.get(key);
         }
-        // 未命中：读磁盘
-        const { dataFd } = handle;
-        const offset = HEADER_SIZE + index * RECORD_SIZE;
-        const buf = Buffer.alloc(RECORD_SIZE);
-        await dataFd.read(buf, 0, RECORD_SIZE, offset);
-        const record = KlineRecord.unpack(buf);
 
-        // 写入缓存（控制大小，防溢出）
-        this.recordCache.set(cacheKey, record);
-
-        return record;
+        // 磁盘读取
+        const rec = await this.readRecordAt(handle, index);
+        this.recordCache.set(key, rec);
+        this.stats.get(shareCode).cacheMisses++;
+        return rec;
     }
 
     /**
-     * 读取指定位置的记录,无缓存版本
+     * 无缓存读取单条记录
      */
     async readRecordAt(handle, index) {
         const { dataFd } = handle;
-        const offset = HEADER_SIZE + index * RECORD_SIZE;
         const buf = Buffer.alloc(RECORD_SIZE);
-        await dataFd.read(buf, 0, RECORD_SIZE, offset);
-        const record = KlineRecord.unpack(buf);
-        return record;
-    }
-
-    async getFirst(shareCode) {
-        const handle = await this.open(shareCode);
-        if (handle.header.count === 0) return null;
-        return this.readRecordAt(handle, 0);
-    }
-
-    async getLast(shareCode) {
-        const handle = await this.open(shareCode);
-        const count = handle.header.count;
-        if (count === 0) return null;
-        return this.readRecordAt(handle, count - 1);
-    }
-
-    async getCount(shareCode) {
-        const handle = await this.open(shareCode);
-        return handle.header.count;
+        await dataFd.read(buf, 0, RECORD_SIZE, HEADER_SIZE + index * RECORD_SIZE);
+        return KlineRecord.unpack(buf);
     }
 
     /**
-     * 恢复文件（修复不完整的记录）
-     * @param {*} handle 
+     * 获取第一条K线
+     */
+    async getFirst(shareCode) {
+        const h = await this.open(shareCode);
+        return h.header.count ? this.readRecordAt(h, 0) : null;
+    }
+
+    /**
+     * 获取最后一条K线
+     */
+    async getLast(shareCode) {
+        const h = await this.open(shareCode);
+        return h.header.count ? this.readRecordAt(h, h.header.count - 1) : null;
+    }
+
+    /**
+     * 获取K线总条数
+     */
+    async getCount(shareCode) {
+        const h = await this.open(shareCode);
+        return h.header.count;
+    }
+
+    /**
+     * WAL崩溃恢复：从未提交的WAL日志恢复数据
+     * 仅开启WAL时生效
      */
     async recovery(handle) {
-        // 从WAL文件中恢复数据
+        if (!this.enableWAL || !handle.wal) return;
+
         const { shareCode, wal, header, dataFd } = handle;
+        const recs = await wal.readAll();
+        if (!recs.length) return;
 
-        // 1. 先修复文件结构
-        await this.repairFile(handle);
+        // 只恢复比当前最新数据新的记录
+        const valid = recs.filter(r => r.timestamp > header.endTime);
+        if (!valid.length) { await wal.clear(); return; }
 
-        // 2. 读取 WAL 里所有未确认的记录
-        const walRecords = await wal.readAll();
-        if (!walRecords || walRecords.length === 0) return;
-
-        console.log(`[WAL] Recovering ${walRecords.length} records for ${shareCode}`);
-
-        // 3. 过滤掉已经写入 .dat 的数据（只恢复新的）
-        const validRecords = walRecords.filter(r => r.timestamp > header.endTime);
-        if (validRecords.length === 0) {
-            await wal.clear();
-            return;
+        // 批量写入数据文件
+        const buf = Buffer.alloc(valid.length * RECORD_SIZE);
+        let off = 0;
+        for (const r of valid) {
+            r.pack().copy(buf, off); off += RECORD_SIZE;
         }
 
-        // 4. 直接写入数据文件
-        const buf = Buffer.alloc(validRecords.length * RECORD_SIZE);
-        let offset = 0;
-        for (const r of validRecords) {
-            r.pack().copy(buf, offset);
-            offset += RECORD_SIZE;
-        }
-
-
-        const pos = HEADER_SIZE + header.count * RECORD_SIZE;
-        await dataFd.write(buf, 0, buf.length, pos);
-
-        // 5. 更新头部
-        header.count += validRecords.length;
-        header.updateTimeRange(validRecords.at(-1));
+        await dataFd.write(buf, 0, buf.length, HEADER_SIZE + header.count * RECORD_SIZE);
+        // 更新头
+        header.count += valid.length;
+        header.updateTimeRange(valid.at(-1));
         const hBuf = header.serialize();
         await dataFd.write(hBuf, 0, HEADER_SIZE, 0);
         await dataFd.sync();
 
-        // 6. 恢复完成，清空 WAL
+        // 恢复完成，清空WAL
         await wal.clear();
-        // const stat = await dataFd.stat();
-
-        // const expectedSize = HEADER_SIZE + header.count * RECORD_SIZE;
-        // if (stat.size !== expectedSize) {
-        //     console.warn(`File size mismatch for ${handle.shareCode}, repairing...`);
-        //     const validSize = HEADER_SIZE + Math.floor((stat.size - HEADER_SIZE) / RECORD_SIZE) * RECORD_SIZE;
-        //     if (validSize >= HEADER_SIZE) {
-        //         await dataFd.truncate(validSize);
-        //         header.count = (validSize - HEADER_SIZE) / RECORD_SIZE;
-        //         const headerBuf = await header.serialize();
-        //         await dataFd.write(headerBuf, 0, HEADER_SIZE, 0);
-        //         await dataFd.sync();
-        //     }
-        // }
     }
 
     /**
-     * 获取统计信息
+     * 获取存储统计信息（监控/调试用）
      */
     async getStats(shareCode) {
-        const handle = await this.open(shareCode);
-        const { header, dataFd } = handle;
-
-        const [dataStat, storageStats] = await Promise.all([
-            dataFd.stat(),
-            this.stats.get(shareCode) || {}
-        ]);
-
+        const h = await this.open(shareCode);
+        const [st, stats] = await Promise.all([h.dataFd.stat(), this.stats.get(shareCode) || {}]);
+        const total = stats.cacheHits + stats.cacheMisses;
         return {
             shareCode,
-            count: header.count,
-            dataSize: dataStat.size,
-            startTime: header.startTime,
-            endTime: header.endTime,
-            writes: storageStats.writes || 0,
-            flushes: storageStats.flushes || 0,
-            cacheHits: storageStats.cacheHits || 0,
-            cacheMisses: storageStats.cacheMisses || 0,
-            cacheHitRate: this.getCacheHitRate(shareCode),
-            bufferSize: this.writeBuffer.get(shareCode)?.records.length || 0
+            count: h.header.count,
+            size: st.size,
+            startTime: h.header.startTime,
+            endTime: h.header.endTime,
+            writes: stats.writes || 0,
+            flushes: stats.flushes || 0,
+            cacheHitRate: total ? (stats.cacheHits / total).toFixed(2) : 0,
+            enableWAL: this.enableWAL
         };
     }
 
     /**
-     * 获取缓存命中率
-     */
-    getCacheHitRate(shareCode) {
-        const stats = this.stats.get(shareCode);
-        if (!stats) return 0;
-
-        const total = stats.cacheHits + stats.cacheMisses;
-        return total > 0 ? stats.cacheHits / total : 0;
-    }
-
-    /**
-     * 启动定时刷新
+     * 启动定时刷盘：防止缓冲区数据长时间不落地
      */
     startFlushTimer() {
         if (this.flushTimer) return;
@@ -593,78 +597,74 @@ export class KlineStorage {
             if (this.isClosing) return;
 
             const now = Date.now();
-            for (const [shareCode, buffer] of this.writeBuffer.entries()) {
-                // 有数据且超过刷新间隔，触发刷新
-                if (buffer.records.length > 0 && !buffer.flushing) {
-                    const handle = this.handles.get(shareCode);
-                    if (handle && (now - handle.lastFlushTime) >= FLUSH_INTERVAL) {
-                        this.flush(shareCode).catch(err => {
-                            console.error(`Timer flush failed for ${shareCode}:`, err);
-                        });
+            for (const [sc, buf] of this.writeBuffer.entries()) {
+                // 有数据且超过刷盘间隔
+                if (buf.records.length && !buf.flushing) {
+                    const h = this.handles.get(sc);
+                    if (h && now - h.lastFlushTime >= FLUSH_INTERVAL) {
+                        this.flush(sc).catch(console.error);
                     }
                 }
             }
         }, FLUSH_INTERVAL);
 
-        // 防止定时器阻止进程退出
-        if (this.flushTimer.unref) {
-            this.flushTimer.unref();
-        }
+        // 允许事件循环退出
+        this.flushTimer.unref?.();
     }
 
     /**
-     * 强制刷新所有缓冲区
+     * 刷盘所有股票的缓冲区
      */
     async flushAll() {
-        const promises = [];
-        for (const [shareCode] of this.writeBuffer.entries()) {
-            promises.push(this.flush(shareCode));
-        }
-        await Promise.all(promises);
+        await Promise.all(Array.from(this.writeBuffer.keys()).map(sc => this.flush(sc)));
     }
 
     /**
-     * 关闭指定 shareCode
+     * 关闭单个股票的文件句柄
      */
     async closeShare(shareCode) {
         await this.flush(shareCode);
 
-        const handle = this.handles.get(shareCode);
-        if (handle) {
-            await handle.wal.close();
-            await handle.dataFd.close();
+        const h = this.handles.get(shareCode);
+        if (h) {
+            if (this.enableWAL && h.wal) await h.wal.close();
+            await h.dataFd.close();
             this.handles.delete(shareCode);
         }
 
+        // 清理缓存
         this.writeBuffer.delete(shareCode);
         this.stats.delete(shareCode);
+        this.timeIndexCache.delete(shareCode);
     }
 
     /**
-     * 关闭所有连接
+     * 关闭整个存储引擎
+     * 安全刷盘 + 关闭所有文件 + 清理资源
      */
     async close() {
         this.isClosing = true;
+        // 清理定时器
+        clearInterval(this.flushTimer);
+        this.flushTimer = null;
 
-        if (this.flushTimer) {
-            clearInterval(this.flushTimer);
-            this.flushTimer = null;
-        }
-
+        // 刷盘所有数据
         await this.flushAll();
 
-        const closePromises = [];
-        for (const [shareCode, handle] of this.handles.entries()) {
-            closePromises.push(handle.wal.close());
-            closePromises.push(handle.dataFd.close());
+        // 关闭所有文件
+        const tasks = [];
+        for (const h of this.handles.values()) {
+            if (this.enableWAL && h.wal) tasks.push(h.wal.close());
+            tasks.push(h.dataFd.close());
         }
+        await Promise.all(tasks);
 
-        await Promise.all(closePromises);
-
+        // 清空所有缓存
         this.handles.clear();
         this.writeBuffer.clear();
         this.stats.clear();
+        this.timeIndexCache.clear();
 
-        console.log('KlineStorage closed');
+        console.log('KlineStorage closed successfully');
     }
 }
