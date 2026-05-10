@@ -15,6 +15,7 @@ import YahooProvider from './providers/YahooProvider.js';
 import BaiduFinanceProvider from './providers/BaiduFinanceProvider.js';
 import SinaProvider from "./providers/SinaProvider.js";
 import TushareProvider from './providers/TushareProvider.js';
+import JFZTProvider from './providers/JFZTProvider.js';
 import { KlineStorage } from './storage/KlineStorage.js';
 import { KlineRecord } from './storage/KlineRecord.js';
 
@@ -31,6 +32,7 @@ export default class StockManager extends Singleton {
             baidu: new BaiduFinanceProvider(),  // 百度财经
             tushare: new TushareProvider(),     // Tushare数据
             sina: new SinaProvider(),           // 新浪财经
+            jfzt: new JFZTProvider(),           // 九方智投
         };
         this.apiProviderMap = this.#buildApiProviderMap(this.providers);
         this.activeProvider = 'eastmoney';
