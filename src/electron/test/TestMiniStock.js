@@ -224,6 +224,8 @@ async function testAPIs() {
     manager.setProvider('baidu');
     let result = await manager.getShareMinuteData(shares[0],1);
     console.log(result);
+    let fiveday = await manager.getShareMinuteData(shares[0],5);
+    console.log(fiveday);
 }
 
 // testBaiduIPOInfo();

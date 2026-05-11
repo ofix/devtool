@@ -8,9 +8,9 @@ class TencentProvider extends DataProvider {
         this.baseURL = 'https://web.ifzq.gtimg.cn';
     }
 
-    supportApis(){
+    supportApis() {
         return [
-            'getShareMinuteKline',
+            // 'getShareMinuteKline', // 腾讯的5日分时数据不够准确
             'getShareDayKline',
         ];
     }
@@ -100,10 +100,8 @@ class TencentProvider extends DataProvider {
                         avgPrice: parseFloat(avgPrice.toFixed(2)),
                         volume: v,
                         amount: a,
-                        change: parseFloat(change.toFixed(2)), // 每分钟涨跌额
-                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额,
-                        totalVolume,
-                        totalAmount
+                        change: parseFloat(change.toFixed(2)),           // 每分钟涨跌额
+                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额
                     });
                 });
 
@@ -111,12 +109,19 @@ class TencentProvider extends DataProvider {
                     ? parseFloat(qt[5])           // 单日：用 qt[5]
                     : list[0]?.price || 0         // 五日：用当天第一根K线价格
 
+                // 最后一天最后一根K线的当前价
+                const nearestDay = list[list.length - 1];
+                const nearestMinute = nearestDay[nearestDay.length - 1];
+
                 return {
-                    preClose: preClose, // 昨日收盘价
-                    open: open,         // 开盘价
-                    totalVolume,        // 当日总成交量
-                    totalAmount,        // 当日总成交额
-                    data: list          // 当日分时列表
+                    preClose: preClose,                      // 昨日收盘价
+                    open: open,                              // 开盘价
+                    price: nearestMinute.price,              // 最近一天的最新价
+                    change: nearestMinute.change,            // 最新的涨跌额
+                    changeRatio: nearestMinute.changeRatio,  // 最新的涨跌幅
+                    totalVolume,                             // 当日总成交量
+                    totalAmount,                             // 当日总成交额
+                    data: list                               // 当日分时列表
                 };
             });
         } catch (err) {

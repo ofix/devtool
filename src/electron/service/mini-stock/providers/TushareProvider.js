@@ -53,7 +53,7 @@ class TushareProvider extends DataProvider {
     */
     async getKline(share, startDate, endDate, adj = null) {
         let tsCode = this._getTsCode(share);
-        const rawData = await this._getDaily(tsCode, startDate, endDate, adj);
+        const rawData = await this.getShareDayKline(tsCode, startDate, endDate, adj);
         return this.parseKLineData(rawData);
     }
 
@@ -73,7 +73,7 @@ class TushareProvider extends DataProvider {
      * @param {string} fields - 返回字段，默认返回常用字段
      * @returns {Promise<Array>} K线数据数组
      */
-    async _getDaily(tsCode, startDate, endDate, adj = null, fields = null) {
+    async getShareDayKline(tsCode, startDate, endDate, adj = null, fields = null) {
         const params = {
             ts_code: tsCode,
             start_date: startDate,
@@ -231,7 +231,7 @@ class TushareProvider extends DataProvider {
             console.log(`正在获取 ${stock.tsCode} 日线数据...`);
 
             try {
-                const data = await this._getDaily(stock.tsCode, startDate, endDate, adj);
+                const data = await this.getShareDayKline(stock.tsCode, startDate, endDate, adj);
                 results.push(...data);
 
                 // 请求间隔，避免被限制

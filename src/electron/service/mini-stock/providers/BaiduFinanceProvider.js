@@ -56,9 +56,9 @@ class BaiduFinanceProvider extends DataProvider {
             );
 
             // 统一解析成腾讯格式
-            return this.#parseShareMinuteData(response.data, days);
+            return this.#parseShareMinuteData(share, response.data, days);
         } catch (error) {
-            console.error('BaiduFinanceProvider getShareMinuteData error:', error);
+            console.error('BaiduFinanceProvider getShareMinuteKline error:', error);
             return days === 5 ? [[], [], [], [], []] : [[]];
         }
     }
@@ -139,7 +139,7 @@ class BaiduFinanceProvider extends DataProvider {
     /**
      * 百度财经分时数据解析成统一格式
      */
-    #parseShareMinuteData(data, days) {
+    #parseShareMinuteData(share, data, days) {
         try {
             const Result = data?.Result;
             const newMarketData = Result?.newMarketData;
@@ -193,7 +193,7 @@ class BaiduFinanceProvider extends DataProvider {
                     const changeRatio = parseFloat(item.ratio) || 0;
 
                     list.push({
-                        time,  // 时间
+                        time,  // 时间,字符串格式
                         price, // 当前价
                         avgPrice, // 分时均价
                         volume, // 成交量
@@ -210,16 +210,17 @@ class BaiduFinanceProvider extends DataProvider {
 
                 // 开盘价
                 const open = list[0]?.price || 0;
+                let nearestMinute = list[list.length - 1];
 
                 // 输出统一格式
                 allDays.push({
-                    preClose: parseFloat(preClose), // 昨日成交价
-                    open, // 开盘价
-                    date, // 日期
-                    price: list.length > 1 ? list[list.length - 1].price : 0,// 当前价
-                    changeRatio: list.length > 1 ? list[list.length - 1].changeRatio : 0, // 涨跌幅
-                    totalVolume: Math.round(totalVolume), // 总成交量
-                    totalAmount: Math.round(totalAmount), // 总成交额
+                    preClose: parseFloat(preClose),           // 昨日成交价
+                    open,                                     // 开盘价
+                    price: nearestMinute.price,               // 当前价
+                    change: nearestMinute.change,             // 涨跌额
+                    changeRatio: nearestMinute.changeRatio,   // 涨跌幅
+                    totalVolume: Math.round(totalVolume),     // 总成交量
+                    totalAmount: Math.round(totalAmount),     // 总成交额
                     data: list,
                 });
             });

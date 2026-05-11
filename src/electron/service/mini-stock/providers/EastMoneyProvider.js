@@ -32,7 +32,7 @@ class EastMoneyProvider extends DataProvider {
         };
     }
 
-    supportApis(){
+    supportApis() {
         return [
             'getShareMinuteKline',
             'getShareDayKline',
@@ -96,7 +96,7 @@ class EastMoneyProvider extends DataProvider {
             const preClose = data.preClose || 0; // 东方财富自带昨收
             return data.trends.map((dayTrend, index) => {
                 const lines = dayTrend.split('\n');
-                const dayData = [];
+                const days = [];
                 let totalVolume = 0;
                 let totalAmount = 0;
 
@@ -117,7 +117,7 @@ class EastMoneyProvider extends DataProvider {
                     const change = price - preClose;
                     const changeRatio = (change / preClose * 100) || 0;
 
-                    dayData.push({
+                    days.push({
                         time,
                         price,
                         avgPrice,
@@ -129,17 +129,22 @@ class EastMoneyProvider extends DataProvider {
                 });
 
                 // 开盘价 = 当天第一根K线
-                const open = dayData[0]?.price || 0;
+                const open = days[0]?.price || 0;
                 // 日期（东方财富返回的时间串 20250920）
                 const date = lines[0]?.split(',')[0]?.slice(0, 8) || '';
 
+                let nearestDay = days[days.length - 1];
+                let nearestMinute = nearestDay[nearestDay.length - 1];
+
                 return {
-                    preClose: preClose,
-                    open: open,
-                    date: date,
-                    totalVolume: totalVolume,
-                    totalAmount: totalAmount,
-                    data: dayData
+                    preClose: preClose,                     // 昨日收盘价
+                    open: open,                             // 开盘价
+                    price: nearestMinute.price,             // 最新价
+                    change: nearestMinute.change,           // 涨跌额
+                    changeRatio: nearestMinute.changeRatio, // 涨跌幅
+                    totalVolume: totalVolume,               // 总成交量
+                    totalAmount: totalAmount,               // 总成交额
+                    data: days                              // 分时数据
                 };
             });
         } catch (error) {
@@ -493,7 +498,7 @@ class EastMoneyProvider extends DataProvider {
         }
     }
 
-        detectMarket(marketCode) {
+    detectMarket(marketCode) {
         const marketMap = {
             '0': 'a',   // 深圳
             '1': 'a',   // 上海

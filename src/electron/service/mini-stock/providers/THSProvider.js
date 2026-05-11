@@ -10,7 +10,7 @@ export default class THSProvider extends DataProvider {
     supportApis() {
         return [
             "getShareDayKline",     // 获取日K线
-            "getShareMinuteKline",  // 获取分时线，支持 1~5日分时数据
+            // "getShareMinuteKline",  // 获取分时线，支持 1~5日分时数据
             "getQuote",             // 获取多只股票行情最新报价
             "getTopShares",         // 跌幅榜/涨幅榜前N只股票，最多100只
         ];
@@ -152,29 +152,42 @@ export default class THSProvider extends DataProvider {
             const dataStr = raw.data;
             const preClose = parseFloat(raw.pre);
 
+            let lastAmount = 0;
+            let totalAmount = 0;
+
             // 解析 data 字符串为标准数组
             const list = dataStr
                 .split(";")
                 .filter((item) => item)
                 .map((item) => {
-                    const [time, price, totalAmount, avgPrice, volume] = item.split(",");
+                    const [time, priceStr, totalAmountStr, avgPrice, volume] = item.split(",");
+                    let price = parseFloat(priceStr);
+                    totalAmount = parseFloat(totalAmountStr);
+                    lastAmount = totalAmount;
                     return {
                         time: time.trim(),
-                        price: parseFloat(price),
+                        price,
                         avgPrice: parseFloat(avgPrice),
                         volume: parseInt(volume),
-                        totalAmount: parseFloat(totalAmount),
-                        preClose,
+                        amount: totalAmount - lastAmount,
+                        change: price - preClose,
+                        changeRatio: (price - preClose) / preClose * 100,
                     };
+
                 });
+            let nearestDay = list[list.length - 1];
+            let nearestMinute = nearestDay[nearestDay.length - 1];
 
             return {
-                code: share.code,
-                name: raw.name,
-                date: raw.date,
-                preClose: preClose,
-                ndays,
-                list: list,
+               
+                preClose,                                // 昨日收盘价
+                open: nearestDay[0].price,               // 开盘价
+                price: nearestMinute.price,              // 最新成交价
+                change: nearestMinute.change,            // 最新涨跌额
+                changeRatio: nearestMinute.changeRatio,  // 最新涨跌幅
+                totalVolume,                             // 累计成交量
+                totalAmount,                             // 累计成交额
+                data: list,                              // 分时数据
             };
         } catch (err) {
             console.error("获取分时数据失败", err);
