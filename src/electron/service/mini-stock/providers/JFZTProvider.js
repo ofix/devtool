@@ -150,7 +150,7 @@ export default class JFZTProvider extends DataProvider {
 
             const klineData = data.KlineData || [];
             if (klineData.length === 0) {
-                return this.getEmptyDays(ndays);
+                return this.getEmptyMinutes(ndays);
             }
 
             // 九方数据规则：1200条 = 5个交易日，每日固定240条，正序排列
@@ -158,14 +158,14 @@ export default class JFZTProvider extends DataProvider {
             const dayList = [];
             for (let i = 0; i < 5; i++) {
                 const sliceData = klineData.slice(i * 240, (i + 1) * 240);
-                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData) : this.#createEmptyMinute());
+                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData) : this.createEmptyMinute());
             }
 
             // 根据ndays返回对应数据：1日返回最新一天，5日返回完整五日
             return ndays === 1 ? [dayList[4]] : dayList;
         } catch (err) {
             console.error("九方智投分时K线获取失败:", err);
-            return this.#getEmptyMinutes(ndays);
+            return this.getEmptyMinutes(ndays);
         }
     }
 
@@ -223,21 +223,5 @@ export default class JFZTProvider extends DataProvider {
         };
     }
 
-    /**
-     * 获取空数据结构（兼容1日/5日）
-     * @param {number} ndays 1/5
-     * @returns {Array}
-     */
-    #getEmptyMinutes(ndays) {
-        const empty = { preClose: 0, open: 0, totalVolume: 0, totalAmount: 0, data: [] };
-        return ndays === 5 ? [empty, empty, empty, empty, empty] : [empty];
-    }
 
-    /**
-     * 创建单日空数据
-     * @returns {Object}
-     */
-    #createEmptyMinute() {
-        return { preClose: 0, open: 0, totalVolume: 0, totalAmount: 0, data: [] };
-    }
 }

@@ -2,6 +2,13 @@ import fs from 'fs';
 import axios from 'axios';
 import { constants as fsConstants } from 'fs';
 export default class DataProvider {
+    static DEFAULT_EMPTY_MINUTE = {
+        preClose: 0,
+        open: 0,
+        totalVolume: 0,
+        totalAmount: 0,
+        data: []
+    };
     constructor() {
         /**
          * {
@@ -94,7 +101,7 @@ export default class DataProvider {
         };
     }
 
-    supportApis(){
+    supportApis() {
         return [];
     }
 
@@ -188,6 +195,53 @@ export default class DataProvider {
      */
     async getIPOInfo(code, market) {
         throw new Error('子类必须实现 getIPOInfo 方法');
+    }
+
+
+    /**
+     * 获取空数据结构（兼容1日/5日）
+     * @param {number} ndays 1/5
+     * @returns {Array}
+     */
+    /**
+     * 获取空数据结构
+     * @param {number} ndays 天数
+     * @param {Object} overrides 覆盖默认值的对象（可选）
+     * @returns {Array}
+     */
+    static getEmptyMinutes(ndays, overrides = {}) {
+        const empty = {
+            ...DataProvider.DEFAULT_EMPTY_MINUTE,
+            ...overrides
+        };
+
+        // 支持数组形式的天数列表
+        if (Array.isArray(ndays)) {
+            return ndays.map(() => ({ ...empty }));
+        }
+
+        // 支持对象配置
+        if (typeof ndays === 'object' && ndays !== null) {
+            const { count = 1, fillEmpty = true } = ndays;
+            return fillEmpty ? Array(count).fill().map(() => ({ ...empty })) : [];
+        }
+
+        // 标准数字参数
+        const count = Math.max(0, parseInt(ndays) || 0);
+        return Array(count).fill().map(() => ({ ...empty }));
+    }
+
+
+    /**
+     * 创建单日空数据
+     * @returns {Object}
+     */
+    static createEmptyMinute(overrides = {}) {
+        const empty = {
+            ...DataProvider.DEFAULT_EMPTY_MINUTE,
+            ...overrides
+        };
+        return empty;
     }
 
 }
