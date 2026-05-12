@@ -5,6 +5,7 @@ import Share from "./Share.js";
 export default class THSProvider extends DataProvider {
     constructor() {
         super();
+        this.name = "同花顺";
     }
 
     supportApis() {
@@ -59,14 +60,7 @@ export default class THSProvider extends DataProvider {
 
         try {
             // 2. 发起请求
-            const { data: resStr } = await axios.get(url, {
-                timeout: 8000,
-                headers: {
-                    "User-Agent":
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    Referer: "https://www.10jqka.com.cn/",
-                },
-            });
+            const { data: resStr } = await this.httpGet("行情", url);
 
             // 3. 解析 JSONP 数据
             const jsonStr = resStr
@@ -136,8 +130,7 @@ export default class THSProvider extends DataProvider {
             }
 
             // 请求数据
-            const res = await fetch(url);
-            let text = await res.text();
+            const text = await this.httpGet("分时", url);
 
             // 剥离 JSONP 回调外壳
             const prefix = `quotebridge_v6_time_hs_${code}_defer_last(`;
@@ -175,16 +168,8 @@ export default class THSProvider extends DataProvider {
                     };
 
                 });
-            let nearestDay = list[list.length - 1];
-            let nearestMinute = nearestDay[nearestDay.length - 1];
-
             return {
-               
                 preClose,                                // 昨日收盘价
-                open: nearestDay[0].price,               // 开盘价
-                price: nearestMinute.price,              // 最新成交价
-                change: nearestMinute.change,            // 最新涨跌额
-                changeRatio: nearestMinute.changeRatio,  // 最新涨跌幅
                 totalVolume,                             // 累计成交量
                 totalAmount,                             // 累计成交额
                 data: list,                              // 分时数据

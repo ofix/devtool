@@ -14,6 +14,7 @@ class BaiduFinanceProvider extends DataProvider {
             "上证50": "000016",
             "中证500": "000905",
         };
+        this.name = "百度财经";
     }
 
     supportApis() {
@@ -40,7 +41,7 @@ class BaiduFinanceProvider extends DataProvider {
     async getShareMinuteKline(share, days = 1) {
         let group = days == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
-            const response = await this.httpGet(`https://finance.pae.baidu.com/vapi/v1/getquotation`,
+            const response = await this.httpGet("分时", `https://finance.pae.baidu.com/vapi/v1/getquotation`,
                 {
                     srcid: '5353',
                     pointType: 'string',
@@ -205,20 +206,9 @@ class BaiduFinanceProvider extends DataProvider {
 
                 if (!list.length) return;
 
-                // 日期（百度无返回，用当天或空）
-                const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
-
-                // 开盘价
-                const open = list[0]?.price || 0;
-                let nearestMinute = list[list.length - 1];
-
                 // 输出统一格式
                 allDays.push({
                     preClose: parseFloat(preClose),           // 昨日成交价
-                    open,                                     // 开盘价
-                    price: nearestMinute.price,               // 当前价
-                    change: nearestMinute.change,             // 涨跌额
-                    changeRatio: nearestMinute.changeRatio,   // 涨跌幅
                     totalVolume: Math.round(totalVolume),     // 总成交量
                     totalAmount: Math.round(totalAmount),     // 总成交额
                     data: list,
@@ -405,8 +395,6 @@ class BaiduFinanceProvider extends DataProvider {
             issueDate: issueDate,
         };
     }
-
-
 
     async searchStock(keyword) {
         try {

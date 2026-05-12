@@ -6,6 +6,7 @@ import Share from "./Share.js";
 export default class JFZTProvider extends DataProvider {
     constructor() {
         super();
+        this.name = "九方智投";
     }
 
     supportApis() {
@@ -133,7 +134,7 @@ export default class JFZTProvider extends DataProvider {
 
         try {
             // 请求九方智投1分钟K线接口（固定获取1200条=5日分时数据）
-            const { data } = await this.httpGet("https://infocenter.9fzt.com/infoapi/v2/hisquote/v2", {
+            const { data } = await this.httpGet("分时", "https://infocenter.9fzt.com/infoapi/v2/hisquote/v2", {
                 market: market,
                 inst: inst,
                 period: "MIN1",
@@ -211,16 +212,8 @@ export default class JFZTProvider extends DataProvider {
                 changeRatio: parseFloat(changeRatio.toFixed(2)),
             });
         });
-
-        // 最近一天的分时
-        let nearestDay = dataList[dataList.length - 1];
-        let nearestMinute = nearestDay[nearestDay.length - 1];
         return {
             preClose: parseFloat(preClose.toFixed(2)),           // 昨日收盘
-            open: parseFloat(dayLines[0]?.Open || 0).toFixed(2), // 开盘价
-            price: nearestMinute.price,                          // 最新价
-            change: nearestMinute.change,                        // 最新涨跌幅
-            changeRatio: nearestMinute.changeRatio,              // 最新涨跌额
             totalVolume,                                         // 总成交量
             totalAmount,                                         // 总成交额
             data: dataList,                                      // 分时数据

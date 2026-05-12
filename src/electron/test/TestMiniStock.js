@@ -4,6 +4,10 @@ import { join, dirname } from 'node:path';
 import path from "path";
 import fs from 'fs';
 import BaiduFinanceProvider from '../service/mini-stock/providers/BaiduFinanceProvider.js';
+import THSProvider from "../service/mini-stock/providers/THSProvider.js";
+import EastMoneyProvider from "../service/mini-stock/providers/EastMoneyProvider.js";
+import JFZTProvider from '../service/mini-stock/providers/JFZTProvider.js';
+import TencentProvicer from "../service/mini-stock/providers/TencentProvider.js"
 import { KlineStorage } from '../service/mini-stock/storage/KlineStorage.js';
 import { KlineRecord } from '../service/mini-stock/storage/KlineRecord.js';
 import { fileURLToPath } from 'url';
@@ -196,8 +200,6 @@ async function testEastMoneyBkList() {
 }
 
 async function testAPIs() {
-    let manager = new StockManager();
-    await manager.init();
     let shares = [
         {
             "code": "002252",
@@ -221,10 +223,11 @@ async function testAPIs() {
             "pinyin": "KEB"
         }
     ];
-    manager.setProvider('baidu');
-    let result = await manager.getShareMinuteData(shares[0],1);
+    let manager = StockManager.getInstance();
+    await manager.init();
+    let result = await manager.getShareMinuteKline(shares[0], 1);
     console.log(result);
-    let fiveday = await manager.getShareMinuteData(shares[0],5);
+    let fiveday = await manager.getShareMinuteKline(shares[0], 5);
     console.log(fiveday);
 }
 

@@ -22,7 +22,7 @@ class StockHandler {
             try {
                 console.log("++++++++ 获取分时数据 +++++++++");
                 console.log(shares);
-                const data = await this.manager.getShareMinuteData(shares, days);
+                const data = await this.manager.getShareMinuteKline(shares, days);
                 return data;
             } catch (error) {
                 console.error('获取分时K线失败:', error);

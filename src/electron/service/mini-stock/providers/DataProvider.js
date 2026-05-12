@@ -25,6 +25,7 @@ export default class DataProvider {
         this.browserHeaders = []; // 用户设置的请求头，可能有多个
         this.delayMin = 3000;
         this.delayMax = 10000;
+        this.name = "Unknown";
     }
 
     setBrowserHeaders(browserHeaders) {
@@ -44,7 +45,7 @@ export default class DataProvider {
      */
     headers() {
         let size = this.browserHeaders.length;
-        if (size === 0) return this.commonHeaders;
+        if (size === 0) return this.commonHeaders();
 
         let i = 0;
         // 如果当前 header 不可用或已使用 3 次，则换下一个
@@ -67,14 +68,16 @@ export default class DataProvider {
         }
 
         // 所有 header 都不可用
-        return this.commonHeaders;
+        return this.commonHeaders();
     }
 
-    async httpGet(url, params, responseCallback) {
+    async httpGet(method, url, params, responseCallback) {
         const response = await axios.get(url, {
             params: params,
             timeout: 10000,
             headers: this.headers(),
+            _providerName: this.name,
+            _method: method
         });
         if (responseCallback) {
             return responseCallback(response);

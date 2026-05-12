@@ -4,9 +4,10 @@ import Share from "./Share.js"
 export default class SinaProvider extends DataProvider {
     constructor() {
         super();
+        this.name = "新浪财经";
     }
 
-    supportMethods(){
+    supportMethods() {
         return [
             'getQuote',        // 获取多只股票行情最新报价
             'getTopShares',    // 跌幅榜/涨幅榜前N只股票，最多100只
@@ -22,7 +23,7 @@ export default class SinaProvider extends DataProvider {
      * 获取分时数据，支持 1~5日分时数据
      * @param {Number} ndays 
      */
-    async getMinuteKlines(ndays=1){
+    async getMinuteKlines(ndays = 1) {
 
     }
 

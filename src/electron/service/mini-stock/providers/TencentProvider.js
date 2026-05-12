@@ -6,6 +6,7 @@ class TencentProvider extends DataProvider {
     constructor() {
         super();
         this.baseURL = 'https://web.ifzq.gtimg.cn';
+        this.name = "腾讯财经";
     }
 
     supportApis() {
@@ -25,7 +26,7 @@ class TencentProvider extends DataProvider {
     async getShareDayKline(share, startDate, endDate) {
         try {
             const symbol = this.getSymbol(share.code, share.market);
-            const response = await this.httpGet(`${this.baseURL}/appstock/app/fqkline/get`, {
+            const response = await this.httpGet("日K", `${this.baseURL}/appstock/app/fqkline/get`, {
                 param: `${symbol},day,${startDate},${endDate},640`,
                 r: Math.random()
             });
@@ -60,7 +61,7 @@ class TencentProvider extends DataProvider {
     async getShareMinuteKline(share, ndays = 1) {
         let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
         try {
-            const { data } = await this.httpGet('https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
+            const { data } = await this.httpGet("分时", 'https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
                 code: shareCode,
                 days: ndays === 5 ? 5 : undefined // 不传=当日
             });
@@ -110,15 +111,8 @@ class TencentProvider extends DataProvider {
                     : list[0]?.price || 0         // 五日：用当天第一根K线价格
 
                 // 最后一天最后一根K线的当前价
-                const nearestDay = list[list.length - 1];
-                const nearestMinute = nearestDay[nearestDay.length - 1];
-
                 return {
                     preClose: preClose,                      // 昨日收盘价
-                    open: open,                              // 开盘价
-                    price: nearestMinute.price,              // 最近一天的最新价
-                    change: nearestMinute.change,            // 最新的涨跌额
-                    changeRatio: nearestMinute.changeRatio,  // 最新的涨跌幅
                     totalVolume,                             // 当日总成交量
                     totalAmount,                             // 当日总成交额
                     data: list                               // 当日分时列表

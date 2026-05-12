@@ -18,6 +18,7 @@ import TushareProvider from './providers/TushareProvider.js';
 import JFZTProvider from './providers/JFZTProvider.js';
 import { KlineStorage } from './storage/KlineStorage.js';
 import { KlineRecord } from './storage/KlineRecord.js';
+import TaskQueue from "./TaskQueue.js";
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -37,6 +38,7 @@ export default class StockManager extends Singleton {
         this.apiProviderMap = this.#buildApiProviderMap(this.providers);
         this.activeProvider = 'eastmoney';
         this.providerIndex = -1;
+        this.taskQueue = TaskQueue.getInstance();
 
         // 统一缓存结构
         this.cache = {
@@ -113,20 +115,20 @@ export default class StockManager extends Singleton {
      */
     #buildApiProviderMap(providers) {
         const apiMap = {};
-
-        for (const provider of providers) {
-            const supportedApis = provider.supportedApis?.() || [];
-
-            for (const api of supportedApis) {
-                if (!apiMap[api]) {
-                    apiMap[api] = { providers: [], robinIdx: 0 }; // ✅ 初始 0
-                }
-                if (!apiMap[api].providers.includes(provider)) {
-                    apiMap[api].providers.push(provider);
+        for (let key in providers) {
+            if (providers.hasOwnProperty(key)) {
+                let provider = providers[key];
+                const supportedApis = provider.supportApis?.() || [];
+                for (const api of supportedApis) {
+                    if (!apiMap[api]) {
+                        apiMap[api] = { providers: [], robinIdx: 0 }; // ✅ 初始 0
+                    }
+                    if (!apiMap[api].providers.includes(provider)) {
+                        apiMap[api].providers.push(provider);
+                    }
                 }
             }
         }
-
         return apiMap;
     }
 
@@ -168,7 +170,7 @@ export default class StockManager extends Singleton {
             // 初始化请求Headers
             this.providerSettings.forEach(settings => {
                 const provider = this.providers[settings.id];
-                settings?.requestHeaders?.sets && provider.setBrowserHeaders(
+                settings?.requestHeaders?.sets && provider && provider.setBrowserHeaders(
                     settings.requestHeaders.sets.map(set => ({
                         enable: true, expired: false, count: 0, headers: set.headers
                     }))
@@ -247,17 +249,31 @@ export default class StockManager extends Singleton {
         })
     }
 
+    nowTime(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+
     async init() {
         if (this.inited) {
             return;
         }
         // 添加请求拦截器
         axios.interceptors.request.use(request => {
+            const providerName = request._providerName || 'Unknown';
+            const method = request._method || "Unknown";
             const url = new URL(request.url, request.baseURL);
             Object.keys(request.params || {}).forEach(key => {
                 url.searchParams.append(key, request.params[key]);
             });
-            console.log('[请求]:', url.toString());
+            console.log(`[${this.nowTime()}][${providerName}][${method}]:`, url.toString());
             return request;
         });
         const __filename = fileURLToPath(import.meta.url);
@@ -363,7 +379,7 @@ export default class StockManager extends Singleton {
         let data = null;
         try {
             const provider = this.#getNextProvider('getShareMinuteKline');
-            data = await global.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
+            data = await this.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
                 return provider.getShareMinuteKline(share, ndays);
             })
 
@@ -641,7 +657,7 @@ export default class StockManager extends Singleton {
 
         let data;
         try {
-            data = await global.taskQueue.addTask(provider, `${share.code}.day`, () => {
+            data = await this.taskQueue.addTask(provider, `${share.code}.day`, () => {
                 return provider.getShareDayKline(share, startTimestamp, endTimestamp);
             });
         } catch (err) {

@@ -13,10 +13,6 @@ class EastMoneyProvider extends DataProvider {
     constructor() {
         super();
         this.baseURL = 'https://push2.eastmoney.com/api/qt';
-        this.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://quote.eastmoney.com/'
-        };
         this.bkFilePath = path.join(__dirname, '../../../data/easymoney_bklist.json');
 
         this.supportIndexes = {
@@ -30,6 +26,7 @@ class EastMoneyProvider extends DataProvider {
             "创业板指": { secid: "0.399006", cb: "miniquotechart_jp1" },
             "沪深300": { secid: "0.000300", cb: "miniquotechart_jp1" },
         };
+        this.name = "东方财富";
     }
 
     supportApis() {
@@ -52,7 +49,7 @@ class EastMoneyProvider extends DataProvider {
             const klt = this.#convertPeriod('day');
             const secid = this.#getSecId(share.code, share.market);
 
-            const response = await this.httpGet(`${this.baseURL}/stock/kline/get`, {
+            const response = await this.httpGet("日K", `${this.baseURL}/stock/kline/get`, {
                 secid: secid,
                 fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
                 fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
@@ -78,14 +75,16 @@ class EastMoneyProvider extends DataProvider {
     async getShareMinuteKline(share, days = 1) {
         try {
             const secid = this.#getSecId(share.code, share.market);
-            const response = await this.httpGet('https://push2his.eastmoney.com/api/qt/stock/trends2/get', {
-                secid: secid,
-                fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-                fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-                ut: 'fa5fd1943c7b386f172d6893dbfba10b',
-                ndays: days,
-                cb: 'callback'
-            });
+            const response = await this.httpGet("分时", 'https://push2.eastmoney.com/api/qt/stock/trends2/get',
+                // 'https://push2his.eastmoney.com/api/qt/stock/trends2/get', 
+                {
+                    secid: secid,
+                    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
+                    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
+                    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
+                    ndays: days,
+                    cb: 'callback'
+                });
 
             // 解析 JSONP
             let jsonStr = response.data.replace(/^\w+\(/, '').replace(/\);$/, '');
@@ -127,21 +126,8 @@ class EastMoneyProvider extends DataProvider {
                         changeRatio: parseFloat(changeRatio.toFixed(2))
                     });
                 });
-
-                // 开盘价 = 当天第一根K线
-                const open = days[0]?.price || 0;
-                // 日期（东方财富返回的时间串 20250920）
-                const date = lines[0]?.split(',')[0]?.slice(0, 8) || '';
-
-                let nearestDay = days[days.length - 1];
-                let nearestMinute = nearestDay[nearestDay.length - 1];
-
                 return {
                     preClose: preClose,                     // 昨日收盘价
-                    open: open,                             // 开盘价
-                    price: nearestMinute.price,             // 最新价
-                    change: nearestMinute.change,           // 涨跌额
-                    changeRatio: nearestMinute.changeRatio, // 涨跌幅
                     totalVolume: totalVolume,               // 总成交量
                     totalAmount: totalAmount,               // 总成交额
                     data: days                              // 分时数据

@@ -5,10 +5,7 @@ class TushareProvider extends DataProvider {
         super();
         this.baseURL = 'http://api.tushare.pro';
         this.token = 'ee1af62cef664a2d14e5bcf8424c94eb09a7e59c6e7779a9677df353'; // 需要在初始化时设置 token
-        this.headers = {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        };
+        this.name = "Tushare";
     }
 
     /**

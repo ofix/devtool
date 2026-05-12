@@ -1,8 +1,11 @@
 import axios from 'axios';
+import DataProvider from "./DataProvider.js";
 
-class YahooProvider {
+class YahooProvider extends DataProvider {
     constructor() {
+        super();
         this.baseURL = 'https://query1.finance.yahoo.com/v8/finance/chart';
+        this.name = "雅虎财经";
     }
 
     /**
