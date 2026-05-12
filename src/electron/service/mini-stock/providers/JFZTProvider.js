@@ -151,7 +151,7 @@ export default class JFZTProvider extends DataProvider {
 
             const klineData = data.KlineData || [];
             if (klineData.length === 0) {
-                return this.getEmptyMinutes(ndays);
+                return DataProvider.getEmptyMinutes(ndays);
             }
 
             // 九方数据规则：1200条 = 5个交易日，每日固定240条，正序排列
@@ -166,7 +166,7 @@ export default class JFZTProvider extends DataProvider {
             return ndays === 1 ? [dayList[4]] : dayList;
         } catch (err) {
             console.error("九方智投分时K线获取失败:", err);
-            return this.getEmptyMinutes(ndays);
+            return DataProvider.getEmptyMinutes(ndays);
         }
     }
 

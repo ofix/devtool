@@ -1,6 +1,7 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from "path";
+import https from 'https';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'url';
 import Utils from "../../../core/Utils.js";
@@ -27,6 +28,8 @@ class EastMoneyProvider extends DataProvider {
             "沪深300": { secid: "0.000300", cb: "miniquotechart_jp1" },
         };
         this.name = "东方财富";
+        this.sseMinuteKlines = {}; // 分时数据缓存，key格式：股票代码+分时天数，value格式：分时JSON数据对象（和已有的接口一致）
+        this.sseConnections = {}; // WebSocket连接缓存，key格式：{code: WebSocket对象}
     }
 
     supportApis() {
@@ -70,12 +73,12 @@ class EastMoneyProvider extends DataProvider {
      * 获取东方财富股票分时数据 → 输出【腾讯财经统一格式】
      * @param {Share} share 股票对象 {name:'', code:'', market:''}
      * @param {number} days 1=当日, 5=五日
-     * @returns {Promise<Array>} 统一格式：[ {code,name,preClose,openPrice,date,totalVolume,totalAmount,list:[...]}, ... ]
+     * @returns {Promise<Array>} 统一格式：[ {preClose,totalVolume,totalAmount,data:[...]}, ... ]
      */
-    async getShareMinuteKline(share, days = 1) {
+    async #getShareFiveMinuteKline(share, days = 5) {
         try {
             const secid = this.#getSecId(share.code, share.market);
-            const response = await this.httpGet("分时", 'https://push2.eastmoney.com/api/qt/stock/trends2/get',
+            const response = await this.httpGet("5日分时", 'https://push2.eastmoney.com/api/qt/stock/trends2/get',
                 // 'https://push2his.eastmoney.com/api/qt/stock/trends2/get', 
                 {
                     secid: secid,
@@ -137,6 +140,196 @@ class EastMoneyProvider extends DataProvider {
             console.error('getMinuteKlines 错误:', error);
             return days === 5 ? [[], [], [], [], []] : [[]];
         }
+    }
+
+    /**
+     * 获取东方财富股票分时数据 → 输出【腾讯财经统一格式】
+     * @param {Share} share 股票对象 {name:'', code:'', market:''}
+     * @param {number} days 1=当日, 5=五日
+     * @returns {Promise<Array>} 统一格式：[ {preClose,totalVolume,totalAmount,data:[...]}, ... ]
+     */
+    async getShareMinuteKline(share, days = 1) {
+        try {
+            if(days == 5){
+                return this.#getShareFiveMinuteKline(share, days);
+            }
+            const secid = this.#getSecId(share.code, share.market);
+            const cacheKey = `${share.code}_${days}`; // 唯一key：股票代码+分时天数
+
+            // 已有SSE连接 → 直接返回缓存数据
+            if (this.sseConnections[cacheKey]) {
+                if (this.sseMinuteKlines[cacheKey]) {
+                    // 有缓存直接返回
+                    return this.sseMinuteKlines[cacheKey];
+                }
+                // 有连接但暂无数据 → 等待首次推送
+                return new Promise(resolve => {
+                    const check = () => {
+                        if (this.sseMinuteKlines[cacheKey]) {
+                            resolve(this.sseMinuteKlines[cacheKey]);
+                        } else {
+                            setTimeout(check, 300);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            // 无连接 → 创建 SSE 连接
+            const sseUrl = new URL("https://34.push2.eastmoney.com/api/qt/stock/trends2/sse");
+            sseUrl.searchParams.set("fields1", "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f17");
+            sseUrl.searchParams.set("fields2", "f51,f52,f53,f54,f55,f56,f57,f58");
+            sseUrl.searchParams.set("mpi",1000);
+            sseUrl.searchParams.set("ut", "fa5fd1943c7b386f172d6893dbfba10b");
+            sseUrl.searchParams.set("ndays", days);
+            sseUrl.searchParams.set("iscr", 0);
+            sseUrl.searchParams.set("iscca", 0);
+            sseUrl.searchParams.set("wbp2u", "7699345506358278|0|1|0|web");
+
+            const headers = {
+                ...this.headers(),
+                "Accept": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            };
+
+            let buffer = "";
+            let preClose = 0;
+
+            // 建立SSE请求
+            const req = https.get(sseUrl.toString(), { headers }, (res) => {
+                res.setEncoding("utf8");
+
+                // 超时自动关闭（300秒无数据断开）
+                req.setTimeout(300 * 1000, () => {
+                    console.log(`[SSE超时] ${cacheKey}，清理缓存`);
+                    this.#closeSseConnection(cacheKey);
+                });
+
+                res.on("data", (chunk) => {
+                    buffer += chunk;
+                    const messages = buffer.split("\n\n");
+                    buffer = messages.pop() || "";
+
+                    for (const msg of messages) {
+                        if (!msg.startsWith("data:")) continue;
+                        const dataStr = msg.replace(/^data:\s*/, "").trim();
+                        if (!dataStr) continue;
+
+                        try {
+
+                            const wrapper = JSON.parse(dataStr);
+                            const data = wrapper.data;
+                            if (!data) {
+                                continue;
+                            }
+                
+                            console.log(`[${this.nowTime()}][东方财富][分时]: ${share.name} 接收 SSE 数据`);
+                            if (!data?.trends) continue;
+                          
+                            const dataList = [];
+                            // 统一解析逻辑（和原有格式完全一致）
+                            preClose = data.preClose || 0;
+                            // trends 是数组，每一项是 一天 的所有分时字符串（注意：这里通常只有1条）
+                            const result = data?.trends.map((dayTrendStr) => {
+                                let totalVolume = 0; // 累计成交量
+                                let totalAmount = 0; // 累计成交额
+
+                                // 按逗号分割单条分时
+                                const fields = dayTrendStr.split(',');
+     
+                                // 字段解析（你定义的正确顺序）
+                                const time = fields[0];
+                                const price = parseFloat(fields[1]) || 0;     // 当前价
+                                const avgPrice = parseFloat(fields[2]) || 0;  // 均价
+                                const volume = parseInt(fields[5]) || 0;      // 成交量(手)
+                                const amount = parseFloat(fields[6]) || 0;    // 成交额
+
+                                // 累加总量
+                                totalVolume += volume;
+                                totalAmount += amount;
+
+                                // 涨跌额 + 涨跌幅
+                                const change = price - preClose;
+                                const changeRatio = (change / preClose * 100) || 0;
+
+                                dataList.push({
+                                    time,
+                                    price,
+                                    avgPrice,
+                                    volume,
+                                    amount,
+                                    change: parseFloat(change.toFixed(2)),
+                                    changeRatio: parseFloat(changeRatio.toFixed(2))
+                                });
+
+                                // 返回包装结构
+                                return {
+                                    preClose: preClose,        // 昨收价
+                                    totalVolume: totalVolume,  // 总成交量
+                                    totalAmount: totalAmount,  // 总成交额
+                                    data: dataList             // 分时明细
+                                };
+                            }).filter(item => item !== null); // 过滤无效数据
+
+                            // 更新缓存
+                            if(this.sseMinuteKlines.hasOwnProperty(cacheKey)){
+                                this.sseMinuteKlines[cacheKey].push(...result);
+                            }else{
+                                this.sseMinuteKlines[cacheKey] = result;
+                            }
+                        } catch (e) { }
+                    }
+                });
+
+                res.on("end", () => {
+                    console.log(`[SSE断开] ${cacheKey}`);
+                    this.#closeSseConnection(cacheKey);
+                });
+
+                res.on("error", () => {
+                    this.#closeSseConnection(cacheKey);
+                });
+            });
+
+            req.on("error", () => {
+                this.#closeSseConnection(cacheKey);
+            });
+
+            // 保存连接
+            this.sseConnections[cacheKey] = req;
+
+            // 等待第一次数据返回
+            return new Promise(resolve => {
+                const check = () => {
+                    if (this.sseMinuteKlines[cacheKey]) {
+                        resolve(this.sseMinuteKlines[cacheKey]);
+                    } else {
+                        setTimeout(check, 1000);
+                    }
+                };
+                check();
+            });
+
+        } catch (error) {
+            console.error('getShareMinuteKline SSE错误:', error);
+            return days === 5 ? [[], [], [], [], []] : [[]];
+        }
+    }
+
+    /**
+     * 关闭SSE连接 + 清空缓存
+     */
+    #closeSseConnection(cacheKey) {
+        try {
+            if (this.sseConnections[cacheKey]) {
+                this.sseConnections[cacheKey].destroy();
+                delete this.sseConnections[cacheKey];
+            }
+        } catch (e) { }
+
+        // 需求3：超时/关闭 → 清空缓存
+        delete this.sseMinuteKlines[cacheKey];
     }
 
     #convertPeriod(period) {
