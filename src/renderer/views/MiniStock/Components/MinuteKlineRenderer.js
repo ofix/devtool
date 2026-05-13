@@ -23,8 +23,10 @@ export default class MinuteKlineRenderer {
             ...config
         };
 
-        this.data = [];           // 分时数据
+        this.minuteKlines = [];           // 分时数据
+        this.fiveMinuteKlines = []; // 五日分时数据
         this.maxVolume = 0;
+        this.fiveMaxVolume = 0;
         this.maxPrice = 0;
         this.minPrice = Infinity;
         this.preClosePrice = 0;
@@ -57,37 +59,49 @@ export default class MinuteKlineRenderer {
         this.setupCanvas();
     }
 
-    setupCanvas () {
+    setupCanvas() {
         const rect = this.canvas.getBoundingClientRect();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
         this.chartHeight = rect.height;
         this.chartWidth = rect.width;
-        this.mainChartHeight = this.chartHeight - this.chartTop - this.chartBottom - this.subChartHeight;
+        this.mainChartHeight = this.chartHeight - this.chartTop - this.chartBottom - this.subChartHeight * 2;
     }
 
-    setData (data) {
-        if (!data || !data.data) return;
+    setMinuteKlines(oneDay, fiveDay) {
+        if (!oneDay || !oneDay.data) return;
 
-        this.data = data.data;
-        console.log("分时数据:", this.data);
-        this.preClosePrice = data.preClose;
+        this.minuteKlines = oneDay.data;
+        this.fiveMinuteKlines = fiveDay;
+        this.preClosePrice = oneDay.preClose;
         this.calculateStats();
         this.calculateMACD();
         this.render();
     }
 
-    calculateStats () {
+    calculateStats() {
         let maxPrice = -Infinity;
         let minPrice = Infinity;
         let maxVol = 0;
+        let fiveMaxVol = 0;
 
         // 只取真实成交价，不含均价
-        for (let i = 0; i < this.data.length; i++) {
-            const item = this.data[i];
+        for (let i = 0; i < this.minuteKlines.length; i++) {
+            const item = this.minuteKlines[i];
             maxPrice = Math.max(maxPrice, item.price);
             minPrice = Math.min(minPrice, item.price);
             maxVol = Math.max(maxVol, item.volume);
+        }
+
+        // 计算五日分时数据
+        for (let i = 0; i < this.fiveMinuteKlines.length; i++) {
+            const list = this.fiveMinuteKlines[i].data;
+            if (list) {
+                for (let j = 0; j < list.length; j++) {
+                    const item = list[j];
+                    fiveMaxVol = Math.max(fiveMaxVol, item.volume);
+                }
+            }
         }
 
         const preClose = this.preClosePrice || 0;
@@ -110,10 +124,11 @@ export default class MinuteKlineRenderer {
         this.maxPrice = preClose + halfRange;
         this.minPrice = preClose - halfRange;
         this.maxVolume = maxVol;
+        this.fiveMaxVolume = fiveMaxVol;
     }
 
-    calculateMACD () {
-        const closePrices = this.data.map(d => d.price);
+    calculateMACD() {
+        const closePrices = this.minuteKlines.map(d => d.price);
         const ema12 = this.calculateEMA(closePrices, 12);
         const ema26 = this.calculateEMA(closePrices, 26);
         const dif = ema12.map((v, i) => v - ema26[i]);
@@ -127,7 +142,7 @@ export default class MinuteKlineRenderer {
         }));
     }
 
-    calculateEMA (data, period) {
+    calculateEMA(data, period) {
         const ema = [];
         const multiplier = 2 / (period + 1);
 
@@ -141,7 +156,7 @@ export default class MinuteKlineRenderer {
         return ema;
     }
 
-    setSubChartMode (mode) {
+    setSubChartMode(mode) {
         this.subChartMode = mode;
         if (mode === 'macd' && this.macdData.length === 0) {
             this.calculateMACD();
@@ -149,7 +164,7 @@ export default class MinuteKlineRenderer {
         this.render();
     }
 
-    setCrosshair (x, y, index) {
+    setCrosshair(x, y, index) {
         this.crosshair.visible = true;
         this.crosshair.x = x;
         this.crosshair.y = y;
@@ -157,14 +172,14 @@ export default class MinuteKlineRenderer {
         this.render();
     }
 
-    hideCrosshair () {
+    hideCrosshair() {
         this.crosshair.visible = false;
         this.crosshair.index = -1;
         this.render();
     }
 
-    render () {
-        if (!this.data.length) return;
+    render() {
+        if (!this.minuteKlines.length) return;
 
         this.clearCanvas();
         this.drawGrid();
@@ -177,12 +192,12 @@ export default class MinuteKlineRenderer {
         }
     }
 
-    clearCanvas () {
+    clearCanvas() {
         this.ctx.fillStyle = this.config.colors.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    drawGrid () {
+    drawGrid() {
         const { ctx, chartTop, mainChartHeight, chartLeft, chartRight, chartWidth, config } = this;
 
         ctx.save();
@@ -214,8 +229,8 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    drawPriceLine () {
-        if (this.data.length === 0) return;
+    drawPriceLine() {
+        if (this.minuteKlines.length === 0) return;
 
         const { ctx, chartLeft, chartRight, chartTop, mainChartHeight, config } = this;
         const priceRange = this.maxPrice - this.minPrice;
@@ -229,8 +244,8 @@ export default class MinuteKlineRenderer {
         ctx.lineWidth = 1.5;
 
         let isFirst = true;
-        for (let i = 0; i < this.data.length; i++) {
-            const item = this.data[i];
+        for (let i = 0; i < this.minuteKlines.length; i++) {
+            const item = this.minuteKlines[i];
             const x = chartLeft + i * step;
             const y = this.priceToY(item.price);
 
@@ -244,8 +259,8 @@ export default class MinuteKlineRenderer {
         ctx.stroke();
 
         // 绘制最新价格点
-        const lastItem = this.data[this.data.length - 1];
-        const lastX = chartLeft + (this.data.length - 1) * step;
+        const lastItem = this.minuteKlines[this.minuteKlines.length - 1];
+        const lastX = chartLeft + (this.minuteKlines.length - 1) * step;
         const lastY = this.priceToY(lastItem.price);
         ctx.fillStyle = config.colors.priceLine;
         ctx.beginPath();
@@ -255,8 +270,8 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    drawAvgPriceLine () {
-        if (this.data.length === 0) return;
+    drawAvgPriceLine() {
+        if (this.minuteKlines.length === 0) return;
 
         const { ctx, chartLeft, chartRight, chartTop, mainChartHeight, config } = this;
         const priceRange = this.maxPrice - this.minPrice;
@@ -271,8 +286,8 @@ export default class MinuteKlineRenderer {
         // ctx.setLineDash([5, 5]);
 
         let isFirst = true;
-        for (let i = 0; i < this.data.length; i++) {
-            const item = this.data[i];
+        for (let i = 0; i < this.minuteKlines.length; i++) {
+            const item = this.minuteKlines[i];
             const avgPrice = item.avgPrice || item.price;
             const x = chartLeft + i * step;
             const y = this.priceToY(avgPrice);
@@ -290,7 +305,7 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    drawSubChart () {
+    drawSubChart() {
         if (this.subChartMode === 'volume') {
             this.drawVolume();
         } else {
@@ -298,33 +313,42 @@ export default class MinuteKlineRenderer {
         }
     }
 
-    drawVolume () {
-        const { ctx, chartLeft, chartTop, mainChartHeight, config, data, totalMinutes, chartWidth, subChartHeight, maxVolume, preClosePrice } = this;
+    drawVolume() {
+        const { ctx, chartLeft, chartTop, mainChartHeight, chartWidth, subChartHeight, minuteKlines, maxVolume, fiveMinuteKlines, fiveMaxVolume, totalMinutes, preClosePrice } = this;
 
-        const step = (chartWidth - chartLeft - (this.chartRight || 0)) / totalMinutes;
-        const volTop = chartTop + mainChartHeight + 10;
-        const volHeight = subChartHeight - 10;
-        const barWidth = Math.max(2, step * 0.6);
+        let top = chartTop + mainChartHeight;
+        // 绘制当日分时量柱
+        this.#drawVolume(ctx, minuteKlines, chartLeft, top, chartWidth, subChartHeight - 10, maxVolume, preClosePrice, totalMinutes);
 
-        const { volumeUp, volumeDown, volumeEqual } = config.colors;
+        top += subChartHeight;
+        let subWidth = chartWidth / 5;
+        // 绘制五日分时量柱
+        for (let i = 0; i < fiveMinuteKlines.length; i++) {
+            let data = fiveMinuteKlines[i].data;
+            let preClose = fiveMinuteKlines[i].preClose;
+            this.#drawVolume(ctx, data, chartLeft + subWidth * i, top, chartWidth, subChartHeight - 10, fiveMaxVolume, preClose, totalMinutes * 5);
+        }
+    }
 
-        data.forEach((item, i) => {
+    #drawVolume(ctx, data, offsetX, offsetY, width, height, max, preClosePrice, totalSteps) {
+        const step = width / totalSteps;
+        const { volumeUp, volumeDown, volumeEqual } = this.config.colors;
+        const barWidth = Math.max(1, step * 0.6);
+        data && data.forEach((item, i) => {
             const prev = data[i - 1];
-            const height = Math.max(1, (item.volume / maxVolume) * volHeight);
-            const x = chartLeft + i * step;
-            const y = volTop + volHeight - height;
-
+            const barHeight = Math.max(0, (item.volume / max) * height);
+            const x = offsetX + i * step;
+            const y = offsetY + height - barHeight;
             // 精简颜色判断
             const isUp = i === 0
                 ? item.price >= preClosePrice
                 : item.price >= prev.price;
-
             ctx.fillStyle = isUp ? volumeUp : volumeDown;
-            ctx.fillRect(x, y, barWidth, height);
+            ctx.fillRect(x, y, barWidth, barHeight);
         });
     }
 
-    drawMACD () {
+    drawMACD() {
         if (this.macdData.length === 0) return;
 
         const { ctx, chartLeft, chartRight, chartTop, mainChartHeight, config } = this;
@@ -403,7 +427,7 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    drawAxes () {
+    drawAxes() {
         const { ctx, chartTop, mainChartHeight, chartLeft, chartRight, chartWidth, config } = this;
         const priceRange = this.maxPrice - this.minPrice;
         const font = '10px Arial';
@@ -457,18 +481,18 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    drawCrosshair () {
-        const { ctx, chartTop, mainChartHeight, chartLeft, chartRight, chartWidth, config, crosshair } = this;
+    drawCrosshair() {
+        const { ctx, chartTop, mainChartHeight, subChartHeight, chartLeft, chartRight, chartWidth, config, crosshair } = this;
 
         ctx.save();
         ctx.strokeStyle = config.colors.crosshair;
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([3, 3]);
 
         // 垂直虚线
         ctx.beginPath();
         ctx.moveTo(crosshair.x, chartTop);
-        ctx.lineTo(crosshair.x, chartTop + mainChartHeight);
+        ctx.lineTo(crosshair.x, chartTop + mainChartHeight + subChartHeight -10);
         ctx.stroke();
 
         // 水平虚线
@@ -481,14 +505,14 @@ export default class MinuteKlineRenderer {
         ctx.restore();
 
         // 显示十字线数据
-        if (crosshair.index >= 0 && crosshair.index < this.data.length) {
+        if (crosshair.index >= 0 && crosshair.index < this.minuteKlines.length) {
             this.drawCrosshairInfo();
         }
     }
 
-    drawCrosshairInfo () {
+    drawCrosshairInfo() {
         const { ctx, crosshair, config, chartWidth } = this;
-        const data = this.data[crosshair.index];
+        const data = this.minuteKlines[crosshair.index];
         if (!data) return;
 
         const info = [
@@ -519,12 +543,12 @@ export default class MinuteKlineRenderer {
         ctx.restore();
     }
 
-    priceToY (price) {
+    priceToY(price) {
         const ratio = (price - this.minPrice) / (this.maxPrice - this.minPrice);
         return this.chartTop + this.mainChartHeight * (1 - ratio);
     }
 
-    formatVolume (volume) {
+    formatVolume(volume) {
         if (volume >= 100000000) {
             return (volume / 100000000).toFixed(2) + '亿';
         } else if (volume >= 10000) {
@@ -533,12 +557,12 @@ export default class MinuteKlineRenderer {
         return volume.toString();
     }
 
-    resize () {
+    resize() {
         this.setupCanvas();
         this.render();
     }
 
-    destroy () {
+    destroy() {
         this.canvas = null;
         this.ctx = null;
     }

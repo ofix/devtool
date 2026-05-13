@@ -459,7 +459,7 @@
                   "Sec-Fetch-Dest": "empty",
                   "Sec-Fetch-Mode": "cors",
                   "Sec-Fetch-Site": "cross-site",
-                  "Signature": "a109e15e6ed8a4fe02643ac1425ba8e9",
+                  "Token": "1982cc96-4e99-11f1-b352-eeabf45952be",
                   "Timestamp": "1778635219752"
                }
             }

@@ -1,22 +1,22 @@
 <template>
-    <div class="minute-kline-ctrl" tabindex="0">
-        <!-- Canvas画布 -->
-        <canvas
-            ref="canvasRef"
-            :width="width"
-            :height="height"
-            @mousemove="handleMouseMove"
-            @mouseleave="handleMouseLeave"
-            @wheel="handleWheel"
-        ></canvas>
+  <div class="minute-kline-ctrl" tabindex="0">
+    <!-- Canvas画布 -->
+    <canvas
+      ref="canvasRef"
+      :width="width"
+      :height="height"
+      @mousemove="handleMouseMove"
+      @mouseleave="handleMouseLeave"
+      @wheel="handleWheel"
+    ></canvas>
 
-        <!-- 副图切换 -->
-        <div class="subchart-switch">
-            <button @click="toggleSubChart">
-                {{ subChartMode === "volume" ? "成交量" : "MACD" }}
-            </button>
-        </div>
-    </div>
+    <!-- 副图切换 -->
+    <!-- <div class="subchart-switch">
+      <button @click="toggleSubChart">
+        {{ subChartMode === "volume" ? "成交量" : "MACD" }}
+      </button>
+    </div> -->
+  </div>
 </template>
 
 <script setup>
@@ -24,144 +24,112 @@ import { ref, onMounted, onUnmounted, watch } from "vue";
 import MinuteKlineRenderer from "./Components/MinuteKlineRenderer";
 
 const props = defineProps({
-    share: {
-        type: Object,
-        required: true,
-    },
-    data: {
-        type: Object,
-    },
-    height: {
-        type: Number,
-        default: 300,
-    },
+  share: {
+    type: Object,
+    required: true,
+  },
+  minuteKlines: {
+    type: Object,
+  },
+  fiveMinuteKlines: {
+    type: Array,
+    required: true,
+  },
+  height: {
+    type: Number,
+    default: 300,
+  },
 });
 
 // Refs
 const canvasRef = ref(null);
 let renderer = null;
 
-// 状态
-// const currentType = ref("minute");
-// const chartTypes = [
-//     { label: "分时", value: "minute" },
-//     { label: "5日分时", value: "5day" },
-// ];
-
 const subChartMode = ref("volume");
 const width = ref(0);
 const height = ref(props.height);
 
-// // 格式化函数
-// const formatPrice = (price) => {
-//     if (price === undefined || price === null) return "--";
-//     return price.toFixed(2);
-// };
-
-// const formatPercent = (percent) => {
-//     if (percent === undefined || percent === null) return "--";
-//     return percent > 0 ? `+${percent.toFixed(2)}` : percent.toFixed(2);
-// };
-
-// const formatVolume = (vol) => {
-//     if (vol === undefined || vol === null) return "--";
-//     if (vol >= 100000000) return (vol / 100000000).toFixed(2) + "亿";
-//     if (vol >= 10000) return (vol / 10000).toFixed(2) + "万";
-//     return vol.toString();
-// };
-
-// const formatAmount = (amt) => {
-//     if (amt === undefined || amt === null) return "--";
-//     if (amt >= 100000000) return (amt / 100000000).toFixed(2) + "亿";
-//     if (amt >= 10000) return (amt / 10000).toFixed(2) + "万";
-//     return amt.toString();
-// };
-
-// const getPriceClass = (value) => {
-//     if (value === undefined || value === null || value === 0) return "";
-//     return value > 0 ? "up" : "down";
-// };
-
 // 切换副图
 const toggleSubChart = () => {
-    subChartMode.value = subChartMode.value === "volume" ? "macd" : "volume";
-    renderer?.setSubChartMode(subChartMode.value);
+  subChartMode.value = subChartMode.value === "volume" ? "macd" : "volume";
+  renderer?.setSubChartMode(subChartMode.value);
 };
 
 // 鼠标移动事件
 const handleMouseMove = (e) => {
-    if (!renderer) return;
+  if (!renderer) return;
 
-    const rect = canvasRef.value.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+  const rect = canvasRef.value.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
 
-    // 计算数据索引
-    const step =
-        (width.value - renderer.chartLeft - renderer.chartRight) /
-        (renderer.data.length - 1);
-    const index = Math.round((mouseX - renderer.chartLeft) / step);
+  // 计算数据索引
+  const step =
+    (width.value - renderer.chartLeft - renderer.chartRight) /
+    (renderer.minuteKlines.length - 1);
+  const index = Math.round((mouseX - renderer.chartLeft) / step);
 
-    if (index >= 0 && index < renderer.data.length) {
-        renderer.setCrosshair(mouseX, mouseY, index);
-    }
+  if (index >= 0 && index < renderer.minuteKlines.length) {
+    renderer.setCrosshair(mouseX, mouseY, index);
+  }
 };
 
 // 鼠标离开事件
 const handleMouseLeave = () => {
-    renderer?.hideCrosshair();
+  renderer?.hideCrosshair();
 };
 
 // 初始化Canvas
 const initCanvas = () => {
-    if (!canvasRef.value) return;
-    const rect = canvasRef.value.parentElement.getBoundingClientRect();
-    width.value = rect.width;
+  if (!canvasRef.value) return;
+  const rect = canvasRef.value.parentElement.getBoundingClientRect();
+  width.value = rect.width;
 
-    renderer = new MinuteKlineRenderer(canvasRef.value, {
-        theme: "dark",
-    });
-    renderer.setData(props.data?.[0]);
+  renderer = new MinuteKlineRenderer(canvasRef.value, {
+    theme: "dark",
+  });
+  renderer.setMinuteKlines(props.minuteKlines?.[0], props.fiveMinuteKlines);
 };
 
 // 窗口大小变化
 const handleResize = () => {
-    if (canvasRef.value && renderer) {
-        const rect = canvasRef.value.parentElement.getBoundingClientRect();
-        width.value = rect.width;
-        renderer.resize();
-    }
+  if (canvasRef.value && renderer) {
+    const rect = canvasRef.value.parentElement.getBoundingClientRect();
+    width.value = rect.width;
+    renderer.resize();
+  }
 };
 
 // 监听股票切换
 watch(
-    () => props.data,
-    () => {
-        // console.log("数据更新，重新渲染分时图");
-        // console.log(props.data);
-        renderer.setData(props.data?.[0]);
-    }
+  [() => props.minuteKlines, () => props.fiveMinuteKlines],
+  () => {
+    renderer.setMinuteKlines(props.minuteKlines?.[0], props.fiveMinuteKlines);
+  },
+  {
+    deep: true, // 因为是数组/对象，必须加 deep
+  }
 );
 
 // 生命周期
 onMounted(() => {
-    initCanvas();
-    window.addEventListener("resize", handleResize);
+  initCanvas();
+  window.addEventListener("resize", handleResize);
 });
 
 onUnmounted(() => {
-    window.removeEventListener("resize", handleResize);
-    renderer?.destroy();
+  window.removeEventListener("resize", handleResize);
+  renderer?.destroy();
 });
 </script>
 
 <style scoped>
 .minute-kline-ctrl {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    outline: none;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
+  position: relative;
 }
 
 /* .minute-info-bar {
@@ -194,30 +162,30 @@ onUnmounted(() => {
 } */
 
 canvas {
-    flex: 1;
-    width: 100%;
-    border-radius: 4px;
-    cursor: crosshair;
+  flex: 1;
+  width: 100%;
+  border-radius: 4px;
+  cursor: crosshair;
 }
 
 .subchart-switch {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
 }
 
 .subchart-switch button {
-    background: rgba(0, 0, 0, 0.6);
-    border: none;
-    color: #fff;
-    padding: 2px 8px;
-    cursor: pointer;
-    border-radius: 3px;
-    font-size: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #fff;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 10px;
 }
 
 .light .subchart-switch button {
-    background: rgba(255, 255, 255, 0.8);
-    color: #333;
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
 }
 </style>

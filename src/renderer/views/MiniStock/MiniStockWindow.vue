@@ -51,7 +51,8 @@
           <MinuteKlineCtrl
             v-else
             :share="share"
-            :data="minuteKlineData[share.code]"
+            :minuteKlines="minuteKlineData[share.code]"
+            :fiveMinuteKlines="fiveMinuteKlineData[share.code] || []"
           />
         </div>
 
@@ -90,6 +91,7 @@ const currentShare = ref(null);
 const showSearchPanel = ref(false);
 const activeShareIndex = ref(-1); // 当前选中的股票下标
 const minuteKlineData = ref({}); // 分时数据
+const fiveMinuteKlineData = ref({}); // 五日分时数据
 const klineData = ref({}); // K线数据
 
 let refreshTimer = null;
@@ -97,7 +99,6 @@ let refreshTimer = null;
 const searchKeyword = ref("");
 
 /////////////////// 计算属性 ///////////////////
-
 // 下拉选择回调
 const handleKlineTypeChange = (type, share) => {
   chartTypes.value[share.code] = type;
@@ -243,7 +244,6 @@ function handleKeyDown(e) {
 
   // Ctrl + 左/右 切换选中股票
   if (e.ctrlKey && e.key === "ArrowRight") {
-    console.log("arrow right key down");
     if (activeShareIndex.value === -1) {
       // 无选中 → 选第一个
       activeShareIndex.value = 0;
@@ -264,14 +264,16 @@ function handleKeyDown(e) {
   }
 
   // 股票翻页逻辑
-  if (e.ctrlKey && e.key === "ArrowUp") {
+  if (e.key === "ArrowUp") {
     e.preventDefault();
     prevPage();
+    refreshData();
   }
 
-  if (e.ctrlKey && e.key === "ArrowDown") {
+  if (e.key === "ArrowDown") {
     e.preventDefault();
     nextPage();
+    refreshData();
   }
 }
 
@@ -280,44 +282,49 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // 自动刷新
 async function startAutoRefresh() {
   // 先立即刷新一次
-  await refreshRealTimeData();
+  await refreshData();
 
   // 之后定时刷新
   refreshTimer = setInterval(async () => {
     if (isTradingTime()) {
-      await refreshRealTimeData();
+      await refreshData();
     }
   }, REFRESH_INTERVAL);
 }
 
 // 根据每只股票自己的K线类型拉取数据
-async function refreshRealTimeData() {
-  // 1. 把所有请求做成任务数组（全部并发）
+async function refreshData() {
+  // 把所有请求做成任务数组（全部并发）
   const tasks = displayList.value.map(async (share) => {
     if (!share || !share.code) return;
 
     try {
       const type = chartTypes.value[share.code];
       let data = null;
-
+      // 分时图（并发请求）
+      const oneShare = {
+        code: share.code,
+        market: share.market,
+        name: share.name,
+      };
       if (type === "minute") {
-        // 分时图（并发请求）
-        const oneShare = {
-          code: share.code,
-          market: share.market,
-          name: share.name,
-        };
-        data = await window.channel.getMinuteKlines(oneShare, 1);
-
-        if (data) {
-          minuteKlineData.value[share.code] = data;
-          const minuteKlines = data.data;
-          console.log("minuteKlines ", minuteKlines);
+        let oneDay = await window.channel.getShareMinuteKline(oneShare, 1);
+        if (oneDay) {
+          minuteKlineData.value[share.code] = oneDay;
+          const minuteKlines = oneDay.data;
           if (minuteKlines?.length) {
             const newest = minuteKlines.at(-1);
-            share.price = newest.price;
-            share.changeRatio = newest.changeRatio;
+            
+            Object.assign(share, {
+              price: newest.price,
+              changeRatio: newest.changeRatio,
+            });
+            console.log(share);
           }
+        }
+        let fiveDay = await window.channel.getShareMinuteKline(oneShare, 5);
+        if (fiveDay) {
+          fiveMinuteKlineData.value[share.code] = fiveDay;
         }
       } else if (type === "kline") {
         // K线（并发请求）
@@ -330,17 +337,11 @@ async function refreshRealTimeData() {
         );
         klineData.value[share.code] = data;
       }
-
-      // 赋值
-      if (data) {
-        Object.assign(share, data);
-      }
     } catch (err) {
       console.warn("请求失败：", share.code, err);
     }
   });
-
-  // 2. 🔥 🔥 🔥 全部并发执行（关键）
+  // 全部并发执行
   await Promise.all(tasks);
 }
 
