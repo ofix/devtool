@@ -5,6 +5,7 @@ import https from 'https';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'url';
 import Utils from "../../../core/Utils.js";
+import { buildUrl } from "../../../core/Global.js";
 import DataProvider from "./DataProvider.js"
 
 const __filename = fileURLToPath(import.meta.url);
@@ -75,94 +76,16 @@ class EastMoneyProvider extends DataProvider {
      * @param {number} days 1=当日, 5=五日
      * @returns {Promise<Array>} 统一格式：[ {preClose,totalVolume,totalAmount,data:[...]}, ... ]
      */
-    async #getShareFiveMinuteKline(share, days = 5) {
-        try {
-            const secid = this.#getSecId(share.code, share.market);
-            const response = await this.httpGet("5日分时", 'https://push2.eastmoney.com/api/qt/stock/trends2/get',
-                // 'https://push2his.eastmoney.com/api/qt/stock/trends2/get', 
-                {
-                    secid: secid,
-                    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
-                    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
-                    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
-                    ndays: days,
-                    cb: 'callback'
-                });
-
-            // 解析 JSONP
-            let jsonStr = response.data.replace(/^\w+\(/, '').replace(/\);$/, '');
-            const data = JSON.parse(jsonStr).data;
-            if (!data || !data.trends) return [];
-
-            // 股票基本信息
-            const preClose = data.preClose || 0; // 东方财富自带昨收
-            return data.trends.map((dayTrend, index) => {
-                const lines = dayTrend.split('\n');
-                const days = [];
-                let totalVolume = 0;
-                let totalAmount = 0;
-
-                lines.forEach(item => {
-                    const f = item.split(',');
-                    if (f.length < 7) return;
-
-                    const time = f[0];
-                    const price = parseFloat(f[1]) || 0;
-                    const avgPrice = parseFloat(f[2]) || 0;
-                    const volume = parseInt(f[5]) || 0;
-                    const amount = parseFloat(f[6]) || 0;
-
-                    totalVolume += volume;
-                    totalAmount += amount;
-
-                    // 每分钟涨跌额 & 涨跌幅
-                    const change = price - preClose;
-                    const changeRatio = (change / preClose * 100) || 0;
-
-                    days.push({
-                        time,
-                        price,
-                        avgPrice,
-                        volume,
-                        amount,
-                        change: parseFloat(change.toFixed(2)),
-                        changeRatio: parseFloat(changeRatio.toFixed(2))
-                    });
-                });
-                return {
-                    preClose: preClose,                     // 昨日收盘价
-                    totalVolume: totalVolume,               // 总成交量
-                    totalAmount: totalAmount,               // 总成交额
-                    data: days                              // 分时数据
-                };
-            });
-        } catch (error) {
-            console.error('getMinuteKlines 错误:', error);
-            return days === 5 ? [[], [], [], [], []] : [[]];
-        }
-    }
-
-    /**
-     * 获取东方财富股票分时数据 → 输出【腾讯财经统一格式】
-     * @param {Share} share 股票对象 {name:'', code:'', market:''}
-     * @param {number} days 1=当日, 5=五日
-     * @returns {Promise<Array>} 统一格式：[ {preClose,totalVolume,totalAmount,data:[...]}, ... ]
-     */
     async getShareMinuteKline(share, days = 1) {
         try {
-            if(days == 5){
-                return this.#getShareFiveMinuteKline(share, days);
-            }
             const secid = this.#getSecId(share.code, share.market);
-            const cacheKey = `${share.code}_${days}`; // 唯一key：股票代码+分时天数
+            const cacheKey = `${share.code}_${days}`;
 
-            // 已有SSE连接 → 直接返回缓存数据
+            // 已有SSE连接 → 直接返回缓存
             if (this.sseConnections[cacheKey]) {
                 if (this.sseMinuteKlines[cacheKey]) {
-                    // 有缓存直接返回
                     return this.sseMinuteKlines[cacheKey];
                 }
-                // 有连接但暂无数据 → 等待首次推送
                 return new Promise(resolve => {
                     const check = () => {
                         if (this.sseMinuteKlines[cacheKey]) {
@@ -175,85 +98,183 @@ class EastMoneyProvider extends DataProvider {
                 });
             }
 
-            // 无连接 → 创建 SSE 连接
-            const sseUrl = new URL("https://34.push2.eastmoney.com/api/qt/stock/trends2/sse");
-            sseUrl.searchParams.set("fields1", "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f17");
-            sseUrl.searchParams.set("fields2", "f51,f52,f53,f54,f55,f56,f57,f58");
-            sseUrl.searchParams.set("mpi",1000);
-            sseUrl.searchParams.set("ut", "fa5fd1943c7b386f172d6893dbfba10b");
-            sseUrl.searchParams.set("ndays", days);
-            sseUrl.searchParams.set("iscr", 0);
-            sseUrl.searchParams.set("iscca", 0);
-            sseUrl.searchParams.set("wbp2u", "7699345506358278|0|1|0|web");
+            const baseUrl = "https://6.push2his.eastmoney.com/api/qt/stock/trends2/sse";
+            const params = {
+                fields1: "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f17",
+                fields2: "f51,f52,f53,f54,f55,f56,f57,f58",
+                mpi: 1000,
+                ut: "fa5fd1943c7b386f172d6893dbfba10b",
+                secid: secid,
+                ndays: days,
+                iscr: 0,
+                iscca: 0,
+                wbp2u: "7699345506358278|0|1|0|web"
+            };
+            const sseUrl = buildUrl(baseUrl, params);
 
             const headers = {
                 ...this.headers(),
                 "Accept": "text/event-stream",
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
+                "Accept-Encoding": "identity", // 强制不压缩
             };
 
             let buffer = "";
-            let preClose = 0;
-
-            // 建立SSE请求
-            const req = https.get(sseUrl.toString(), { headers }, (res) => {
+            // 初始化统一缓存结构
+            this.sseMinuteKlines[cacheKey] = [];
+            let lastDay = null;
+            let dayCache = null;
+            let klinePrefix = days == 1 ? '分时' : '五日';
+            console.log(`[${this.nowTime()}][东方财富][${klinePrefix}] ${sseUrl}`);
+            const req = https.get(sseUrl, { headers }, (res) => {
                 res.setEncoding("utf8");
 
-                // 超时自动关闭（300秒无数据断开）
-                req.setTimeout(300 * 1000, () => {
-                    console.log(`[SSE超时] ${cacheKey}，清理缓存`);
+                // 1分钟无数据自动清理（防假死，不影响盘中）
+                req.setTimeout(1 * 60 * 1000, () => {
+                    console.log(`[SSE闲置超时] ${cacheKey}`);
                     this.#closeSseConnection(cacheKey);
                 });
 
                 res.on("data", (chunk) => {
-                    buffer += chunk;
-                    const messages = buffer.split("\n\n");
-                    buffer = messages.pop() || "";
+                    try {
+                        buffer += chunk;
+                        const messages = buffer.split("\n\n");
+                        buffer = messages.pop() || "";
 
-                    for (const msg of messages) {
-                        if (!msg.startsWith("data:")) continue;
-                        const dataStr = msg.replace(/^data:\s*/, "").trim();
-                        if (!dataStr) continue;
-
-                        try {
-
+                        for (const msg of messages) {
+                            if (!msg.startsWith("data:")) continue;
+                            const dataStr = msg.replace(/^data:\s*/, "").trim();
+                            if (!dataStr) continue;
                             const wrapper = JSON.parse(dataStr);
                             const data = wrapper.data;
-                            if (!data) {
-                                continue;
+                            if (!data?.trends?.length) continue;
+
+                            /**
+                             * 响应数据格式:
+                             * {
+                                "rc": 0,
+                                "rt": 10,
+                                "svr": 177617932,
+                                "lt": 1,
+                                "full": 1,
+                                "dlmkts": "",
+                                "data": {
+                                    "code": "300759",
+                                    "market": 0,
+                                    "type": 80,
+                                    "status": 0,
+                                    "name": "康龙化成",
+                                    "decimal": 2,
+                                    "preSettlement": 0.0,
+                                    "preClose": 27.43,
+                                    "beticks": "33300|34200|54000|34200|41400|46800|54000",
+                                    "trendsTotal": 1205,
+                                    "time": 1778650866,
+                                    "kind": 1,
+                                    "prePrice": 27.43,
+                                    "tradePeriods": {
+                                        "pre": {
+                                            "b": 202605130915,
+                                            "e": 202605130930
+                                        },
+                                        "after": {
+                                            "b": 202605131500,
+                                            "e": 202605131530
+                                        },
+                                        "periods": [
+                                            {
+                                                "b": 202605130930,
+                                                "e": 202605131130
+                                            },
+                                            {
+                                                "b": 202605131300,
+                                                "e": 202605131500
+                                            }
+                                        ]
+                                    },
+                                    "hisPrePrices": [
+                                        {
+                                            "date": 20260507,
+                                            "prePrice": 28.1
+                                        },
+                                        {
+                                            "date": 20260508,
+                                            "prePrice": 28.07
+                                        },
+                                        {
+                                            "date": 20260511,
+                                            "prePrice": 27.21
+                                        },
+                                        {
+                                            "date": 20260512,
+                                            "prePrice": 27.99
+                                        },
+                                        {
+                                            "date": 20260513,
+                                            "prePrice": 27.43
+                                        }
+                                    ],
+                                    "trends": [
+                                        "2026-05-07 09:30,0.00,28.13,28.13,28.13,1154,3246202.00,28.130",
+                                        "2026-05-07 09:31,0.00,28.15,28.22,28.10,5793,16302968.00,28.140",
+                                    ]
+                                    }
+                                }
                             }
-                
-                            console.log(`[${this.nowTime()}][东方财富][分时]: ${share.name} 接收 SSE 数据`);
-                            if (!data?.trends) continue;
-                          
-                            const dataList = [];
-                            // 统一解析逻辑（和原有格式完全一致）
-                            preClose = data.preClose || 0;
-                            // trends 是数组，每一项是 一天 的所有分时字符串（注意：这里通常只有1条）
-                            const result = data?.trends.map((dayTrendStr) => {
-                                let totalVolume = 0; // 累计成交量
-                                let totalAmount = 0; // 累计成交额
+                            */
 
-                                // 按逗号分割单条分时
-                                const fields = dayTrendStr.split(',');
-     
-                                // 字段解析（你定义的正确顺序）
-                                const time = fields[0];
-                                const price = parseFloat(fields[1]) || 0;     // 当前价
-                                const avgPrice = parseFloat(fields[2]) || 0;  // 均价
-                                const volume = parseInt(fields[5]) || 0;      // 成交量(手)
-                                const amount = parseFloat(fields[6]) || 0;    // 成交额
+                            const trendList = data.trends; // 1条 or 多条
+                            const hisPrices = data.hisPrePrices;
+                            const cache = this.sseMinuteKlines[cacheKey];
 
-                                // 累加总量
-                                totalVolume += volume;
-                                totalAmount += amount;
+                            // 5日：构建每日昨收价映射
+                            const dayPreCloseMap = {};
+                            if (hisPrices?.length) {
+                                hisPrices.forEach(item => {
+                                    if (item.date && item.prePrice != null) {
+                                        let dateStr = item.date + "";
+                                        let year = dateStr.slice(0, 4);
+                                        let month = dateStr.slice(4, 6);
+                                        let day = dateStr.slice(6, 8);
+                                        let date = `${year}-${month}-${day}`;
+                                        dayPreCloseMap[date] = parseFloat(item.prePrice);
+                                    }
+                                });
+                            }
+                            const globalPreClose = data.preClose || 0;
 
-                                // 涨跌额 + 涨跌幅
-                                const change = price - preClose;
-                                const changeRatio = (change / preClose * 100) || 0;
+                            console.log(`[${this.nowTime()}][${share.name}][${klinePrefix}] ${trendList}`);
 
-                                dataList.push({
+                            // 遍历本次推送的所有分时数据（批量增量）
+                            for (const trendStr of trendList) {
+                                const f = trendStr.split(',');
+                                const time = f[0];
+                                const day = time.slice(0, 10);
+                                const price = parseFloat(f[1]) || 0;
+                                const avgPrice = parseFloat(f[2]) || 0;
+                                const volume = parseInt(f[5]) || 0;
+                                const amount = parseFloat(f[6]) || 0;
+
+                                if (day !== lastDay) {
+                                    dayCache = {
+                                        day: day,                  // 日期标记
+                                        preClose: dayPreCloseMap[day] || globalPreClose, // 当天独立昨收价
+                                        totalVolume: 0,            // 当天总量
+                                        totalAmount: 0,            // 当天总金额
+                                        data: [],                  // 当天分时列表                                       
+                                    };
+                                    cache.push(dayCache);
+                                    lastDay = day;
+                                }
+
+                                const currentPreClose = dayCache.preClose;
+
+                                // 计算涨跌
+                                const change = price - currentPreClose;
+                                const changeRatio = currentPreClose !== 0 ? (change / currentPreClose * 100) : 0
+
+                                const newItem = {
                                     time,
                                     price,
                                     avgPrice,
@@ -261,59 +282,45 @@ class EastMoneyProvider extends DataProvider {
                                     amount,
                                     change: parseFloat(change.toFixed(2)),
                                     changeRatio: parseFloat(changeRatio.toFixed(2))
-                                });
-
-                                // 返回包装结构
-                                return {
-                                    preClose: preClose,        // 昨收价
-                                    totalVolume: totalVolume,  // 总成交量
-                                    totalAmount: totalAmount,  // 总成交额
-                                    data: dataList             // 分时明细
                                 };
-                            }).filter(item => item !== null); // 过滤无效数据
 
-                            // 更新缓存
-                            if(this.sseMinuteKlines.hasOwnProperty(cacheKey)){
-                                this.sseMinuteKlines[cacheKey].push(...result);
-                            }else{
-                                this.sseMinuteKlines[cacheKey] = result;
+                                // 防重复：相同时间+成交量不重复添加
+                                const last = dayCache.data.at(-1);
+                                if (!last || last.time !== time || last.volume !== volume) {
+                                    dayCache.data.push(newItem);
+                                    dayCache.totalVolume += volume;
+                                    dayCache.totalAmount += amount;
+                                }
                             }
-                        } catch (e) { }
+                        }
+                    } catch (e) {
+                        // 解析错误不影响整体
+                        console.log("[SSE错误] ", e);
                     }
                 });
 
-                res.on("end", () => {
-                    console.log(`[SSE断开] ${cacheKey}`);
-                    this.#closeSseConnection(cacheKey);
-                });
-
-                res.on("error", () => {
-                    this.#closeSseConnection(cacheKey);
-                });
+                res.on("end", () => this.#closeSseConnection(cacheKey));
+                res.on("error", () => this.#closeSseConnection(cacheKey));
             });
 
-            req.on("error", () => {
-                this.#closeSseConnection(cacheKey);
-            });
-
-            // 保存连接
+            req.on("error", () => this.#closeSseConnection(cacheKey));
             this.sseConnections[cacheKey] = req;
 
-            // 等待第一次数据返回
+            // 等待第一条数据返回
             return new Promise(resolve => {
                 const check = () => {
-                    if (this.sseMinuteKlines[cacheKey]) {
-                        resolve(this.sseMinuteKlines[cacheKey]);
+                    const cache = this.sseMinuteKlines[cacheKey];
+                    if (cache?.[0]?.data.length) {
+                        resolve(cache);
                     } else {
                         setTimeout(check, 1000);
                     }
                 };
                 check();
             });
-
         } catch (error) {
-            console.error('getShareMinuteKline SSE错误:', error);
-            return days === 5 ? [[], [], [], [], []] : [[]];
+            console.error('getShareMinuteKline错误:', error);
+            return [];
         }
     }
 
@@ -345,14 +352,14 @@ class EastMoneyProvider extends DataProvider {
     }
 
     #getSecId(code, market) {
-        if (market === 'a') {
-            // 判断上海还是深圳
-            if (code.startsWith('6')) {
-                return `1.${code}`; // 上海
-            } else {
-                return `0.${code}`; // 深圳
-            }
+
+        // 判断上海还是深圳
+        if (code.startsWith('6')) {
+            return `1.${code}`; // 上海
+        } else {
+            return `0.${code}`; // 深圳
         }
+
         return code;
     }
 

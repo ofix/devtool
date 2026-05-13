@@ -29,30 +29,145 @@
          "strategy": {
             "pollMode": "off",
             "pollInterval": 3,
-            "currentSetId": "1777806760318_hhedlzk65"
+            "currentSetId": "default"
          },
          "requestCount": 0,
          "sets": [
             {
-               "id": "1777806760318_hhedlzk65",
+               "id": "default",
                "name": "默认配置",
+               "enabled": true,
                "headers": {
                   "Accept": "text/event-stream",
                   "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Accept-Language": "zh-CN,zh;q=0.9",
+                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
                   "Cache-Control": "no-cache",
                   "Connection": "keep-alive",
-                  "Cookie": "qgqp_b_id=870947b6a314f95b131c3316de84baba; st_nvi=vM3HWm4oPuDcXbAvFyuAD64f3; nid18=0735a491c64cc7a7c8e84431e957007a; nid18_create_time=1775921026787; gviem=_Gb0n0wTkho1xwpQJhUeFaecf; gviem_create_time=1775921026787; mtp=1; ct=rx2UZ4RY33xSruRCfPq1Zw0ZLVB6fRM4bsJHauQOC7GyARCqDI2iZ2eBYdD31HKAtUEHAAENedu33DKt4W8HV12fvnpwC_WUkspn3f5jRyYiN9ava7tpj34-kVYMc2hWe8Ki5Q9R2S66EizaXIZRT8Bonwbp5z3Sh_ZJsWGuEEs; ut=FobyicMgeV6apd9R5fwVynY4OvVGiqZyc26aSkjEyJApE0ftD17LN7-eEUF3fiMsWQbUswFr0aSqQMwaS30aInPbWYxWMn4zDHAN84tKCyNzDQZ4YPihqd16dx_9Es21Cqhm4zR5yAh__i9B5xqMJxniEG9IKx_nXe_a_Y5AxY7xWfhqwcMsxLpWKzV-pw-Ke-MY0hc-UxI1hftDO2jrBDnhpCGRosActTMZ2W7s_ntdz12nYWjYnwj1ozEh2jXzfWjpVT7AaDoXsJIhYSKHpi-MGXeQFPrz; pi=7699345506358278%3Bm7699345506358278%3B%E4%B8%87%E9%A9%AC%E5%A5%94%E8%85%BE2026888%3B0q%2FU%2BNDfL65MF7DKMCrjVXMPDxdyfbNTHgysHDSjD6N1JVEK1xmoRYc4XrrqIhpL%2BIPekUHJ5wsG6u1SezL8MHdQ1lL%2BHhVpfJhKm3Z0VCh9ImpndEvvIRg1lid5H3iEQO3X03kxeqvjEzBquwa4V5OzXQrWnzWDS0eC2pCc0MSgf%2FEVjnYWL%2BrI9MARozW75FL%2BA4Ek%3BPq15wzZDPJeim5RWe%2B%2FxriTjmKqvqheUIXW6k0hKtQWjeL61NoRe7kZKaZ76gdWtddWS%2BGKsgf9PRF1hxWVhERWAamWnNeZul2kBsvb2nmo3FC%2Bk%2F28%2B5FpLLedgey7AbsST8yFHzjo0pkeq5rWt1HOY%2B%2BJJ0w%3D%3D; uidal=7699345506358278%e4%b8%87%e9%a9%ac%e5%a5%94%e8%85%be2026888; sid=132771940; vtpst=|; websitepoptg_api_time=1778591149662; st_si=71760083242417; fullscreengg=1; fullscreengg2=1; st_asi=delete; st_pvi=59156212850357; st_sp=2026-04-11%2023%3A23%3A46; st_inirUrl=https%3A%2F%2Fwww.eastmoney.com%2F; st_sn=35; st_psi=20260512225759954-111000300841-8331763186",
-                  "Host": "34.push2.eastmoney.com",
+                  "Cookie": "qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1778462818505; gviem=fashDLisxi63Nbb_40RdG006a; gviem_create_time=1778462818506; websitepoptg_api_time=1778566257828; st_si=81868496787426; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fbk%2F90.BK1169.html; st_sn=2; st_psi=2026051313403257-113200354966-3601273692; wsc_checkuser_ok=1; st_asi=2026051313403257-113200354966-3601273692-web.xgnhqdy.dzqkx-1",
+                  "Host": "6.push2his.eastmoney.com",
                   "Origin": "https://quote.eastmoney.com",
-                  "Referer": "https://quote.eastmoney.com/sz002252.html",
+                  "Referer": "https://quote.eastmoney.com/concept/sz300759.html",
                   "Sec-Fetch-Dest": "empty",
                   "Sec-Fetch-Mode": "cors",
                   "Sec-Fetch-Site": "same-site",
-                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
-                  "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
+                  "sec-ch-ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
                   "sec-ch-ua-mobile": "?0",
-                  "sec-ch-ua-platform": "\"macOS\""
+                  "sec-ch-ua-platform": "\"Linux\"",
+                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                  "Sec-Ch-Ua-Mobile": "?0",
+                  "Sec-Ch-Ua-Platform": "\"Linux\""
+               },
+               "_headers": [
+                  {
+                     "id": "default_0",
+                     "enabled": true,
+                     "name": "User-Agent",
+                     "value": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_1",
+                     "enabled": true,
+                     "name": "Accept",
+                     "value": "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_2",
+                     "enabled": true,
+                     "name": "Accept-Encoding",
+                     "value": "gzip, deflate, br, zstd",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_3",
+                     "enabled": true,
+                     "name": "Accept-Language",
+                     "value": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_4",
+                     "enabled": false,
+                     "name": "Connection",
+                     "value": "keep-alive",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_5",
+                     "enabled": true,
+                     "name": "Cookie",
+                     "value": "qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1769475151903; gviem=yn_xAEKwXkLVQMC6EvNmrf4fa; gviem_create_time=1769475151903; st_si=48726890043284; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fbk%2F90.BK1169.html",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_6",
+                     "enabled": true,
+                     "name": "Host",
+                     "value": "quote.eastmoney.com",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_7",
+                     "enabled": true,
+                     "name": "Referer",
+                     "value": "https://quote.eastmoney.com/center/gridlist.html",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_8",
+                     "enabled": true,
+                     "name": "Sec-Ch-Ua",
+                     "value": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_9",
+                     "enabled": true,
+                     "name": "Sec-Ch-Ua-Mobile",
+                     "value": "?0",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_10",
+                     "enabled": true,
+                     "name": "Sec-Ch-Ua-Platform",
+                     "value": "\"Linux\"",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_11",
+                     "enabled": true,
+                     "name": "Sec-Fetch-Dest",
+                     "value": "empty",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_12",
+                     "enabled": true,
+                     "name": "Sec-Fetch-Mode",
+                     "value": "cors",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_13",
+                     "enabled": true,
+                     "name": "Sec-Fetch-Site",
+                     "value": "same-origin",
+                     "desc": ""
+                  },
+                  {
+                     "id": "default_14",
+                     "enabled": false,
+                     "name": "X-Requested-With",
+                     "value": "XMLHttpRequest",
+                     "desc": ""
+                  }
+               ],
+               "_disabledHeaders": {
+                  "Connection": true,
+                  "X-Requested-With": true
                }
             }
          ]
@@ -83,7 +198,46 @@
          "username": "",
          "password": ""
       },
-      "dirty": false
+      "dirty": false,
+      "requestHeaders": {
+         "strategy": {
+            "pollMode": "off",
+            "pollInterval": 3,
+            "currentSetId": "1778566326368_9mcufxfhb"
+         },
+         "requestCount": 0,
+         "sets": [
+            {
+               "id": "1778566326368_9mcufxfhb",
+               "name": "默认配置",
+               "headers": {
+                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
+                  "Accept": "*/*",
+                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Content-Length": "127",
+                  "Content-Type": "application/json",
+                  "Cookie": "_ga=GA1.1.378054234.1778144194; spversion=20130314; Hm_lvt_78c58f01938e4d85eaf619eae71b4ed1=1778133307,1778312809; historystock=600415%7C*%7C002252; userid=ths_gu_da4011079bb1e0657bce89ba29f2793c; Hm_lvt_69929b9dce4c22a060bd22d703b2a280=1778144189,1778312004,1778566362; Hm_lpvt_69929b9dce4c22a060bd22d703b2a280=1778566362; HMACCOUNT=03185B13DFC3C787; _ga_H2RK0R0681=GS2.1.s1778566367$o5$g0$t1778566367$j60$l0$h0; search_history=[{%22keyword%22:%22%E5%A4%A7%E6%97%8F%E6%BF%80%E5%85%89%22%2C%22timestamp%22:1778566367337%2C%22type%22:%22general%22}%2C{%22keyword%22:%22%E5%B0%8F%E5%95%86%E5%93%81%E5%9F%8E%22%2C%22timestamp%22:1778314263280%2C%22type%22:%22stock%22}%2C{%22keyword%22:%22%E4%B8%8A%E6%B5%B7%E8%8E%B1%E5%A3%AB%22%2C%22timestamp%22:1778144245840%2C%22type%22:%22stock%22}%2C{%22keyword%22:%22%E4%B8%8A%E6%B5%B7%E8%8E%B1%E5%A3%AB%22%2C%22timestamp%22:1778144197516%2C%22type%22:%22general%22}]; _clck=1ki6nwr%7C2%7Cg5z%7C0%7C0; cid=e40bd5380f2abd34d5c7a58ffab90bb31778566397; _clsk=7efxarusewch%7C1778566403432%7C4%7C1%7C; v=A9Lc-F2P7G_7JxCTCb_ttsRYKpO349YqCObKpJwq_EtwTXwNhHMmjdh3Gppv",
+                  "Origin": "https://search.10jqka.com.cn",
+                  "Platform": "hxkline",
+                  "Priority": "u=1, i",
+                  "Referer": "https://search.10jqka.com.cn/",
+                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                  "Sec-Ch-Ua-Mobile": "?0",
+                  "Sec-Ch-Ua-Platform": "\"Linux\"",
+                  "Sec-Fetch-Dest": "empty",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Site": "same-site",
+                  "Source-Id": "hxkline-AIME_Component_Library_Component",
+                  "X-Auth-Appname": "AINVEST",
+                  "X-Auth-Progid": "7047",
+                  "X-Auth-Type": "ths",
+                  "X-Auth-Version": "1.0",
+                  "X-Fuyao-Auth": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRob3JpemVyX25hbWVzcGFjZSI6ImNvbW1vbi1ocS1hZ2dyIiwibGljZW5zZWVfdHlwZSI6IkZST05UX0FQUCIsImxpY2Vuc2VlX25hbWVzcGFjZSI6Imh4a2xpbmUtQUlNRV9Db21wb25lbnRfTGlicmFyeV9Db21wb25lbnQifQ.MWqYrKk4Y2_oWTbG3XZjNGoHK_GmIi_KeJKc_mNDqTA"
+               }
+            }
+         ]
+      }
    },
    {
       "id": "baidu",
@@ -115,26 +269,29 @@
          "strategy": {
             "pollMode": "off",
             "pollInterval": 3,
-            "currentSetId": "1777806915834_l4tpa8z8x"
+            "currentSetId": "1777528939103_p00tty94k"
          },
          "requestCount": 0,
          "sets": [
             {
-               "id": "1777806915834_l4tpa8z8x",
+               "id": "1777528939103_p00tty94k",
                "name": "默认配置",
                "headers": {
-                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15",
                   "Accept": "application/vnd.finance-web.v1+json",
-                  "Accept-Language": "zh-CN,zh-Hans;q=0.9",
-                  "Accept-Encoding": "gzip, deflate, br",
-                  "Acs-Token": "1777788005890_1777806800918_eI0dtbz3tsyqeWS/IXzc/bwA6Tb6G7POs2UMEzbrTqKermESy613U0yubrKXpwFLoPT923ulhlergQ3M9+Ihvrj1o+wRBxSe+i5BSxvlKuThBXtwYiryDssRm5wAeSaCbDlxHiJ3yGWxHKcsLHw0P4+411vaugEkcmgDRSr9hJtHFIIGbdRhB9JhRpwWJAgaxwANd7+xCzUzGoASk52LEf6ANvtar8Qop1EOeMrG7Cl3PoUeQO78mcInMx2QeNfxiFkprKP4KLqdVCsVWKpiGtrIGdBHQfoZWUVxuQjijjXTWPLgUcER9fF6kqXsfoyTLACmGVpSiYL2p6Pvcm9vpqY2plKVPLp6xJZtp/UZALAOzy8Oqx/jdNSE7TITEgFBZgD5rXi19YBfWqDEgqTM5g==",
-                  "Cookie": "ppfuid=FOCoIC3q5fKa8fgJnwzbE0LGziLN3VHbX8wfShDP6RCsfXQp/69CStRUAcn/QmhIlFDxPrAc/s5tJmCocrihdwitHd04Lvs3Nfz26Zt2honnQBqGZJ1+FooMMOy9VfBMHd4KSE2lo7q2jM/4leBJXqt+nMkIsYwpNA4XBVB5BGpKv8rf9RxKxeW8+CymWcpQ+OO4Nr3qE7Ca/682qkmAyPKlxopkhSdy8TWv4iu/xwHqAylyX9RqpcWHFB7PbPfTsAWTof8FuLBgffZ/0Uxl9589krRDcZw2i5aBqx+5lkk1v2iwj13daM+9aWJ5GJCQu/SUbF5jV5AUyz/jBiIgKdxDT28FggPkjANiNTdVH47OQHvyhUQrrHDS6OPGdMUXeHCBgi0CWDVWKfMtqsX5XrwJQEHrpPNUkK+H/zwKCElQWIxeuHw5ASxG2MwrUp+xSecr9yhMSRLVoFktEC1isL4gyfkpwDU27NvT6qNN6TCvK/S9Ff5RtLDcahg8QCqqP/JUZA7BRBFh68uqDQax10gfXgGxCNf3Sx8e4KXUBrqV/g3hEEf9luu8oPziRIwanIJY1XZupqPZgmfh8BLwT9YUuyc0u8RKTitzO23hSwGX7sI4U3M5cfLBwVX5m74NveYUNi7Li87S8ZbXy31eyxBDK4IiDGlt1VFsxDIz0RsVHZudegSJ4zYa95fLOW41HdqdlVsa4ORVPwaoYgWzWigT4KUSvejPWWbczD37o0JAMY0Xq/mt7JbC+fPJzgUfmXbEAhdEYSLFWghnNLB0ilwBQRy7id/GqpZoEO7o1hrmpvbvnglxgd/P779uVcbvHJMc4xeuRg7bfpEY/vwboUN7ctLr76yiuzEadGZy9g0vF0XKWllgPxD3MLnkzl4o/x5a3E+Qkao4W1aMhW15Bgywf8BpImierD5YuJm8aNh+b2nRqUTK6NqmhPLvsfMNxShTXBRJdrnFL9nqFcSvY6cuLQt09VwaPPyWktx1V5J+b2nRqUTK6NqmhPLvsfMNZ/k8RFFJMWot30FNQcvJjgmLcRAsZA9ozVp4fEbVslkfSzVKL8rDNNpNjO7rOJCKUwXtmNU/nsKC0PSzAP3Kq4wL4SK3t1tHw4eMSEHL2FCmmrSArB56dw/GBL+N3SuP; ab_sr=1.0.1_OTA2ODQ2MTIwN2UxYjFkNzUyOTQwMTkxM2JiYTFlMzc3MzI1NDAxMzQ2NTUzM2VmYTQwZDFkMDllMzdhMTAyOWRlMmM0OWQzMzI1ZmFkYWNlYjM4ODY3NTgwZTE3OGQxNjRjNzI3YjA3NmIzN2EyM2JmYjQ5OGU2OTI0NTc5YjBlYTRjODNlNmFmMGU4OGE3Yzg1ZGU1MzNiZmM1Mzc3Zg==; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; H_PS_PSSID=60277_67603_67861_68166_68447_68741_69170_69190_69203_69226_69245_69241_69231_69234_68779_69250_69373_69398_69400_69402_69397_69413_69428_69448_69431_69453_69460_69343_69338_69347_69345_69348_69351_69340_69500_69506_69559_69554_69579_69586_69651_69667_69662_69660_69673; PSINO=1; delPer=0; BAIDUID=D5665C7087FA8BE951148F626D822D81:FG=1; BIDUPSID=D5665C7087FA8BE909AC0359E62252AC; PSTM=1777806601",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                  "Acs-Token": "1778565606693_1778566159946_A1fjrmOW98u3O9sPG9G0LocoTO7zbMqt9VtMXGjL+O0ib/4crgV7skqcGbmQ3vAVEIGUEOZQc+PjXPXTDeWOYVUxUtL/Pp9Yj/B6rWb7/b+8Bjp2RC86V1fcFmi/JPg46n2LnO87mnF95d/17ecFrtjt3BJOFMwd54Uqai9FKIvhOnwvRkCu72MlYlNauDUI9KkKqyPaCP9LzkKTxnlY4VEYyZ8KtJZBTNifAjwAyW+14Lc01t4WDenX1bHpfD/m007lGfEKdvT9ASAUM5w1OPSG6St/Q1zMvHNjNa5zW/BmtRy8mmwiEDWz5Xt6I0aG+ArXCcYw+UTVLMrhMQVuTZO77aGZjhiBX7J+0S2IIwA0eThTY618gn3uhjYe/971potilakMrQqycjWQHjOfmA==",
+                  "Cookie": "BIDUPSID=6EEF033850B9DABDB5FC095EF41F8184; PSTM=1769475121; MCITY=-%3A; BAIDUID=6EEF033850B9DABDB5FC095EF41F8184:SL=0:NR=10:FG=1; BAIDUID_BFESS=6EEF033850B9DABDB5FC095EF41F8184:SL=0:NR=10:FG=1; H_WISE_SIDS=63146_67861_68166_68296_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69343_69339_69346_69345_69348_69351_69340_69500_69518_69555_69553_69569_69592_69619_69669_69662_69658_69737_69717_69749_69795_69780_69775_69708_69808; H_WISE_SIDS_BFESS=63146_67861_68166_68296_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69343_69339_69346_69345_69348_69351_69340_69500_69518_69555_69553_69569_69592_69619_69669_69662_69658_69737_69717_69749_69795_69780_69775_69708_69808; __bid_n=19cb241eeb4028873228a4; BDRCVFR[UfyjjTkyxb_]=mk3SLVN4HKm; delPer=0; PSINO=7; H_PS_PSSID=63146_67861_68166_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69339_69348_69518_69555_69553_69569_69592_69619_69669_69662_69658_69737_69717_69749_69795_69780_69708_69808_69833_69841_69923_69895_69961; BA_HECTOR=a081ag01200k00ah8l8g24ah81al261l0524v27; ZFY=4gx7tzU2xYOYwhyGlMyuxlVuym63XwdKDWlV76YrWWk:C; BDSFRCVID=vL_OJexroGWZaKc80u4qu7q8o3EQvX5TDYrEOwXPsp3LGJLV1kp7EG0Pto9bvEtbKV3SogKK3gOTH6KF_2uxOjjg8UtVJeC6EG0Ptf8g0M5; BDSFRCVID_BFESS=vL_OJexroGWZaKc80u4qu7q8o3EQvX5TDYrEOwXPsp3LGJLV1kp7EG0Pto9bvEtbKV3SogKK3gOTH6KF_2uxOjjg8UtVJeC6EG0Ptf8g0M5; H_BDCLCKID_SF=tJA8oILhJIK3H48k-4QEbbQH-UnLqhJIfgOZ04n-ah3RoRjo-TA2jU-i5HJDqP4e3G6qhI5m3UTKsq76Wh35K5tTQP6rLjoW-nv4KKJxbnABH4QH5-5v36t9hUJiB5JMBan7_qvIXKohJh7FM4tW3J0ZyxomtfQxtNRJ0DnjtpChbC_Rej0-Dj30eU5eetjK2CntsJOOaCv1VDJOy4oWK4413n6KB-tOtnvX2-K5-CnoHl4GBnj_3M04K4o9-hvT-54e2p3FBULajPt6Qft20b0L0Rjhtx3aWaFebb7jWhk5ep72y5jvQlRX5q79atTMfNTJ-qcH0KQpsIJM5-DWbT8IjHCHJ5FjJJCJ_Cvt-5rDHJTg5DTjhPrMMJOrWMT-MTryKM3uKlvjbKJGj-QhjnobhNb4QR5vJGnRh4oNB-3iV-OxDUvnyxAZDfRjtMQxtNRJWKTtbq5MHlvKDpbobUPUDUJ9LUkqW2cdot5yBbc8eIna5hjkbfJBQttjQn3hfIkj2CKLtD8BhKLlj5_3-RJH-xQ0KnLXKKOLVbRR3q7ketn4hUJRW4_U-NAj-63ZbRvDVnAb3xj-oK52QhrKQf4WWb3ebTJr32Qr-Djo-I3psIJM5-PB-RKk5M5iLjJgaKviaKOjBMb1MlvDBT5h2M4qMxtOLR3pWDTm_q5TtUJMeCnTDMFhe6jyeH0qJ60tfKresJoq2RbhKROvhjR-Xh4gyxoObtRxQaQKab8ytPKMqtK6Kj7oDULu5RAtLU3k-eT9LMnx--t58h3_XhDaMnOWQttjQn3yfCrqK4btWML5Vn7TyU45bU47yaji0q4Hb6b9BJcjfU5MSlcNLTjpQT8r5MDOK5OuJRQ2QJ8BtCI2hDJP; H_BDCLCKID_SF_BFESS=tJA8oILhJIK3H48k-4QEbbQH-UnLqhJIfgOZ04n-ah3RoRjo-TA2jU-i5HJDqP4e3G6qhI5m3UTKsq76Wh35K5tTQP6rLjoW-nv4KKJxbnABH4QH5-5v36t9hUJiB5JMBan7_qvIXKohJh7FM4tW3J0ZyxomtfQxtNRJ0DnjtpChbC_Rej0-Dj30eU5eetjK2CntsJOOaCv1VDJOy4oWK4413n6KB-tOtnvX2-K5-CnoHl4GBnj_3M04K4o9-hvT-54e2p3FBULajPt6Qft20b0L0Rjhtx3aWaFebb7jWhk5ep72y5jvQlRX5q79atTMfNTJ-qcH0KQpsIJM5-DWbT8IjHCHJ5FjJJCJ_Cvt-5rDHJTg5DTjhPrMMJOrWMT-MTryKM3uKlvjbKJGj-QhjnobhNb4QR5vJGnRh4oNB-3iV-OxDUvnyxAZDfRjtMQxtNRJWKTtbq5MHlvKDpbobUPUDUJ9LUkqW2cdot5yBbc8eIna5hjkbfJBQttjQn3hfIkj2CKLtD8BhKLlj5_3-RJH-xQ0KnLXKKOLVbRR3q7ketn4hUJRW4_U-NAj-63ZbRvDVnAb3xj-oK52QhrKQf4WWb3ebTJr32Qr-Djo-I3psIJM5-PB-RKk5M5iLjJgaKviaKOjBMb1MlvDBT5h2M4qMxtOLR3pWDTm_q5TtUJMeCnTDMFhe6jyeH0qJ60tfKresJoq2RbhKROvhjR-Xh4gyxoObtRxQaQKab8ytPKMqtK6Kj7oDULu5RAtLU3k-eT9LMnx--t58h3_XhDaMnOWQttjQn3yfCrqK4btWML5Vn7TyU45bU47yaji0q4Hb6b9BJcjfU5MSlcNLTjpQT8r5MDOK5OuJRQ2QJ8BtCI2hDJP; BCLID=8177559071076763800; BCLID_BFESS=8177559071076763800; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; ab_sr=1.0.1_NjQ2ODRlNjBkZWE0MGYyODhkZjA3NTA3OWE4MDM5MmU0ZjhjMGIyM2FlZjY2Yjc0MmI3MDE2MWI4MzQyMDYxYmMwMTI3ZGM4MWE2NGViZTIxNmMyZmEwMWMzYWNmOTllNWYzYjRkZmRhNmZhNTI5MjgxNDMxNDY3YTI5YmI0OThjM2Y5ZTI0NTVlNmVhZGI3ZDlmNDg1ZWNhOWM3MjUxOQ==; ppfuid=FOCoIC3q5fKa8fgJnwzbE+YhNskVRU4HW930FeLFkOByMFn76lfGbpe1mvnbXASpJB/ci5OjY/p5Deg+hv8YrIz7TMXRylEW5hdNFYaBjuCuFMYVIsOGCDcCGm/hArLqSOgoap6LII1odh53KcPUGNE90q2b/jXef2YQK99fbMg/ev93+zPsroiExYQmnl2/xKm4yaHsaxngLt8X+ROCa1V7g4ti461xXzsWsLP50OVx9vu6RQxP4AbZKhPsqT4U7FybV/9OgNutEUdYJjyGfDW/aLCPXd1oz71pYnkYkJC79JRsXmNXkBTLP+MGIiApU5toMIeBYlkfdmtMZgeaLtckH3PfLajwqrF6nlcEKy6A05bkLvd7+DniS5jg8ohLvVkjvoSThqoEMSdQyP47zrv2sK7CDNLzTDCNARobONye81cgRbanCPgFcg1I0Ws8WStGatIN1o43k/0tYZBeFYgaFiqth+EcZmok3Ha5aaCUAhARljbU7JgOCl8o3fPFGfo42ocrzcyQEQ1YExZIDB5r/7VVI1RMZ8gb40q7az6Dbyw7OOctSdQT0q6QwAxM9lh9Pv2xsVi6e1jRHLoZfc6xEAlV1c9cqU9FCKKCE3aHe61k19SwAYvZZZre25tP2132sZ856caQs4YJGVp1dODUgo8ND3Pf8OKoe0AhubK7d6YSDqcRi7qVC69ivr9QlZHb3pM/XU1yUmp0dpN/dJHIeKAxeCJRzKQmiJrt2NdLXfu0TJRyXYClb9dslijAMlBRhHp4q4EHCKPlJ8vRPbqLYQNT9wXrZ/IWwo5cobR/q1uQn9VsBjBmLNQsYnwiX1i39zQE19TGybrzqrM1pPbAcb9jVyAPNXYtYELnZOxv7/xlyu/mm2e/4Lzfz0n7srSqfnFcmtlk10eEH4v9Tu0EHJMhGrMpFk072SScWWzsyENIRSzxn7hVLq2WrdfYC+pt8AopWmZ7q/XS68PCmb+l8+BWKo5hKxgQktCLfGSgrRjbdSdIPZTmTcJl9A0YzjTQhbK056VERMIy3dMedvQau87dgPQPBPOdZfELQaEBSLlhBmNwzEBsxOHy7QZw9iAQNcYCK2xfeYf2imATVV3bwYaC8F4XJ12oqlxKXLxUJaJyL/ORX2lW3xKCro0F9iAQNcYCK2xfeYf2imATVYemNDYxCmdd8ZXU4Cg4htkEQSRUz7L4kkhL4CxkTt2IBjr/vyN58BqfauYSxfP9O4KEVJ4njsvVmNwgrtRSkK1BsJpj4dITdJbNApg4wUdappq0gKweencPxgS/jd0rjw==",
                   "Origin": "https://finance.baidu.com",
-                  "Priority": "u=3, i",
+                  "Priority": "u=1, i",
                   "Referer": "https://finance.baidu.com/",
+                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                  "Sec-Ch-Ua-Mobile": "?0",
+                  "Sec-Ch-Ua-Platform": "\"Linux\"",
                   "Sec-Fetch-Dest": "empty",
                   "Sec-Fetch-Mode": "cors",
-                  "Sec-Fetch-Site": "same-site"
+                  "Sec-Fetch-Site": "same-site",
+                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36"
                }
             }
          ]
@@ -165,7 +322,37 @@
          "username": "",
          "password": ""
       },
-      "dirty": false
+      "dirty": false,
+      "requestHeaders": {
+         "strategy": {
+            "pollMode": "off",
+            "pollInterval": 3,
+            "currentSetId": "1778566047791_p8vnd2s6e"
+         },
+         "requestCount": 0,
+         "sets": [
+            {
+               "id": "1778566047791_p8vnd2s6e",
+               "name": "默认配置",
+               "headers": {
+                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
+                  "Accept": "*/*",
+                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Connection": "keep-alive",
+                  "Cookie": "tgw_l7_route=9d00afce28b2b8c8ce2fa659239bf3d6",
+                  "Host": "web.sqt.gtimg.cn",
+                  "Referer": "https://gu.qq.com/",
+                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                  "Sec-Ch-Ua-Mobile": "?0",
+                  "Sec-Ch-Ua-Platform": "\"Linux\"",
+                  "Sec-Fetch-Dest": "script",
+                  "Sec-Fetch-Mode": "no-cors",
+                  "Sec-Fetch-Site": "cross-site"
+               }
+            }
+         ]
+      }
    },
    {
       "id": "sina",
@@ -224,7 +411,7 @@
    {
       "id": "jfzt",
       "name": "九方智投",
-      "baseUrl": "https://api.baidu.com",
+      "baseUrl": "https://stock.9fzt.com/index/sh_600178.html",
       "desc": "",
       "builtin": false,
       "enabled": true,
@@ -251,32 +438,29 @@
          "strategy": {
             "pollMode": "off",
             "pollInterval": 3,
-            "currentSetId": "1778597272591_s62kvmb9m"
+            "currentSetId": "1778565676279_kq9dz6ene"
          },
          "requestCount": 0,
          "sets": [
             {
-               "id": "1778597272591_s62kvmb9m",
+               "id": "1778565676279_kq9dz6ene",
                "name": "默认配置",
                "headers": {
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                  "Accept": "*/*",
-                  "Accept-Language": "zh-CN,zh;q=0.9",
-                  "accept": "application/json, text/plain, */*",
-                  "accept-encoding": "gzip, deflate, br, zstd",
-                  "accept-language": "zh-CN,zh;q=0.9",
-                  "origin": "https://gmg.9fzt.com",
-                  "priority": "u=1, i",
-                  "referer": "https://gmg.9fzt.com/",
-                  "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
-                  "sec-ch-ua-mobile": "?0",
-                  "sec-ch-ua-platform": "\"macOS\"",
-                  "sec-fetch-dest": "empty",
-                  "sec-fetch-mode": "cors",
-                  "sec-fetch-site": "cross-site",
-                  "signature": "5d8ab752d35bded641acdc50632ef93d",
-                  "timestamp": "1778597168902",
-                  "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
+                  "Accept": "application/json, text/plain, */*",
+                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Origin": "https://stock.9fzt.com",
+                  "Priority": "u=1, i",
+                  "Referer": "https://stock.9fzt.com/",
+                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
+                  "Sec-Ch-Ua-Mobile": "?0",
+                  "Sec-Ch-Ua-Platform": "\"Linux\"",
+                  "Sec-Fetch-Dest": "empty",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Site": "cross-site",
+                  "Signature": "a109e15e6ed8a4fe02643ac1425ba8e9",
+                  "Timestamp": "1778635219752"
                }
             }
          ]
