@@ -33,7 +33,8 @@ class WndManager extends Singleton {
             'PostWomanWnd': this.getPostWomanWndConfig(),
             'DebugWnd': this.getDebugWndConfig(),
             'FileCompareWnd': this.getFileCompareWndConfig(),
-            'AntSyncWnd':this.getAntSyncWndConfig(), // 股票行情数据维护窗口
+            'AntSyncWnd': this.getAntSyncWndConfig(), // 股票行情数据维护窗口
+            'RequestWnd': this.getRequestWndConfig(), // 浮动窗口，专门用来抓取第三方网站的请求头
         };
 
         this.activeWnd = "";
@@ -122,10 +123,10 @@ class WndManager extends Singleton {
         };
     }
 
-    getAntSyncWndConfig(){
+    getAntSyncWndConfig() {
         const { screenWidth, screenHeight } = screen.getPrimaryDisplay().size;
-        const width = 1920*0.8;
-        const height = 1080*0.8;
+        const width = 1920 * 0.8;
+        const height = 1080 * 0.8;
         return {
             browserWindow: {
                 x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height, transparent: false,
@@ -221,6 +222,28 @@ class WndManager extends Singleton {
                 devTool: false
             }
         };
+    }
+
+    getRequestWndConfig() {
+        const { width, height } = screen.getPrimaryDisplay().size;
+        return {
+            browserWindow: {
+                x: -width - 20, y: -height - 20, width: 1240, height: 960,
+                alwaysOnTop: true, transparent: false,
+                frame: true, // 显示窗口边框+标题栏（默认 true）
+                resizable: true,
+                titleBarStyle: 'default', // 完整原生
+                show: true, // 初始隐藏
+            },
+            custom: {
+                url: '',
+                levelName: 'normal',
+                levelZOrder: 20,
+                devTool: false,
+                captureHeaders: true, // 需要捕获请求头
+                targetWnd: '' // 捕获到请求头后发送到哪个窗口显示
+            }
+        }
     }
 
     getColorPaletteWndConfig() {
@@ -471,18 +494,56 @@ class WndManager extends Singleton {
             ...browserWindow
         };
 
+        const finalCustomOptions = {
+            ...custom,          // 默认配置
+            ...options          // 外部传入的动态参数（url 会覆盖默认）
+        };
+
+        console.log(`创建窗口 ${name}，BrowserWindow配置:`, options, '自定义配置:', finalCustomOptions);
         // 创建窗口时立即存储选项
         this.windowOptionsCache.set(name, options);
 
         const wnd = this.createTransparentWnd({
             name,
             wndOptions,
-            customOptions: custom
+            customOptions: finalCustomOptions
         });
 
         return wnd;
     }
 
+    randomUserAgent() {
+        // 🔥 全平台真实UA（Windows / Mac / Linux / 移动端）
+        const userAgents = [
+            // Windows Chrome
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+
+            // Windows Edge
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
+
+            // macOS Chrome
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+
+            // macOS Safari
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15',
+
+            // macOS Edge
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
+
+            // Linux Chrome
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+        ];
+
+        // 随机返回一个UA
+        const randomIndex = Math.floor(Math.random() * userAgents.length);
+        return userAgents[randomIndex];
+    }
     /**
      * 创建透明窗口
      */
@@ -498,6 +559,27 @@ class WndManager extends Singleton {
 
         const wnd = new BrowserWindow(wndOptions);
         this.wndMap.set(name, wnd);
+
+        // 如果窗口需要捕获请求头，则在这里设置webRequest监听器
+        if (customOptions.captureHeaders) {
+            wnd.webContents.setUserAgent(this.randomUserAgent());
+            wnd.webContents.session.webRequest.onBeforeSendHeaders(
+                { urls: ['<all_urls>'] },
+                (details, callback) => {
+                    let targetWnd = this.wndMap.get(customOptions.targetWnd);
+                    if (targetWnd && !targetWnd.isDestroyed()) {
+                        // 发送给渲染页面显示
+                        targetWnd.webContents.send('request-headers', {
+                            url: details.url,
+                            method: details.method,
+                            headers: details.requestHeaders
+                        })
+                        callback({ requestHeaders: details.requestHeaders })
+
+                    }
+                }
+            )
+        }
 
         this.loadUrl(wnd, customOptions.url);
 
@@ -542,12 +624,16 @@ class WndManager extends Singleton {
 
     // 统一的URL加载逻辑
     loadUrl(wnd, url) {
-        const listenServerUrl = process.argv[2];
-        const targetUrl = process.env.NODE_ENV === 'development'
-            ? `${listenServerUrl}/#${url}`
-            : `file://${join(__dirname, `../dist/index.html/#${url}`)}`;
+        if (url.startsWith('http')) {
+            wnd.loadURL(url);
+        } else {
+            const listenServerUrl = process.argv[2];
+            const targetUrl = process.env.NODE_ENV === 'development'
+                ? `${listenServerUrl}/#${url}`
+                : `file://${join(__dirname, `../dist/index.html/#${url}`)}`;
 
-        wnd.loadURL(targetUrl);
+            wnd.loadURL(targetUrl);
+        }
     }
 
     /**

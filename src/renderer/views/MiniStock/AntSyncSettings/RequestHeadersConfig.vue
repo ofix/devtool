@@ -118,13 +118,40 @@
                     <el-icon><Upload /></el-icon>
                     导入预设
                   </el-button>
-                  <el-button @click="exportSet(set)">
-                    <el-icon><Download /></el-icon>
-                    导出
-                  </el-button>
+
+                  <el-popover
+                    v-model="popoverVisible"
+                    placement="bottom"
+                    width="1100"
+                    :height="480"
+                    trigger="click"
+                    :close-on-click-reference="false"
+                    :close-on-click-modal="false"
+                  >
+                    <!-- popover 内部嵌入请求头面板 -->
+                    <CaptureHeadersPanel
+                      :captureRequests="captureRequests"
+                      @update:captureRequests="requestList = []"
+                      @sync="handleSyncHeaders"
+                      style="height: 480px"
+                    />
+
+                    <!-- 触发按钮插槽 -->
+                    <template #reference>
+                      <el-button @click="openTargetUrl(set.id)">
+                        <el-icon><Upload /></el-icon>
+                        实时捕获
+                      </el-button>
+                    </template>
+                  </el-popover>
+
                   <el-button @click="previewHeaders">
                     <el-icon><View /></el-icon>
                     预览当前 Headers
+                  </el-button>
+                  <el-button @click="exportSet(set)">
+                    <el-icon><Download /></el-icon>
+                    导出
                   </el-button>
                 </div>
 
@@ -271,6 +298,7 @@ import {
 import IconRequestHeaders from "@/icons/IconRequestHeaders.vue";
 import PasteHeadersDialog from "./PasteHeadersDialog.vue";
 import PresetSelector from "./PresetSelector.vue";
+import CaptureHeadersPanel from "./CaptureHeadersPanel.vue";
 
 const props = defineProps({
   provider: { type: Object, required: true },
@@ -289,6 +317,8 @@ const pasteDialogRef = ref(null);
 const currentPasteSetId = ref(null);
 const showPresetSelector = ref(false);
 const currentPresetSetId = ref(null);
+const showPopover = ref(false);
+const captureRequests = ref([]); // 父组件维护请求列表
 
 // 本地配置
 const localConfig = reactive({
@@ -536,7 +566,7 @@ function updateHeaderName(setId, index, newName) {
   // 检查是否重名（排除自身）
   if (oldName !== newName) {
     const isDuplicate = arr.some(
-      (item, idx) => idx !== index && item.name === newName
+      (item, idx) => idx !== index && item.name === newName,
     );
     if (isDuplicate) {
       ElMessage.warning(`Header "${newName}" 已存在`);
@@ -674,6 +704,20 @@ function confirmRename() {
 function openPasteDialog(setId) {
   currentPasteSetId.value = setId;
   pasteDialogRef.value?.open();
+}
+
+function openTargetUrl(setId) {
+  showPopover.value = true;
+  currentPasteSetId.value = setId;
+  window.channel.showWindow("RequestWnd", {
+    url: props.provider?.baseUrl || "",
+    targetWnd: "AntSyncWnd",
+  });
+}
+
+function handleSyncHeaders(headers) {
+  showPopover.value = false;
+  handlePasteConfirm(headers);
 }
 
 function handlePasteConfirm(headers) {
@@ -828,12 +872,20 @@ watch(
   () => {
     syncFromProps();
   },
-  { deep: true }
+  { deep: true },
 );
 
 // 初始化
 onMounted(() => {
   syncFromProps();
+  window.channel.on("request-headers", (event, data) => {
+    const { url, method, headers } = data;
+    captureRequests.value.push({
+      url,
+      method: method.toUpperCase(),
+      headers,
+    });
+  });
 });
 
 defineExpose({ getConfig, resetConfig });
