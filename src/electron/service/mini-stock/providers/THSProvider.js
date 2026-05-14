@@ -169,10 +169,11 @@ export default class THSProvider extends DataProvider {
 
                 });
             return {
-                preClose,                                // 昨日收盘价
-                totalVolume,                             // 累计成交量
-                totalAmount,                             // 累计成交额
-                data: list,                              // 分时数据
+                providerName: this.name,  // 供应商名称
+                preClose,                 // 昨日收盘价
+                totalVolume,              // 累计成交量
+                totalAmount,              // 累计成交额
+                data: list,               // 分时数据
             };
         } catch (err) {
             console.error("获取分时数据失败", err);

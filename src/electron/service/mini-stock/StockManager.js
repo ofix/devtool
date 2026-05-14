@@ -19,6 +19,7 @@ import JFZTProvider from './providers/JFZTProvider.js';
 import { KlineStorage } from './storage/KlineStorage.js';
 import { KlineRecord } from './storage/KlineRecord.js';
 import TaskQueue from "./TaskQueue.js";
+import FavoriteShare from "./FavoriteShare.js";
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -36,6 +37,7 @@ export default class StockManager extends Singleton {
             jfzt: new JFZTProvider(),           // 九方智投
         };
         this.apiProviderMap = this.#buildApiProviderMap(this.providers);
+        this.requestProviderMap = new Map();
         this.activeProvider = 'eastmoney';
         this.providerIndex = -1;
         this.taskQueue = TaskQueue.getInstance();
@@ -53,9 +55,7 @@ export default class StockManager extends Singleton {
         // 除权信息缓存
         this.adjustCache = new LRUCache(1000);
 
-        // 自选股
-        this.favoriteShares = []; // 自选股列表
-        this.favoriteShareCodeSet = new Set(); // 自选股Set方便快速查找
+        this.favoriteShareService = FavoriteShare.getInstance(this);
         // 股票列表
         this.allShares = []; // A股全市场股票列表
         this.codeShareMap = new Map(); // code -> share 的映射
@@ -63,7 +63,7 @@ export default class StockManager extends Singleton {
         this.ipoInfo = new Map(); // A股全市场股票IPO信息(上市日期+发行价)
         // 搜索历史
         this.searchHistory = []; // 搜索历史记录,最多保持100条，格式: [{ code, name, timestamp }]
-        this.favoriteFilePath = path.join(__dirname, '../../data/favorite_shares.json');
+
         this.shareListFilePath = path.join(__dirname, '../../data/stock_list.csv');
         this.searchHistoryFilePath = path.join(__dirname, '../../data/search_history.json');
         this.ipoInfoFilePath = path.join(__dirname, '../../data/ipo.csv');
@@ -135,9 +135,16 @@ export default class StockManager extends Singleton {
     /**
      * 获取下一个可用供应商（自动排除不支持当前接口的）
      * @param {string} apiName 接口名，如 getShareMinuteKline
+     * @param {string} requestKey 请求标识
      * @returns {DataProvider}
      */
-    #getNextProvider(apiName) {
+    #getNextProvider(apiName, requestKey) {
+        const cacheKey = `${apiName}.${requestKey}`;
+        if (requestKey !== undefined) { // 缓存机制
+            if (this.requestProviderMap.has(cacheKey)) {
+                return this.requestProviderMap.get(cacheKey);
+            }
+        }
         const apiInfo = this.apiProviderMap[apiName];
 
         if (!apiInfo || !apiInfo.providers || apiInfo.providers.length === 0) {
@@ -150,7 +157,11 @@ export default class StockManager extends Singleton {
         apiInfo.robinIdx++;
         const idx = apiInfo.robinIdx % providers.length;
 
-        return providers[idx];
+        let provider = providers[idx];
+        if (requestKey !== undefined) {
+            this.requestProviderMap.set(cacheKey, provider);
+        }
+        return provider;
     }
 
     /**
@@ -217,7 +228,6 @@ export default class StockManager extends Singleton {
 
     getFilePaths() {
         return {
-            favorite: this.favoriteFilePath,
             stockList: this.shareListFilePath,
             searchHistory: this.searchHistoryFilePath,
             ipoInfo: this.ipoInfoFilePath
@@ -273,7 +283,8 @@ export default class StockManager extends Singleton {
             Object.keys(request.params || {}).forEach(key => {
                 url.searchParams.append(key, request.params[key]);
             });
-            console.log(`[${this.nowTime()}][${providerName}][${method}]:`, url.toString());
+            let now = this.nowTime().slice(11);
+            console.log(`[${now}][${providerName}][${method}]:`, url.toString());
             return request;
         });
         const __filename = fileURLToPath(import.meta.url);
@@ -285,7 +296,7 @@ export default class StockManager extends Singleton {
         await this.storage.init();
         await this._loadShareList();
         this._loadSearchHistory();
-        this._loadFavoriteShares();
+        this.favoriteShareService.loadFavoriteShares();
         await this._loadIPOInfo();
         await this._loadBkMenu();
         await this._loadBkList();
@@ -299,6 +310,30 @@ export default class StockManager extends Singleton {
         // this.timers.push(minuteCleanupTimer);
     }
 
+    getFavoriteShares() {
+        return this.favoriteShareService.getFavoriteShares();
+    }
+
+    isFavoriteShare(code) {
+        return this.favoriteShareService.isFavoriteShare(code);
+    }
+
+    addFavoriteShare(code) {
+        return this.favoriteShareService.addFavoriteShare(code);
+    }
+
+    delFavoriteShare(code) {
+        return this.favoriteShareService.delFavoriteShare(code);
+    }
+
+    delFavoriteShares(codes) {
+        return this.favoriteShareService.delFavoriteShares(codes);
+    }
+
+    clearAllFavoriteShares() {
+        return this.favoriteShareService.clearAllFavoriteShares();
+    }
+
     /**
      * 比较两个日期字符串是否是【同一天】
      * @param {string} date1 日期字符串
@@ -306,10 +341,12 @@ export default class StockManager extends Singleton {
      * @returns {boolean}
      */
     isSameDay(date1, date2) {
+        console.log("date1: ",date1, "date2: ",date2);
         const d1 = new Date(date1);
         const d2 = new Date(date2);
         // 检查是否是有效日期
         if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+            console.log("compare result false");
             return false;
         }
 
@@ -321,12 +358,9 @@ export default class StockManager extends Singleton {
         );
     }
 
-
-
-
     // 分时、股票列表、搜索（正确版：单只独立缓存）
     async getShareMinuteKline(share, ndays = 1) {
-        const CHACHE_THREHOLD = 5000 * 1000; // 缓存有效期为5秒
+        const CHACHE_THREHOLD = 5 * 1000; // 缓存有效期为5秒
         const cacheKey = `${share.code}.${ndays}`;
         const cache = this.cache.minute.get(cacheKey);
         // 1. 当日分时（ndays=1）
@@ -350,7 +384,7 @@ export default class StockManager extends Singleton {
                     // 最近一天数据的日期
                     let newestDay = data[4];
                     const cacheToday = this.cache.minute.get(`${share.code}.1`);
-                    if (this.isSameDay(newestDay?.date, Date.now())) {
+                    if (this.isSameDay(newestDay?.day, Date.now())) {
                         // 检查当天分时缓存是否更新，如果是则合并数据
                         if (cacheToday && cacheToday.timestamp > newestDay.timestamp) {
                             data[4] = cacheToday.data;
@@ -378,15 +412,17 @@ export default class StockManager extends Singleton {
         // 缓存没命中，请求后台接口
         let data = null;
         try {
-            const provider = this.#getNextProvider('getShareMinuteKline');
+            const provider = this.#getNextProvider('getShareMinuteKline', cacheKey);
             data = await this.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
                 return provider.getShareMinuteKline(share, ndays);
             })
 
-            this.cache.minute.set(cacheKey, {
-                data: data,
-                timestamp: Date.now()
-            });
+            if (data && Array.isArray(data)) {
+                this.cache.minute.set(cacheKey, {
+                    data: data,
+                    timestamp: Date.now()
+                });
+            }
         } catch (err) {
             console.error(`获取分时数据失败 ${share.code},${share.name},${ndays}:`, err.message);
         }
@@ -909,7 +945,7 @@ export default class StockManager extends Singleton {
         if (!keyword) return [];
         let shares = this.trie.search(keyword.toLowerCase());
         shares.forEach(share => {
-            if (this.isFavoriteShare(share.code)) {
+            if (this.favoriteShareService.isFavoriteShare(share.code)) {
                 share.favorite = true;
             }
         });
@@ -1104,181 +1140,6 @@ export default class StockManager extends Singleton {
         } catch (err) {
             console.error('保存搜索历史文件失败:', err);
         }
-    }
-
-    /**
-     * 从文件 favorites.json 中加载自选股
-     * 文件格式: ["688203","322001","000001"]
-     */
-    _loadFavoriteShares() {
-        try {
-            if (fs.existsSync(this.favoriteFilePath)) {
-                const data = fs.readFileSync(this.favoriteFilePath, 'utf8');
-                const parsed = JSON.parse(data);
-                // 确保是数组格式
-                if (Array.isArray(parsed)) {
-                    // 去重并过滤无效数据
-                    this.favoriteShares = [...new Set(parsed)];
-                } else {
-                    console.warn('自选股文件格式错误，使用空列表');
-                    this.favoriteShares = [];
-                }
-                this.favoriteShareCodeSet.clear()
-                this.favoriteShares.forEach(share => {
-                    this.favoriteShareCodeSet.add(share.code);
-                })
-            } else {
-                // 文件不存在，创建空数组
-                this.favoriteShares = [];
-                this.favoriteShareCodeSet.clear();
-            }
-        } catch (err) {
-            console.error('加载自选股文件失败:', err);
-            this.favoriteShares = [];
-            this.favoriteShareCodeSet.clear();
-        }
-    }
-
-    /**
-     * 保存自选股到文件
-     * @private
-     */
-    _saveFavoriteShares() {
-        try {
-            fs.writeFileSync(this.favoriteFilePath, JSON.stringify(this.favoriteShares, null, 2), 'utf8');
-        } catch (err) {
-            console.error('保存自选股文件失败:', err);
-        }
-    }
-
-    // 返回所有自选股
-    getFavoriteShares() {
-        return this.favoriteShares;
-    }
-
-    // 判断是否是自选股
-    isFavoriteShare(code) {
-        return this.favoriteShareCodeSet.has(code);
-    }
-
-    /**
-     * 添加自选股（自动去重）
-     * @param {string} code - 股票代码（如 '688203' 或 '322001'）
-     * @returns {boolean} 是否添加成功
-     */
-    addFavoriteShare(code) {
-        // 参数校验
-        if (!code || typeof code !== 'string') {
-            console.error('股票代码不能为空');
-            return false;
-        }
-
-        // 标准化代码格式：去除空格，统一为字符串
-        const _code = code.trim();
-
-        // 检查是否已存在
-        if (this.favoriteShareCodeSet.has(_code)) {
-            console.log(`股票 ${_code} 已在自选股中`);
-            return false;
-        }
-
-        // 添加并保存
-        let share = this.getShareByCode(_code);
-        if (share) {
-            share.favorite = true;
-            this.favoriteShares.push(share);
-            this.favoriteShareCodeSet.add(_code);
-            this._saveFavoriteShares();
-            console.log(`成功添加自选股: ${_code}`);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 删除自选股
-     * @param {string} code - 股票代码
-     * @returns {boolean} 是否删除成功
-     */
-    delFavoriteShare(code) {
-        if (!code || typeof code !== 'string') {
-            console.error('股票代码不能为空');
-            return false;
-        }
-
-        const _code = code.trim();
-
-        const index = this.favoriteShares.findIndex(item =>
-            item.code === _code
-        );
-
-        if (index === -1) {
-            console.log(`股票 ${_code} 不在自选股中`);
-            return false;
-        }
-
-        // 删除并保存
-        this.favoriteShares.splice(index, 1);
-        this.favoriteShareCodeSet.delete(_code);
-        this._saveFavoriteShares();
-        console.log(`成功删除自选股: ${_code}`);
-        return true;
-    }
-
-    /**
-     * 批量删除自选股
-     * @param {Array} codes - 股票代码数组
-     * @returns {Object} 删除结果统计
-     */
-    delFavoriteShares(codes) {
-        if (!Array.isArray(codes)) {
-            console.error('参数必须是数组');
-            return { success: 0, failed: 0, notFound: 0 };
-        }
-
-        let success = 0;
-        let notFound = 0;
-
-        codes.forEach(code => {
-            if (!code || typeof code !== 'string') {
-                return;
-            }
-
-            const _code = code.trim();
-            const index = this.favoriteShares.findIndex(share => share.code === _code);
-
-            if (index !== -1) {
-                this.favoriteShares.splice(index, 1);
-                this.favoriteShareCodeSet.delete(_code);
-                success++;
-            } else {
-                notFound++;
-            }
-        });
-
-        if (success > 0) {
-            this._saveFavoriteShares();
-        }
-
-        console.log(`批量删除完成: 成功${success}个, 未找到${notFound}个`);
-        return { success, notFound };
-    }
-
-    /**
-     * 清空所有自选股
-     * @returns {boolean}
-     */
-    clearAllFavoriteShares() {
-        if (this.favoriteShares.length === 0) {
-            console.log('自选股列表已为空');
-            return false;
-        }
-
-        this.favoriteShares = [];
-        this.favoriteShareCodeSet.clear();
-        this._saveFavoriteShares();
-        console.log('已清空所有自选股');
-        return true;
     }
 
 

@@ -1,26 +1,51 @@
+const THEMES = {
+    // 暗黑主题（你原来的配色）
+    dark: {
+        priceLine: '#ff6b6b',        // 现价线
+        avgPriceLine: '#ffd93d',     // 均价线
+        volumeUp: '#ef5350',         // 量柱涨
+        volumeDown: '#26a69a',       // 量柱跌
+        volumeEqual: '#aaaaaa',      // 量柱平
+        grid: '#333333',             // 网格线
+        text: '#ffffff',             // 文字
+        background: '#1a1a1a',       // 背景
+        crosshair: '#ffffff',        // 十字线
+        macdUp: '#ef5350',           // MACD 涨
+        macdDown: '#26a69a',         // MACD 跌
+        difLine: '#ffd93d',          // DIF 线
+        deaLine: '#4ecdc4'           // DEA 线
+    },
+    // 白色主题（标准股票软件白底配色）
+    light: {
+        priceLine: '#ff4500',        // 现价线（橙色）
+        avgPriceLine: '#1e90ff',     // 均价线（蓝色）
+        volumeUp: '#ff4500',         // 量柱涨（红）
+        volumeDown: '#009900',       // 量柱跌（绿）
+        volumeEqual: '#666666',      // 量柱平
+        grid: '#e5e5e5',             // 网格线（浅灰）
+        text: '#333333',             // 文字（深灰）
+        background: '#ffffff',       // 背景（纯白）
+        crosshair: '#999999',        // 十字线
+        macdUp: '#ff4500',           // MACD 涨
+        macdDown: '#009900',         // MACD 跌
+        difLine: '#1e90ff',          // DIF 线
+        deaLine: '#ff4500'           // DEA 线
+    }
+};
 export default class MinuteKlineRenderer {
     constructor(canvas, config = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        const userTheme = config.theme || 'light';
+        const themeColors = THEMES[userTheme];
+
         this.config = {
-            theme: 'dark',
+            theme: userTheme, // 主题存入 config
+            ...config,
             colors: {
-                priceLine: '#ff6b6b',
-                avgPriceLine: '#ffd93d',
-                volumeUp: '#ef5350',
-                volumeDown: '#26a69a',
-                volumeEqual: '#aaaaaa',
-                grid: '#333333',
-                text: '#ffffff',
-                background: '#1a1a1a',
-                crosshair: '#ffffff',
-                macdUp: '#ef5350',
-                macdDown: '#26a69a',
-                difLine: '#ffd93d',
-                deaLine: '#4ecdc4',
-                ...config.colors
+                ...themeColors,
+                ...(config.colors || {}),
             },
-            ...config
         };
 
         this.minuteKlines = [];           // 分时数据
@@ -68,6 +93,21 @@ export default class MinuteKlineRenderer {
         this.mainChartHeight = this.chartHeight - this.chartTop - this.chartBottom - this.subChartHeight * 2;
     }
 
+    // 设置主题色
+    setTheme(theme) {
+        if (!THEMES[theme]) return;
+
+        this.config.theme = theme;
+        this.config.colors = {
+            ...THEMES[theme],
+            ...(this.config.colors || {}),
+        };
+
+        // 切换后自动重绘
+        this.render();
+    }
+
+    // 设置分时数据
     setMinuteKlines(oneDay, fiveDay) {
         if (!oneDay || !oneDay.data) return;
 
@@ -492,7 +532,7 @@ export default class MinuteKlineRenderer {
         // 垂直虚线
         ctx.beginPath();
         ctx.moveTo(crosshair.x, chartTop);
-        ctx.lineTo(crosshair.x, chartTop + mainChartHeight + subChartHeight -10);
+        ctx.lineTo(crosshair.x, chartTop + mainChartHeight + subChartHeight - 10);
         ctx.stroke();
 
         // 水平虚线
@@ -517,6 +557,7 @@ export default class MinuteKlineRenderer {
 
         const info = [
             `时间: ${data.time}`,
+            `涨幅: ${data.changeRatio}%`,
             `价格: ${data.price.toFixed(2)}`,
             `均价: ${(data.avgPrice || data.price).toFixed(2)}`,
             `成交量: ${this.formatVolume(data.volume)}`,

@@ -126,7 +126,8 @@ class EastMoneyProvider extends DataProvider {
             let lastDay = null;
             let dayCache = null;
             let klinePrefix = days == 1 ? '分时' : '五日';
-            console.log(`[${this.nowTime()}][东方财富][${klinePrefix}] ${sseUrl}`);
+            let now = this.nowTime().slice(11);
+            console.log(`[${now}][东方财富][${klinePrefix}] ${sseUrl}`);
             const req = https.get(sseUrl, { headers }, (res) => {
                 res.setEncoding("utf8");
 
@@ -243,8 +244,10 @@ class EastMoneyProvider extends DataProvider {
                                 });
                             }
                             const globalPreClose = data.preClose || 0;
-
-                            console.log(`[${this.nowTime()}][${share.name}][${klinePrefix}] ${trendList}`);
+                            if (lastDay !== null) { // 第一次全量数据不打印
+                                let now = this.nowTime().slice(11);
+                                console.log(`[${now}][${share.name}][${klinePrefix}] ${trendList}`);
+                            }
 
                             // 遍历本次推送的所有分时数据（批量增量）
                             for (const trendStr of trendList) {
@@ -259,6 +262,7 @@ class EastMoneyProvider extends DataProvider {
                                 if (day !== lastDay) {
                                     dayCache = {
                                         day: day,                  // 日期标记
+                                        providerName: this.name,   // 供应商名称
                                         preClose: dayPreCloseMap[day] || globalPreClose, // 当天独立昨收价
                                         totalVolume: 0,            // 当天总量
                                         totalAmount: 0,            // 当天总金额

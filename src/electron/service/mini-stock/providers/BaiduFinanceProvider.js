@@ -59,81 +59,8 @@ class BaiduFinanceProvider extends DataProvider {
             // 统一解析成腾讯格式
             return this.#parseShareMinuteData(share, response.data, days);
         } catch (error) {
-            console.error('BaiduFinanceProvider getShareMinuteKline error:', error);
-            return days === 5 ? [[], [], [], [], []] : [[]];
-        }
-    }
-
-    /**
-     * 获取股票日/周/月/年数据
-     * @param {string} code 股票代码
-     * @param {string} name 股票名称
-     * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
-     * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
-     * @returns {Promise<Object>} 返回K线数据
-     */
-    async getShareDayKline(code, name, startDate, endDate) {
-        try {
-            const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
-                params: {
-                    srcid: '5353',
-                    pointType: 'string',
-                    group: 'quotation_kline_ab',
-                    query: code,
-                    code: code,
-                    market_type: 'ab',
-                    newFormat: 1,
-                    name: name,
-                    is_kc: 0,
-                    ktype: 'day',
-                    finClientType: 'pc',
-                    finClientType: 'pc',
-                    all: 1,
-                }
-            });
-
-            return this.#parseDayKline(response.data);
-        } catch (error) {
-            console.error('BaiduFinanceProvider getKLineData error:', error);
-            throw error;
-        }
-    }
-
-    #parseDayKline(data) {
-        try {
-            const newMarketData = data?.Result?.newMarketData;
-            if (!newMarketData) return [];
-            const { keys, marketData } = newMarketData;
-            if (!keys || !marketData) return [];
-            const lines = marketData.split(';').filter(line => line.trim() !== '');
-
-            return lines.map(line => {
-                const values = line.split(',');
-                const item = {};
-
-                keys.forEach((key, index) => {
-                    item[key] = values[index];
-                });
-                // "时间戳","时间","开盘","收盘","成交量","最高","最低","成交额","涨跌额","涨跌幅","换手率","昨收",
-                // "timestamp","time","open","close","volume","high","low","amount","range","ratio","turnoverratio","preClose"
-                return {
-                    timestamp: Number(item.timestamp), // 时间戳
-                    time: item.time, // 时间
-                    open: parseFloat(item.open) || 0, // 开盘价
-                    close: parseFloat(item.close) || 0, // 收盘价
-                    high: parseFloat(item.high) || 0, // 最高价
-                    low: parseFloat(item.low) || 0, // 最低价
-                    volume: parseFloat(item.volume) / 100 || 0, // 成交量
-                    amount: parseFloat(item.amount) || 0, // 成交额
-                    turnoverratio: parseFloat(item.turnoverratio) || 0, // 换手率
-                    change: parseFloat(item.range) || 0, // 涨跌额
-                    changeratio: parseFloat(item.ratio) || 0, // 涨跌幅
-                    preClose: parseFloat(item.preClose) || 0, // 昨收
-                };
-            });
-        } catch (e) {
-            console.error('K线解析失败', e);
-            return [];
+            console.error('BaiduFinanceProvider getShareMinuteKline error:', error.getMessage());
+            return null;
         }
     }
 
@@ -208,6 +135,8 @@ class BaiduFinanceProvider extends DataProvider {
 
                 // 输出统一格式
                 allDays.push({
+                    day: dayItem.date,                        // 交易日期
+                    providerName: this.name,                  // 供应商名称
                     preClose: parseFloat(preClose),           // 昨日成交价
                     totalVolume: Math.round(totalVolume),     // 总成交量
                     totalAmount: Math.round(totalAmount),     // 总成交额
@@ -218,7 +147,80 @@ class BaiduFinanceProvider extends DataProvider {
             return allDays;
         } catch (e) {
             console.error('百度分时解析失败', e);
-            return days === 5 ? [[], [], [], [], []] : [[]];
+            return null;
+        }
+    }
+
+    /**
+     * 获取股票日/周/月/年数据
+     * @param {string} code 股票代码
+     * @param {string} name 股票名称
+     * @param {string|null} startDate 开始时间，格式 yyyy-mm-dd
+     * @param {string|null} endDate 结束时间，格式 yyyy-mm-dd
+     * @returns {Promise<Object>} 返回K线数据
+     */
+    async getShareDayKline(code, name, startDate, endDate) {
+        try {
+            const response = await axios.get(`https://finance.pae.baidu.com/vapi/v1/getquotation`, {
+                params: {
+                    srcid: '5353',
+                    pointType: 'string',
+                    group: 'quotation_kline_ab',
+                    query: code,
+                    code: code,
+                    market_type: 'ab',
+                    newFormat: 1,
+                    name: name,
+                    is_kc: 0,
+                    ktype: 'day',
+                    finClientType: 'pc',
+                    finClientType: 'pc',
+                    all: 1,
+                }
+            });
+
+            return this.#parseDayKline(response.data);
+        } catch (error) {
+            console.error('BaiduFinanceProvider getKLineData error:', error);
+            throw error;
+        }
+    }
+
+    #parseDayKline(data) {
+        try {
+            const newMarketData = data?.Result?.newMarketData;
+            if (!newMarketData) return [];
+            const { keys, marketData } = newMarketData;
+            if (!keys || !marketData) return [];
+            const lines = marketData.split(';').filter(line => line.trim() !== '');
+
+            return lines.map(line => {
+                const values = line.split(',');
+                const item = {};
+
+                keys.forEach((key, index) => {
+                    item[key] = values[index];
+                });
+                // "时间戳","时间","开盘","收盘","成交量","最高","最低","成交额","涨跌额","涨跌幅","换手率","昨收",
+                // "timestamp","time","open","close","volume","high","low","amount","range","ratio","turnoverratio","preClose"
+                return {
+                    timestamp: Number(item.timestamp), // 时间戳
+                    time: item.time, // 时间
+                    open: parseFloat(item.open) || 0, // 开盘价
+                    close: parseFloat(item.close) || 0, // 收盘价
+                    high: parseFloat(item.high) || 0, // 最高价
+                    low: parseFloat(item.low) || 0, // 最低价
+                    volume: parseFloat(item.volume) / 100 || 0, // 成交量
+                    amount: parseFloat(item.amount) || 0, // 成交额
+                    turnoverratio: parseFloat(item.turnoverratio) || 0, // 换手率
+                    change: parseFloat(item.range) || 0, // 涨跌额
+                    changeratio: parseFloat(item.ratio) || 0, // 涨跌幅
+                    preClose: parseFloat(item.preClose) || 0, // 昨收
+                };
+            });
+        } catch (e) {
+            console.error('K线解析失败', e);
+            return [];
         }
     }
 

@@ -19,6 +19,7 @@
             {{ share.changeRatio || "--" }}%
           </span>
           <div class="chart-type-toggle">
+            <span class="name">{{share.providerName}}</span>
             <!-- Element Plus 下拉菜单 -->
             <el-dropdown
               @command="(type) => handleKlineTypeChange(type, share)"

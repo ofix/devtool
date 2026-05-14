@@ -151,7 +151,7 @@ export default class JFZTProvider extends DataProvider {
 
             const klineData = data.KlineData || [];
             if (klineData.length === 0) {
-                return DataProvider.getEmptyMinutes(ndays);
+                return null;
             }
 
             // 九方数据规则：1200条 = 5个交易日，每日固定240条，正序排列
@@ -166,9 +166,23 @@ export default class JFZTProvider extends DataProvider {
             return ndays === 1 ? [dayList[4]] : dayList;
         } catch (err) {
             console.error("九方智投分时K线获取失败:", err);
-            return DataProvider.getEmptyMinutes(ndays);
+            return null;
         }
     }
+
+     formatTime(timestamp) {
+        let time = timestamp.toString().length === 10 ? timestamp * 1000 : timestamp;
+        let date = new Date(time);
+      
+        let y = date.getFullYear();
+        let m = (date.getMonth() + 1).toString().padStart(2, '0');
+        let d = date.getDate().toString().padStart(2, '0');
+        let h = date.getHours().toString().padStart(2, '0');
+        let i = date.getMinutes().toString().padStart(2, '0');
+        let s = date.getSeconds().toString().padStart(2, '0');
+      
+        return `${y}-${m}-${d} ${h}:${i}:${s}`;
+      }
 
     /**
      * 解析单日分时K线数据（对齐腾讯财经计算逻辑与字段结构）
@@ -183,12 +197,7 @@ export default class JFZTProvider extends DataProvider {
 
         dayLines.forEach(item => {
             // 时间戳格式化 HH:mm
-            const time = new Date(item.Time * 1000).toLocaleTimeString("zh-CN", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-            });
-
+            const time = this.formatTime(item.Time);
             const price = parseFloat(item.Close);
             const vol = parseInt(item.Volume);
             const amt = parseFloat(item.Amount);
@@ -212,11 +221,14 @@ export default class JFZTProvider extends DataProvider {
                 changeRatio: parseFloat(changeRatio.toFixed(2)),
             });
         });
+        console.log("九方智投day=",dataList[0].time.slice(0,10));
         return {
-            preClose: parseFloat(preClose.toFixed(2)),           // 昨日收盘
-            totalVolume,                                         // 总成交量
-            totalAmount,                                         // 总成交额
-            data: dataList,                                      // 分时数据
+            day: dataList[0].time.slice(0,10),           // 交易日期
+            providerName: this.name,                     // 供应商名称
+            preClose: parseFloat(preClose.toFixed(2)),   // 昨日收盘
+            totalVolume,                                 // 总成交量
+            totalAmount,                                 // 总成交额
+            data: dataList,                              // 分时数据
         };
     }
 

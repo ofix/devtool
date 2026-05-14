@@ -20,8 +20,6 @@ class StockHandler {
 
         ipcMain.handle('mini-stock:minute-kline', async (event, shares, days = 1) => {
             try {
-                console.log("++++++++ 获取分时数据 +++++++++");
-                console.log(shares);
                 const data = await this.manager.getShareMinuteKline(shares, days);
                 return data;
             } catch (error) {
