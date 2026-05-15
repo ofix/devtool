@@ -10,16 +10,16 @@
       >
         <!-- 股票头部信息 -->
         <div class="share-header" v-if="share">
-          <span class="name">{{ share.name }}</span>
-          <span class="code">{{ share.code }}</span>
-          <span class="price" :class="share.changeRatio >= 0 ? 'up' : 'down'">
+          <div>{{ share.name }}</div>
+          <div>{{ share.code }}</div>
+          <div :class="share.changeRatio >= 0 ? 'up' : 'down'">
             {{ share.price || "--" }}
-          </span>
-          <span class="change" :class="share.changeRatio >= 0 ? 'up' : 'down'">
+          </div>
+          <div :class="share.changeRatio >= 0 ? 'up' : 'down'">
             {{ share.changeRatio || "--" }}%
-          </span>
+          </div>
           <div class="chart-type-toggle">
-            <span class="name">{{share.providerName}}</span>
+            <div class="provider">{{ share.provider }}</div>
             <!-- Element Plus 下拉菜单 -->
             <el-dropdown
               @command="(type) => handleKlineTypeChange(type, share)"
@@ -146,6 +146,7 @@ async function loadFavoriteShares() {
       ...s,
       price: "--",
       changeRatio: "-",
+      provider: "--",
     }));
   }
 }
@@ -296,7 +297,7 @@ async function startAutoRefresh() {
 // 根据每只股票自己的K线类型拉取数据
 async function refreshData() {
   // 把所有请求做成任务数组（全部并发）
-  const tasks = displayList.value.map(async (share) => {
+  const tasks = displayList.value.map(async (share, index) => {
     if (!share || !share.code) return;
 
     try {
@@ -312,15 +313,16 @@ async function refreshData() {
         let oneDay = await window.channel.getShareMinuteKline(oneShare, 1);
         if (oneDay) {
           minuteKlineData.value[share.code] = oneDay;
-          const minuteKlines = oneDay.data;
+          const minuteKlines = oneDay[0].data;
           if (minuteKlines?.length) {
             const newest = minuteKlines.at(-1);
-            
-            Object.assign(share, {
+            const newShare = {
+              ...share,
               price: newest.price,
               changeRatio: newest.changeRatio,
-            });
-            console.log(share);
+              provider: oneDay[0].provider,
+            };
+            displayList.value.splice(index, 1, newShare);
           }
         }
         let fiveDay = await window.channel.getShareMinuteKline(oneShare, 5);
@@ -394,6 +396,7 @@ function isTradingTime() {
   font-size: 13px;
   margin-bottom: 4px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .chart {
@@ -420,6 +423,13 @@ function isTradingTime() {
   margin-left: auto;
   right: 10px;
   bottom: 10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.provider{
+    color:#efefef;
 }
 /* 
 .chart-type-toggle button {

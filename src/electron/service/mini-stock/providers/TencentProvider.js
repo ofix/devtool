@@ -109,7 +109,7 @@ class TencentProvider extends DataProvider {
 
                     // 计算涨跌额 + 涨跌幅
                     const change = preClose !== 0 ? (curPrice - preClose) : 0;
-                    const changeRatio = preClose !== 0 ? (change / preClose * 100).toFixed(2) : 0;
+                    const changeRatio = preClose !== 0 ? (change / preClose * 100) : 0;
 
                     // 累计成交额 / (累计成交量(手) * 100)
                     let avgPrice = curVol > 0 ? curAmount / (curVol * 100) : 0;
@@ -120,11 +120,11 @@ class TencentProvider extends DataProvider {
                     list.push({
                         time: standardTime,  // 标准格式时间
                         price: curPrice,
-                        avgPrice: avgPrice.toFixed(2),
-                        vol: realVol.toFixed(2),
-                        amount: realAmount.toFixed(2),
-                        change: change.toFixed(2),
-                        changeRatio: changeRatio
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        volume: parseFloat(realVol),
+                        amount: parseFloat(realAmount),
+                        change: parseFloat(change.toFixed(2)),
+                        changeRatio: parseFloat(changeRatio.toFixed(2))
                     });
 
                     lastVol = curVol;
@@ -136,7 +136,8 @@ class TencentProvider extends DataProvider {
 
                 fiveDaysList.push({
                     day: day,
-                    providername: this.name,
+                    provider: this.name,
+                    shareName: share.name,
                     preClose: preClose,
                     totalVolume: totalVolume,
                     totalAmount: totalAmount,
@@ -200,11 +201,11 @@ class TencentProvider extends DataProvider {
                     list.push({
                         time,
                         price: p,
-                        avgPrice: avgPrice.toFixed(2),
+                        avgPrice: parseFloat(avgPrice.toFixed(2)),
                         volume: v,
                         amount: a,
-                        change: change.toFixed(2),           // 每分钟涨跌额
-                        changeRatio: changeRatio.toFixed(2), // 每分钟涨跌额
+                        change: parseFloat(change.toFixed(2)),           // 每分钟涨跌额
+                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额
                     });
                 });
 
@@ -215,7 +216,8 @@ class TencentProvider extends DataProvider {
                 // 最后一天最后一根K线的当前价
                 return {
                     day: "",                     // 交易日期
-                    providername: this.name,     // 供应商名称
+                    provider: this.name,         // 供应商名称
+                    shareName: share.name,       // 股票名称
                     preClose: preClose,          // 昨日收盘价
                     totalVolume,                 // 当日总成交量
                     totalAmount,                 // 当日总成交额

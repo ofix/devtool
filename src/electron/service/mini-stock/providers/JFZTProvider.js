@@ -159,7 +159,7 @@ export default class JFZTProvider extends DataProvider {
             const dayList = [];
             for (let i = 0; i < 5; i++) {
                 const sliceData = klineData.slice(i * 240, (i + 1) * 240);
-                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData) : this.createEmptyMinute());
+                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData,share) : this.createEmptyMinute());
             }
 
             // 根据ndays返回对应数据：1日返回最新一天，5日返回完整五日
@@ -170,26 +170,27 @@ export default class JFZTProvider extends DataProvider {
         }
     }
 
-     formatTime(timestamp) {
+    formatTime(timestamp) {
         let time = timestamp.toString().length === 10 ? timestamp * 1000 : timestamp;
         let date = new Date(time);
-      
+
         let y = date.getFullYear();
         let m = (date.getMonth() + 1).toString().padStart(2, '0');
         let d = date.getDate().toString().padStart(2, '0');
         let h = date.getHours().toString().padStart(2, '0');
         let i = date.getMinutes().toString().padStart(2, '0');
         let s = date.getSeconds().toString().padStart(2, '0');
-      
+
         return `${y}-${m}-${d} ${h}:${i}:${s}`;
-      }
+    }
 
     /**
      * 解析单日分时K线数据（对齐腾讯财经计算逻辑与字段结构）
      * @param {Array} dayLines 单日240条分时数据
+     * @param {Object} share 股票对象
      * @returns {Object} 标准分时数据对象
      */
-    #parseMinuteResponse(dayLines) {
+    #parseMinuteResponse(dayLines,share) {
         const preClose = parseFloat(dayLines[0]?.PreClose || 0);
         let totalVolume = 0;
         let totalAmount = 0;
@@ -198,22 +199,22 @@ export default class JFZTProvider extends DataProvider {
         dayLines.forEach(item => {
             // 时间戳格式化 HH:mm
             const time = this.formatTime(item.Time);
-            const price = parseFloat(item.Close);
-            const vol = parseInt(item.Volume);
-            const amt = parseFloat(item.Amount);
+            const price =item.Close;
+            const vol = item.Volume;
+            const amt = item.Amount;
 
             // 累加当日总成交量、总成交额
             totalVolume += vol;
             totalAmount += amt;
 
             // 计算均价、涨跌额、涨跌幅
-            const avgPrice = totalVolume > 0 ? totalAmount / totalVolume : price;
+            const avgPrice = totalAmount / totalVolume;
             const change = price - preClose;
             const changeRatio = preClose !== 0 ? (change / preClose) * 100 : 0;
 
             dataList.push({
-                time,
-                price: parseFloat(price.toFixed(2)),
+                time: time.slice(11, 16),
+                price: price,
                 avgPrice: parseFloat(avgPrice.toFixed(2)),
                 volume: vol,
                 amount: amt,
@@ -221,16 +222,15 @@ export default class JFZTProvider extends DataProvider {
                 changeRatio: parseFloat(changeRatio.toFixed(2)),
             });
         });
-        console.log("九方智投day=",dataList[0].time.slice(0,10));
+        let tradingDay = this.formatTime(dayLines[0]?.TradingDay).slice(0,10);
         return {
-            day: dataList[0].time.slice(0,10),           // 交易日期
-            providerName: this.name,                     // 供应商名称
-            preClose: parseFloat(preClose.toFixed(2)),   // 昨日收盘
-            totalVolume,                                 // 总成交量
-            totalAmount,                                 // 总成交额
-            data: dataList,                              // 分时数据
+            day: tradingDay,           // 交易日期
+            provider: this.name,       // 供应商名称
+            shareName: share.name,     // 股票名称
+            preClose: preClose,        // 昨日收盘
+            totalVolume,               // 总成交量
+            totalAmount,               // 总成交额
+            data: dataList,            // 分时数据
         };
     }
-
-
 }

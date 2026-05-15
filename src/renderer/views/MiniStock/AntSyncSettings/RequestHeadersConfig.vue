@@ -132,7 +132,6 @@
                     <!-- popover 内部嵌入请求头面板 -->
                     <CaptureHeadersPanel
                       :captureRequests="captureRequests"
-                      @update:captureRequests="requestList = []"
                       @sync="handleSyncHeaders"
                       style="height: 480px"
                     />
@@ -571,7 +570,7 @@ function updateHeaderName(setId, index, newName) {
   // 检查是否重名（排除自身）
   if (oldName !== newName) {
     const isDuplicate = arr.some(
-      (item, idx) => idx !== index && item.name === newName,
+      (item, idx) => idx !== index && item.name === newName
     );
     if (isDuplicate) {
       ElMessage.warning(`Header "${newName}" 已存在`);
@@ -726,9 +725,9 @@ function handleSyncHeaders(headers) {
   handlePasteConfirm(headers);
 }
 
-function onCloseCapturePanel(){
-    window.channel.closeWindow('RequestWnd');
-    captureRequests.value = [];
+function onCloseCapturePanel() {
+  window.channel.closeWindow("RequestWnd");
+  captureRequests.value = [];
 }
 
 function handlePasteConfirm(headers) {
@@ -840,9 +839,9 @@ function previewHeaders() {
 }
 
 // 清空 Headers
-function emptyHeaders(){
+function emptyHeaders() {
   const currentId = localConfig.strategy.currentSetId;
-  if(!currentId) return;
+  if (!currentId) return;
   mapSetHeaders[currentId] = [];
 }
 
@@ -890,14 +889,16 @@ watch(
   () => {
     syncFromProps();
   },
-  { deep: true },
+  { deep: true }
 );
 
 // 初始化
 onMounted(() => {
   syncFromProps();
   window.channel.on("request-headers", (event, data) => {
-    const { url, method, headers } = data;
+    let { url, method, headers } = data;
+    const _url = new URL(url);
+    headers = { Url: url, Host: _url.hostname, ...headers };
     captureRequests.value.push({
       url,
       method: method.toUpperCase(),

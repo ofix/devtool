@@ -59,7 +59,7 @@ class BaiduFinanceProvider extends DataProvider {
             // 统一解析成腾讯格式
             return this.#parseShareMinuteData(share, response.data, days);
         } catch (error) {
-            console.error('BaiduFinanceProvider getShareMinuteKline error:', error.getMessage());
+            console.error('BaiduFinanceProvider getShareMinuteKline error:', error.message);
             return null;
         }
     }
@@ -107,7 +107,7 @@ class BaiduFinanceProvider extends DataProvider {
                     }
 
                     // 字段映射
-                    const time = item.time;
+                    const time = item.time.slice(6);
                     const price = parseFloat(item.price) || 0;
                     const avgPrice = parseFloat(item.avgPrice) || 0;
                     const volume = parseFloat(item.volume) / 100 || 0; // 股 → 手
@@ -136,7 +136,8 @@ class BaiduFinanceProvider extends DataProvider {
                 // 输出统一格式
                 allDays.push({
                     day: dayItem.date,                        // 交易日期
-                    providerName: this.name,                  // 供应商名称
+                    provider: this.name,                      // 供应商名称
+                    shareName: share.name,                    // 股票名称
                     preClose: parseFloat(preClose),           // 昨日成交价
                     totalVolume: Math.round(totalVolume),     // 总成交量
                     totalAmount: Math.round(totalAmount),     // 总成交额

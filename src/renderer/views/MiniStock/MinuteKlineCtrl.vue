@@ -57,7 +57,7 @@ const toggleSubChart = () => {
 
 // 鼠标移动事件
 const handleMouseMove = (e) => {
-  if (!renderer) return;
+  if (!renderer || !canvasRef.value) return;
 
   const rect = canvasRef.value.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;

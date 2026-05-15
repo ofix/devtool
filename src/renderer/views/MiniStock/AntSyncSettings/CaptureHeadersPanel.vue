@@ -1,12 +1,21 @@
 <template>
   <div class="request-header-panel">
     <!-- 过滤 -->
-    <el-input
-      v-model="filterText"
-      placeholder="过滤URL..."
-      clearable
-      class="filter-input"
-    />
+    <div class="top-bar">
+      <el-input
+        v-model="filterText"
+        placeholder="过滤URL..."
+        clearable
+        class="filter-input"
+      />
+      <el-button
+        class="filter-button"
+        size="medium"
+        type="primary"
+        @click="showPage"
+        >显示页面</el-button
+      >
+    </div>
 
     <!-- 官方分割面板：水平方向 -->
     <el-splitter class="splitter-container">
@@ -32,7 +41,6 @@
             <el-button size="small" type="primary" @click="syncHeaders"
               >同步</el-button
             >
-            <el-button size="small" @click="clearList">清空</el-button>
           </div>
           <div class="table-wrap">
             <table class="header-table">
@@ -52,12 +60,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { ElMessage } from "element-plus";
 
 const emit = defineEmits(["sync"]);
 
-// 从 props 接收数据（正确）
 const props = defineProps({
   captureRequests: {
     type: Array,
@@ -68,34 +75,81 @@ const props = defineProps({
 const selectedItem = ref(null);
 const filterText = ref("");
 
-// 计算属性：直接用 props 过滤
+// 计算属性
 const filteredList = computed(() => {
   if (!filterText.value) return props.captureRequests;
   return props.captureRequests.filter((item) =>
-    item.url.toLowerCase().includes(filterText.value.toLowerCase()),
+    item.url.toLowerCase().includes(filterText.value.toLowerCase())
   );
 });
 
-// 同步
+// 同步请求头到父组件
 const syncHeaders = () => {
   if (!selectedItem.value) return ElMessage.warning("请先选择请求");
+  const filterKeys = ["url"];
   // 把对象格式 转成 数组格式 { key: val } => [{ name, value }]
-  const headers = Object.entries(selectedItem.value.headers).map(
-    ([name, value]) => ({
+  const headers = Object.entries(selectedItem.value.headers)
+    .filter(([name]) => {
+      const lowerName = name.toLowerCase(); // 不区分大小写过滤
+      return !filterKeys.some((key) => lowerName.includes(key));
+    })
+    .map(([name, value]) => ({
       name: name.trim(),
       value: value || "",
       enabled: true,
-    }),
-  );
+    }));
   emit("sync", headers);
   ElMessage.success("已同步");
 };
 
-// 清空（向父组件发射）
-const clearList = () => {
-  emit("update:captureRequests", []);
-  selectedItem.value = null;
-  ElMessage.success("已清空");
+function showPage() {
+  window.channel.showWindow("RequestWnd");
+}
+
+// 键盘事件处理
+const handleKeydown = (event) => {
+  if (!filteredList.value.length) return;
+
+  const currentIndex = filteredList.value.findIndex(
+    (item) => item === selectedItem.value
+  );
+  let newIndex = currentIndex;
+
+  switch (event.key) {
+    case "ArrowUp":
+      event.preventDefault(); // 阻止页面滚动
+      newIndex =
+        currentIndex > 0 ? currentIndex - 1 : filteredList.value.length - 1;
+      break;
+    case "ArrowDown":
+      event.preventDefault();
+      newIndex =
+        currentIndex < filteredList.value.length - 1 ? currentIndex + 1 : 0;
+      break;
+
+    default:
+      return;
+  }
+
+  // 更新选中的项
+  selectedItem.value = filteredList.value[newIndex];
+
+  // 滚动到可视区域
+  scrollToSelectedItem();
+};
+
+// 滚动到选中的项
+const scrollToSelectedItem = () => {
+  // 使用 nextTick 确保 DOM 更新完成
+  nextTick(() => {
+    const activeElement = document.querySelector(".request-item.active");
+    if (activeElement) {
+      activeElement.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  });
 };
 
 // 自动选中第一条
@@ -106,8 +160,16 @@ watch(
       selectedItem.value = newList[0];
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
+// 监听键盘事件
+onMounted(() => {
+  window.addEventListener("keydown", handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <style scoped>
@@ -116,14 +178,22 @@ watch(
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e5e7eb;
   border-radius: 6px;
   overflow: hidden;
   background: #fff;
 }
 
+.top-bar {
+  display: flex;
+  gap: 8px;
+}
+
 .filter-input {
   padding: 8px;
+}
+
+.filter-button {
+  margin-top: 8px;
 }
 
 .splitter-container {
@@ -195,6 +265,12 @@ watch(
 }
 
 .detail-toolbar {
+  position: sticky;
+  top: 0;
+  background: #fff; /* 需要背景色，避免内容穿透 */
+  z-index: 10;
+  border-bottom: 1px solid #e4e7ed;
+  padding: 4px 4px;
   display: flex;
   align-items: center;
   gap: 10px;

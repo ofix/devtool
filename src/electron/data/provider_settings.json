@@ -4,7 +4,7 @@
       "name": "东方财富",
       "builtin": true,
       "enabled": true,
-      "baseUrl": "https://push2.eastmoney.com",
+      "baseUrl": "https://quote.eastmoney.com/kcb/688981.html",
       "timeout": 30,
       "desc": "东方财富板块数据",
       "crawlStrategy": {
@@ -38,25 +38,20 @@
                "name": "默认配置",
                "enabled": true,
                "headers": {
-                  "Accept": "text/event-stream",
-                  "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-                  "Cache-Control": "no-cache",
-                  "Connection": "keep-alive",
-                  "Cookie": "qgqp_b_id=27a950c2fe1b0653cecb79a9ccd77c91; st_nvi=QGXlBcGxvWDPSXzWQB1gLd861; nid18=09b103ec53d128b3b00c42897ed54abd; nid18_create_time=1778462818505; gviem=fashDLisxi63Nbb_40RdG006a; gviem_create_time=1778462818506; websitepoptg_api_time=1778566257828; st_si=81868496787426; st_pvi=66081628292100; st_sp=2026-04-08%2017%3A20%3A45; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fbk%2F90.BK1169.html; st_sn=2; st_psi=2026051313403257-113200354966-3601273692; wsc_checkuser_ok=1; st_asi=2026051313403257-113200354966-3601273692-web.xgnhqdy.dzqkx-1",
-                  "Host": "6.push2his.eastmoney.com",
-                  "Origin": "https://quote.eastmoney.com",
-                  "Referer": "https://quote.eastmoney.com/concept/sz300759.html",
-                  "Sec-Fetch-Dest": "empty",
-                  "Sec-Fetch-Mode": "cors",
-                  "Sec-Fetch-Site": "same-site",
-                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-                  "sec-ch-ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "sec-ch-ua-mobile": "?0",
+                  "Host": "50.push2.eastmoney.com",
                   "sec-ch-ua-platform": "\"Linux\"",
-                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "Sec-Ch-Ua-Mobile": "?0",
-                  "Sec-Ch-Ua-Platform": "\"Linux\""
+                  "Cache-Control": "no-cache",
+                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+                  "Accept": "text/event-stream",
+                  "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
+                  "sec-ch-ua-mobile": "?0",
+                  "Sec-Fetch-Site": "same-site",
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Dest": "empty",
+                  "Referer": "https://quote.eastmoney.com/kcb/688981.html",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Accept-Language": "zh-CN",
+                  "Cookie": "qgqp_b_id=0873f38794dba0d28813bc4bf5e38f72; st_nvi=_Lr_kXPnL2kQTOWPiFG8D2301; nid18=00d22e32fd0787364b8f6a28f55be2bd; nid18_create_time=1778807707812; gviem=kuzmeSUW9rVwCeAtZkW9Fc82f; gviem_create_time=1778807707813; st_si=48925262793527; st_asi=delete; st_pvi=76846705154245; st_sp=2026-05-15%2009%3A15%3A06; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fkcb%2F688981.html; st_sn=2; st_psi=20260515162201735-113200313000-7769246787"
                },
                "_headers": [
                   {
@@ -244,7 +239,7 @@
       "name": "百度财经",
       "builtin": true,
       "enabled": true,
-      "baseUrl": "https://gushitong.baidu.com",
+      "baseUrl": "https://finance.baidu.com/stock/ab-002252",
       "timeout": 30,
       "desc": "百度财经板块数据",
       "crawlStrategy": {
@@ -277,21 +272,19 @@
                "id": "1777528939103_p00tty94k",
                "name": "默认配置",
                "headers": {
+                  "sec-ch-ua-platform": "\"Linux\"",
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
                   "Accept": "application/vnd.finance-web.v1+json",
-                  "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-                  "Origin": "https://finance.baidu.com",
-                  "Priority": "u=1, i",
-                  "Referer": "https://finance.baidu.com/",
-                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "Sec-Ch-Ua-Mobile": "?0",
-                  "Sec-Ch-Ua-Platform": "\"Linux\"",
-                  "Sec-Fetch-Dest": "empty",
-                  "Sec-Fetch-Mode": "cors",
+                  "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
+                  "Acs-Token": "1778824805507_1778827470037_iUc54T9VgFaRYGUL/TkHvvtJpAj1h84AWSZgE59+fIQ9gKs4ZfTDX/FxGMpCCoObt7U7iWTiXqZFbQ+8xgtrQ2YBajRsrLgaCQJcmZAZUV2/JNsXNB0ejJZrCg6ajOaGfssDNllEvXy28hevBSA33QbJHoQJtHzV8ijFzb3T7raaKKfSNYBcpy4bghlT81SUgkTiENWLTQtAAeVToaBiXo/0kBegGOQD9kjeJ/GYmfXBNDstWyWh0dv+lzsQ34SEplOfhtsziBsvhax6SRt3LCbTttMYGLqlv952DqrZSF2ovrGx3WRAYUKDpB7sOQ/HgNmIscV1ex9kPXjGQVmiqbrI28w0ljKLcme2s0BFmJD9tmn8ucIGtkpVCIq8o9hkI9TyaxI97n4FTTDHhlP0L0FIndiCESnh86dxrtj1GMU=",
+                  "sec-ch-ua-mobile": "?0",
                   "Sec-Fetch-Site": "same-site",
-                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-                  "Acs-Token": "1778652005768_1778729143509_F/oAEpR1JDRqyoMjqkw/KlGH5Gru9UTibuaCMvZMKIKQQTMpWpswtlV9EjhzbI4VkFej8YeO+cKQkhCIMlwzcwBfSijBuVWaT3Jdhp82CXUnw6hyAs3kwHWKMlipgcjNR973UzmGfAmpyR3e+sH5mj12+FmzOeVivBwQLEwcNzIuMJG7BsUtZhuPgP26z+RpwvgTnk56Um9NAl5/rnYXg/5wFPL+JAb0agkBEFj19CePzXSEEwipEfkpAlk1rIJBcKinaCyfmyLf6j4weSzdYewHATCFrP7DfOhmFTeogKcURUj4KZ4X5ck/4NuLe3mnZRc0zD3mTCSutrSOgZ0Rj7dskYRjUhYxsEo9VDHtI4fJk/rnXqPD8/GPnUJBALeZ76B9Mb5UyJ/UZB5eUe7DTQ==",
-                  "Cookie": "BIDUPSID=6EEF033850B9DABDB5FC095EF41F8184; PSTM=1769475121; MCITY=-%3A; BAIDUID=6EEF033850B9DABDB5FC095EF41F8184:SL=0:NR=10:FG=1; H_WISE_SIDS=63146_67861_68166_68296_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69343_69339_69346_69345_69348_69351_69340_69500_69518_69555_69553_69569_69592_69619_69669_69662_69658_69737_69717_69749_69795_69780_69775_69708_69808; H_WISE_SIDS_BFESS=63146_67861_68166_68296_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69343_69339_69346_69345_69348_69351_69340_69500_69518_69555_69553_69569_69592_69619_69669_69662_69658_69737_69717_69749_69795_69780_69775_69708_69808; H_PS_PSSID=63146_67861_68166_69001_69062_69158_69191_69204_69245_69228_69240_69233_69234_69293_69250_69403_69397_69419_69415_69413_69421_69440_69432_69454_69339_69348_69518_69569_69592_69619_69669_69662_69658_69717_69749_69795_69780_69708_69808_69833_69841_69923_69895_69961_70004_70028_70049; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; delPer=0; PSINO=1; BAIDUID_BFESS=6EEF033850B9DABDB5FC095EF41F8184:SL=0:NR=10:FG=1; ab_sr=1.0.1_MzY0NzUyNTcyZTJjNTRmNzdiMTM0NmJjYThhOGQ1YjcxMTEwMWRkNGQ3MmJmZjU1M2NhNTZjM2M4MGMyODhkZDc1NTE5ZWFiNWJiMDI1YTFkYjk2MzZkYTAyOWEwZjQ0NmExZmY1MjYyYTY5NTk5Yjg2NTQwZDY3ZjRlZmI5M2I2ZDIwMDg4Y2M4N2IwOWNhZTJlYzNiMjA3N2FjOWYwOQ==; ppfuid=FOCoIC3q5fKa8fgJnwzbE+YhNskVRU4HW930FeLFkOByMFn76lfGbpe1mvnbXASpJB/ci5OjY/p5Deg+hv8YrIz7TMXRylEW5hdNFYaBjuCuFMYVIsOGCDcCGm/hArLqSOgoap6LII1odh53KcPUGNE90q2b/jXef2YQK99fbMg/ev93+zPsroiExYQmnl2/xKm4yaHsaxngLt8X+ROCa1V7g4ti461xXzsWsLP50OVx9vu6RQxP4AbZKhPsqT4U7FybV/9OgNutEUdYJjyGfDW/aLCPXd1oz71pYnkYkJC79JRsXmNXkBTLP+MGIiApU5toMIeBYlkfdmtMZgeaLtckH3PfLajwqrF6nlcEKy6A05bkLvd7+DniS5jg8ohLvVkjvoSThqoEMSdQyP47zrv2sK7CDNLzTDCNARobONye81cgRbanCPgFcg1I0Ws8WStGatIN1o43k/0tYZBeFYgaFiqth+EcZmok3Ha5aaCUAhARljbU7JgOCl8o3fPFGfo42ocrzcyQEQ1YExZIDB5r/7VVI1RMZ8gb40q7az6Dbyw7OOctSdQT0q6QwAxM9lh9Pv2xsVi6e1jRHLoZfc6xEAlV1c9cqU9FCKKCE3aHe61k19SwAYvZZZre25tP2132sZ856caQs4YJGVp1dODUgo8ND3Pf8OKoe0AhubK7d6YSDqcRi7qVC69ivr9QlZHb3pM/XU1yUmp0dpN/dJHIeKAxeCJRzKQmiJrt2NdLXfu0TJRyXYClb9dslijAMlBRhHp4q4EHCKPlJ8vRPbqLYQNT9wXrZ/IWwo5cobR/q1uQn9VsBjBmLNQsYnwiX1i39zQE19TGybrzqrM1pPbAcb9jVyAPNXYtYELnZOxv7/xlyu/mm2e/4Lzfz0n7srSqfnFcmtlk10eEH4v9Tu0EHJMhGrMpFk072SScWWzsyENIRSzxn7hVLq2WrdfYC+pt8AopWmZ7q/XS68PCmb+l8+BWKo5hKxgQktCLfGSgrRjbdSdIPZTmTcJl9A0YzjTQhbK056VERMIy3dMedvQau87dgPQPBPOdZfELQaEBSLlhBmNwzEBsxOHy7QZw9iAQNcYCK2xfeYf2imATVV3bwYaC8F4XJ12oqlxKXLxUJaJyL/ORX2lW3xKCro0F9iAQNcYCK2xfeYf2imATVYemNDYxCmdd8ZXU4Cg4htkEQSRUz7L4kkhL4CxkTt2IBjr/vyN58BqfauYSxfP9O4KEVJ4njsvVmNwgrtRSkK1BsJpj4dITdJbNApg4wUdappq0gKweencPxgS/jd0rjw=="
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Dest": "empty",
+                  "Referer": "https://finance.baidu.com/",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Accept-Language": "zh-CN",
+                  "Cookie": "BAIDUID=C67179A820774861D7FB2BD2608B2C63:FG=1; BAIDUID_BFESS=C67179A820774861D7FB2BD2608B2C63:FG=1"
                }
             }
          ]
@@ -302,7 +295,7 @@
       "name": "腾讯财经",
       "builtin": true,
       "enabled": true,
-      "baseUrl": "https://web.ifzq.gtimg.cn",
+      "baseUrl": "https://web.ifzq.gtimg.cn/appstock/app/day/query?_var=fdays_data_sz000650&code=sz000650",
       "timeout": 30,
       "desc": "腾讯财经板块数据",
       "crawlStrategy": {
@@ -335,20 +328,15 @@
                "id": "1778566047791_p8vnd2s6e",
                "name": "默认配置",
                "headers": {
-                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-                  "Accept": "*/*",
-                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
+                  "Upgrade-Insecure-Requests": "1",
+                  "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+                  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                  "Sec-Fetch-Site": "none",
+                  "Sec-Fetch-Mode": "navigate",
+                  "Sec-Fetch-User": "?1",
+                  "Sec-Fetch-Dest": "document",
                   "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Connection": "keep-alive",
-                  "Cookie": "tgw_l7_route=9d00afce28b2b8c8ce2fa659239bf3d6",
-                  "Host": "web.sqt.gtimg.cn",
-                  "Referer": "https://gu.qq.com/",
-                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "Sec-Ch-Ua-Mobile": "?0",
-                  "Sec-Ch-Ua-Platform": "\"Linux\"",
-                  "Sec-Fetch-Dest": "script",
-                  "Sec-Fetch-Mode": "no-cors",
-                  "Sec-Fetch-Site": "cross-site"
+                  "Accept-Language": "zh-CN"
                }
             }
          ]
@@ -446,20 +434,19 @@
                "id": "1778565676279_kq9dz6ene",
                "name": "默认配置",
                "headers": {
+                  "sec-ch-ua-platform": "\"Linux\"",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0",
                   "Accept": "application/json, text/plain, */*",
-                  "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-                  "Origin": "https://stock.9fzt.com",
-                  "Priority": "u=1, i",
-                  "Referer": "https://stock.9fzt.com/",
-                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "Sec-Ch-Ua-Mobile": "?0",
-                  "Sec-Ch-Ua-Platform": "\"Linux\"",
-                  "Sec-Fetch-Dest": "empty",
-                  "Sec-Fetch-Mode": "cors",
+                  "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
+                  "token": "4355c784-5001-11f1-93ff-66c86c07d661",
+                  "sec-ch-ua-mobile": "?0",
                   "Sec-Fetch-Site": "same-site",
-                  "Token": "32f358a7-4f5d-11f1-b38a-dab27c212dec",
-                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36"
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Dest": "empty",
+                  "Referer": "https://stock.9fzt.com/",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Accept-Language": "zh-CN",
+                  "Cookie": "Hm_lvt_6e2ca337a699e09c7012d6d8e8c27630=1778809987; HMACCOUNT=7BE23E0BE187BA20; externalSource=%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE; _clck=5eohm8%5E2%5Eg62%5E0%5E2326; fingerprintId=f617c3f4c4378a2100936998d6a50b0c; sajssdk_2015_cross_new_user=1; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%2C%22first_id%22%3A%2219e2956707b517-0c50e89cc2afb9-26011f51-2073600-19e2956707c47b%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllMjk1NjcwN2I1MTctMGM1MGU4OWNjMmFmYjktMjYwMTFmNTEtMjA3MzYwMC0xOWUyOTU2NzA3YzQ3YiIsIiRpZGVudGl0eV9sb2dpbl9pZCI6ImY2MTdjM2Y0YzQzNzhhMjEwMDkzNjk5OGQ2YTUwYjBjIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%7D%7D; _clsk=rb0u8f%5E1778810188288%5E3%5E0%5Ey.clarity.ms%2Fcollect; Hm_lpvt_6e2ca337a699e09c7012d6d8e8c27630=1778810216"
                }
             }
          ]

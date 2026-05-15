@@ -225,9 +225,9 @@ async function testAPIs() {
     ];
     let manager = StockManager.getInstance();
     await manager.init();
-    let result = await manager.getShareMinuteKline(shares[1], 1, 'tencent');
+    let result = await manager.getShareMinuteKline(shares[1], 1, 'jfzt');
     console.log(JSON.stringify(result, '', 3));
-    let fiveday = await manager.getShareMinuteKline(shares[1], 5, 'tencent');
+    let fiveday = await manager.getShareMinuteKline(shares[1], 5, 'jfzt');
     console.log(JSON.stringify(fiveday, '', 3));
 }
 

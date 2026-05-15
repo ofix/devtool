@@ -63,7 +63,7 @@ class EastMoneyProvider extends DataProvider {
                 end: endDate
             });
             console.log(response.data);
-            return this.parseKLineData(response.data);
+            return this.parseKLineData(response.data, share);
         } catch (error) {
             console.error('EastMoneyProvider getKLineData error:', error);
             throw error;
@@ -98,7 +98,12 @@ class EastMoneyProvider extends DataProvider {
                 });
             }
 
-            const baseUrl = "https://6.push2his.eastmoney.com/api/qt/stock/trends2/sse";
+            let host = this.headers()['Host'];
+            if (!host) {
+                host = '6.push2his.eastmoney.com';
+            }
+
+            const baseUrl = `https://${host}/api/qt/stock/trends2/sse`;
             const params = {
                 fields1: "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f17",
                 fields2: "f51,f52,f53,f54,f55,f56,f57,f58",
@@ -262,7 +267,8 @@ class EastMoneyProvider extends DataProvider {
                                 if (day !== lastDay) {
                                     dayCache = {
                                         day: day,                  // 日期标记
-                                        providerName: this.name,   // 供应商名称
+                                        provider: this.name,       // 供应商名称
+                                        shareName: share.name,     // 股票名称
                                         preClose: dayPreCloseMap[day] || globalPreClose, // 当天独立昨收价
                                         totalVolume: 0,            // 当天总量
                                         totalAmount: 0,            // 当天总金额
@@ -279,7 +285,7 @@ class EastMoneyProvider extends DataProvider {
                                 const changeRatio = currentPreClose !== 0 ? (change / currentPreClose * 100) : 0
 
                                 const newItem = {
-                                    time,
+                                    time: time.slice(11, 16),
                                     price,
                                     avgPrice,
                                     volume,
