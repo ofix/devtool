@@ -11,7 +11,7 @@ class TencentProvider extends DataProvider {
 
     supportApis() {
         return [
-            // 'getShareMinuteKline', // 腾讯的5日分时数据不够准确
+            'getShareMinuteKline', // 腾讯的5日分时数据不够准确
             'getShareDayKline',
         ];
     }
@@ -51,6 +51,105 @@ class TencentProvider extends DataProvider {
         }));
     }
 
+    /**
+     * 获取腾讯财经股票五日分时数据
+     * @param {Object} share 股票对象 {name:'', code:'', market:''}
+     * @returns {Promise<Array>} 五日分时数据数组
+     */
+    async getShareFiveMinuteKline(share) {
+        try {
+            const market = share.market?.toUpperCase() || 'SH';
+            const shareCode = market === 'SZ' ? `sz${share.code}` : `sh${share.code}`;
+
+            const { data } = await this.httpGet('五日', 'https://web.ifzq.gtimg.cn/appstock/app/day/query', {
+                _var: `fdays_data_${shareCode}`,
+                code: shareCode,
+            });
+
+            const jsonStr = data.replace(/^\w+=/, '');
+            const result = JSON.parse(jsonStr);
+            const stockData = result.data[shareCode];
+
+            if (!stockData || !stockData.data) {
+                return [];
+            }
+
+            const fiveDaysList = [];
+
+            for (const dayItem of stockData.data) {
+                const { date, data: minutes, prec } = dayItem;
+                if (!date || !minutes || minutes.length === 0) continue;
+
+                // 日期格式化 20260515 → 2026-05-15
+                const day = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+                const preClose = parseFloat(prec || 0);
+
+                let totalVolume = 0;
+                let totalAmount = 0;
+                const list = [];
+
+                let lastVol = 0;
+                let lastAmount = 0;
+
+                for (const item of minutes) {
+                    const [time, price, vol, amount] = item.split(' ');
+                    const curPrice = parseFloat(price);
+                    const curVol = parseFloat(vol || 0);
+                    const curAmount = parseFloat(amount || 0);
+
+                    // 计算每分钟真实量
+                    let realVol, realAmount;
+                    if (lastVol === 0) {
+                        realVol = curVol;
+                        realAmount = curAmount;
+                    } else {
+                        realVol = curVol - lastVol;
+                        realAmount = curAmount - lastAmount;
+                    }
+
+                    // 计算涨跌额 + 涨跌幅
+                    const change = preClose !== 0 ? (curPrice - preClose) : 0;
+                    const changeRatio = preClose !== 0 ? (change / preClose * 100).toFixed(2) : 0;
+
+                    // 累计成交额 / (累计成交量(手) * 100)
+                    let avgPrice = curVol > 0 ? curAmount / (curVol * 100) : 0;
+
+                    // 生成标准时间格式：2026-05-15 09:30
+                    const standardTime = `${time.slice(0, 2)}:${time.slice(2, 4)}`;
+
+                    list.push({
+                        time: standardTime,  // 标准格式时间
+                        price: curPrice,
+                        avgPrice: avgPrice.toFixed(2),
+                        vol: realVol.toFixed(2),
+                        amount: realAmount.toFixed(2),
+                        change: change.toFixed(2),
+                        changeRatio: changeRatio
+                    });
+
+                    lastVol = curVol;
+                    lastAmount = curAmount;
+                }
+
+                totalVolume = lastVol;
+                totalAmount = lastAmount;
+
+                fiveDaysList.push({
+                    day: day,
+                    providername: this.name,
+                    preClose: preClose,
+                    totalVolume: totalVolume,
+                    totalAmount: totalAmount,
+                    data: list
+                });
+            }
+            return fiveDaysList;
+        } catch (e) {
+            console.error('腾讯财经获取五日分时数据失败', e);
+            return null;
+        }
+    }
+
 
     /**
      * 获取腾讯财经股票分时数据 → 返回【对象数组】
@@ -59,6 +158,9 @@ class TencentProvider extends DataProvider {
      * @returns {Promise<Array>} 分时数据对象列表
      */
     async getShareMinuteKline(share, ndays = 1) {
+        if (ndays = 5) {
+            return this.getShareFiveMinuteKline(share);
+        }
         let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
         try {
             const { data } = await this.httpGet("分时", 'https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
@@ -66,7 +168,7 @@ class TencentProvider extends DataProvider {
                 days: ndays === 5 ? 5 : undefined // 不传=当日
             });
 
-            const root = data.data[shareCode];
+            const root = data[shareCode];
             const qt = root.qt[shareCode];
             const minuteKlines = ndays === 5 ? root.data : [root.data];
 
@@ -98,11 +200,11 @@ class TencentProvider extends DataProvider {
                     list.push({
                         time,
                         price: p,
-                        avgPrice: parseFloat(avgPrice.toFixed(2)),
+                        avgPrice: avgPrice.toFixed(2),
                         volume: v,
                         amount: a,
-                        change: parseFloat(change.toFixed(2)),           // 每分钟涨跌额
-                        changeRatio: parseFloat(changeRatio.toFixed(2)), // 每分钟涨跌额
+                        change: change.toFixed(2),           // 每分钟涨跌额
+                        changeRatio: changeRatio.toFixed(2), // 每分钟涨跌额
                     });
                 });
 
@@ -112,15 +214,17 @@ class TencentProvider extends DataProvider {
 
                 // 最后一天最后一根K线的当前价
                 return {
-                    preClose: preClose,                      // 昨日收盘价
-                    totalVolume,                             // 当日总成交量
-                    totalAmount,                             // 当日总成交额
-                    data: list                               // 当日分时列表
+                    day: "",                     // 交易日期
+                    providername: this.name,     // 供应商名称
+                    preClose: preClose,          // 昨日收盘价
+                    totalVolume,                 // 当日总成交量
+                    totalAmount,                 // 当日总成交额
+                    data: list                   // 当日分时列表
                 };
             });
         } catch (err) {
             console.error('获取失败:', err.message);
-            return ndays === 5 ? [[], [], [], [], []] : [[]];
+            return null;
         }
     }
 

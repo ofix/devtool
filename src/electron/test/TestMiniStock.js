@@ -225,10 +225,10 @@ async function testAPIs() {
     ];
     let manager = StockManager.getInstance();
     await manager.init();
-    let result = await manager.getShareMinuteKline(shares[1], 1);
-    console.log(result);
-    let fiveday = await manager.getShareMinuteKline(shares[1], 5);
-    console.log(fiveday);
+    let result = await manager.getShareMinuteKline(shares[1], 1, 'tencent');
+    console.log(JSON.stringify(result, '', 3));
+    let fiveday = await manager.getShareMinuteKline(shares[1], 5, 'tencent');
+    console.log(JSON.stringify(fiveday, '', 3));
 }
 
 // testBaiduIPOInfo();

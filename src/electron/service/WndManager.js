@@ -228,12 +228,12 @@ class WndManager extends Singleton {
         const { width, height } = screen.getPrimaryDisplay().size;
         return {
             browserWindow: {
-                x: -width - 20, y: -height - 20, width: 1240, height: 960,
+                x: 0, y: 0, width: 1240, height: 960,
                 alwaysOnTop: true, transparent: false,
                 frame: true, // 显示窗口边框+标题栏（默认 true）
                 resizable: true,
                 titleBarStyle: 'default', // 完整原生
-                show: true, // 初始隐藏
+                show: false, // 初始隐藏
             },
             custom: {
                 url: '',
@@ -579,6 +579,9 @@ class WndManager extends Singleton {
                     }
                 }
             )
+            setTimeout(() => {
+                wnd.setPosition(-5000, -5000) // 移到屏幕外,防止麒麟系统显示位置不对的问题
+            }, 500)
         }
 
         this.loadUrl(wnd, customOptions.url);

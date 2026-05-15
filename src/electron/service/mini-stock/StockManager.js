@@ -10,12 +10,14 @@ import Trie from "../../core/Trie.js";
 import Singleton from "../Singleton.js";
 import eventBus from "../EventBus.js";
 import EastMoneyProvider from './providers/EastMoneyProvider.js';
-import TencentProvider from './providers/TencentProvider.js';
-import YahooProvider from './providers/YahooProvider.js';
 import BaiduFinanceProvider from './providers/BaiduFinanceProvider.js';
+import TencentProvider from './providers/TencentProvider.js';
+import JFZTProvider from './providers/JFZTProvider.js';
+import YahooProvider from './providers/YahooProvider.js';
+import THSProvider from './providers/THSProvider.js';
 import SinaProvider from "./providers/SinaProvider.js";
 import TushareProvider from './providers/TushareProvider.js';
-import JFZTProvider from './providers/JFZTProvider.js';
+
 import { KlineStorage } from './storage/KlineStorage.js';
 import { KlineRecord } from './storage/KlineRecord.js';
 import TaskQueue from "./TaskQueue.js";
@@ -29,12 +31,13 @@ export default class StockManager extends Singleton {
         super();
         this.providers = {
             eastmoney: new EastMoneyProvider(), // 东方财富
-            tencent: new TencentProvider(),     // 腾讯财经
-            yahoo: new YahooProvider(),         // 雅虎财经
             baidu: new BaiduFinanceProvider(),  // 百度财经
+            jfzt: new JFZTProvider(),           // 九方智投
+            tencent: new TencentProvider(),     // 腾讯财经
+            ths: new THSProvider(),             // 同花顺
+            yahoo: new YahooProvider(),         // 雅虎财经
             tushare: new TushareProvider(),     // Tushare数据
             sina: new SinaProvider(),           // 新浪财经
-            jfzt: new JFZTProvider(),           // 九方智投
         };
         this.apiProviderMap = this.#buildApiProviderMap(this.providers);
         this.requestProviderMap = new Map();
@@ -46,7 +49,7 @@ export default class StockManager extends Singleton {
         this.cache = {
             day: new LRUCache(500),        // 日K缓存
             week: new LRUCache(300),       // 周K缓存
-            week: new LRUCache(300),       // 月K缓存
+            month: new LRUCache(300),       // 月K缓存
             year: new LRUCache(200),       // 年K缓存
             minute: new LRUCache(100),     // 分时/5日分时缓存
             stock: new LRUCache(1)         // 股票列表缓存
@@ -54,7 +57,6 @@ export default class StockManager extends Singleton {
 
         // 除权信息缓存
         this.adjustCache = new LRUCache(1000);
-
         this.favoriteShareService = FavoriteShare.getInstance(this);
         // 股票列表
         this.allShares = []; // A股全市场股票列表
@@ -238,15 +240,7 @@ export default class StockManager extends Singleton {
      * 切换财经数据供应商
      */
     setProvider(provider) {
-        let providers = {
-            "eastmoney": "东方财富",
-            "tencent": "腾讯财经",
-            "yahoo": "雅虎财经",
-            "baidu": "百度财经",
-            "tushare": "Tushare数据",
-            "sina": "新浪财经",
-        }
-        if (providers.hasOwnProperty(provider)) {
+        if (this.providers.hasOwnProperty(provider)) {
             this.activeProvider = provider;
         }
     }
@@ -341,7 +335,7 @@ export default class StockManager extends Singleton {
      * @returns {boolean}
      */
     isSameDay(date1, date2) {
-        console.log("date1: ",date1, "date2: ",date2);
+        console.log("date1: ", date1, "date2: ", date2);
         const d1 = new Date(date1);
         const d2 = new Date(date2);
         // 检查是否是有效日期
@@ -359,7 +353,7 @@ export default class StockManager extends Singleton {
     }
 
     // 分时、股票列表、搜索（正确版：单只独立缓存）
-    async getShareMinuteKline(share, ndays = 1) {
+    async getShareMinuteKline(share, ndays = 1, providerName) {
         const CHACHE_THREHOLD = 5 * 1000; // 缓存有效期为5秒
         const cacheKey = `${share.code}.${ndays}`;
         const cache = this.cache.minute.get(cacheKey);
@@ -412,7 +406,10 @@ export default class StockManager extends Singleton {
         // 缓存没命中，请求后台接口
         let data = null;
         try {
-            const provider = this.#getNextProvider('getShareMinuteKline', cacheKey);
+            let provider = this.#getNextProvider('getShareMinuteKline', cacheKey);
+            if (providerName !== undefined) {
+                provider = this.providers[providerName];
+            }
             data = await this.taskQueue.addTask(provider, `${share.code}.${ndays}`, () => {
                 return provider.getShareMinuteKline(share, ndays);
             })

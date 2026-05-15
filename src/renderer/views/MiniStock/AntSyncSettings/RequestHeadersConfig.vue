@@ -120,13 +120,14 @@
                   </el-button>
 
                   <el-popover
-                    v-model="popoverVisible"
+                    v-model="showPopover"
                     placement="bottom"
                     width="1100"
                     :height="480"
                     trigger="click"
                     :close-on-click-reference="false"
                     :close-on-click-modal="false"
+                    @hide="onCloseCapturePanel"
                   >
                     <!-- popover 内部嵌入请求头面板 -->
                     <CaptureHeadersPanel
@@ -152,6 +153,10 @@
                   <el-button @click="exportSet(set)">
                     <el-icon><Download /></el-icon>
                     导出
+                  </el-button>
+                  <el-button @click="emptyHeaders">
+                    <el-icon><View /></el-icon>
+                    清空当前 Headers
                   </el-button>
                 </div>
 
@@ -717,7 +722,13 @@ function openTargetUrl(setId) {
 
 function handleSyncHeaders(headers) {
   showPopover.value = false;
+  emptyHeaders(); // 先清空旧数据
   handlePasteConfirm(headers);
+}
+
+function onCloseCapturePanel(){
+    window.channel.closeWindow('RequestWnd');
+    captureRequests.value = [];
 }
 
 function handlePasteConfirm(headers) {
@@ -826,6 +837,13 @@ function previewHeaders() {
     .map(({ name, value }) => ({ name, value }));
 
   previewDialogVisible.value = true;
+}
+
+// 清空 Headers
+function emptyHeaders(){
+  const currentId = localConfig.strategy.currentSetId;
+  if(!currentId) return;
+  mapSetHeaders[currentId] = [];
 }
 
 // 复制 Headers（只复制启用的）
