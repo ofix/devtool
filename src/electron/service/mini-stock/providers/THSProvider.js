@@ -60,7 +60,7 @@ export default class THSProvider extends DataProvider {
 
         try {
             // 2. 发起请求
-            const { data: resStr } = await this.httpGet("行情", url);
+            const { data: resStr } = await this.httpGet(shares, "行情", url);
 
             // 3. 解析 JSONP 数据
             const jsonStr = resStr
@@ -130,7 +130,7 @@ export default class THSProvider extends DataProvider {
             }
 
             // 请求数据
-            const text = await this.httpGet("分时", url);
+            const text = await this.httpGet(share, "分时", url);
 
             // 剥离 JSONP 回调外壳
             const prefix = `quotebridge_v6_time_hs_${code}_defer_last(`;

@@ -1,7 +1,7 @@
 <template>
   <div class="share-panel" @keydown="handleKeyDown" tabindex="0">
     <!-- 1×4 横向股票网格 -->
-    <div class="grid-1x4">
+    <div class="grid-1x3">
       <div
         class="share-item"
         v-for="(share, idx) in displayList"
@@ -79,7 +79,7 @@ import MinuteKlineCtrl from "./MinuteKlineCtrl.vue";
 import SearchPanel from "./SearchPanel.vue";
 
 /////////////////// 常量配置 ///////////////////
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 3;
 const REFRESH_INTERVAL = 5000;
 
 /////////////////// 本地状态 ///////////////////
@@ -366,10 +366,10 @@ function isTradingTime() {
   position: relative;
 }
 
-/* 1×4 横向布局 */
-.grid-1x4 {
+/* 1×3 横向布局 */
+.grid-1x3 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   height: 100%;
   gap: 6px;
 }

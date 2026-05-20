@@ -53,7 +53,7 @@ class EastMoneyProvider extends DataProvider {
             const klt = this.#convertPeriod('day');
             const secid = this.#getSecId(share.code, share.market);
 
-            const response = await this.httpGet("日K", `${this.baseURL}/stock/kline/get`, {
+            const response = await this.httpGet(share, "日K", `${this.baseURL}/stock/kline/get`, {
                 secid: secid,
                 fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
                 fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
@@ -132,7 +132,7 @@ class EastMoneyProvider extends DataProvider {
             let dayCache = null;
             let klinePrefix = days == 1 ? '分时' : '五日';
             let now = this.nowTime().slice(11);
-            console.log(`[${now}][东方财富][${klinePrefix}] ${sseUrl}`);
+            console.log(`[${now}][${share.name}][东方财富][${klinePrefix}] ${sseUrl}`);
             const req = https.get(sseUrl, { headers }, (res) => {
                 res.setEncoding("utf8");
 
@@ -251,7 +251,7 @@ class EastMoneyProvider extends DataProvider {
                             const globalPreClose = data.preClose || 0;
                             if (lastDay !== null) { // 第一次全量数据不打印
                                 let now = this.nowTime().slice(11);
-                                console.log(`[${now}][${share.name}][${klinePrefix}] ${trendList}`);
+                                console.log(`[${now}][${share.name}][${share.name}][${klinePrefix}] ${trendList}`);
                             }
 
                             // 遍历本次推送的所有分时数据（批量增量）

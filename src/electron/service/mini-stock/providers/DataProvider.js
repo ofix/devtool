@@ -82,13 +82,14 @@ export default class DataProvider {
         return this.commonHeaders();
     }
 
-    async httpGet(method, url, params, responseCallback) {
+    async httpGet(share, method, url, params, responseCallback) {
         const response = await axios.get(url, {
             params: params,
             timeout: 10000,
             headers: this.headers(),
             _providerName: this.name,
-            _method: method
+            _method: method,
+            _share: share,
         });
         if (responseCallback) {
             return responseCallback(response);

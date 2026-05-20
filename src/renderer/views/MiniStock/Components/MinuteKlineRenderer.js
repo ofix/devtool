@@ -73,8 +73,8 @@ export default class MinuteKlineRenderer {
         // 图表区域
         this.chartTop = 0;
         this.chartBottom = 0;
-        this.chartLeft = 0;
-        this.chartRight = 0;
+        this.chartLeft = 30;
+        this.chartRight = 36;
         this.subChartHeight = 80;
         this.mainChartHeight = 0;
         this.chartWidth = 0;
@@ -354,19 +354,20 @@ export default class MinuteKlineRenderer {
     }
 
     drawVolume() {
-        const { ctx, chartLeft, chartTop, mainChartHeight, chartWidth, subChartHeight, minuteKlines, maxVolume, fiveMinuteKlines, fiveMaxVolume, totalMinutes, preClosePrice } = this;
+        const { ctx, chartLeft, chartRight,chartTop, mainChartHeight, chartWidth, subChartHeight, minuteKlines, maxVolume, fiveMinuteKlines, fiveMaxVolume, totalMinutes, preClosePrice } = this;
 
         let top = chartTop + mainChartHeight;
+        let innerChartWidth = chartWidth - chartLeft - chartRight;
         // 绘制当日分时量柱
-        this.#drawVolume(ctx, minuteKlines, chartLeft, top, chartWidth, subChartHeight - 10, maxVolume, preClosePrice, totalMinutes);
+        this.#drawVolume(ctx, minuteKlines, chartLeft, top, innerChartWidth, subChartHeight - 10, maxVolume, preClosePrice, totalMinutes);
 
         top += subChartHeight;
-        let subWidth = chartWidth / 5;
+        let subWidth = innerChartWidth / 5;
         // 绘制五日分时量柱
         for (let i = 0; i < fiveMinuteKlines.length; i++) {
             let data = fiveMinuteKlines[i].data;
             let preClose = fiveMinuteKlines[i].preClose;
-            this.#drawVolume(ctx, data, chartLeft + subWidth * i, top, chartWidth, subChartHeight - 10, fiveMaxVolume, preClose, totalMinutes * 5);
+            this.#drawVolume(ctx, data, chartLeft + subWidth * i, top, innerChartWidth, subChartHeight - 10, fiveMaxVolume, preClose, totalMinutes * 5);
         }
     }
 
@@ -489,13 +490,15 @@ export default class MinuteKlineRenderer {
             ctx.fillStyle = yColor[i];    // 最顶部序号4 红色
 
             // 左侧价格文字
-            ctx.fillText(price.toFixed(2), 2, y);
+            const priceText = price.toFixed(2);
+            const priceWidth = ctx.measureText(priceText).width;
+            ctx.fillText(priceText, chartLeft - priceWidth-2, y);
 
             if (lastClose > 0) {
                 const riseRate = ((price - lastClose) / lastClose) * 100;
                 const riseText = riseRate >= 0 ? `+${riseRate.toFixed(2)}%` : `${riseRate.toFixed(2)}%`;
                 ctx.fillStyle = yColor[i];
-                ctx.fillText(riseText, chartWidth - 45, y + 3);
+                ctx.fillText(riseText, chartWidth - chartRight, y + 3);
             }
         }
 

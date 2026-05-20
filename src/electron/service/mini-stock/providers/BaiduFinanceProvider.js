@@ -41,7 +41,7 @@ class BaiduFinanceProvider extends DataProvider {
     async getShareMinuteKline(share, days = 1) {
         let group = days == 1 ? 'quotation_minute_ab' : 'quotation_fiveday_ab';
         try {
-            const response = await this.httpGet("分时", `https://finance.pae.baidu.com/vapi/v1/getquotation`,
+            const response = await this.httpGet(share, "分时", `https://finance.pae.baidu.com/vapi/v1/getquotation`,
                 {
                     srcid: '5353',
                     pointType: 'string',
@@ -144,7 +144,6 @@ class BaiduFinanceProvider extends DataProvider {
                     data: list,
                 });
             });
-
             return allDays;
         } catch (e) {
             console.error('百度分时解析失败', e);

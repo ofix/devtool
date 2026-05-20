@@ -11,7 +11,7 @@ export default class JFZTProvider extends DataProvider {
 
     supportApis() {
         return [
-            "getShareMinuteKline", // 获取分时线，支持 1~20日分时数据
+            // "getShareMinuteKline", // 获取分时线，支持 1~20日分时数据
         ];
     }
 
@@ -134,7 +134,7 @@ export default class JFZTProvider extends DataProvider {
 
         try {
             // 请求九方智投1分钟K线接口（固定获取1200条=5日分时数据）
-            const { data } = await this.httpGet("分时", "https://infocenter.9fzt.com/infoapi/v2/hisquote/v2", {
+            const { data } = await this.httpGet(share, "分时", "https://infocenter.9fzt.com/infoapi/v2/hisquote/v2", {
                 market: market,
                 inst: inst,
                 period: "MIN1",
@@ -159,7 +159,7 @@ export default class JFZTProvider extends DataProvider {
             const dayList = [];
             for (let i = 0; i < 5; i++) {
                 const sliceData = klineData.slice(i * 240, (i + 1) * 240);
-                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData,share) : this.createEmptyMinute());
+                dayList.push(sliceData.length ? this.#parseMinuteResponse(sliceData, share) : this.createEmptyMinute());
             }
 
             // 根据ndays返回对应数据：1日返回最新一天，5日返回完整五日
@@ -190,7 +190,7 @@ export default class JFZTProvider extends DataProvider {
      * @param {Object} share 股票对象
      * @returns {Object} 标准分时数据对象
      */
-    #parseMinuteResponse(dayLines,share) {
+    #parseMinuteResponse(dayLines, share) {
         const preClose = parseFloat(dayLines[0]?.PreClose || 0);
         let totalVolume = 0;
         let totalAmount = 0;
@@ -199,7 +199,7 @@ export default class JFZTProvider extends DataProvider {
         dayLines.forEach(item => {
             // 时间戳格式化 HH:mm
             const time = this.formatTime(item.Time);
-            const price =item.Close;
+            const price = item.Close;
             const vol = item.Volume;
             const amt = item.Amount;
 
@@ -222,7 +222,7 @@ export default class JFZTProvider extends DataProvider {
                 changeRatio: parseFloat(changeRatio.toFixed(2)),
             });
         });
-        let tradingDay = this.formatTime(dayLines[0]?.TradingDay).slice(0,10);
+        let tradingDay = this.formatTime(dayLines[0]?.TradingDay).slice(0, 10);
         return {
             day: tradingDay,           // 交易日期
             provider: this.name,       // 供应商名称

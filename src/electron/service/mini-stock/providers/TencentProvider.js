@@ -26,7 +26,7 @@ class TencentProvider extends DataProvider {
     async getShareDayKline(share, startDate, endDate) {
         try {
             const symbol = this.getSymbol(share.code, share.market);
-            const response = await this.httpGet("日K", `${this.baseURL}/appstock/app/fqkline/get`, {
+            const response = await this.httpGet(share, "日K", `${this.baseURL}/appstock/app/fqkline/get`, {
                 param: `${symbol},day,${startDate},${endDate},640`,
                 r: Math.random()
             });
@@ -61,7 +61,7 @@ class TencentProvider extends DataProvider {
             const market = share.market?.toUpperCase() || 'SH';
             const shareCode = market === 'SZ' ? `sz${share.code}` : `sh${share.code}`;
 
-            const { data } = await this.httpGet('五日', 'https://web.ifzq.gtimg.cn/appstock/app/day/query', {
+            const { data } = await this.httpGet(share, '五日', 'https://web.ifzq.gtimg.cn/appstock/app/day/query', {
                 _var: `fdays_data_${shareCode}`,
                 code: shareCode,
             });
@@ -164,7 +164,7 @@ class TencentProvider extends DataProvider {
         }
         let shareCode = market == 'SZ' ? `sz${share.code}` : `sh${share.code}`;
         try {
-            const { data } = await this.httpGet("分时", 'https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
+            const { data } = await this.httpGet(share, "分时", 'https://web.ifzq.gtimg.cn/appstock/app/minute/query', {
                 code: shareCode,
                 days: ndays === 5 ? 5 : undefined // 不传=当日
             });

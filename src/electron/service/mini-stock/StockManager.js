@@ -264,6 +264,9 @@ export default class StockManager extends Singleton {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
+    isPlainObject(value) {
+        return Object.prototype.toString.call(value) === '[object Object]';
+    }
 
     async init() {
         if (this.inited) {
@@ -273,12 +276,19 @@ export default class StockManager extends Singleton {
         axios.interceptors.request.use(request => {
             const providerName = request._providerName || 'Unknown';
             const method = request._method || "Unknown";
+            const share = request._share || {};
             const url = new URL(request.url, request.baseURL);
             Object.keys(request.params || {}).forEach(key => {
                 url.searchParams.append(key, request.params[key]);
             });
             let now = this.nowTime().slice(11);
-            console.log(`[${now}][${providerName}][${method}]:`, url.toString());
+            let shareName = "";
+            if (Array.isArray(share)) {
+                shareName = share.map(item => item.name).join(",");
+            } else if (this.isPlainObject(share)) {
+                shareName = share.name;
+            }
+            console.log(`[${now}][${shareName}][${providerName}][${method}]:`, url.toString());
             return request;
         });
         const __filename = fileURLToPath(import.meta.url);
@@ -378,6 +388,9 @@ export default class StockManager extends Singleton {
                     // 最近一天数据的日期
                     let newestDay = data[4];
                     const cacheToday = this.cache.minute.get(`${share.code}.1`);
+                    if (newestDay?.day === undefined) {
+                        console.log(share.name, newestDay);
+                    }
                     if (this.isSameDay(newestDay?.day, Date.now())) {
                         // 检查当天分时缓存是否更新，如果是则合并数据
                         if (cacheToday && cacheToday.timestamp > newestDay.timestamp) {
@@ -389,7 +402,7 @@ export default class StockManager extends Singleton {
                     } else {
                         if (cacheToday) { // 假设当天分时缓存数据不存在脏数据(跨日期的可能，不适用美股)
                             let merged = data.slice(1);
-                            merged.push(cacheToday.data);
+                            merged.push(cacheToday.data[0]);
                             this.cache.minute.set(cacheKey, {
                                 data: merged,
                                 timestamp: Date.now()
