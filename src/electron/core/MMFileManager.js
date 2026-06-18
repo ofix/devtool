@@ -36,7 +36,6 @@ class MMFileManager {
 
         // 初始化
         this._initTempDir();
-        this._registerIPC();
     }
 
     /** 单例获取 */
@@ -51,18 +50,6 @@ class MMFileManager {
         if (!fsSync.existsSync(this.tempDir)) {
             fsSync.mkdirSync(this.tempDir, { recursive: true });
         }
-    }
-
-    /** 注册极简IPC */
-    _registerIPC() {
-        ipcMain.handle('mmf:extract', (_, archivePath) => this.extract(archivePath));
-        ipcMain.handle('mmf:loadFileContents', (_, remoteFile) => this.loadFileContents(remoteFile));
-        ipcMain.handle('mmf:write', (_, fullPath, offset = 0, data) => this.write(fullPath, offset, data));
-        ipcMain.handle('mmf:save', (_, fullPath, outputPath) => this.save(fullPath, outputPath));
-        ipcMain.handle('mmf:compress-gz', (_, fullPath, outputPath) => this.compressGZ(fullPath, outputPath));
-        ipcMain.handle('mmf:decompress-gz', (_, gzPath) => this.decompressGZ(gzPath));
-        ipcMain.handle('mmf:clear-by-archive', (_, archivePath) => this.clearByArchive(archivePath));
-        ipcMain.handle('mmf:clear-single', (_, fullPath) => this.clearSingle(fullPath));
     }
 
 
@@ -160,15 +147,14 @@ class MMFileManager {
         // 构建Prettier配置（默认 + 自定义）
         const defaultOptions = {
             parser,
-            tabWidth: 4,
+            tabWidth: 2,
             useTabs: false,
-            singleQuote: true,
+            singleQuote: false,
             trailingComma: 'es5',
-            printWidth: 80,
             plugins: [], // 动态填充插件
             // 多语言通用配置
-            bracketSpacing: true,
-            arrowParens: 'avoid',
+            "wrap-iife": "outside",
+            arrowParens: 'always',
             proseWrap: 'preserve', // markdown换行保留
             htmlWhitespaceSensitivity: 'css', // html空格敏感度
             endOfLine: 'lf' // 统一换行符（跨平台兼容）
@@ -232,13 +218,67 @@ class MMFileManager {
         return path.extname(filename)?.substr(1);
     }
 
-    async loadFileContents(remoteFile) {
+    extname(filename, level = 2) {
+        const match = filename.match(new RegExp(`\\.[^.]*${'\\.' + '[^.]*'.repeat(level - 1)}$`));
+        return match ? match[0] : '';
+    }
+
+    async backupOriginFile(localFilePath) {
+        try {
+            // 检查文件是否存在
+            if (!fsSync.existsSync(localFilePath)) {
+                console.error(`文件不存在: ${localFilePath}`)
+                return false;
+            }
+
+            // 解析路径信息
+            const dirname = path.dirname(localFilePath);
+            const extname = this.extname(localFilePath, 2);
+            const basename = path.basename(localFilePath, extname);
+
+            // 构造新文件名：原文件名 + origin + 原扩展名
+            const newFileName = `${basename}.origin${extname}`;
+            const newFilePath = path.join(dirname, newFileName);
+
+            // 检查新文件名是否已存在（防止覆盖）
+            if (fsSync.existsSync(newFilePath)) {
+                console.log(`目标文件已存在，无需备份: ${newFilePath}`)
+                return true;
+            }
+
+            // 执行重命名
+            await fs.rename(localFilePath, newFilePath);
+            console.log(`文件备份成功: ${newFilePath}`);
+            return true;
+        } catch (error) {
+            console.error(`文件备份失败: ${error.message}`);
+            return false;
+        }
+    }
+
+    // 自动压缩文件并上传到SFTP服务器
+    async saveFileContents(params) {
+        // 如果localFilePath.origin.js.gz 不存在，则进行备份
+        if (!await this.backupOriginFile(`${params.localFilePath}.gz`)) {
+            return false;
+        }
+        // 保存文件到 localFilePath
+        await fs.writeFile(params.localFilePath, params.content, 'utf8');
+        // 压缩文件 localFilePath.gz（会强制覆盖）
+        await this.compressToGz(params.localFilePath);
+        // SCP 上传本地压缩文件到远程服务器
+        const sftp = await SFTPService.create(params);
+        let conn = await sftp.getSSHClient(params.host);
+        return await sftp.uploadFile(conn, params.localFilePath + ".gz", params.remoteFilePath, null);
+    }
+
+    async loadFileContents(params) {
         // 映射远程文件到本地路径
-        let localFilePath = await Utils.ensureRemoteFilePath(remoteFile.host, remoteFile.path);
+        let localFilePath = await Utils.ensureRemoteFilePath(params.host, params.remoteFilePath);
         // SCP 下载远程服务器文件到本地
-        const sftp = await SFTPService.create(remoteFile);
-        let conn = await sftp.getSSHClient(remoteFile.host);
-        await sftp.downloadFile(conn, remoteFile.path, localFilePath, null);
+        const sftp = await SFTPService.create(params);
+        let conn = await sftp.getSSHClient(params.host);
+        await sftp.downloadFile(conn, params.remoteFilePath, localFilePath, null);
 
         // 检查文件是否是压缩文件
         if (fileTypeDetector.isArchiveFile(localFilePath)) {
@@ -258,13 +298,16 @@ class MMFileManager {
                 content = await fs.readFile(targetFile, 'utf-8');
             }
             // 获取原始文件文件后缀名
-            let originFileExt = this.originExt(remoteFile.path);
+            let originFileExt = this.originExt(params.remoteFilePath);
             let formattedContent = await this.formatCode(content, originFileExt);
             const fileInfo = {
-                originFileName: path.basename(remoteFile.path), // 原始文件名（如test.js.gz）
+                originFileName: path.basename(params.remoteFilePath), // 原始文件名（如test.js.gz）
                 extractFileName: path.basename(targetFile), // 解压后的文件名（如test.js）
-                remoteFilePath: remoteFile.path, // 服务器路径
-                host: remoteFile.host, // 主机IP
+                remoteFilePath: params.remoteFilePath, // 服务器路径
+                host: params.host, // 主机IP
+                port: params.port, // 主机端口
+                username: params.username, // 主机用户名
+                password: params.password, // 主机登录密码
                 localFilePath: targetFile, // 本地路径
                 content: formattedContent, // 文件内容
             };
@@ -273,13 +316,16 @@ class MMFileManager {
 
         // 非压缩文件，直接读取
         content = await fs.readFile(localFilePath, 'utf-8');
-        let originFileExt = this.originExt(remoteFile.path);
+        let originFileExt = this.originExt(params.remoteFilePath);
         let formattedContent = await this.formatCode(content, originFileExt);
         const fileInfo = {
-            originFileName: path.basename(remoteFile.path), // 原始文件名（如test.js.gz）
+            originFileName: path.basename(params.remoteFilePath), // 原始文件名（如test.js.gz）
             extractFileName: path.basename(localFilePath), // 解压后的文件名（如test.js）
-            remoteFilePath: remoteFile.path, // 服务器路径
-            host: remoteFile.host, // 主机IP
+            remoteFilePath: params.remoteFilePath, // 服务器路径
+            host: params.host, // 主机IP
+            port: params.port, // 主机端口
+            username: params.username, // 主机用户名
+            password: params.password, // 主机登录密码
             localFilePath: localFilePath, // 本地路径
             content: formattedContent, // 文件内容
         };
@@ -288,11 +334,11 @@ class MMFileManager {
 
 
     /**
-  * 辅助方法：列出压缩包内的所有文件（不解压，用于判断单/多文件）
-  * 适配 node-7z@3.0 + 修复单文件解析问题
-  * @param {string} archiveFilePath 压缩文件路径
-  * @returns {Promise<string[]>} 压缩包内的文件路径列表（相对路径）
-  */
+     * 辅助方法：列出压缩包内的所有文件（不解压，用于判断单/多文件）
+     * 适配 node-7z@3.0 + 修复单文件解析问题
+     * @param {string} archiveFilePath 压缩文件路径
+     * @returns {Promise<string[]>} 压缩包内的文件路径列表（相对路径）
+     */
     async #listArchiveFiles(archiveFilePath) {
         // 前置校验：压缩文件存在性
         if (!fsSync.existsSync(archiveFilePath)) {
@@ -383,10 +429,80 @@ class MMFileManager {
     }
 
     /**
-  * 简化版：直接解压 .gz 文件（跳过列表检测，单文件直接解压）
-  * @param {string} archiveFilePath 压缩文件路径
-  * @returns {Promise<{success: boolean, path?: string, error?: string}>}
-  */
+     * 压缩文件为 .gz 格式（输出到源文件同目录）
+     * @param {string} sourceFilePath - 源文件绝对路径
+     * @param {number} [compressionLevel=6] - 压缩级别 1-9
+     * @returns {Promise<{success: boolean, gzPath?: string, error?: string}>}
+     */
+    async compressToGz(sourceFilePath, compressionLevel = 6) {
+        const dir = path.dirname(sourceFilePath);
+        const basename = path.basename(sourceFilePath);
+        const gzFilePath = path.join(dir, `${basename}.gz`);
+
+        const args = [
+            'a',
+            gzFilePath.includes(' ') ? `"${gzFilePath}"` : gzFilePath,
+            sourceFilePath.includes(' ') ? `"${sourceFilePath}"` : sourceFilePath,
+            '-tgzip',
+            `-mx=${compressionLevel}`,
+            '-y'
+        ];
+
+        return new Promise((resolve) => {
+            const child = spawn(sevenBin.path7za, args, {
+                shell: true,
+                stdio: 'pipe'
+            });
+
+            let stderr = '';
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            console.log(`执行命令: ${sevenBin.path7za}`, args.join(' '));
+
+            const timeout = setTimeout(() => {
+                child.kill();
+                resolve({ success: false, error: '压缩超时（30秒）' });
+            }, 30000); // 30秒超时
+
+            child.on('close', (code) => {
+                clearTimeout(timeout);
+                if (code === 0 && fsSync.existsSync(gzFilePath)) {
+                    // 验证是否为真正的 Gzip 文件
+                    const fd = fsSync.openSync(gzFilePath, 'r');
+                    const buffer = Buffer.alloc(2);
+                    fsSync.readSync(fd, buffer, 0, 2, 0);
+                    fsSync.closeSync(fd);
+
+                    if (buffer[0] === 0x1F && buffer[1] === 0x8B) {
+                        console.log("✅ 压缩成功:", gzFilePath);
+                        resolve({ success: true, gzPath: gzFilePath });
+                    } else {
+                        console.log("❌ 生成的文件不是 Gzip 格式");
+                        fsSync.unlinkSync(gzFilePath);
+                        resolve({ success: false, error: '生成的文件不是有效的 Gzip 格式' });
+                    }
+                } else {
+                    console.log("❌ 压缩失败, 退出码:", code);
+                    console.log("stderr:", stderr);
+                    resolve({ success: false, error: `压缩失败，退出码：${code}`, stderr });
+                }
+            });
+
+            child.on('error', (err) => {
+                clearTimeout(timeout);
+                console.log(err);
+                resolve({ success: false, error: err.message });
+            });
+        });
+    }
+
+    /**
+     * 简化版：直接解压 .gz 文件（跳过列表检测，单文件直接解压）
+     * @param {string} archiveFilePath 压缩文件路径
+     * @returns {Promise<{success: boolean, path?: string, error?: string}>}
+     */
     async #extractGzFile(archiveFilePath) {
         try {
             // .gz 解压后文件名（去掉 .gz 后缀）

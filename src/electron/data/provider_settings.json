@@ -38,10 +38,10 @@
                "name": "默认配置",
                "enabled": true,
                "headers": {
-                  "Host": "50.push2.eastmoney.com",
+                  "Host": "55.push2.eastmoney.com",
                   "sec-ch-ua-platform": "\"Linux\"",
                   "Cache-Control": "no-cache",
-                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15",
                   "Accept": "text/event-stream",
                   "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
                   "sec-ch-ua-mobile": "?0",
@@ -51,7 +51,7 @@
                   "Referer": "https://quote.eastmoney.com/kcb/688981.html",
                   "Accept-Encoding": "gzip, deflate, br, zstd",
                   "Accept-Language": "zh-CN",
-                  "Cookie": "qgqp_b_id=0873f38794dba0d28813bc4bf5e38f72; st_nvi=_Lr_kXPnL2kQTOWPiFG8D2301; nid18=00d22e32fd0787364b8f6a28f55be2bd; nid18_create_time=1778807707812; gviem=kuzmeSUW9rVwCeAtZkW9Fc82f; gviem_create_time=1778807707813; st_si=48925262793527; st_asi=delete; st_pvi=76846705154245; st_sp=2026-05-15%2009%3A15%3A06; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fkcb%2F688981.html; st_sn=2; st_psi=20260515162201735-113200313000-7769246787"
+                  "Cookie": "qgqp_b_id=0873f38794dba0d28813bc4bf5e38f72; st_nvi=_Lr_kXPnL2kQTOWPiFG8D2301; nid18=00d22e32fd0787364b8f6a28f55be2bd; nid18_create_time=1778807707812; gviem=kuzmeSUW9rVwCeAtZkW9Fc82f; gviem_create_time=1778807707813; st_pvi=76846705154245; st_sp=2026-05-15%2009%3A15%3A06; st_inirUrl=https%3A%2F%2Fquote.eastmoney.com%2Fkcb%2F688981.html"
                },
                "_headers": [
                   {
@@ -206,29 +206,20 @@
                "id": "1778566326368_9mcufxfhb",
                "name": "默认配置",
                "headers": {
-                  "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6478.251 Safari/537.36",
-                  "Accept": "*/*",
-                  "Accept-Language": "zh-CN,zh-TW;q=0.9,zh;q=0.8,en-US;q=0.7,en;q=0.6",
-                  "Accept-Encoding": "gzip, deflate, br, zstd",
-                  "Content-Length": "127",
+                  "Host": "cbasspider.10jqka.com.cn",
+                  "sec-ch-ua-platform": "\"Linux\"",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0",
+                  "Accept": "application/json, text/plain, */*",
+                  "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
                   "Content-Type": "application/json",
-                  "Cookie": "_ga=GA1.1.378054234.1778144194; spversion=20130314; Hm_lvt_78c58f01938e4d85eaf619eae71b4ed1=1778133307,1778312809; historystock=600415%7C*%7C002252; userid=ths_gu_da4011079bb1e0657bce89ba29f2793c; Hm_lvt_69929b9dce4c22a060bd22d703b2a280=1778144189,1778312004,1778566362; Hm_lpvt_69929b9dce4c22a060bd22d703b2a280=1778566362; HMACCOUNT=03185B13DFC3C787; _ga_H2RK0R0681=GS2.1.s1778566367$o5$g0$t1778566367$j60$l0$h0; search_history=[{%22keyword%22:%22%E5%A4%A7%E6%97%8F%E6%BF%80%E5%85%89%22%2C%22timestamp%22:1778566367337%2C%22type%22:%22general%22}%2C{%22keyword%22:%22%E5%B0%8F%E5%95%86%E5%93%81%E5%9F%8E%22%2C%22timestamp%22:1778314263280%2C%22type%22:%22stock%22}%2C{%22keyword%22:%22%E4%B8%8A%E6%B5%B7%E8%8E%B1%E5%A3%AB%22%2C%22timestamp%22:1778144245840%2C%22type%22:%22stock%22}%2C{%22keyword%22:%22%E4%B8%8A%E6%B5%B7%E8%8E%B1%E5%A3%AB%22%2C%22timestamp%22:1778144197516%2C%22type%22:%22general%22}]; _clck=1ki6nwr%7C2%7Cg5z%7C0%7C0; cid=e40bd5380f2abd34d5c7a58ffab90bb31778566397; _clsk=7efxarusewch%7C1778566403432%7C4%7C1%7C; v=A9Lc-F2P7G_7JxCTCb_ttsRYKpO349YqCObKpJwq_EtwTXwNhHMmjdh3Gppv",
-                  "Origin": "https://search.10jqka.com.cn",
-                  "Platform": "hxkline",
-                  "Priority": "u=1, i",
-                  "Referer": "https://search.10jqka.com.cn/",
-                  "Sec-Ch-Ua": "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\"",
-                  "Sec-Ch-Ua-Mobile": "?0",
-                  "Sec-Ch-Ua-Platform": "\"Linux\"",
-                  "Sec-Fetch-Dest": "empty",
-                  "Sec-Fetch-Mode": "cors",
+                  "sec-ch-ua-mobile": "?0",
                   "Sec-Fetch-Site": "same-site",
-                  "Source-Id": "hxkline-AIME_Component_Library_Component",
-                  "X-Auth-Appname": "AINVEST",
-                  "X-Auth-Progid": "7047",
-                  "X-Auth-Type": "ths",
-                  "X-Auth-Version": "1.0",
-                  "X-Fuyao-Auth": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRob3JpemVyX25hbWVzcGFjZSI6ImNvbW1vbi1ocS1hZ2dyIiwibGljZW5zZWVfdHlwZSI6IkZST05UX0FQUCIsImxpY2Vuc2VlX25hbWVzcGFjZSI6Imh4a2xpbmUtQUlNRV9Db21wb25lbnRfTGlicmFyeV9Db21wb25lbnQifQ.MWqYrKk4Y2_oWTbG3XZjNGoHK_GmIi_KeJKc_mNDqTA"
+                  "Sec-Fetch-Mode": "cors",
+                  "Sec-Fetch-Dest": "empty",
+                  "Referer": "https://data.10jqka.com.cn/",
+                  "Accept-Encoding": "gzip, deflate, br, zstd",
+                  "Accept-Language": "zh-CN",
+                  "Cookie": "Hm_lvt_78c58f01938e4d85eaf619eae71b4ed1=1779241047; Hm_lpvt_78c58f01938e4d85eaf619eae71b4ed1=1779241047; v=A3TLyD_QoqqOYTbmrpIN2Ar3TDnjTZg32nEsew7VAP-CeRpnNl1oxyqB_Ahd"
                }
             }
          ]
@@ -272,11 +263,12 @@
                "id": "1777528939103_p00tty94k",
                "name": "默认配置",
                "headers": {
+                  "Host": "finance.pae.baidu.com",
                   "sec-ch-ua-platform": "\"Linux\"",
-                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
                   "Accept": "application/vnd.finance-web.v1+json",
                   "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
-                  "Acs-Token": "1778824805507_1778827470037_iUc54T9VgFaRYGUL/TkHvvtJpAj1h84AWSZgE59+fIQ9gKs4ZfTDX/FxGMpCCoObt7U7iWTiXqZFbQ+8xgtrQ2YBajRsrLgaCQJcmZAZUV2/JNsXNB0ejJZrCg6ajOaGfssDNllEvXy28hevBSA33QbJHoQJtHzV8ijFzb3T7raaKKfSNYBcpy4bghlT81SUgkTiENWLTQtAAeVToaBiXo/0kBegGOQD9kjeJ/GYmfXBNDstWyWh0dv+lzsQ34SEplOfhtsziBsvhax6SRt3LCbTttMYGLqlv952DqrZSF2ovrGx3WRAYUKDpB7sOQ/HgNmIscV1ex9kPXjGQVmiqbrI28w0ljKLcme2s0BFmJD9tmn8ucIGtkpVCIq8o9hkI9TyaxI97n4FTTDHhlP0L0FIndiCESnh86dxrtj1GMU=",
+                  "Acs-Token": "1779256805977_1779262707754_v4p+dvnenNzMrUl956KjzfFKYR5nmOzZCcgFr21T+jZJcHxbVQ3N6HYYD6stQkO3L/8wBd+bBrjcUJW4wKoXKIR6WhOq1Ez5v8JDD6Z0/fnZGAV2a3H6Lmxbm0Zv2ezhwqaVxQi+K7BgiWiTMWgxCi9KjnBT03gimJb82xPNCU/NPBP/vPl20Vqt+OKAoYVa2r3yfdqWMkFxHb4O4xk54ihfWMJF78jzL+rSIYPKqjv/dMSJ+MEIK/efh7ljrKdsAfNlJerbzSAGtHgtbU+cbNbajfXpVG0byvU8usLp3SI1Xfzztp4QnzGVdP6H0yiAaSDLcR9Mk1o5ZMEUbELV3i8bMBDLDSCcHvLXDf3fasPPaB8naHhvYN1bZfA5DJpyHUdsOkf3inWiptFM6majsOJ0Zx+WTJbyQTiHDzi6KCw=",
                   "sec-ch-ua-mobile": "?0",
                   "Sec-Fetch-Site": "same-site",
                   "Sec-Fetch-Mode": "cors",
@@ -328,8 +320,9 @@
                "id": "1778566047791_p8vnd2s6e",
                "name": "默认配置",
                "headers": {
+                  "Host": "web.ifzq.gtimg.cn",
                   "Upgrade-Insecure-Requests": "1",
-                  "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
                   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
                   "Sec-Fetch-Site": "none",
                   "Sec-Fetch-Mode": "navigate",
@@ -434,11 +427,12 @@
                "id": "1778565676279_kq9dz6ene",
                "name": "默认配置",
                "headers": {
+                  "Host": "infocenter.9fzt.com",
                   "sec-ch-ua-platform": "\"Linux\"",
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0",
+                  "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
                   "Accept": "application/json, text/plain, */*",
                   "sec-ch-ua": "\"Not?A_Brand\";v=\"99\", \"Chromium\";v=\"130\"",
-                  "token": "4355c784-5001-11f1-93ff-66c86c07d661",
+                  "token": "603f89f9-5422-11f1-b352-eeabf45952be",
                   "sec-ch-ua-mobile": "?0",
                   "Sec-Fetch-Site": "same-site",
                   "Sec-Fetch-Mode": "cors",
@@ -446,7 +440,7 @@
                   "Referer": "https://stock.9fzt.com/",
                   "Accept-Encoding": "gzip, deflate, br, zstd",
                   "Accept-Language": "zh-CN",
-                  "Cookie": "Hm_lvt_6e2ca337a699e09c7012d6d8e8c27630=1778809987; HMACCOUNT=7BE23E0BE187BA20; externalSource=%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE; _clck=5eohm8%5E2%5Eg62%5E0%5E2326; fingerprintId=f617c3f4c4378a2100936998d6a50b0c; sajssdk_2015_cross_new_user=1; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%2C%22first_id%22%3A%2219e2956707b517-0c50e89cc2afb9-26011f51-2073600-19e2956707c47b%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllMjk1NjcwN2I1MTctMGM1MGU4OWNjMmFmYjktMjYwMTFmNTEtMjA3MzYwMC0xOWUyOTU2NzA3YzQ3YiIsIiRpZGVudGl0eV9sb2dpbl9pZCI6ImY2MTdjM2Y0YzQzNzhhMjEwMDkzNjk5OGQ2YTUwYjBjIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%7D%7D; _clsk=rb0u8f%5E1778810188288%5E3%5E0%5Ey.clarity.ms%2Fcollect; Hm_lpvt_6e2ca337a699e09c7012d6d8e8c27630=1778810216"
+                  "Cookie": "externalSource=%E7%9B%B4%E6%8E%A5%E8%AE%BF%E9%97%AE; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%2C%22first_id%22%3A%2219e2956707b517-0c50e89cc2afb9-26011f51-2073600-19e2956707c47b%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllMjk1NjcwN2I1MTctMGM1MGU4OWNjMmFmYjktMjYwMTFmNTEtMjA3MzYwMC0xOWUyOTU2NzA3YzQ3YiIsIiRpZGVudGl0eV9sb2dpbl9pZCI6ImY2MTdjM2Y0YzQzNzhhMjEwMDkzNjk5OGQ2YTUwYjBjIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22f617c3f4c4378a2100936998d6a50b0c%22%7D%7D; _clck=5eohm8%5E2%5Eg67%5E0%5E2326; _clsk=k4gl8j%5E1779262355612%5E1%5E0%5El.clarity.ms%2Fcollect; Hm_lvt_6e2ca337a699e09c7012d6d8e8c27630=1778809987,1779240790,1779262351,1779264204; Hm_lpvt_6e2ca337a699e09c7012d6d8e8c27630=1779264204; HMACCOUNT=7BE23E0BE187BA20"
                }
             }
          ]

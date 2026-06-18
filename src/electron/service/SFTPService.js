@@ -247,6 +247,7 @@ class SFTPService extends EventEmitter {
             });
 
             // 连接配置
+            // 连接配置
             sshClient.connect({
                 host: config.host,
                 port: config.port,
@@ -258,11 +259,26 @@ class SFTPService extends EventEmitter {
                 algorithms: {
                     cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
                     serverHostKey: [
-                        "ssh-rsa",
-                        "ssh-dss",
-                        "ssh-rsa",
-                        "ecdsa-sha2-nistp256",
+                        // 优先使用服务器支持的算法
+                        'ssh-ed25519',
+                        'ecdsa-sha2-nistp384',
+                        'rsa-sha2-256',
+                        // 备用算法
+                        'rsa-sha2-512',
+                        'ecdsa-sha2-nistp256',
+                        'ssh-rsa',
+                        'ssh-dss'
                     ],
+                    // 添加 KEX 算法确保兼容
+                    kex: [
+                        'curve25519-sha256@libssh.org',
+                        'curve25519-sha256',
+                        'ecdh-sha2-nistp256',
+                        'ecdh-sha2-nistp384',
+                        'ecdh-sha2-nistp521',
+                        'diffie-hellman-group-exchange-sha256',
+                        'diffie-hellman-group14-sha256'
+                    ]
                 },
                 hostVerifier: (key) => {
                     try {

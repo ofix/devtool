@@ -32,6 +32,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick, markRaw } from "vue";
 import { useEditorStore } from "@/stores/StoreEditor.js";
+import { useFileStore } from "@/stores/StoreFile.js";
 import * as monaco from "monaco-editor";
 
 // 防抖函数
@@ -55,6 +56,7 @@ const throttle = (fn, delay) => {
   };
 };
 
+const fileStore = useFileStore();
 const editorStore = useEditorStore();
 // 标记Monaco为原始对象，避免Vue响应式劫持导致卡顿
 editorStore.setMonacoInstance(markRaw(monaco));
@@ -101,6 +103,8 @@ const switchEditorModel = debounce(async (newFileId) => {
         scrollbar: { vertical: "visible", horizontal: "auto" },
         hover: { enabled: false },
         suggest: { enabled: false },
+        tabSize: 2,
+        insertSpaces: true,
         // 禁用所有语言服务，彻底避免Worker阻塞
         disableLayerHinting: true,
         hideCursorInOverviewRuler: true,
@@ -156,12 +160,48 @@ const handleCloseFile = (fileId) => {
   }
 };
 
+/**
+ * 保存当前文件
+ */
+const handleSaveFile = async () => {
+  const activeFile = editorStore.activeFile;
+  if (!activeFile) return;
+
+  try {
+    // 从编辑器获取最新内容
+    let params = {
+      host: activeFile.host,
+      port: activeFile.port,
+      username: activeFile.username,
+      password: activeFile.password,
+      remoteFilePath: activeFile.remoteFilePath,
+      localFilePath: activeFile.localFilePath,
+      content: editor?.getValue() ?? activeFile.content,
+    };
+    await fileStore.saveRemoteFileContents(params);
+  } catch (error) {
+    console.error("保存异常:", error);
+  }
+};
+
+// ========== 键盘快捷键：Ctrl+S ==========
+
+const handleKeyDown = (event) => {
+  // Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
+  if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+    event.preventDefault();
+    handleSaveFile();
+  }
+};
+
 onMounted(() => {
   window.addEventListener("resize", handleResize);
+  window.addEventListener("keydown", handleKeyDown);
 });
 
 onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
+  window.removeEventListener("keydown", handleKeyDown);
   clearTimeout(window.tabClickTimer);
   unwatchActiveFile();
   if (editor) {

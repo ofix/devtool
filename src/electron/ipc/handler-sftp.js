@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import SFTPService from '../service/SFTPService.js';
+import mmFileManager from '../core/MMFileManager.js';
 
 class SFTPHandler {
     constructor() {
@@ -49,7 +50,7 @@ class SFTPHandler {
             }
         });
 
-        ipcMain.on('sftp-download-dir', async (event, config) => {
+        ipcMain.on('sftp:download-dir', async (event, config) => {
             try {
                 const sftp = await SFTPService.create(config);
                 const _config = sftp.getConfig(config.host);
@@ -62,7 +63,15 @@ class SFTPHandler {
             }
         });
 
-        ipcMain.on('sftp-upload-dir', async (event, config) => {
+        ipcMain.handle('sftp:loadRemoteFile', async(event, params) =>{
+            return await mmFileManager.loadFileContents(params);
+        });
+
+        ipcMain.handle('sftp:saveRemoteFile', async(event, params) =>{
+            return await mmFileManager.saveFileContents(params);
+        });
+
+        ipcMain.on('sftp:upload-dir', async (event, config) => {
             try {
                 const sftp = await SFTPService.create(config);
                 const _config = sftp.getConfig(config.host);

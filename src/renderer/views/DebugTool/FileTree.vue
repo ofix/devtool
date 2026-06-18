@@ -346,7 +346,7 @@ async function onTreeNodeClick(data, node) {
       port: server.port,
       username: server.username,
       password: server.password,
-      path: data.path,
+      remoteFilePath: data.path,
       size: data.size,
     };
     const fileInfo = await fileStore.getRemoteFileContents(params);
@@ -751,8 +751,8 @@ function handleAddDir() {
   --el-tree-node-hover-bg-color: rgba(220, 220, 220, 0.1);
   --el-tree-node-current-bg-color: rgba(64, 158, 255, 0.1);
   --el-tree-node-current-color: #37373d;
-  height: calc(100vh - 156px);
-  max-height: calc(100vh - 156px);
+  /* height: calc(100vh - 156px);
+  max-height: calc(100vh - 156px); */
   overflow-y: hidden;
 }
 

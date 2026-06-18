@@ -28,13 +28,6 @@
     "favorite": true
   },
   {
-    "code": "002752",
-    "name": "昇兴股份",
-    "market": "SZ",
-    "pinyin": "SXGF",
-    "favorite": true
-  },
-  {
     "code": "300759",
     "name": "康龙化成",
     "market": "SZ",
@@ -46,6 +39,13 @@
     "name": "家家悦",
     "market": "SH",
     "pinyin": "JJY",
+    "favorite": true
+  },
+  {
+    "code": "002752",
+    "name": "昇兴股份",
+    "market": "SZ",
+    "pinyin": "SXGF",
     "favorite": true
   }
 ]

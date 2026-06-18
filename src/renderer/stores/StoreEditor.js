@@ -58,6 +58,9 @@ export const useEditorStore = defineStore('editor', () => {
 
         const {
             host,
+            port, // 主机端口
+            username, // 主机用户名
+            password, // 主机登录密码
             remoteFilePath,
             extractFileName,
             content = '',
@@ -81,6 +84,9 @@ export const useEditorStore = defineStore('editor', () => {
             extractFileName,
             remoteFilePath,
             host,
+            port, // 主机端口
+            username, // 主机用户名
+            password, // 主机登录密码
             localFilePath,
             isDirty: false,
             content,

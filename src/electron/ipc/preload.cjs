@@ -98,8 +98,10 @@ contextBridge.exposeInMainWorld('channel', {
     sshDisconnect: (host) => ipcRenderer.invoke('ssh:disconnect', host),
     // SFTP 操作
     sshListDir: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:listDir', { host, port, username, password, remotePath }),
-    // 下载单个文件到内存映射文件，避免文件拷贝
-    sshDownloadToMMF: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:downloadToMMF', { host, port, username, password, remotePath }),
+    // 加载SFTP远程文件内容,支持自动解压和代码格式化
+    sftpLoadRemoteFile: ({ host, port, username, password, remoteFilePath }) => ipcRenderer.invoke('sftp:loadRemoteFile', { host, port, username, password, remoteFilePath }),
+    // 保存文件并上传到SFTP远程，支持自动压缩,(后续支持代码内容压缩)
+    sftpSaveRemoteFile: ({ host, port, usernmae, password, localFilePath, remoteFilePath, content }) => ipcRenderer.invoke('sftp:saveRemoteFile', { host, port, usernmae, password, localFilePath, remoteFilePath, content }),
     // 压缩文件读写
     extractFile: (archivePath) => ipcRenderer.invoke('mmf:extract', archivePath),
     loadFileContents: (fileMeta) => ipcRenderer.invoke('mmf:loadFileContents', fileMeta),
@@ -187,5 +189,5 @@ contextBridge.exposeInMainWorld('channel', {
     getBkShares: (type, bkCode) => ipcRenderer.invoke('ant-sync:get-bk-shares', type, bkCode),
     syncBkShares: (type, bkList) => ipcRenderer.invoke('ant-sync:sync-bk-shares', type, bkList),
     saveProviderSettings: (data) => ipcRenderer.invoke('ant-sync:save-provider-settings', data),
-    loadProviderSettings:()=>ipcRenderer.invoke('ant-sync:load-provider-settings'),
+    loadProviderSettings: () => ipcRenderer.invoke('ant-sync:load-provider-settings'),
 })
