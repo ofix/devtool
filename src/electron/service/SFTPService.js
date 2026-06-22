@@ -237,13 +237,13 @@ class SFTPService extends EventEmitter {
             });
 
             sshClient.on("error", (err) => {
+                this.sshClients.delete(config.host);
                 reject(new Error(`SSH错误: ${err.message}`));
             });
 
-            sshClient.on("close", (hadError) => {
-                if (hadError) {
-                    reject(new Error("SSH连接异常关闭"));
-                }
+            sshClient.on("close", () => {
+                this.sshClients.delete(config.host);
+                reject(new Error("SSH连接异常关闭"));
             });
 
             // 连接配置
@@ -254,6 +254,8 @@ class SFTPService extends EventEmitter {
                 username: config.username,
                 password: config.password,
                 readyTimeout: 10000,
+                keepaliveInterval: 30000, // 每30秒发送一次心跳
+                keepaliveCountMax: 3,     // 最多重试3次
                 strictHostKeyChecking: "no",
                 debug: (message) => Print.debug(`[SSH2 Debug]: ${message}`),
                 algorithms: {
