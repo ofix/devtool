@@ -64,6 +64,8 @@
         "puppeteer-extra-plugin-stealth": "^2.11.2",
         "screenshot-desktop": "^1.15.3",
         "ssh2": "^1.17.0",
+        "tree-sitter": "^0.25.0",
+        "tree-sitter-javascript": "^0.25.0",
         "vue": "^3.5.12",
         "vue-json-pretty": "^2.6.0",
         "vue-router": "^4.4.5"
