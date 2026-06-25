@@ -150,6 +150,12 @@ const appShortcutList = ref([
       { key: "Enter", desc: "执行输入的命令" },
     ],
   },
+  {
+    appName: "代码分析",
+    shortcuts: [
+      { key: "Ctrl + O", desc: "打开代码" },
+    ],
+  },
 ]);
 
 // 2. 搜索关键词（响应式）

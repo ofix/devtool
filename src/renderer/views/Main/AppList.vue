@@ -215,6 +215,13 @@ const allApps = ref([
     icon: "DataSync",
     disabled: false,
   },
+  {
+    key: "CodeVisualWnd",
+    name: "代码分析",
+    category: "可视化",
+    icon: "CodeVisual",
+    disabled: false,
+  },
 ]);
 
 // 2. 新增：搜索关键词（响应式）

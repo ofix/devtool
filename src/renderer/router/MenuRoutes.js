@@ -75,6 +75,16 @@ const MenuRoutes = [
         ],
     },
     {
+        path: '/code-visual',
+        name: 'CodeVisual',
+        component: import(/* webpackChunkName: "chunk-CodeVisual" */ '@/views/CodeVisual/CodeVisualEntry.vue'),
+        meta: {
+            title: '代码可视化',
+            desc: '',
+            chunkGroup: 'debug'
+        },
+    },
+    {
         path: '/postwoman',
         name: 'postwoman',
         component: loadLayout('PostWomanLayout'),
