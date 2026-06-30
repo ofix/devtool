@@ -230,7 +230,7 @@ class WndManager extends Singleton {
         return {
             browserWindow: {
                 x: 0, y: 0, width: 1240, height: 960,
-                alwaysOnTop: true, transparent: false,
+                alwaysOnTop: false, transparent: false,
                 frame: true, // 显示窗口边框+标题栏（默认 true）
                 resizable: true,
                 titleBarStyle: 'default', // 完整原生
@@ -238,8 +238,8 @@ class WndManager extends Singleton {
             },
             custom: {
                 url: '/code-visual',
-                levelName: 'normal',
-                levelZOrder: 20,
+                levelName: 'pop-up-menu',
+                levelZOrder: 0,
                 devTool: false,
                 captureHeaders: false, // 需要捕获请求头
                 targetWnd: '' // 捕获到请求头后发送到哪个窗口显示

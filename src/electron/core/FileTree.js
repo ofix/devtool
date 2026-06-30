@@ -48,6 +48,65 @@ class FileTree {
             this.pathCache.set(this.globalRoot.fullPath, this.globalRoot);
         }
         this.syncedDirs = new Set();
+        this.adapter = null;
+    }
+
+    // 适配器支持（可选）
+    async loadFromAdapter(adapter, dirPath, recursive = false) {
+        this.adapter = adapter; // 保存引用以便后续操作
+
+        const entries = await adapter.readDirectory(dirPath);
+        // 转换为 build 方法需要的格式
+        const dirs = [];
+        const files = [];
+        // ... 构建数据
+        this.build(dirs, files);
+
+        if (recursive) {
+            // 递归加载子目录
+            for (const entry of entries) {
+                if (entry.type === 'directory') {
+                    await this.loadFromAdapter(adapter, entry.fullPath, true);
+                }
+            }
+        }
+    }
+
+    // ✨ 新增：便捷的文件操作方法（使用适配器）
+    async readFile(filePath) {
+        if (!this.adapter) {
+            throw new Error('未设置适配器');
+        }
+        return await this.adapter.readFile(filePath);
+    }
+
+    // ✨ 新增：监听变化
+    async watch(dirPath, callback) {
+        if (!this.adapter) {
+            throw new Error('未设置适配器');
+        }
+        return await this.adapter.watch(dirPath, (event, filePath) => {
+            // 自动更新树
+            this._handleFileChange(event, filePath);
+            callback(event, filePath);
+        });
+    }
+
+    // 内部处理文件变化
+    async _handleFileChange(event, filePath) {
+        if (event === 'add' || event === 'addDir') {
+            // 读取新文件信息并添加到树中
+            const entries = await this.adapter.readDirectory(
+                this.adapter.dirname(filePath)
+            );
+            // 更新树
+        } else if (event === 'unlink' || event === 'unlinkDir') {
+            // 从树中移除
+            const node = this.findNodeByPath(filePath);
+            if (node && node.parent) {
+                node.parent.removeChild(node);
+            }
+        }
     }
 
 

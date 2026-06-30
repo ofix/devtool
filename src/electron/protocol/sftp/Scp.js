@@ -1,386 +1,249 @@
-import { EventEmitter } from "events";
-import Utils from "../core/Utils.js";
-import { Client } from "ssh2";
-import fs from "fs"; // 核心修复：直接导入完整 fs 模块（含同步+异步）
-import path from "path";
-import Print from "../core/Print.js";
-import FileTree from "../core/FileTree.js";
-import { FileNodeType } from "../core/FileNodeType.js";
-// import mmap from 'mmap-io';
-// import Client from 'ssh2-sftp-client';
+class Scp {
 
-class SFTPService extends EventEmitter {
-    static instance = null;
-
-    constructor() {
-        if (SFTPService.instance) {
-            throw new Error('请通过 SFTPService.create() 创建单例实例');
+    /**
+     * 创建目录（通过 SSH 命令）
+     */
+    static async mkdir(conn, remotePath, recursive = true) {
+        const cmd = recursive ? `mkdir -p '${remotePath}'` : `mkdir '${remotePath}'`;
+        const result = await this._exec(conn.sshClient, cmd);
+        if (result.code !== 0) {
+            throw new Error(`创建目录失败: ${result.stderr}`);
         }
-        super();
-        this.sshClients = new Map(); // host -> SFTP client
-        this.connectionConfig = new Map(); // 新增：host -> 连接参数（username/password/port）
-        this.connectionStatus = new Map(); // host → 连接状态（true=有效）
-        this.transferSessions = new Map(); // sessionId -> transfer session
-        this.activeTransfers = new Map(); // host -> active transfers
-        this.stateDir = "";
-        this.fileTree = new FileTree();
-        Print.level = 7;
-    }
-
-    async init() {
-        this.stateDir = await Utils.sftpDownloadMetaDir();
-    }
-
-    static async create(...config) {
-        if (SFTPService.instance) {
-            SFTPService.instance.setConfig(...config);
-            return SFTPService.instance;
-        }
-        const service = new SFTPService();
-        await service.init();
-        await service.setConfig(...config);
-        SFTPService.instance = service;
-        return service;
-    }
-
-    static destroy() {
-        SFTPService.instance = null;
+        return result;
     }
 
     /**
-     * 设置连接配置（兼容两种传参方式）
-     * 方式 1：按顺序传参 → setConfig(host, username, password, port)
-     * 方式 2：传入对象 → setConfig({ host, username, password, port })
-     */
-    async setConfig(...args) {
-        let host,
-            username = "root",
-            password = "0penBmc",
-            port = 22,
-            remotePath = "",
-            localPath = "";
-        if (args.length === 1 && typeof args[0] === "object" && args[0] !== null) {
-            const config = args[0];
-            if (!config.host) {
-                throw new Error("配置对象必须包含 host 属性（服务器 IP/域名）");
-            }
-            host = config.host;
-            username = config.username || username;
-            password = config.password || password;
-            port = config.port || port;
-            localPath = await Utils.sftpLocalDir(config.host);
-            remotePath = config.remotePath;
-        } else if (args.length >= 1) {
-            host = args[0];
-            username = args[1] || username;
-            password = args[2] || password;
-            port = args[3] || port;
-            localPath = await Utils.sftpLocalDir(config.host);
-            remotePath = config.remotePath;
+     * 删除目录（通过 SSH 命令）
+     */   
+    static async rmdir(conn, remotePath, options = {}){
+        let cmd;
+        if (options.recursive) {
+            cmd = `rm -rf '${remotePath}'`;
+        } else if (options.force) {
+            cmd = `rm -f '${remotePath}'`;
         } else {
-            throw new Error(
-                "传参错误！支持：1. 传入配置对象 {host, username, password, port}；2. 按顺序传参 (host, username?, password?, port?)"
-            );
+            cmd = `rm '${remotePath}'`;
         }
-        port = Number(port) || 22;
-
-        let config = { host, username, password, port, localPath, remotePath };
-        this.connectionConfig.set(host, config);
-        console.log(`已保存 ${host} 的连接配置：`, { username, password, port });
-        return config;
+        const result = await this._exec(conn.sshClient, cmd);
+        if (result.code !== 0) {
+            throw new Error(`删除文件夹失败: ${result.stderr}`);
+        }
+        return result;
     }
 
     /**
-     * @notice 连接BMC后端，会出现如下错误，
-     * SFTP Debug: CLIENT[sftp]: connect: Debugging turned on
-     * SFTP Debug: CLIENT[sftp]: ssh2-sftp-client Version: 12.0.1  {
-     * "node": "20.18.3",
-     * "acorn": "8.14.0",
-     * "ada": "2.9.2",
-     * "ares": "1.34.4",
-     * "base64": "0.5.2",
-     * "brotli": "1.0.9",
-     * "cjs_module_lexer": "1.4.1",
-     * "cldr": "44.1",
-     * "icu": "74.2",
-     * "llhttp": "8.1.2",
-     * "modules": "130",
-     * "napi": "9",
-     * "nghttp2": "1.61.0",
-     * "openssl": "0.0.0",
-     * "simdutf": "5.6.4",
-     * "tz": "2024a",
-     * "undici": "6.21.1",
-     * "unicode": "15.1",
-     * "uv": "1.46.0",
-     * "uvwasi": "0.0.21",
-     * "v8": "13.0.245.25-electron.0",
-     * "zlib": "1.3.0.1-motley",
-     * "electron": "33.4.11",
-     * "chrome": "130.0.6723.191"
-     * }
-     * SFTP Debug: Custom crypto binding not available
-     * SFTP Debug: Local ident: 'SSH-2.0-ssh2js1.17.0'
-     * SFTP Debug: Client: Trying 172.26.3.11 on port 22 ...
-     * SFTP Debug: Socket connected
-     * SFTP Debug: Remote ident: 'SSH-2.0-dropbear_2019.78'
-     * SFTP Debug: Outbound: Sending KEXINIT
-     * SFTP Debug: Inbound: Handshake in progress
-     * SFTP Debug: Handshake: (local) KEX method: curve25519-sha256@libssh.org,curve25519-sha256,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group14-sha256,diffie-hellman-group15-sha512,diffie-hellman-group16-sha512,diffie-hellman-group17-sha512,diffie-hellman-group18-sha512,ext-info-c,kex-strict-c-v00@openssh.com
-     * SFTP Debug: Handshake: (remote) KEX method: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group14-sha256,kexguess2@matt.ucc.asn.au
-     * SFTP Debug: Handshake: KEX algorithm: curve25519-sha256@libssh.org
-     * SFTP Debug: Handshake: (local) Host key format: ssh-rsa,ssh-dss
-     * SFTP Debug: Handshake: (remote) Host key format: ssh-rsa
-     * SFTP Debug: Handshake: Host key format: ssh-rsa
-     * SFTP Debug: Handshake: (local) C->S cipher: aes128-ctr,aes192-ctr,aes256-ctr
-     * SFTP Debug: Handshake: (remote) C->S cipher: aes128-ctr,aes256-ctr
-     * SFTP Debug: Handshake: C->S Cipher: aes128-ctr
-     * SFTP Debug: Handshake: (local) S->C cipher: aes128-ctr,aes192-ctr,aes256-ctr
-     * SFTP Debug: Handshake: (remote) S->C cipher: aes128-ctr,aes256-ctr
-     * SFTP Debug: Handshake: S->C cipher: aes128-ctr
-     * SFTP Debug: Handshake: (local) C->S MAC: hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
-     * SFTP Debug: Handshake: (remote) C->S MAC: hmac-sha1,hmac-sha2-256
-     * SFTP Debug: Handshake: C->S MAC: hmac-sha2-256
-     * SFTP Debug: Handshake: (local) S->C MAC: hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
-     * SFTP Debug: Handshake: (remote) S->C MAC: hmac-sha1,hmac-sha2-256
-     * SFTP Debug: Handshake: S->C MAC: hmac-sha2-256
-     * SFTP Debug: Handshake: (local) C->S compression: none,zlib@openssh.com,zlib
-     * SFTP Debug: Handshake: (remote) C->S compression: zlib@openssh.com,none
-     * SFTP Debug: Handshake: C->S compression: none
-     * SFTP Debug: Handshake: (local) S->C compression: none,zlib@openssh.com,zlib
-     * SFTP Debug: Handshake: (remote) S->C compression: zlib@openssh.com,none
-     * SFTP Debug: Handshake: S->C compression: none
-     * SFTP Debug: Outbound: Sending KEXECDH_INIT
-     * SFTP Debug: Received DH Reply
-     * SFTP Debug: Host accepted by default (no verification)
-     * SFTP Debug: Host accepted (verified)
-     * SFTP Debug: Outbound: Sending NEWKEYS
-     * SFTP Debug: Inbound: NEWKEYS
-     * SFTP Debug: Verifying signature ...
-     * SFTP Debug: Verified signature
-     * SFTP Debug: Handshake completed
-     * SFTP Debug: Outbound: Sending SERVICE_REQUEST (ssh-userauth)
-     * SFTP Debug: Inbound: Received SERVICE_ACCEPT (ssh-userauth)
-     * SFTP Debug: Outbound: Sending USERAUTH_REQUEST (none)
-     * SFTP Debug: Inbound: Received USERAUTH_FAILURE (publickey,password)
-     * SFTP Debug: Client: none auth failed
-     * SFTP Debug: Outbound: Sending USERAUTH_REQUEST (password)
-     * SFTP Debug: Inbound: Received USERAUTH_SUCCESS
-     * SFTP Debug: Outbound: Sending CHANNEL_OPEN (r:0, session)
-     * SFTP Debug: Inbound: CHANNEL_OPEN_CONFIRMATION (r:0, s:0)
-     * SFTP Debug: Outbound: Sending CHANNEL_REQUEST (r:0, subsystem: sftp)
-     * SFTP Debug: Inbound: CHANNEL_SUCCESS (r:0)
-     * SFTP Debug: Outbound: Sending CHANNEL_DATA (r:0, 9)
-     * SFTP Debug: Inbound: CHANNEL_EXTENDED_DATA (r:0, 56)
-     * SFTP Debug: Inbound: CHANNEL_EOF (r:0)
-     * SFTP Debug: Inbound: CHANNEL_REQUEST (r:0, exit-status: 127)
-     * SFTP Debug: CLIENT[sftp]: sftp: Received exit code 127 while establishing SFTP session (127)
-     * SFTP Debug: Inbound: CHANNEL_CLOSE (r:0)
-     * download Failed to connect to 172.26.3.11: Connection failed: sftp: Received exit code 127 while establishing SFTP session
+     * 删除文件/目录（通过 SSH 命令）
      */
+    static async delete(conn, remotePath, options = {}) {
+        let cmd;
+        if (options.recursive) {
+            cmd = `rm -rf '${remotePath}'`;
+        } else if (options.force) {
+            cmd = `rm -f '${remotePath}'`;
+        } else {
+            cmd = `rm '${remotePath}'`;
+        }
+        const result = await this._exec(conn.sshClient, cmd);
+        if (result.code !== 0) {
+            throw new Error(`删除失败: ${result.stderr}`);
+        }
+        return result;
+    }
 
-    // 连接到服务器
-    async connectServer(
-        host,
-        username = "root",
-        password = "0penBmc",
-        port = 22,
-        localPath = "",
-        remotePath = "",
-    ) {
-        // 🔧 改进点5：参数验证
-        if (!host || typeof host !== "string") {
-            throw new Error("host参数必须是非空字符串");
+    /**
+     * 重命名（通过 SSH 命令）
+     */
+    static async rename(conn, oldPath, newPath) {
+        const cmd = `mv '${oldPath}' '${newPath}'`;
+        const result = await this._exec(conn.sshClient, cmd);
+        if (result.code !== 0) {
+            throw new Error(`重命名失败: ${result.stderr}`);
+        }
+        return result;
+    }
+
+    /**
+     * 检查路径是否存在（通过 SSH 命令）
+     */
+    static async exists(conn, remotePath) {
+        const cmd = `test -e '${remotePath}' && echo "exists" || echo "notexists"`;
+        const result = await this._exec(conn.sshClient, cmd);
+        return result.stdout.trim() === 'exists';
+    }
+
+    /**
+     * 获取文件状态（通过 SSH 命令）
+     */
+    static async stat(conn, remotePath) {
+        // 使用 stat 命令获取详细信息
+        const cmd = `stat -c '%s|%F|%a|%U|%G|%Y' '${remotePath}' 2>/dev/null || echo "NOTFOUND"`;
+        const result = await this._exec(conn.sshClient, cmd);
+
+        if (result.stdout.trim() === 'NOTFOUND') {
+            throw new Error(`路径不存在: ${remotePath}`);
         }
 
-        try {
-            // 检查现有活跃连接
-            const existingClient = this.sshClients.get(host);
-            if (existingClient && this.isConnectionAlive(existingClient)) {
-                Print.debug(`复用现有SSH连接: ${host}`);
-                return {
-                    success: true,
-                    message: "Using existing connection",
-                    client: existingClient,
-                };
-            }
-
-            Print.debug(`\n连接SSH服务器: ${username}@${host}:${port}`);
-            const sshClient = new Client();
-            // 使用Promise.race实现超时控制
-            const connectionResult = await Promise.race([
-                this.newSSHConnection(sshClient, { host, port, username, password }),
-                this.createTimeout(15000, `SSH连接超时（15秒）: ${host}`),
-            ]);
-
-            // 缓存新连接
-            this.sshClients.set(host, sshClient);
-            this.connectionConfig.set(host, { username, password, port, localPath, remotePath });
-            this.connectionStatus.set(host, true);
-            Print.debug(`缓存SSH连接: ${host}`);
-            Print.debug(`SSH连接成功: ${host}`);
-            return {
-                success: true,
-                client: sshClient,
-                message: "Connection established",
-            };
-        } catch (error) {
-            return this.handleConnectionError(host, error);
+        const parts = result.stdout.trim().split('|');
+        if (parts.length < 6) {
+            throw new Error(`无法解析文件状态: ${result.stdout}`);
         }
-    }
 
-    newSSHConnection(sshClient, config) {
-        return new Promise((resolve, reject) => {
-            sshClient.on("ready", () => {
-                Print.debug("SSH认证成功");
-                resolve(sshClient);
-            });
+        const [size, type, mode, owner, group, mtime] = parts;
 
-            sshClient.on("error", (err) => {
-                this.sshClients.delete(config.host);
-                reject(new Error(`SSH错误: ${err.message}`));
-            });
-
-            sshClient.on("close", () => {
-                this.sshClients.delete(config.host);
-                reject(new Error("SSH连接异常关闭"));
-            });
-
-            // 连接配置
-            // 连接配置
-            sshClient.connect({
-                host: config.host,
-                port: config.port,
-                username: config.username,
-                password: config.password,
-                readyTimeout: 10000,
-                keepaliveInterval: 30000, // 每30秒发送一次心跳
-                keepaliveCountMax: 3,     // 最多重试3次
-                strictHostKeyChecking: "no",
-                debug: (message) => Print.debug(`[SSH2 Debug]: ${message}`),
-                algorithms: {
-                    cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
-                    serverHostKey: [
-                        // 优先使用服务器支持的算法
-                        'ssh-ed25519',
-                        'ecdsa-sha2-nistp384',
-                        'rsa-sha2-256',
-                        // 备用算法
-                        'rsa-sha2-512',
-                        'ecdsa-sha2-nistp256',
-                        'ssh-rsa',
-                        'ssh-dss'
-                    ],
-                    // 添加 KEX 算法确保兼容
-                    kex: [
-                        'curve25519-sha256@libssh.org',
-                        'curve25519-sha256',
-                        'ecdh-sha2-nistp256',
-                        'ecdh-sha2-nistp384',
-                        'ecdh-sha2-nistp521',
-                        'diffie-hellman-group-exchange-sha256',
-                        'diffie-hellman-group14-sha256'
-                    ]
-                },
-                hostVerifier: (key) => {
-                    try {
-                        const fingerprint = key.getFingerprint("sha256").toString("hex");
-                        Print.debug(`服务器指纹: ${fingerprint}`);
-                        return true;
-                    } catch (err) {
-                        Print.warn("指纹检查跳过");
-                        return true;
-                    }
-                },
-            });
-        });
-    }
-
-    createTimeout(ms, message) {
-        return new Promise((_, reject) => {
-            setTimeout(() => reject(new Error(message)), ms);
-        });
-    }
-
-    // 🔧 改进点8：连接活性检查
-    isConnectionAlive(client) {
-        try {
-            return client && typeof client === "object" && client.connected === true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    handleConnectionError(host, error) {
-        this.connectionStatus.set(host, false);
-
-        const errorInfo = {
-            success: false,
-            message: error.message,
-            host,
-            timestamp: new Date().toISOString(),
+        return {
+            size: parseInt(size, 10),
+            isDirectory: type === 'directory',
+            isFile: type === 'regular file' || type === 'regular empty file',
+            mode: parseInt(mode, 8),
+            owner,
+            group,
+            mtime: new Date(parseInt(mtime, 10) * 1000)
         };
-
-        // 根据错误类型提供更具体的消息
-        if (error.message.includes("timed out")) {
-            errorInfo.suggestion = "检查网络连接或增加超时时间";
-        } else if (error.message.includes("Authentication failed")) {
-            errorInfo.suggestion = "验证用户名和密码";
-        } else if (error.message.includes("ENOTFOUND")) {
-            errorInfo.suggestion = "检查主机名是否正确";
-        }
-
-        Print.error(`❌ SSH连接失败 [${host}]:`, error.message);
-        return errorInfo;
     }
 
-    getConfig(host) {
-        return this.connectionConfig.get(host);
+
+    /**
+     * 通过 SCP 协议读取文件
+     * @param {Object} conn - SSH 连接 { _sshClient, _sftpClient }
+     * @param {string} remotePath - 远程文件路径
+     * @param {string} encoding - 编码（默认 utf-8）
+     * @returns {Promise<string|Buffer>}
+     */
+    static async readFile(conn, remotePath, encoding = 'utf-8') {
+        return new Promise((resolve, reject) => {
+            const sshClient = conn.sshClient;
+
+            // 1. 执行 scp -f 命令（从远程获取文件）
+            sshClient.exec(`scp -f '${remotePath}'`, (err, stream) => {
+                if (err) {
+                    return reject(new Error(`SCP 执行失败: ${err.message}`));
+                }
+
+                let fileInfo = null;
+                let fileData = Buffer.alloc(0);
+                let isHeader = true;
+
+                // 2. 处理数据流
+                stream.on('data', (chunk) => {
+                    if (isHeader) {
+                        // 解析文件元信息
+                        const header = chunk.toString('utf-8');
+                        const match = header.match(/^C([0-7]{4})\s+(\d+)\s+([^\n]+)\n/);
+
+                        if (match) {
+                            fileInfo = {
+                                mode: parseInt(match[1], 8),
+                                size: parseInt(match[2], 10),
+                                name: match[3].trim()
+                            };
+
+                            // 发送 ACK (0x00) 告诉服务器继续
+                            stream.write(Buffer.from([0]));
+                            isHeader = false;
+
+                            // 处理剩余数据（可能包含文件内容）
+                            const remaining = chunk.slice(header.length);
+                            if (remaining.length > 0) {
+                                fileData = Buffer.concat([fileData, remaining]);
+                            }
+                        } else {
+                            // 可能收到错误信息
+                            reject(new Error(`SCP 协议错误: ${header}`));
+                        }
+                    } else {
+                        // 累积文件数据
+                        fileData = Buffer.concat([fileData, chunk]);
+                    }
+                });
+
+                // 3. 处理 stderr（错误信息）
+                stream.stderr.on('data', (data) => {
+                    reject(new Error(`SCP 错误: ${data.toString('utf-8')}`));
+                });
+
+                // 4. 流关闭 - 完成传输
+                stream.on('close', () => {
+                    if (fileInfo) {
+                        // 检查数据完整性
+                        if (fileData.length !== fileInfo.size) {
+                            reject(new Error(
+                                `文件大小不匹配: 期望 ${fileInfo.size}, 实际 ${fileData.length}`
+                            ));
+                            return;
+                        }
+
+                        // 发送结束 ACK
+                        stream.write(Buffer.from([0]));
+
+                        // 返回数据
+                        const result = encoding ? fileData.toString(encoding) : fileData;
+                        resolve(result);
+                    } else {
+                        reject(new Error('SCP 传输失败: 未收到文件信息'));
+                    }
+                });
+
+                // 5. 错误处理
+                stream.on('error', (err) => {
+                    reject(new Error(`SCP 流错误: ${err.message}`));
+                });
+            });
+        });
     }
 
-    // 获取缓存的已打开连接的SSH2客户端
-    async getSSHClient(host) {
-        const hasClient = this.sshClients.has(host);
-        if (!hasClient) {
-            // 从缓存中获取之前的连接参数（若有），若无则用默认值
-            const {
-                username = "root",
-                password = "0penBmc",
-                port = 22,
-                localPath = "",
-                remotePath = "",
-            } = this.connectionConfig.get(host) || {};
-            // 复用缓存的参数重新连接，而非只传 host
-            const result = await this.connectServer(host, username, password, port, localPath, remotePath);
-            if (!result.success) {
-                throw new Error(`Failed to connect to ${host}: ${result.message}`);
-            }
-            return result.client;
-        }
-        return this.sshClients.get(host);
-    }
+    /**
+     * 通过 SCP 协议写入文件
+     * @param {Object} conn - SSH 连接
+     * @param {string} remotePath - 远程文件路径
+     * @param {string|Buffer} content - 文件内容
+     */
+    static async writeFile(conn, remotePath, content) {
+        return new Promise((resolve, reject) => {
+            const sshClient = conn.sshClient;
+            const contentBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
+            const fileName = remotePath.split('/').pop();
 
-    // 断开服务器连接
-    async disconnectServer(host) {
-        try {
-            const sshClient = this.sshClients.get(host);
-            if (sshClient) {
-                await sshClient.end();
-                this.sshClients.delete(host);
-                this.connectionConfig.delete(host); // 断开时清除参数缓存
-            }
-            return { success: true, message: "Disconnected" };
-        } catch (error) {
-            return { success: false, message: `Disconnect failed: ${error.message}` };
-        }
-    }
+            // 1. 执行 scp -t（目标模式，写入远程）
+            sshClient.exec(`scp -t '${remotePath}'`, (err, stream) => {
+                if (err) {
+                    return reject(new Error(`SCP 执行失败: ${err.message}`));
+                }
 
-    // 生成会话ID
-    generateSessionId(host, type, remotePath, localPath) {
-        const data = `${host}-${type}-${remotePath}-${localPath}-${Date.now()}`;
-        return Buffer.from(data)
-            .toString("base64")
-            .replace(/[^a-zA-Z0-9]/g, "");
+                let ackReceived = false;
+                let readyToSend = false;
+
+                // 2. 发送文件元信息
+                stream.on('data', (chunk) => {
+                    // 服务器返回 0x00 表示准备接收
+                    if (chunk[0] === 0 && !readyToSend) {
+                        readyToSend = true;
+                        // 发送文件信息: C0644 size filename
+                        const header = `C0644 ${contentBuffer.length} ${fileName}\n`;
+                        stream.write(header);
+                    } else if (chunk[0] === 0 && readyToSend && !ackReceived) {
+                        ackReceived = true;
+                        // 发送文件数据
+                        stream.write(contentBuffer);
+                        // 发送结束标志（0x00）
+                        stream.write(Buffer.from([0]));
+                        resolve();
+                    } else {
+                        // 错误响应
+                        const errMsg = chunk.toString('utf-8');
+                        reject(new Error(`SCP 服务器错误: ${errMsg}`));
+                    }
+                });
+
+                // 3. 处理错误
+                stream.stderr.on('data', (data) => {
+                    reject(new Error(`SCP 错误: ${data.toString('utf-8')}`));
+                });
+
+                stream.on('error', (err) => {
+                    reject(new Error(`SCP 流错误: ${err.message}`));
+                });
+            });
+        });
     }
 
     /**************************************************************
@@ -393,7 +256,7 @@ class SFTPService extends EventEmitter {
      * @param {Function} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadFile(conn, remoteFilePath, localFilePath, onProgress) {
+    static async downloadFile(conn, remoteFilePath, localFilePath, onProgress) {
         return new Promise(async (resolve, reject) => {
             // 文件路径必须用''包裹，否则$meta这种目录名会被默认展开，导致为空
             conn.exec(`scp -f '${remoteFilePath}'`, async (err, stream) => {
@@ -440,7 +303,7 @@ class SFTPService extends EventEmitter {
      * @param {Object} stream - SCP 命令流
      * @returns {Promise<{ status: number, fileInfo: Object }>} 元信息解析结果
      */
-    async _awaitScpServerFileInfo(stream) {
+    static async _awaitScpServerFileInfo(stream) {
         return new Promise((resolve, reject) => {
             const buffer = [];
 
@@ -531,7 +394,7 @@ class SFTPService extends EventEmitter {
      * @todo   解析SCP服务器返回的文件元信息
      * @notice 格式: C0644 1234 filename.txt\n
      **************************************************************/
-    _parseFileInfo(scpHeader) {
+    static _parseFileInfo(scpHeader) {
         const match = scpHeader.match(/^C([0-7]{4})\s+(\d+)\s+([^\n]+)\n$/);
         if (!match) {
             throw new Error(`无法解析文件信息: ${scpHeader}`);
@@ -550,7 +413,7 @@ class SFTPService extends EventEmitter {
      * @param {Object} fileInfo - 文件信息（含 size/name 等）
      * @param {Function} onProgress - 进度回调（{ status, progress, recvBytes, totalBytes, filename }）
      */
-    async _downloadFileInChunk(stream, localFile, fileInfo, onProgress) {
+    static async _downloadFileInChunk(stream, localFile, fileInfo, onProgress) {
         return new Promise((resolve, reject) => {
             const writeStream = fs.createWriteStream(localFile, { flags: "w" });
             let recvFileBytes = 0; // 已写入磁盘的字节数
@@ -713,7 +576,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async downloadDir(host, remoteDir, localDir, onProgress) {
+    static async scpDownloadDir(host, remoteDir, localDir, onProgress) {
         let recvFiles = 0;
         let totalFiles = 0;
         let recvBytes = 0;
@@ -807,7 +670,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 单个文件SCP上传 - 简洁版本
      **************************************************************/
-    async uploadFile(conn, localFile, remoteFile, onProgress) {
+    static async uploadFile(conn, localFile, remoteFile, onProgress) {
         return new Promise((resolve, reject) => {
             conn.exec(`scp -t "${remoteFile}"`, async (err, stream) => {
                 if (err) {
@@ -851,7 +714,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo SSH2 分块上传数据给服务器端
      **************************************************************/
-    _uploadFileInChunk(stream, localFile, fileSize, onProgress) {
+    static _uploadFileInChunk(stream, localFile, fileSize, onProgress) {
         return new Promise((resolve, reject) => {
             const readStream = fs.createReadStream(localFile);
             let transferred = 0;
@@ -884,7 +747,7 @@ class SFTPService extends EventEmitter {
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    async uploadDir(host, localDir, remoteDir, onProgress) {
+    static async scpUploadDir(host, localDir, remoteDir, onProgress) {
         let conn = null;
         let totalProgress = 0;
         try {
@@ -991,7 +854,7 @@ class SFTPService extends EventEmitter {
      * @param {string} localDir - 本地文件夹路径
      * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
      **************************************************************/
-    async scanLocalDir(localDir) {
+    static async scanLocalDir(localDir) {
         const files = [];
         const dirs = [];
         const dirSet = new Set();
@@ -1042,7 +905,7 @@ class SFTPService extends EventEmitter {
      * }>}
      * @throws {Error} 当 SSH 连接异常、命令执行失败或非 0 退出码（且 throwOnNonZeroExit 为 true）时抛出
      **************************************************************/
-    async exec(conn, command, options = {}) {
+    static async _exec(conn, command, options = {}) {
         const { throwOnNonZeroExit = false, encoding = "utf8" } = options;
 
         if (typeof command !== "string" || command.trim() === "") {
@@ -1142,7 +1005,7 @@ class SFTPService extends EventEmitter {
      * @param {string} dateInfo.time - 时分（如 "21:52"）
      * @returns {string} 标准格式日期字符串（YYYY-MM-dd HH:MM）
      */
-    getStandardTime({ month, day, time }) {
+    static getStandardTime({ month, day, time }) {
         // 1. 月份映射表：同时包含中文→数字、英文缩写→数字
         const monthMap = {
             // 中文月份映射
@@ -1186,7 +1049,7 @@ class SFTPService extends EventEmitter {
     * - dirs: 直接子目录列表（不含嵌套子目录）
     * - totalBytes: 直接子文件总大小
     **************************************************************/
-    async listDir(host, remoteDir) {
+    static async listDir(host, remoteDir) {
         const allItems = [];
         let dirCount = 0;
         let fileCount = 0;
@@ -1200,7 +1063,7 @@ class SFTPService extends EventEmitter {
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
             const lsCmd = `ls -lAp '${normalizedRemoteDir}' 2>/dev/null`;
 
-            let lsResult = await this.exec(conn, lsCmd);
+            let lsResult = await this._exec(conn, lsCmd);
             if (lsResult.code) {
                 return { nodes: allItems, totalBytes };
             }
@@ -1283,7 +1146,7 @@ class SFTPService extends EventEmitter {
      * @param {string} remoteDir - 远程文件夹路径（绝对路径）
      * @returns {Promise<{files: {path: string, size: number, relPath: string}[], totalBytes: number}>}
      **************************************************************/
-    async scanRemoteDir(conn, remoteDir) {
+    static async scanRemoteDir(conn, remoteDir) {
         const files = [];
         const dirs = [];
         const dirSet = new Set();
@@ -1293,7 +1156,7 @@ class SFTPService extends EventEmitter {
         try {
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-R（递归）、-A（显示隐藏文件，不含.和..）
             const lsCmd = `ls -lRA '${normalizedRemoteDir}' 2>/dev/null`;
-            let lsResult = await this.exec(conn, lsCmd);
+            let lsResult = await this._exec(conn, lsCmd);
             if (lsResult.code) {
                 return { files, dirs, totalBytes };
             }
@@ -1386,7 +1249,7 @@ class SFTPService extends EventEmitter {
      * @param {Object[]} targetFiles - 目标文件列表（含path/size/relPath）
      * @returns {Object[]} 需要传输的源文件列表
      **************************************************************/
-    filterNeedTransferFiles(sourceFiles, targetFiles) {
+    static filterNeedTransferFiles(sourceFiles, targetFiles) {
         const targetMap = new Map();
         targetFiles.forEach((file) => targetMap.set(file.relPath, file.size));
 
@@ -1414,7 +1277,7 @@ class SFTPService extends EventEmitter {
      * @param {import('stream').Duplex} stream - SSH 通道流
      * @returns {Promise<{ status: number; message: string }>}
      **************************************************************/
-    async _readScpServerResponse(stream) {
+    static async _readScpServerResponse(stream) {
         return new Promise((resolve, reject) => {
             let buffer = Buffer.alloc(0);
             let timeoutId;
@@ -1478,7 +1341,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 发送应答给SCP服务器
      **************************************************************/
-    async _sendAckToScpServer(stream, stepName) {
+    static async _sendAckToScpServer(stream, stepName) {
         Print.debug(stepName);
         return new Promise((resolve, reject) => {
             stream.write(Buffer.from([0]), (err) => {
@@ -1494,7 +1357,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 等待SCP服务器响应
      **************************************************************/
-    async _awaitScpServerAck(stream, stepName) {
+    static async _awaitScpServerAck(stream, stepName) {
         try {
             const response = await this._readScpServerResponse(stream);
             if (response.status === 0) {
@@ -1511,7 +1374,7 @@ class SFTPService extends EventEmitter {
     /**************************************************************
      * @todo 发送上传结束符并等待服务器响应
      **************************************************************/
-    _awaitUploadFinishAck(stream, stepName) {
+    static _awaitUploadFinishAck(stream, stepName) {
         return new Promise((resolve, reject) => {
             stream.write(Buffer.from([0]), async (err) => {
                 if (err)
@@ -1526,5 +1389,3 @@ class SFTPService extends EventEmitter {
         });
     }
 }
-
-export default SFTPService;

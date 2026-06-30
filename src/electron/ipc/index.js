@@ -2,6 +2,7 @@ import Singleton from "../service/Singleton.js";
 import LoggerHandler from './handler-logger.js';
 import WindowHandler from './handler-window.js';
 import SFTPHandler from './handler-sftp.js';
+import LocalFileSystemHandler from "./handler-local-file-system.js";
 import MMFHandler from './handler-mmf.js';
 import HTTPHandler from './handler-http.js';
 import ScreenshotHandler from './handler-screenshot.js';
@@ -21,6 +22,7 @@ class IPCManager extends Singleton {
         this.logger = LoggerHandler;
         this.window = WindowHandler;
         this.sftp = SFTPHandler;
+        this.localFileSystem = LocalFileSystemHandler;
         this.mmf = MMFHandler;
         this.http = HTTPHandler;
         this.screenshot = ScreenshotHandler;

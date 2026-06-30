@@ -110,6 +110,10 @@ contextBridge.exposeInMainWorld('channel', {
     compressGZ: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:compress-gz', cacheKey, outputPath),
     decompressGZ: (gzPath) => ipcRenderer.invoke('mmf:decompress-gz', gzPath),
     clear: () => ipcRenderer.invoke('mmf:clear'),
+    // 本地文件树操作
+    loadDirectory:(options) =>ipcRenderer.invoke('fs:readDirectory',options),
+
+
     // 快捷键相关操作
     registerShortcut: (accelerator, handlerName) => ipcRenderer.invoke('shortcut:register', accelerator, handlerName),
     unregisterShortcut: (accelerator) => ipcRenderer.invoke('shortcut:unregister', accelerator),

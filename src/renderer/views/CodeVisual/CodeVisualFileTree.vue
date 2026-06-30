@@ -138,14 +138,7 @@
 </template>
 
 <script setup>
-import {
-  ref,
-  readonly,
-  computed,
-  watch,
-  nextTick,
-  onUnmounted,
-} from "vue";
+import { ref, readonly, computed, watch, nextTick, onUnmounted } from "vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
 import { FileNodeType } from "@/components/FileNodeType.js";
@@ -173,25 +166,16 @@ import IconFileC from "@/icons/IconFileC.vue";
 import IconImage from "@/icons/IconImage.vue";
 import IconFile from "@/icons/IconFile.vue";
 import IconZip from "@/icons/IconZip.vue";
+import LocalFileTree from "@/common/LocalFileTree.vue";
 
-const fileStore = useFileStore();
 const editorStore = useEditorStore();
+const localFileTree = new LocalFileTree();
 
 // --------------------- 编辑器方法 ---------------------
 const { openFile, isFileOpened } = editorStore;
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
 const fileTreeData = ref([]);
-
-// 折叠单目录
-const vsCodeLikeFileTreeData = computed(() => {
-  // return fileTreeData.map((rootNode) => {
-  //   const flatTree = flatFileTree(rootNode, [], true);
-  //   return flatTree;
-  // });
-  console.log(fileTreeData);
-  return fileTreeData.value;
-});
 
 const treeProps = readonly({
   value: "path",
@@ -268,14 +252,9 @@ async function onTreeNodeClick(data, node) {
   ) {
     selectedNode.value = data;
     let params = {
-      host: server.host,
-      port: server.port,
-      username: server.username,
-      password: server.password,
-      remoteFilePath: data.path,
-      size: data.size,
+      path: data.path,
     };
-    const fileInfo = await fileStore.getLocalFileContents(params);
+    const fileInfo = await localFileTree.readFile(params);
     openFile(fileInfo);
   }
 }

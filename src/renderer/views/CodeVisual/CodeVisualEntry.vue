@@ -2,14 +2,14 @@
   <div class="vscode-content">
     <el-container>
       <el-main>
-        <el-splitter direction="horizontal" class="debug-splitter">
+        <el-splitter layout="horizontal" class="debug-splitter">
           <el-splitter-panel :min="100" :size="300">
             <div class="panel-left">
               <CodeVisualFileTree />
             </div>
           </el-splitter-panel>
           <el-splitter-panel>
-            <el-splitter direction="vertical" class="vertical-splitter">
+            <el-splitter layout="vertical" class="vertical-splitter">
               <el-splitter-panel>
                 <CodeEditor />
               </el-splitter-panel>
