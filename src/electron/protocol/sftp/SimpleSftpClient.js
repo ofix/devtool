@@ -1,13 +1,10 @@
 import { EventEmitter } from "events";
-import Utils from "../core/Utils.js";
+import Utils from "../../core/Utils.js";
 import { Client } from "ssh2";
-import fs from "fs"; // 核心修复：直接导入完整 fs 模块（含同步+异步）
-import path from "path";
-import Print from "../core/Print.js";
-import FileTree from "../core/FileTree.js";
+import Print from "../../core/Print.js";
 import Scp from "./Scp.js";
 import BaseFsClient from "../base/BaseFsClient.js";
-import { FileNodeType } from "../core/FileNodeType.js";
+
 // import mmap from 'mmap-io';
 // import Client from 'ssh2-sftp-client';
 
@@ -28,6 +25,7 @@ class SimpleSftpClient extends BaseFsClient {
 
         // 事件
         this._eventEmitter = new EventEmitter();
+        this.connect(options);
     }
 
     async init() {
@@ -273,6 +271,18 @@ class SimpleSftpClient extends BaseFsClient {
     async readFile(remotePath) {
         let conn = this.getConnection();
         return Scp.readFile(conn, remotePath);
+    }
+
+    // 上传文件
+    async uploadFile(localPath, remotePath){
+        let conn = this.getConnection();
+        return Scp.uploadFile(conn, localPath, remotePath);
+    }
+
+    // 下载文件
+    async downloadFile(remotePath, localPath){
+        let conn = this.getConnection();
+        return Scp.downloadFile(conn, remotePath, localPath);
     }
 
     // 写入文件

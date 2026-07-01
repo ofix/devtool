@@ -12,12 +12,12 @@ import os from 'os';
 import prettier from 'prettier';
 
 import Utils from './Utils.js';
-import SFTPService from '../service/SFTPService.js';
+import ClientManager from '../service/ClientManager.js';
 import { fileTypeDetector } from './FileTypeDetector.js';
 
 
-// 内存映射文件管理器
-class MMFileManager {
+// 压缩文件管理器
+class ArchiveFileManager {
     static #instance = null;
     constructor(options = {}) {
         this.threadCount = options.threadCount || os.cpus().length;
@@ -33,6 +33,7 @@ class MMFileManager {
         this.mmfHandles = new Map(); // 完整路径 → MMF句柄
         this.fileMeta = new Map();   // 完整路径 → { archivePath, isEdited }
         this.archiveMap = new Map(); // 压缩包路径 → [文件完整路径列表]（批量管理核心）
+        this.clientManager = ClientManager.getInstance();
 
         // 初始化
         this._initTempDir();
@@ -40,10 +41,10 @@ class MMFileManager {
 
     /** 单例获取 */
     static getInstance(options = {}) {
-        if (!MMFileManager.#instance) {
-            MMFileManager.#instance = new MMFileManager(options);
+        if (!ArchiveFileManager.#instance) {
+            ArchiveFileManager.#instance = new ArchiveFileManager(options);
         }
-        return MMFileManager.#instance;
+        return ArchiveFileManager.#instance;
     }
 
     _initTempDir() {
@@ -267,18 +268,16 @@ class MMFileManager {
         // 压缩文件 localFilePath.gz（会强制覆盖）
         await this.compressToGz(params.localFilePath);
         // SCP 上传本地压缩文件到远程服务器
-        const sftp = await SFTPService.create(params);
-        let conn = await sftp.getSSHClient(params.host);
-        return await sftp.uploadFile(conn, params.localFilePath + ".gz", params.remoteFilePath, null);
+        const sftp = await this.clientManager.getClient('local',params);
+        return await sftp.uploadFile(params.localFilePath + ".gz", params.remoteFilePath, null);
     }
 
     async loadFileContents(params) {
         // 映射远程文件到本地路径
         let localFilePath = await Utils.ensureRemoteFilePath(params.host, params.remoteFilePath);
         // SCP 下载远程服务器文件到本地
-        const sftp = await SFTPService.create(params);
-        let conn = await sftp.getSSHClient(params.host);
-        await sftp.downloadFile(conn, params.remoteFilePath, localFilePath, null);
+        const sftp = await this.clientManager.getClient('local',params);
+        await sftp.downloadFile(params.remoteFilePath, localFilePath, null);
 
         // 检查文件是否是压缩文件
         if (fileTypeDetector.isArchiveFile(localFilePath)) {
@@ -645,5 +644,5 @@ class MMFileManager {
 
 }
 
-const mmFileManager = MMFileManager.getInstance();
-export default mmFileManager;
+const archiveFileManager = ArchiveFileManager.getInstance();
+export default archiveFileManager;

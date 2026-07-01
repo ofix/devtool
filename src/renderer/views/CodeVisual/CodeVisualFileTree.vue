@@ -1,8 +1,24 @@
 <template>
+  <!-- 空状态：显示加号按钮 -->
+  <div v-if="!treeDataReady" class="empty-tree-state">
+    <div class="empty-content">
+      <el-empty description="暂无文件夹">
+        <el-button
+          type="primary"
+          size="large"
+          :icon="Plus"
+          @click="selectFolder"
+        >
+          添加文件夹
+        </el-button>
+      </el-empty>
+    </div>
+  </div>
   <!-- 高性能虚拟渲染树组件 -->
   <el-tree-v2
+    v-else
     ref="fileTreeRef"
-    :data="fileTreeData"
+    :data="fileTree"
     :props="treeProps"
     :expand-on-click-node="true"
     :highlight-current="true"
@@ -138,12 +154,20 @@
 </template>
 
 <script setup>
-import { ref, readonly, computed, watch, nextTick, onUnmounted } from "vue";
+import {
+  ref,
+  readonly,
+  computed,
+  watch,
+  nextTick,
+  shallowRef,
+  onMounted,
+  onUnmounted,
+} from "vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
-import { FileNodeType } from "@/components/FileNodeType.js";
-import { useServerListStore } from "@/stores/StoreServerList.js";
-import { useFileStore } from "@/stores/StoreFile.js";
+import { FileNodeType } from "@/common/FileNodeType.js";
+import FileTree from "@/common/FileTree.js";
 import { useEditorStore } from "@/stores/StoreEditor.js";
 
 // 自定义树节点图标
@@ -166,16 +190,16 @@ import IconFileC from "@/icons/IconFileC.vue";
 import IconImage from "@/icons/IconImage.vue";
 import IconFile from "@/icons/IconFile.vue";
 import IconZip from "@/icons/IconZip.vue";
-import LocalFileTree from "@/common/LocalFileTree.vue";
 
 const editorStore = useEditorStore();
-const localFileTree = new LocalFileTree();
 
 // --------------------- 编辑器方法 ---------------------
 const { openFile, isFileOpened } = editorStore;
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
-const fileTreeData = ref([]);
+const fileTree = shallowRef([]); // 必须是数组可迭代
+const treeDataReady = ref(false); // 数据是否加载完成
+let rawFileTree = null;
 
 const treeProps = readonly({
   value: "path",
@@ -194,68 +218,89 @@ const emit = defineEmits([
   "fileOpened", // 文件打开事件
 ]);
 
-// 递归扁平化单子目录节点，生成折叠节点
-const flatFileTree = (node, parentPath = [], isRoot = true) => {
-  const newNode = { ...node };
-  let currentPath = [...parentPath, newNode.name];
-
-  // 根路径处理优化
-  if (newNode.name === "/") {
-    currentPath = [...parentPath];
-  }
-
-  if (newNode.type === FileNodeType.DIRECTORY) {
-    const children = newNode.children || []; // 兜底空数组
-    // 空目录（children = [""]）：直接保留占位
-    if (children.length === 1 && children[0] === "") {
-      newNode.children = children;
-      return newNode;
-    }
-
-    // 单子目录节点（需要折叠）
-    if (
-      children.length === 1 &&
-      children[0] !== "" &&
-      children[0].type === FileNodeType.DIRECTORY
-    ) {
-      return flatFileTree(children[0], currentPath, false); // 递归折叠
-    }
-
-    // 多个子节点/包含文件（终止折叠，标记为 MULTI 类型）
-    if (parentPath.length > 0 && !isRoot) {
-      newNode.type = FileNodeType.MULTI;
-      newNode.multiPath = currentPath;
-    }
-
-    newNode.children = children.map((child) =>
-      flatFileTree(child, currentPath, false)
-    );
-  }
-
-  return newNode;
-};
-
 // -------------- 窗口大小监听 -------------------
 const handleResize = () => {
   treeHeight.value = window.innerHeight - 34;
 };
-window.addEventListener("resize", handleResize);
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
+
+onMounted(() => {
+  document.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("resize", handleResize);
 });
 
-// 文件树节点单击响应函数
+onUnmounted(() => {
+  document.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("resize", handleResize);
+  closeMenu();
+});
+
+// 快捷键打开对话框
+function handleKeyDown(event) {
+  // Ctrl+O 或 Command+O (Mac)
+  if ((event.ctrlKey || event.metaKey) && event.key === "o") {
+    selectFolder();
+    return;
+  }
+
+  // 可选：Ctrl+Shift+O 打开带选项的对话框
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "O") {
+    event.preventDefault();
+    openFolder({
+      title: "高级选择",
+      properties: ["openDirectory", "createDirectory"],
+    });
+  }
+}
+
+function selectFolder(event) {
+  event.preventDefault();
+  openFolder();
+}
+
+// 打开文件夹
+const openFolder = async (options = {}) => {
+  try {
+    const result = await window.channel.selectLocalDir({
+      title: options.title || "请选择文件夹",
+      ...options,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+    rawFileTree = new FileTree(result.data.dir);
+    rawFileTree.addChildren(result.data.dir.path, result.data.files);
+    let collapsedTree = rawFileTree.collapse();
+    console.log(collapsedTree);
+    // 数据准备好后，再标记 ready
+    treeDataReady.value = true;
+    // 等待 DOM 更新
+    await nextTick();
+    if (fileTreeRef.value) {
+      fileTreeRef.value.setData([collapsedTree]); // 初始化文件树的时候需要全量赋值
+    }
+  } catch (error) {
+    ElMessage.error(`打开文件夹失败: ${error.message}`);
+    console.error(error);
+  }
+};
+
+// 打开文件
 async function onTreeNodeClick(data, node) {
   if (
     data.type == FileNodeType.FILE ||
-    data.type == FileNodeType.FILE_SYMLINK
+    data.type == FileNodeType.FILE_SYMLINK ||
+    !data.loaded ||
+    !data.loading
   ) {
     selectedNode.value = data;
-    let params = {
+    const fileInfo = await window.channel.readLocalFile({
       path: data.path,
-    };
-    const fileInfo = await localFileTree.readFile(params);
+    });
     openFile(fileInfo);
+  } else {
+    // 展开目录
+    node.isCollapsed ? node.expandNode() : node.collapseNode();
   }
 }
 
@@ -263,7 +308,8 @@ async function onTreeNodeClick(data, node) {
 async function onNodeExpand(data, node) {
   if (
     data.type == FileNodeType.FILE ||
-    data.type == FileNodeType.FILE_SYMLINK
+    data.type == FileNodeType.FILE_SYMLINK ||
+    data.loaded
   ) {
     return;
   }
@@ -271,7 +317,7 @@ async function onNodeExpand(data, node) {
   try {
     // 加载子目录数据
     console.log(`增量加载本地目录 ${data.path}`);
-    const childData = await window.channel.listLocalDir(data.path);
+    const childData = await window.channel.readLocalDir({ path: data.path });
     fileTreeRef.value.setData([childData]);
   } catch (e) {
     console.error("加载子目录失败", e);
@@ -349,11 +395,6 @@ function closeMenu() {
   document.removeEventListener("keydown", escHandler);
 }
 
-// 组件卸载时清理所有监听
-onUnmounted(() => {
-  closeMenu();
-});
-
 // 新建文件夹
 function handleNewFolder() {
   if (
@@ -410,7 +451,7 @@ function handleNewFile() {
   selectedNode.value.children.push(newFile);
 
   // 刷新树数据
-  fileTreeData.value = [...fileTreeData.value];
+  fileTree.value = [...fileTree.value];
 
   nextTick(() => {
     enterEditMode(newPath, "新建文件.txt");
@@ -490,7 +531,7 @@ function handleDelete() {
         return false;
       };
 
-      const deleted = deleteNode(fileTreeData, selectedNode.value.path);
+      const deleted = deleteNode(fileTree, selectedNode.value.path);
       if (deleted) {
         selectedNode.value = null;
       } else {
@@ -554,7 +595,7 @@ function handleEditBlur(data) {
   data.path = parentPath ? `${parentPath}/${data.name}` : data.name;
 
   // 刷新树数据
-  fileTreeData.value = [...fileTreeData.value];
+  fileTree.value = [...fileTree.value];
 
   cancelEdit();
   ElMessage.success("重命名成功");
@@ -563,8 +604,8 @@ function handleEditBlur(data) {
 // 顶部按钮：添加文件/目录（默认在根目录创建）
 function handleAddFile() {
   // 选中根目录（若存在）
-  if (fileTreeData.value.length > 0) {
-    selectedNode.value = fileTreeData.value[0];
+  if (fileTree.value.length > 0) {
+    selectedNode.value = fileTree.value[0];
   } else {
     // 无根目录时创建根目录
     const rootDir = {
@@ -573,15 +614,15 @@ function handleAddFile() {
       type: FileNodeType.DIRECTORY,
       children: [],
     };
-    fileTreeData.value.push(rootDir);
+    fileTree.value.push(rootDir);
     selectedNode.value = rootDir;
   }
   handleNewFile();
 }
 
 function handleAddDir() {
-  if (fileTreeData.value.length > 0) {
-    selectedNode.value = fileTreeData.value[0];
+  if (fileTree.value.length > 0) {
+    selectedNode.value = fileTree.value[0];
   } else {
     const rootDir = {
       name: "/",
@@ -589,7 +630,7 @@ function handleAddDir() {
       type: FileNodeType.DIRECTORY,
       children: [],
     };
-    fileTreeData.value.push(rootDir);
+    fileTree.value.push(rootDir);
     selectedNode.value = rootDir;
   }
   handleNewFolder();

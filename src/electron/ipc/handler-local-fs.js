@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
-import {ClientManager } from "../service/ClientManager.js"
+import { ipcMain, dialog, app } from 'electron'
+import ClientManager from "../service/ClientManager.js"
 
 export const DRIVER_TYPE = Object.freeze({
     LOCAL: 'local',
@@ -7,7 +7,7 @@ export const DRIVER_TYPE = Object.freeze({
 });
 
 
-class FileSystemHandler {
+class LocalFileSystemHandler {
     constructor() {
         // 存储每个窗口的驱动实例
         this.manager = ClientManager.getInstance();
@@ -15,10 +15,38 @@ class FileSystemHandler {
     }
 
     registerHandlers() {
-        ipcMain.handle('fs:listdir', async (event, options) => {
+        ipcMain.handle('fs:selectLocalDir', async (event, options) => {
             try {
-                let client = this.manager.getClient('local',options);
-                let result = await client.readDir(options);
+                const result = await dialog.showOpenDialog({
+                    properties: ['openDirectory', 'createDirectory'],
+                    title: options.title || '请选择文件夹',
+                    buttonLabel: options.buttonLabel || '选择',
+                    message: options.message || '请选择要打开的文件夹',
+                    modal: true,
+                })
+
+                if (result.canceled) {
+                    return { canceled: true, data: [] }
+                }
+
+                const dirPath = result.filePaths[0];
+                // 读取文件夹内容
+                let client = this.manager.getClient('local', { path: dirPath });
+                let dirInfo = await client.stat(dirPath);
+                let files = await client.readdir(dirPath);
+                return {
+                    canceled: false,
+                    data: { dir: dirInfo, files: files }
+                }
+            } catch (error) {
+                console.error('选择文件夹失败:', error)
+                throw error
+            }
+        });
+        ipcMain.handle('fs:readdir', async (event, options) => {
+            try {
+                let client = this.manager.getClient('local', options);
+                let result = await client.readdir(options);
                 return {
                     success: true,
                     data: result,
@@ -67,7 +95,7 @@ class FileSystemHandler {
         ipcMain.handle('fs:delete', async (event, options) => {
             try {
                 const client = await this.manager.getClient('local', options);
-                await client.delete(options.targetPath, { recursive:options.recursive });
+                await client.delete(options.targetPath, { recursive: options.recursive });
                 return { success: true }
             } catch (error) {
                 return { success: false, error: error.message }
@@ -194,4 +222,4 @@ class FileSystemHandler {
     }
 }
 
-export default new FileSystemHandler()
+export default new LocalFileSystemHandler();

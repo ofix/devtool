@@ -1,4 +1,4 @@
-import BaseClient from '../BaseClient.js';
+import BaseClient from './BaseClient.js';
 
 /**
  * 文件系统协议基类

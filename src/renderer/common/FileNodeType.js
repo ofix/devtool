@@ -10,10 +10,10 @@ export const FileNodeType = Object.freeze({
     // 反向映射：数值 -> 名称（用于序列化/显示）
     getTypeName: function (type) {
         switch (type) {
-            case this.DIRECTORY: return 'directory';
+            case this.DIRECTORY: return 'dir';
             case this.FILE: return 'file';
             case this.SYMLINK: return 'symlink';
-            case this.COLLAPSE_DIR: return 'collapse';
+            case this.COLLAPSE_DIR: return 'collapse_dir';
             default: return 'unknown';
         }
     },

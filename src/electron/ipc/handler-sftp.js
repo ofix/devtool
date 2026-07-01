@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
-import mmFileManager from '../core/MMFileManager.js';
-import ClientManager from './service/ClientManager.js';
+import archiveFileManager from '../core/ArchiveFileManager.js';
+import ClientManager from '../service/ClientManager.js';
 
 class SFTPHandler {
     constructor() {
@@ -63,11 +63,11 @@ class SFTPHandler {
         });
 
         ipcMain.handle('sftp:loadRemoteFile', async (event, options) => {
-            return await mmFileManager.loadFileContents(options);
+            return await archiveFileManager.loadFileContents(options);
         });
 
         ipcMain.handle('sftp:saveRemoteFile', async (event, params) => {
-            return await mmFileManager.saveFileContents(params);
+            return await archiveFileManager.saveFileContents(params);
         });
 
         ipcMain.on('sftp:upload-dir', async (event, options) => {

@@ -111,7 +111,12 @@ contextBridge.exposeInMainWorld('channel', {
     decompressGZ: (gzPath) => ipcRenderer.invoke('mmf:decompress-gz', gzPath),
     clear: () => ipcRenderer.invoke('mmf:clear'),
     // 本地文件树操作
-    loadDirectory:(options) =>ipcRenderer.invoke('fs:readDirectory',options),
+    // 打开本地文件夹
+    selectLocalDir: (options) => ipcRenderer.invoke('fs:selectLocalDir', options),
+    // 读取本地文件夹
+    readLocalDir: (options) => ipcRenderer.invoke('fs:readdir', options),
+    // 读取文件内容
+    readLocalFile: (options) => ipcRenderer.invoke('fs:readFile', options),
 
 
     // 快捷键相关操作
@@ -174,6 +179,7 @@ contextBridge.exposeInMainWorld('channel', {
     selectFile: (side) => ipcRenderer.invoke('select-file', side),
     readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
     diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines),
+    // 选择文件夹
     selectFolder: () => ipcRenderer.invoke('select-folder'),
     loadFolder: (dirPath) => ipcRenderer.invoke('load-folder', dirPath),
     diffFolder: (folderA, folderB) => ipcRenderer.invoke('diff-folder', folderA, folderB),
