@@ -6,21 +6,23 @@ export const FileNodeType = Object.freeze({
     FILE: 1 << 1,      // 2
     SYMLINK: 1 << 2,   // 4
     COLLAPSE_DIR: 1 << 3,  // 8
+    OTHER: 1 <<4, // 其他类型
 
     // 反向映射：数值 -> 名称（用于序列化/显示）
     getTypeName: function (type) {
         switch (type) {
-            case this.DIRECTORY: return 'directory';
+            case this.DIRECTORY: return 'dir';
             case this.FILE: return 'file';
             case this.SYMLINK: return 'symlink';
             case this.COLLAPSE_DIR: return 'collapse';
-            default: return 'unknown';
+            case this.OTHER: return 'other';
+            default: return 'other';
         }
     },
 
     // 验证是否为有效枚举值
     isValid: function (type) {
-        return [this.DIRECTORY, this.FILE, this.SYMLINK, this.COLLAPSE_DIR].includes(type);
+        return [this.DIRECTORY, this.FILE, this.SYMLINK, this.COLLAPSE_DIR,this.OTHER].includes(type);
     }
 });
 

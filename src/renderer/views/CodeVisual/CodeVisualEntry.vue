@@ -26,7 +26,7 @@
 
 <script setup>
 import CodeVisualFileTree from "@/views/CodeVisual/CodeVisualFileTree.vue";
-import CodeEditor from "@/views/DebugTool/CodeEditor.vue";
+import CodeEditor from "./LocalCodeEditor.vue";
 import LinkEditor from "./LinkEditor.vue";
 </script>
 

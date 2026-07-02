@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import BaseFsClient from "../base/BaseFsClient.js";
+import { FileNodeType } from '../../core/FileNodeType.js';
 
 class LocalClient extends BaseFsClient {
     constructor(options = {}) {
@@ -143,9 +144,9 @@ class LocalClient extends BaseFsClient {
      * 获取文件类型
      */
     _getFileType(entry, stats) {
-        if (entry.isDirectory()) return 'dir';
-        if (entry.isFile()) return 'file';
-        return 'other';
+        if (entry.isDirectory()) return FileNodeType.DIRECTORY;
+        if (entry.isFile()) return FileNodeType.FILE;
+        return FileNodeType.OTHER;
     }
 
     async readFile(filePath, encoding = 'utf-8') {

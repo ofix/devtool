@@ -166,32 +166,9 @@ class FileTreeNode {
      * @throws {Error} 如果当前节点不是目录
      */
     addChild(childNode, sortConfig) {
-        if (!this.isDirectory() && !this.isCollapseDir()) {
-            throw new Error(`Cannot add child to non-directory node: ${this.name} (type: ${this.getTypeName()})`);
-        }
-
-        if (!(childNode instanceof FileTreeNode)) {
-            throw new Error('Child node must be an instance of FileTreeNode');
-        }
-
-        childNode.parent = this;
-
-        // 如果启用排序，找到插入位置并插入（插入排序）
-        if (sortConfig?.enabled) {
-            const insertIndex = this.findInsertIndex(childNode, sortConfig);
-            this.children.splice(insertIndex, 0, childNode);
-        } else {
-            // 不排序，直接追加到末尾
-            this.children.push(childNode);
-        }
-
-        if (childNode.isDirectory() && this.children.length == 1) {
-            this.type = FileNodeType.COLLAPSE_DIR;
-        }
-
-        if (childNode.isCollapseDir() && this.children.length > 1) {
-            this.type = FileNodeType.DIRECTORY;
-        }
+        // childNode.parent = this;
+        // 不排序，直接追加到末尾
+        this.children.push(childNode);
     }
 
 
@@ -309,21 +286,20 @@ class FileTreeNode {
     /**
      * 序列化节点
      * @param {boolean} recursive  - 是否递归序列化children（true=递归，false=仅当前节点）
-     * @param {boolean} simple     - 精简模式，只序列化部分字段，默认为true
      * @param {boolean} collapseDirectory - 是否折叠目录
      * @returns {Object} 序列化结果
      */
-    toJSON(recursive = true, simple = true, collapseDirectory = true) {
-        const nodeJson = this.getNodeJson(this, simple);
+    toJSON(recursive = true, collapseDirectory = true) {
+        const nodeJson = this.getNodeJson(this);
         if (!recursive) return nodeJson;
 
         // 深度优先遍历
         const stack = [[nodeJson, this.children]];
         while (stack.length > 0) {
             const [current, children] = stack.pop();
+            console.log(current, children.length);
             if (collapseDirectory && children.length == 1 && children[0].type == FileNodeType.DIRECTORY) {
                 const child = children[0];
-                const childJson = this.getNodeJson(child, simple);
                 current.type = FileNodeType.COLLAPSE_DIR;
                 current.path = child.path;
                 (current.collapsePath ??= []).push({
@@ -335,7 +311,7 @@ class FileTreeNode {
             } else {
                 for (let i = 0; i < children.length; i++) {
                     const child = children[i];
-                    const childJson = this.getNodeJson(child, simple);
+                    const childJson = this.getNodeJson(child);
                     current.children.push(childJson);
 
                     if (child.type === FileNodeType.DIRECTORY) {
@@ -361,6 +337,7 @@ class FileTreeNode {
         result.size = node.size;
         result.path = node.path;
         result.ext = this.extname(node.path);
+        result.loaded = node?.loaded ?? false;
         // 区分目录/文件的children处理
         result.children = node.type === FileNodeType.DIRECTORY
             ? (node.children.length === 0 ? [''] : [])  // 空目录懒加载占位

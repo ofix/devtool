@@ -22,7 +22,7 @@
     :props="treeProps"
     :expand-on-click-node="true"
     :highlight-current="true"
-    :default-expanded-keys="[]"
+    :default-expanded-keys="expandedKeys"
     :height="treeHeight"
     node-key="path"
     @node-click="onTreeNodeClick"
@@ -168,7 +168,8 @@ import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
 import { FileNodeType } from "@/common/FileNodeType.js";
 import FileTree from "@/common/FileTree.js";
-import { useEditorStore } from "@/stores/StoreEditor.js";
+import { useLocalEditorStore } from "@/stores/StoreLocalEditor.js";
+import { storeToRefs } from "pinia";
 
 // 自定义树节点图标
 import IconFileHtml from "@/icons/IconFileHtml.vue";
@@ -191,14 +192,16 @@ import IconImage from "@/icons/IconImage.vue";
 import IconFile from "@/icons/IconFile.vue";
 import IconZip from "@/icons/IconZip.vue";
 
-const editorStore = useEditorStore();
+const editorStore = useLocalEditorStore();
 
 // --------------------- 编辑器方法 ---------------------
-const { openFile, isFileOpened } = editorStore;
+const { openFile, switchActiveFile, isFileOpened } = editorStore;
+const { activeFileId } = storeToRefs(editorStore);
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
 const fileTree = shallowRef([]); // 必须是数组可迭代
 const treeDataReady = ref(false); // 数据是否加载完成
+const expandedKeys = ref([]); // 默认展开的节点
 let rawFileTree = null;
 
 const treeProps = readonly({
@@ -226,6 +229,11 @@ const handleResize = () => {
 onMounted(() => {
   document.addEventListener("keydown", handleKeyDown);
   window.addEventListener("resize", handleResize);
+  let project = localStorage.getItem("project");
+  if (project) {
+    let dirInfo = JSON.parse(project);
+    openProject(dirInfo);
+  }
 });
 
 onUnmounted(() => {
@@ -233,6 +241,26 @@ onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
   closeMenu();
 });
+
+watch(
+  () => activeFileId.value,
+  (newFileId) => {
+    if (fileTreeRef.value) {
+      let currentKey = fileTreeRef.value.getCurrentKey();
+      console.log(currentKey, newFileId);
+      if (newFileId != currentKey) {
+        nextTick(() => {
+          fileTreeRef.value.setCurrentKey(newFileId);
+          let currentNode = fileTreeRef.value.getCurrentNode();
+          if (currentNode) {
+            fileTreeRef.value.scrollToNode?.(currentNode, "center");
+          }
+        });
+      }
+    }
+  },
+  { immediate: true } // 立即执行一次，如果有初始值可以立刻选中
+);
 
 // 快捷键打开对话框
 function handleKeyDown(event) {
@@ -268,39 +296,49 @@ const openFolder = async (options = {}) => {
     if (result.canceled) {
       return;
     }
-    rawFileTree = new FileTree(result.data.dir);
-    rawFileTree.addChildren(result.data.dir.path, result.data.files);
-    let collapsedTree = rawFileTree.collapse();
-    console.log(collapsedTree);
-    // 数据准备好后，再标记 ready
-    treeDataReady.value = true;
-    // 等待 DOM 更新
-    await nextTick();
-    if (fileTreeRef.value) {
-      fileTreeRef.value.setData([collapsedTree]); // 初始化文件树的时候需要全量赋值
-    }
+    await openProject(result.data);
   } catch (error) {
     ElMessage.error(`打开文件夹失败: ${error.message}`);
     console.error(error);
   }
 };
 
+/**
+ * 初始化项目工程
+ */
+async function openProject(dirInfo) {
+  // 加载子目录数据
+  const result = await window.channel.readLocalDir({ path: dirInfo.path });
+  rawFileTree = new FileTree(dirInfo);
+  rawFileTree.addChildren(dirInfo.path, result.data);
+  let collapsedTree = rawFileTree.collapse();
+  expandedKeys.value.push(dirInfo.path);
+  // 数据准备好后，再标记 ready
+  treeDataReady.value = true;
+  // 等待 DOM 更新
+  await nextTick();
+  if (fileTreeRef.value) {
+    fileTreeRef.value.setData([collapsedTree]); // 初始化文件树的时候需要全量赋值
+    localStorage.setItem("project", JSON.stringify(dirInfo));
+  }
+}
+
 // 打开文件
 async function onTreeNodeClick(data, node) {
   if (
     data.type == FileNodeType.FILE ||
-    data.type == FileNodeType.FILE_SYMLINK ||
-    !data.loaded ||
-    !data.loading
+    data.type == FileNodeType.FILE_SYMLINK
   ) {
-    selectedNode.value = data;
-    const fileInfo = await window.channel.readLocalFile({
-      path: data.path,
-    });
-    openFile(fileInfo);
-  } else {
-    // 展开目录
-    node.isCollapsed ? node.expandNode() : node.collapseNode();
+    if (data.loaded) {
+      switchActiveFile(`${data.path}`);
+    } else {
+      selectedNode.value = data;
+      data.loaded = true;
+      const fileInfo = await window.channel.readLocalFile({
+        path: data.path,
+      });
+      openFile({ path: data.path, content: fileInfo.data });
+    }
   }
 }
 
@@ -316,9 +354,10 @@ async function onNodeExpand(data, node) {
 
   try {
     // 加载子目录数据
-    console.log(`增量加载本地目录 ${data.path}`);
-    const childData = await window.channel.readLocalDir({ path: data.path });
-    fileTreeRef.value.setData([childData]);
+    const result = await window.channel.readLocalDir({ path: data.path });
+    rawFileTree.addChildren(data.path, result.data);
+    let collapsedTree = rawFileTree.collapse();
+    fileTreeRef.value.setData([collapsedTree]);
   } catch (e) {
     console.error("加载子目录失败", e);
     if (!data.children) {

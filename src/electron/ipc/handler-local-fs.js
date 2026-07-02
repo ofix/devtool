@@ -26,17 +26,16 @@ class LocalFileSystemHandler {
                 })
 
                 if (result.canceled) {
-                    return { canceled: true, data: [] }
+                    return { canceled: true, data: "" }
                 }
 
                 const dirPath = result.filePaths[0];
                 // 读取文件夹内容
                 let client = this.manager.getClient('local', { path: dirPath });
                 let dirInfo = await client.stat(dirPath);
-                let files = await client.readdir(dirPath);
                 return {
                     canceled: false,
-                    data: { dir: dirInfo, files: files }
+                    data: dirInfo
                 }
             } catch (error) {
                 console.error('选择文件夹失败:', error)
@@ -46,11 +45,10 @@ class LocalFileSystemHandler {
         ipcMain.handle('fs:readdir', async (event, options) => {
             try {
                 let client = this.manager.getClient('local', options);
-                let result = await client.readdir(options);
+                let result = await client.readdir(options.path);
                 return {
                     success: true,
                     data: result,
-                    stats: result._stats
                 }
             } catch (error) {
                 console.error('加载目录失败:', error)
@@ -62,8 +60,8 @@ class LocalFileSystemHandler {
         ipcMain.handle('fs:readFile', async (event, options) => {
             try {
                 const client = await this.manager.getClient('local', options);
-                const content = await client.readFile(options.path, encoding)
-                return { success: true, content }
+                const content = await client.readFile(options.path)
+                return { success: true, data: content }
             } catch (error) {
                 return { success: false, error: error.message }
             }

@@ -199,7 +199,6 @@ class FileTree {
                 name: part,
                 path: nextPath,
                 type: FileNodeType.DIRECTORY,
-                mode: "drwxr-xr-x",
                 size: 0,
                 mtime: new Date().toLocaleString()
             });
@@ -223,10 +222,9 @@ class FileTree {
      * 为指定父节点挂载子节点（纯节点查找，无dirMap）
      * @param {string} parentNodePath - 父节点完整路径（如 /usr/local）
      * @param {Array<Object>} children - SSH2 ls 返回的子项列表
-     * @param {boolean} [markSynced=true] - 是否标记为已同步
      * @returns {boolean} 挂载是否成功
      */
-    addChildren(parentNodePath, children, markSynced = true) {
+    addChildren(parentNodePath, children) {
         const normalizedParentPath = parentNodePath.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
         let parentNode = this.findNodeByPath(normalizedParentPath);
 
@@ -264,12 +262,9 @@ class FileTree {
                 name: child.name,
                 path: childFullPath,
                 type: child.type,
-                mode: child.mode || (child.type === FileNodeType.DIRECTORY ? "drwxr-xr-x" : "-rw-r--r--"),
                 size: child.size || 0,
+                loaded: false,
                 mtime: child.mtime || new Date().toLocaleString(),
-                owner: child.owner || "",
-                group: child.group || "",
-                symlinkTarget: child.symlinkTarget || ""
             };
 
             // 创建并挂载子节点
@@ -281,10 +276,7 @@ class FileTree {
                 this.updatePathCache(childFullPath, childNode);
             }
         });
-
-        if (markSynced) {
-            this.setDirSyncStatus(normalizedParentPath, true);
-        }
+        parentNode.loaded = true; // 更新父节点已加载状态
 
         // 启用排序则排序子节点
         if (this.sortConfig.enabled) {
@@ -319,9 +311,6 @@ class FileTree {
                 path: file.path,
                 type: FileNodeType.FILE,
                 size: file.size,
-                mode: file.mode,
-                uid: file.uid,
-                gid: file.gid,
                 mtime: file.mtime || new Date().toLocaleString()
             });
 
@@ -533,7 +522,8 @@ class FileTree {
      * @returns {Object} 折叠后的树
      */
     collapse() {
-       return this.toJson();
+    //    return this.toJson();
+      return this.collapseNode(this.root);
     }
 
     /**
@@ -551,13 +541,9 @@ class FileTree {
         // 确保 children 存在
         const children = node.children || [];
 
-        // 分离目录和文件
-        const dirChildren = children.filter(c => c.type === FileNodeType.DIRECTORY);
-        const fileChildren = children.filter(c => c.type === FileNodeType.FILE);
-
         // 单子目录（需要折叠）
-        if (dirChildren.length === 1 && fileChildren.length === 0) {
-            const child = dirChildren[0];
+        if (children.length === 1 && children[0].type === FileNodeType.DIRECTORY) {
+            const child = children[0];
             const currentChain = [...segmentChain, node];
 
             // 递归处理子节点
@@ -573,6 +559,8 @@ class FileTree {
                     name: n.name,
                     path: n.path
                 })),
+                loaded: node.loaded,
+                size: node.size,
                 // 折叠后的子节点
                 children: foldedChild.children || [],
             };
@@ -583,6 +571,10 @@ class FileTree {
         const processedChildren = children.map(child => {
             if (child.type === FileNodeType.DIRECTORY) {
                 // 重置 segmentChain（开始新的折叠链）
+                if(child.children.length == 0){
+                    child.children.push('');
+                    return child;
+                }
                 return this.collapseNode(child, []);
             }
             return child;
