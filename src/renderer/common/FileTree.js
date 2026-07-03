@@ -371,6 +371,10 @@ class FileTree {
         return parentNode.children.filter(node => node.path !== this.currentRoot.path);
     }
 
+    getRoot(){
+        return this.root;
+    }
+
     /**
      * 更新排序配置并触发全树递归排序
      * @param {Object} [newConfig] - 新的排序配置

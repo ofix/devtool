@@ -10,10 +10,10 @@
           active: file.id === editorStore.activeFileId,
           dirty: file.isDirty,
         }"
-        @click="handleTabClick(file.id)"
+        @click="onTabClick(file.id)"
       >
         <span>{{ file.filename }}</span>
-        <span class="close-btn" @click.stop="handleCloseFile(file.id)">×</span>
+        <span class="close-btn" @click.stop="onCloseFile(file.id)">×</span>
       </div>
     </div>
 
@@ -32,7 +32,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick, markRaw } from "vue";
 import { useLocalEditorStore } from "@/stores/StoreLocalEditor.js";
-import { useFileStore } from "@/stores/StoreFile.js";
 import * as monaco from "monaco-editor";
 
 // 防抖函数
@@ -56,14 +55,28 @@ const throttle = (fn, delay) => {
   };
 };
 
-const fileStore = useFileStore();
 const editorStore = useLocalEditorStore();
 // 标记Monaco为原始对象，避免Vue响应式劫持导致卡顿
 editorStore.setMonacoInstance(markRaw(monaco));
 
 const editorContainer = ref(null);
-let editor = null;
 const isLoading = ref(false);
+let editor = null;
+let editorResizeObserver = null; // 新增
+
+// 绑定容器Resize监听
+function bindEditorResizeObserver() {
+  if (editorResizeObserver) {
+    editorResizeObserver.disconnect();
+    editorResizeObserver = null;
+  }
+  const dom = editorContainer.value;
+  if (!dom) return;
+  editorResizeObserver = new ResizeObserver(() => {
+    onResize();
+  });
+  editorResizeObserver.observe(dom);
+}
 
 // 异步切换Model的防抖方法
 const switchEditorModel = debounce(async (newFileId) => {
@@ -71,6 +84,11 @@ const switchEditorModel = debounce(async (newFileId) => {
     if (editor) {
       editor.dispose();
       editor = null;
+    }
+    // 销毁监听
+    if (editorResizeObserver) {
+      editorResizeObserver.disconnect();
+      editorResizeObserver = null;
     }
     isLoading.value = false;
     return;
@@ -110,6 +128,8 @@ const switchEditorModel = debounce(async (newFileId) => {
         hideCursorInOverviewRuler: true,
         overviewRulerLanes: 0,
       });
+      // 创建编辑器后绑定尺寸监听
+      bindEditorResizeObserver();
     }
 
     // 异步创建Model（避免同步阻塞）
@@ -134,12 +154,12 @@ const unwatchActiveFile = watch(
   { immediate: true, flush: "post", deep: false }
 );
 
-const handleResize = throttle(() => {
+const onResize = throttle(() => {
   if (editor) editor.layout();
 }, 200); // 200ms节流
 
 // 切换标签页,防抖处理
-const handleTabClick = (fileId) => {
+const onTabClick = (fileId) => {
   if (!fileId) return;
   clearTimeout(window.tabClickTimer);
   window.tabClickTimer = setTimeout(() => {
@@ -148,7 +168,7 @@ const handleTabClick = (fileId) => {
 };
 
 // 关闭文件
-const handleCloseFile = (fileId) => {
+const onCloseFile = (fileId) => {
   if (!fileId) return;
   const success = editorStore.closeFile(
     fileId,
@@ -160,28 +180,24 @@ const handleCloseFile = (fileId) => {
   }
 };
 
-/**
- * 保存当前文件
- */
+// 保存当前文件
 const handleSaveFile = async () => {
   const activeFile = editorStore.activeFile;
   if (!activeFile) return;
 
   try {
     // 从编辑器获取最新内容
-    let params = {
-      path: activeFile.path,
-      content: editor?.getValue() ?? activeFile.content,
-    };
-    await fileStore.saveContents(params);
+    await editorStore.saveFile(
+      activeFile.path,
+      editor?.getValue() ?? activeFile.content
+    );
   } catch (error) {
     console.error("保存异常:", error);
   }
 };
 
-// ========== 键盘快捷键：Ctrl+S ==========
-
-const handleKeyDown = (event) => {
+// 键盘快捷键：Ctrl+S
+const  onKeyDown= (event) => {
   // Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
   if ((event.ctrlKey || event.metaKey) && event.key === "s") {
     event.preventDefault();
@@ -190,15 +206,20 @@ const handleKeyDown = (event) => {
 };
 
 onMounted(() => {
-  window.addEventListener("resize", handleResize);
-  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("resize", onResize);
+  window.addEventListener("keydown", onKeyDown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
-  window.removeEventListener("keydown", handleKeyDown);
+  window.removeEventListener("resize", onResize);
+  window.removeEventListener("keydown", onKeyDown);
   clearTimeout(window.tabClickTimer);
   unwatchActiveFile();
+  // 销毁容器尺寸变化监听器
+  if (editorResizeObserver) {
+    editorResizeObserver.disconnect();
+    editorResizeObserver = null;
+  }
   if (editor) {
     editor.dispose();
     editor = null;
@@ -273,9 +294,8 @@ onUnmounted(() => {
   flex: 1;
   background: #1e1e1e;
   min-height: 170px;
-  /* 关键：强制容器渲染 */
-  display: block !important;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 /* 加载状态样式 */

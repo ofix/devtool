@@ -48,6 +48,18 @@ export const useLocalEditorStore = defineStore('editor', () => {
         };
     });
 
+    const dirtyFiles = computed(() => {
+        const dirtyFiles = openFiles.value.filter(f => f.isDirty);
+        const map = new Map();
+
+        for (const file of dirtyFiles) {
+            file.content = file.model ? file.model.getValue() : '';
+            map.set(file.id, file.content);
+        }
+
+        return map;
+    })
+
     const setMonacoInstance = (monaco) => {
         monacoInstance.value = monaco;
     };
@@ -174,6 +186,7 @@ export const useLocalEditorStore = defineStore('editor', () => {
         openFiles,
         activeFileId,
         activeFile,
+        dirtyFiles,
         isFileOpened,
         createModelAsync,
         setMonacoInstance,

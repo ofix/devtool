@@ -117,7 +117,10 @@ contextBridge.exposeInMainWorld('channel', {
     readLocalDir: (options) => ipcRenderer.invoke('fs:readdir', options),
     // 读取文件内容
     readLocalFile: (options) => ipcRenderer.invoke('fs:readFile', options),
-
+    // 恢复代码工程
+    restoreProject: (options) => ipcRenderer.invoke('fs:restoreProject', options),
+    // 保存代码工程
+    saveProject: (options) => ipcRenderer.invoke('fs:saveProject', options),
 
     // 快捷键相关操作
     registerShortcut: (accelerator, handlerName) => ipcRenderer.invoke('shortcut:register', accelerator, handlerName),

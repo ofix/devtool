@@ -3,12 +3,7 @@
   <div v-if="!treeDataReady" class="empty-tree-state">
     <div class="empty-content">
       <el-empty description="暂无文件夹">
-        <el-button
-          type="primary"
-          size="large"
-          :icon="Plus"
-          @click="selectFolder"
-        >
+        <el-button type="primary" size="large" @click="selectFolder">
           添加文件夹
         </el-button>
       </el-empty>
@@ -22,11 +17,12 @@
     :props="treeProps"
     :expand-on-click-node="true"
     :highlight-current="true"
-    :default-expanded-keys="expandedKeys"
+    :default-expanded-keys="fileTreeInitExpandedKeys"
     :height="treeHeight"
     node-key="path"
     @node-click="onTreeNodeClick"
     @node-expand="onNodeExpand"
+    @node-collapse="onNodeCollapse"
     @node-contextmenu="handleRightClick"
     class="dt-file-tree"
   >
@@ -162,6 +158,7 @@ import {
   nextTick,
   shallowRef,
   onMounted,
+  onBeforeUnmount,
   onUnmounted,
 } from "vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
@@ -194,14 +191,15 @@ import IconZip from "@/icons/IconZip.vue";
 
 const editorStore = useLocalEditorStore();
 
-// --------------------- 编辑器方法 ---------------------
+// ------- 编辑器方法 -------
 const { openFile, switchActiveFile, isFileOpened } = editorStore;
-const { activeFileId } = storeToRefs(editorStore);
-// --------------------- 树组件核心状态 ---------------------
+const { activeFileId, openFiles, dirtyFiles } = storeToRefs(editorStore);
+// ------- 树组件核心状态 -------
 const fileTreeRef = ref(null);
 const fileTree = shallowRef([]); // 必须是数组可迭代
 const treeDataReady = ref(false); // 数据是否加载完成
-const expandedKeys = ref([]); // 默认展开的节点
+const fileTreeInitExpandedKeys = ref([]); // 初始化文件树展开节点
+const fileTreeExpandedKeys = ref(new Set()); // 跟踪的文件树展开节点
 let rawFileTree = null;
 
 const treeProps = readonly({
@@ -221,7 +219,7 @@ const emit = defineEmits([
   "fileOpened", // 文件打开事件
 ]);
 
-// -------------- 窗口大小监听 -------------------
+//  窗口大小监听 -----
 const handleResize = () => {
   treeHeight.value = window.innerHeight - 34;
 };
@@ -229,11 +227,91 @@ const handleResize = () => {
 onMounted(() => {
   document.addEventListener("keydown", handleKeyDown);
   window.addEventListener("resize", handleResize);
+  restoreProject();
+});
+
+// 快速恢复上次打开的工程
+async function restoreProject() {
   let project = localStorage.getItem("project");
-  if (project) {
-    let dirInfo = JSON.parse(project);
-    openProject(dirInfo);
+  if (!project) {
+    return;
   }
+  let dirInfo = JSON.parse(project);
+  if (!dirInfo) {
+    return;
+  }
+
+  // 从主进程获取缓存的工程信息
+  let workspace = await window.channel.restoreProject(dirInfo.path);
+  let { openFiles, dirtyFiles, expandedKeys, activeFile, expandedDirs } =
+    workspace;
+
+  if (activeFile == "") {
+    return;
+  }
+
+  // 恢复上次展开的文件树
+  rawFileTree = new FileTree(dirInfo);
+  for (const expandedDir of expandedDirs) {
+    rawFileTree.addChildren(expandedDir.dir, expandedDir.files);
+  }
+  // 折叠单子目录
+  let collapsedTree = rawFileTree.collapse();
+  // 设置文件树树展开目录节点
+  fileTreeInitExpandedKeys.value = expandedKeys;
+  for (const key of expandedKeys) {
+    fileTreeExpandedKeys.value.add(key);
+  }
+  // 等待 DOM 更新
+  treeDataReady.value = true;
+  await nextTick();
+  if (fileTreeRef.value) {
+    fileTreeRef.value.setData([collapsedTree]); // 初始化文件树的时候需要全量赋值
+  }
+  // 批量打开文件
+  for (let i = 0; i < openFiles.length; i++) {
+    if (!dirtyFiles.has(openFiles[i])) {
+      const fileInfo = await window.channel.readLocalFile({
+        path: openFiles[i],
+      });
+      openFile({ path: openFiles[i], content: fileInfo.data });
+    } else {
+      openFile({ path: openFiles[i], content: dirtyFiles.get(openFiles[i]) });
+    }
+  }
+  // 切换当前活动文件
+  switchActiveFile(activeFile);
+}
+
+// 保存工程信息
+async function saveProject() {
+  if (!fileTreeRef.value) {
+    return;
+  }
+  if (!rawFileTree) {
+    return;
+  }
+  let project = {
+    rootPath: "",
+    openFiles: [], // 已经打开的文件
+    activeFile: "", // 当前高亮选中文件路径
+    dirtyFiles: new Map(),
+    expandedKeys: [],
+  };
+
+  project.rootPath = rawFileTree.getRoot().path;
+  for (let oFile of openFiles.value) {
+    project.openFiles.push(oFile.path);
+  }
+  project.activeFile = activeFileId.value;
+  project.dirtyFiles = dirtyFiles.value;
+  project.expandedKeys = Array.from(fileTreeExpandedKeys.value);
+  await window.channel.saveProject(project);
+}
+
+onBeforeUnmount(() => {
+  // 获取打开的文件和当前激活的文件
+  saveProject();
 });
 
 onUnmounted(() => {
@@ -247,7 +325,6 @@ watch(
   (newFileId) => {
     if (fileTreeRef.value) {
       let currentKey = fileTreeRef.value.getCurrentKey();
-      console.log(currentKey, newFileId);
       if (newFileId != currentKey) {
         nextTick(() => {
           fileTreeRef.value.setCurrentKey(newFileId);
@@ -312,7 +389,7 @@ async function openProject(dirInfo) {
   rawFileTree = new FileTree(dirInfo);
   rawFileTree.addChildren(dirInfo.path, result.data);
   let collapsedTree = rawFileTree.collapse();
-  expandedKeys.value.push(dirInfo.path);
+  fileTreeInitExpandedKeys.value.push(dirInfo.path);
   // 数据准备好后，再标记 ready
   treeDataReady.value = true;
   // 等待 DOM 更新
@@ -320,6 +397,7 @@ async function openProject(dirInfo) {
   if (fileTreeRef.value) {
     fileTreeRef.value.setData([collapsedTree]); // 初始化文件树的时候需要全量赋值
     localStorage.setItem("project", JSON.stringify(dirInfo));
+    fileTreeExpandedKeys.value.add(dirInfo.path);
   }
 }
 
@@ -344,6 +422,10 @@ async function onTreeNodeClick(data, node) {
 
 // 文件树节点展开响应函数
 async function onNodeExpand(data, node) {
+  if (data.type == FileNodeType.DIRECTORY) {
+    fileTreeExpandedKeys.value.add(node.key);
+  }
+
   if (
     data.type == FileNodeType.FILE ||
     data.type == FileNodeType.FILE_SYMLINK ||
@@ -367,6 +449,10 @@ async function onNodeExpand(data, node) {
   }
 }
 
+async function onNodeCollapse(data, node) {
+  fileTreeExpandedKeys.value.delete(node.key);
+}
+
 // 折叠所有目录
 function handleCollapseDir() {
   if (fileTreeRef.value) {
@@ -374,7 +460,7 @@ function handleCollapseDir() {
   }
 }
 
-// -------------- 右键菜单核心状态 ----------------
+// 右键菜单核心状态
 const showContextMenu = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
@@ -393,7 +479,6 @@ function onClickMultiPath(data, pathSegment, index) {}
 function onContextMenuMultiPath(e, data) {
   e.preventDefault();
   e.stopPropagation();
-  console.log(e, data);
 }
 
 // 打开右键菜单
@@ -432,6 +517,41 @@ function closeMenu() {
   showContextMenu.value = false;
   document.removeEventListener("click", clickOutsideHandler);
   document.removeEventListener("keydown", escHandler);
+}
+
+// 顶部按钮：添加文件/目录（默认在根目录创建）
+function handleAddFile() {
+  // 选中根目录（若存在）
+  if (fileTree.value.length > 0) {
+    selectedNode.value = fileTree.value[0];
+  } else {
+    // 无根目录时创建根目录
+    const rootDir = {
+      name: "/",
+      path: "/",
+      type: FileNodeType.DIRECTORY,
+      children: [],
+    };
+    fileTree.value.push(rootDir);
+    selectedNode.value = rootDir;
+  }
+  handleNewFile();
+}
+
+function handleAddDir() {
+  if (fileTree.value.length > 0) {
+    selectedNode.value = fileTree.value[0];
+  } else {
+    const rootDir = {
+      name: "/",
+      path: "/",
+      type: FileNodeType.DIRECTORY,
+      children: [],
+    };
+    fileTree.value.push(rootDir);
+    selectedNode.value = rootDir;
+  }
+  handleNewFolder();
 }
 
 // 新建文件夹
@@ -638,41 +758,6 @@ function handleEditBlur(data) {
 
   cancelEdit();
   ElMessage.success("重命名成功");
-}
-
-// 顶部按钮：添加文件/目录（默认在根目录创建）
-function handleAddFile() {
-  // 选中根目录（若存在）
-  if (fileTree.value.length > 0) {
-    selectedNode.value = fileTree.value[0];
-  } else {
-    // 无根目录时创建根目录
-    const rootDir = {
-      name: "/",
-      path: "/",
-      type: FileNodeType.DIRECTORY,
-      children: [],
-    };
-    fileTree.value.push(rootDir);
-    selectedNode.value = rootDir;
-  }
-  handleNewFile();
-}
-
-function handleAddDir() {
-  if (fileTree.value.length > 0) {
-    selectedNode.value = fileTree.value[0];
-  } else {
-    const rootDir = {
-      name: "/",
-      path: "/",
-      type: FileNodeType.DIRECTORY,
-      children: [],
-    };
-    fileTree.value.push(rootDir);
-    selectedNode.value = rootDir;
-  }
-  handleNewFolder();
 }
 </script>
 

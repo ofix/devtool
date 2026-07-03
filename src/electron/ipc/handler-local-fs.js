@@ -1,5 +1,6 @@
 import { ipcMain, dialog, app } from 'electron'
 import ClientManager from "../service/ClientManager.js"
+import CodeProjectService from '../service/CodeProjectService.js';
 
 export const DRIVER_TYPE = Object.freeze({
     LOCAL: 'local',
@@ -11,10 +12,17 @@ class LocalFileSystemHandler {
     constructor() {
         // 存储每个窗口的驱动实例
         this.manager = ClientManager.getInstance();
+        this.projectService = CodeProjectService.getInstance();
         this.registerHandlers()
     }
 
     registerHandlers() {
+        ipcMain.handle('fs:restoreProject', async (event, options) => {
+            return this.projectService.restoreProject(options);
+        });
+        ipcMain.handle('fs:saveProject', async (evet, options) => {
+            return this.projectService.saveProject(options);
+        });
         ipcMain.handle('fs:selectLocalDir', async (event, options) => {
             try {
                 const result = await dialog.showOpenDialog({

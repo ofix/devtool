@@ -18,6 +18,38 @@ class LocalClient extends BaseFsClient {
     }
 
     /**
+     * 读取多个目录
+     */
+    async readdirs(dirPaths, options = {}) {
+        const { concurrency = 5, ...readOptions } = options;
+        const results = [];
+
+        // 分批处理，控制并发数
+        for (let i = 0; i < dirPaths.length; i += concurrency) {
+            const batch = dirPaths.slice(i, i + concurrency);
+            const batchResults = await Promise.allSettled(
+                batch.map(async (dir) => {
+                    const files = await this.readdir(dir, readOptions);
+                    return { dir, files };
+                })
+            );
+
+            results.push(...batchResults);
+        }
+
+        // 处理结果
+        return dirPaths.map((dirPath, index) => {
+            const result = results[index];
+            if (result.status === 'fulfilled') {
+                return result.value;
+            }
+            return {
+                dir: dirPath,
+                files: [],
+            };
+        });
+    }
+    /**
      * 读取目录内容
      */
     async readdir(dirPath, options = {}) {

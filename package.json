@@ -50,7 +50,7 @@
         "electron-squirrel-startup": "^1.0.1",
         "electron-store": "^11.0.2",
         "element-plus": "^2.11.8",
-        "fs-extra": "^11.3.4",
+        "fs-extra": "^11.3.6",
         "glob": "^13.0.6",
         "iconv-lite": "^0.7.2",
         "js-yaml": "^4.1.1",
