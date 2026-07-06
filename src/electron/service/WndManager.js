@@ -231,7 +231,7 @@ class WndManager extends Singleton {
             browserWindow: {
                 x: 0, y: 0, width: 1240, height: 960,
                 alwaysOnTop: false, transparent: false,
-                frame: true, // 显示窗口边框+标题栏（默认 true）
+                frame: false, // 显示窗口边框+标题栏（默认 true）
                 resizable: true,
                 titleBarStyle: 'default', // 完整原生
                 show: true, // 初始隐藏

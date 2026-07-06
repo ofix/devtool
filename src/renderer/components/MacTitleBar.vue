@@ -43,7 +43,12 @@
     </div>
 
     <!-- 右侧空白区域（模拟原生标题栏） -->
-    <div class="titlebar-right"></div>
+    <div class="titlebar-right">
+      <!-- ⭐ 自定义按钮插槽（在原生控件左侧） -->
+      <div class="custom-controls">
+        <slot name="custom-controls"></slot>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -217,6 +222,13 @@ onMounted(() => {
 .titlebar-right {
   width: 120px;
   -webkit-app-region: no-drag; /* 右侧区域取消拖拽，匹配原生 */
+}
+
+/* 自定义按钮容器 */
+.custom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* 深色模式适配 - 精确匹配macOS深色模式 */

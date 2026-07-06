@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <!-- 关键：添加loading状态 + 强制渲染容器 -->
+    <!-- 添加loading状态 + 强制渲染容器 -->
     <div
       ref="editorContainer"
       class="editor-content"
@@ -33,6 +33,18 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, markRaw } from "vue";
 import { useLocalEditorStore } from "@/stores/StoreLocalEditor.js";
 import * as monaco from "monaco-editor";
+import { useTheme } from "@/theme/ThemeManager.js";
+const { theme, toggleTheme } = useTheme();
+
+const editorStore = useLocalEditorStore();
+// 标记Monaco为原始对象，避免Vue响应式劫持导致卡顿
+editorStore.setMonacoInstance(markRaw(monaco));
+
+const editorContainer = ref(null);
+const isLoading = ref(false);
+let editor = null;
+let editorResizeObserver = null;
+let stopThemeWatch = null; // 应用主题监听
 
 // 防抖函数
 const debounce = (fn, delay) => {
@@ -54,15 +66,6 @@ const throttle = (fn, delay) => {
     }
   };
 };
-
-const editorStore = useLocalEditorStore();
-// 标记Monaco为原始对象，避免Vue响应式劫持导致卡顿
-editorStore.setMonacoInstance(markRaw(monaco));
-
-const editorContainer = ref(null);
-const isLoading = ref(false);
-let editor = null;
-let editorResizeObserver = null; // 新增
 
 // 绑定容器Resize监听
 function bindEditorResizeObserver() {
@@ -104,7 +107,7 @@ const switchEditorModel = debounce(async (newFileId) => {
   try {
     if (!editor) {
       editor = monaco.editor.create(editorContainer.value, {
-        theme: "vs-light",
+        theme: theme.value === "dark" ? "vs-dark" : "vs",
         minimap: {
           enabled: true, // 启用迷你地图
           position: "right", // 位置（right/bottom）
@@ -130,6 +133,8 @@ const switchEditorModel = debounce(async (newFileId) => {
       });
       // 创建编辑器后绑定尺寸监听
       bindEditorResizeObserver();
+      // 编辑器创建完成同步一次主题
+      syncEditorTheme(theme.value);
     }
 
     // 异步创建Model（避免同步阻塞）
@@ -154,9 +159,23 @@ const unwatchActiveFile = watch(
   { immediate: true, flush: "post", deep: false }
 );
 
+stopThemeWatch = watch(theme, (newThemeVal) => {
+  syncEditorTheme(newThemeVal);
+});
+
 const onResize = throttle(() => {
   if (editor) editor.layout();
 }, 200); // 200ms节流
+
+// 同步monaco主题
+const syncEditorTheme = (appTheme) => {
+  if (!editor) return;
+  const monacoTheme = appTheme === "dark" ? "vs-dark" : "vs";
+  // 全局设置主题，会重新Token染色、更新所有编辑器实例高亮
+  monaco.editor.setTheme(monacoTheme);
+  // 同步更新当前editor配置，兜底UI面板（可选）
+  editor.updateOptions({ theme: monacoTheme });
+};
 
 // 切换标签页,防抖处理
 const onTabClick = (fileId) => {
@@ -170,11 +189,16 @@ const onTabClick = (fileId) => {
 // 关闭文件
 const onCloseFile = (fileId) => {
   if (!fileId) return;
-  const success = editorStore.closeFile(
-    fileId,
-    confirm("文件可能未保存，确定关闭？")
-  );
-  if (success && editorStore.openFiles.length === 0 && editor) {
+  if (editorStore.isFileDirty(fileId)) {
+    const success = editorStore.closeFile(
+      fileId,
+      confirm("文件可能未保存，确定关闭？")
+    );
+    if (success) {
+      editorStore.saveFile(fileId);
+    }
+  }
+  if (editorStore.openFiles.length === 0 && editor) {
     editor.dispose();
     editor = null;
   }
@@ -197,7 +221,7 @@ const handleSaveFile = async () => {
 };
 
 // 键盘快捷键：Ctrl+S
-const  onKeyDown= (event) => {
+const onKeyDown = (event) => {
   // Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
   if ((event.ctrlKey || event.metaKey) && event.key === "s") {
     event.preventDefault();
@@ -223,6 +247,11 @@ onUnmounted(() => {
   if (editor) {
     editor.dispose();
     editor = null;
+  }
+  // 销毁主题监听，释放资源
+  if (stopThemeWatch) {
+    stopThemeWatch();
+    stopThemeWatch = null;
   }
   // 清理所有Model，避免内存泄漏
   monaco.editor.getModels().forEach((model) => {

@@ -1,8 +1,5 @@
 <template>
   <div class="canvas-wrap">
-    <div class="tool-bar">
-      <button @click="handleReset">重置画布缩放</button>
-    </div>
     <canvas
       ref="canvasRef"
       @dblclick="handleDblClick"

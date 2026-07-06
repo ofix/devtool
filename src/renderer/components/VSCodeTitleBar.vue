@@ -1,12 +1,23 @@
 <template>
   <div class="vscode-title-bar">
-    <span>
-      <el-icon style="margin: 4px 4px 4px 12px" size="28">
-        <RedfishIcon />
-      </el-icon>
-    </span>
+    <div class="title-bar-left">
+      <span>
+        <el-icon style="margin: 4px 4px 4px 12px" size="28">
+          <RedfishIcon />
+        </el-icon>
+      </span>
+      <!-- 自定义菜单 -->
+      <div class="app-menu">
+        <slot name="menu"></slot>
+      </div>
+    </div>
     <span class="title">{{ wndTitle }}</span>
     <div class="title-bar-controls">
+      <!-- 自定义按钮插槽 -->
+      <div class="custom-controls">
+        <slot name="custom-controls"></slot>
+      </div>
+
       <button
         @click="handleMinimize"
         id="minimize-box"
@@ -93,6 +104,19 @@ defineExpose({ isMaximized, titleBarHeight });
   -webkit-app-region: drag;
   /* 可拖拽区域 */
   user-select: none;
+  background: #f3f3f3;
+}
+
+.app-menu {
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-left{
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    gap:8px;
 }
 
 .title {
@@ -103,6 +127,17 @@ defineExpose({ isMaximized, titleBarHeight });
 
 .title-bar-controls {
   display: flex;
+  align-items: center; /* 必须设置垂直居中，否则 .title-bar-controls 和 .custom-controls 高度不一致的时候，会样式错乱，.control-btn 没有垂直居中 */
+}
+
+.custom-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  box-sizing: border-box;
+  gap: 6px;
+  margin-right: 4px;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-controls .control-btn {

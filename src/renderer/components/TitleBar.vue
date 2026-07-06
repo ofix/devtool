@@ -7,7 +7,16 @@
     @maximize="handleWindowMaximize"
     @restore="handleWindowRestore"
     v-if="platform == 'mac'"
-  />
+  >
+    <!-- 自定义菜单 -->
+    <template #menu>
+      <slot name="menu"></slot>
+    </template>
+    <!-- 传递自定义按钮插槽 -->
+    <template #custom-controls>
+      <slot name="custom-controls"></slot>
+    </template>
+  </MacTitleBar>
   <VSCodeTitleBar
     v-else
     :wndName="wndKey"
@@ -16,7 +25,16 @@
     @minimize="handleWindowMinimize"
     @maximize="handleWindowMaximize"
     @restore="handleWindowRestore"
-  />
+  >
+    <!-- 自定义菜单 -->
+    <template #menu>
+      <slot name="menu"></slot>
+    </template>
+    <!-- 传递自定义按钮插槽 -->
+    <template #custom-controls>
+      <slot name="custom-controls"></slot>
+    </template>
+  </VSCodeTitleBar>
 </template>
 
 <script setup>

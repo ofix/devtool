@@ -41,12 +41,14 @@ export const useLocalEditorStore = defineStore('editor', () => {
         return openFiles.value.find(file => file.id === activeFileId.value);
     });
 
-    const isFileOpened = computed(() => {
-        return (path) => {
-            const id = generateFileId(path);
-            return openFiles.value.some(file => file.id === id);
-        };
-    });
+    const isFileOpened = (path) => {
+        const id = generateFileId(path);
+        return openFiles.value.some(file => file.id === id);
+    };
+
+    const isFileDirty = (fileId) => {
+        return openFiles.value.some(file => file.id === fileId && file.isDirty)
+    }
 
     const dirtyFiles = computed(() => {
         const dirtyFiles = openFiles.value.filter(f => f.isDirty);
@@ -188,6 +190,7 @@ export const useLocalEditorStore = defineStore('editor', () => {
         activeFile,
         dirtyFiles,
         isFileOpened,
+        isFileDirty,
         createModelAsync,
         setMonacoInstance,
         openFile,

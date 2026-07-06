@@ -23,6 +23,8 @@ import IconCopy from "@/icons/IconCopy.vue";
 import IconVisualize from "@/icons/IconVisualize.vue";
 import IconDataSync from '@/icons/IconDataSync.vue';
 import IconCodeVisual from "@/icons/IconCodeVisual.vue";
+import IconDark from "@/icons/IconDark.vue";
+import IconLight from "@/icons/IconLight.vue";
 
 removeVueDevtoolsContainers();
 
@@ -43,6 +45,8 @@ app.component('IconCopy', IconCopy);
 app.component('IconVisualize', IconVisualize);
 app.component('IconDataSync', IconDataSync);
 app.component('IconCodeVisual', IconCodeVisual);
+app.component('IconDark', IconDark);
+app.component('IconLight', IconLight);
 
 app.use(createPinia())
 app.use(router)
