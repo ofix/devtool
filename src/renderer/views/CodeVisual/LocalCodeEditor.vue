@@ -268,57 +268,10 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 200px;
+  background: var(--dt-primary-bg-color);
   /* 关键：禁用过渡动画，避免卡顿 */
   transition: none !important;
 }
-
-.tabs-header {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: #252526;
-  z-index: 2;
-}
-
-.tab-item {
-  padding: 6px 12px;
-  background: #3c3c3c;
-  color: #ccc;
-  border-radius: 4px 4px 0 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  user-select: none;
-}
-
-.tab-item.active {
-  background: #1e1e1e;
-  color: #fff;
-}
-
-.tab-item.dirty::after {
-  content: "*";
-  color: #ffcc00;
-  margin-left: 4px;
-}
-
-.close-btn {
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-  border-radius: 50%;
-  background: #555;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.close-btn:hover {
-  background: #ff4444;
-}
-
 .editor-content {
   flex: 1;
   background: #1e1e1e;
@@ -345,5 +298,52 @@ onUnmounted(() => {
 :deep(.monaco-editor .overflow-guard) {
   width: 100% !important;
   height: 100% !important;
+}
+</style>
+
+<style>
+.tabs-header {
+  display: flex;
+  padding: 4px;
+  background: var(--dt-primary-bg-color);
+  z-index: 2;
+}
+
+.tab-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  border: 1px solid var(--dt-border-color);
+  border-left: none;
+}
+
+.tab-item:first-child {
+  border-left: 1px solid var(--dt-border-color);
+}
+
+.tab-item.active {
+  color: var(--dt-primary-text-color);
+  border-top: 1px solid var(--dt-hilight-bg-color);
+}
+
+.tab-item.dirty::after {
+  content: "*";
+  color: #ffcc00;
+  margin-left: 4px;
+}
+
+.close-btn {
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--dt-primary-bg-color);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 </style>

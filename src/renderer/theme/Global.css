@@ -42,6 +42,12 @@
     --dt-primary-bg-hover-color: rgba(200, 200, 200, 0.1);
     /*对话框背景色*/
     --dt-dialog-bg-color: #090909;
+    /*svg图标颜色*/
+    --dt-svg-color: #999;
+    /*树状节点选中颜色*/
+    --dt-tree-node-bg-color: rgb(7, 104, 173);
+    /*树状节点选中边框颜色*/
+    --dt-tree-border-color: #007FD4;
     /*对话框标题颜色*/
     --dt-text-color-primary: #fff;
     /*输入表单颜色*/
@@ -74,6 +80,12 @@
     --dt-primary-bg-hover-color: rgba(0, 0, 0, 0.05);
     /*对话框背景色：浅色主题对话框改为白色/浅灰*/
     --dt-dialog-bg-color: #f8f9fa;
+    /*svg图标颜色*/
+    --dt-svg-color: #333;
+    /*树状节点选中颜色*/
+    --dt-tree-node-bg-color: rgb(232,232,232);
+    /*树状节点选中边框颜色*/
+    --dt-tree-border-color: #599cf5;
     /*对话框标题颜色：浅色主题标题改为深黑色*/
     --dt-text-color-primary: #333333;
     /*输入表单颜色：输入框标签等改为深灰色*/

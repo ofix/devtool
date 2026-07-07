@@ -106,6 +106,7 @@ onMounted(() => {
   align-items: center;
   width: 100%;
   box-sizing: border-box;
+  background: var(--dt-primary-bg-color);
 }
 
 .menu-item {

@@ -1,6 +1,6 @@
 <template>
   <!-- 空状态：显示加号按钮 -->
-  <div v-if="!treeDataReady" class="empty-tree-state">
+  <div v-if="!treeDataReady" class="empty-tree">
     <div class="empty-content">
       <el-empty description="暂无文件夹">
         <el-button type="primary" size="large" @click="selectFolder">
@@ -773,6 +773,11 @@ function handleEditBlur(data) {
   opacity: 1 !important;
 }
 
+.empty-tree{
+    background: var(--dt-primary-bg-color);
+    height:100%;
+}
+
 .collapse-title-bar {
   display: flex;
   justify-content: space-between;
@@ -856,9 +861,10 @@ function handleEditBlur(data) {
 }
 
 :deep(
-  .el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content
+  .el-tree-node.is-current > .el-tree-node__content
 ) {
-  background-color: var(--dt-primary-bg-color) !important;
+  background-color: var(--dt-tree-node-bg-color) !important;
+  border: var(--dt-tree-border-color) !important;
 }
 
 :deep(

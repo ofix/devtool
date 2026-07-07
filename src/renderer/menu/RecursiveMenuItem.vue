@@ -103,8 +103,8 @@ const closeDelay = () => {
   top: 0;
   left: 100%;
   z-index: 9999;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--dt-primary-bg-color);
+  border: 1px solid var(--dt-border-color);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 4px 0;
   min-width: 140px;
@@ -112,18 +112,20 @@ const closeDelay = () => {
 .custom-divider {
   width: 90%;
   height: 1px;
-  background: #ddd;
-  margin: 4px auto;
+  background: var(--dt-border-color);
 }
 </style>
 
 <style>
 .right-sub-panel .el-menu {
-  border: none;
+  border: var(--dt-border-color);
+}
+.right-sub-panel .el-menu-item:hover{
+    background: var(--dt-primary-bg-hover-color);
 }
 .right-sub-panel .el-menu-item {
-  height: 26px;
-  line-height: 26px;
+  height: 34px;
+  line-height: 34px;
   padding: 0 14px;
   font-size: 13px;
 }

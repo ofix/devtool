@@ -104,7 +104,6 @@ defineExpose({ isMaximized, titleBarHeight });
   -webkit-app-region: drag;
   /* 可拖拽区域 */
   user-select: none;
-  background: #f3f3f3;
 }
 
 .app-menu {

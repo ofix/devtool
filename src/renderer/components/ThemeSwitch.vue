@@ -42,7 +42,7 @@ const { theme, toggleTheme } = useTheme();
 
 .icon {
   flex-shrink: 0;
-  color: #333;
+  color: var(--dt-svg-color);
   transition: opacity 0.26s ease;
 }
 

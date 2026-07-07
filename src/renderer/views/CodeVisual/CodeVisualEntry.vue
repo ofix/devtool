@@ -11,9 +11,7 @@
     </TitleBar>
     <el-splitter layout="horizontal" class="splitter">
       <el-splitter-panel :min="100" :size="300">
-        <div class="panel-left">
           <CodeVisualFileTree />
-        </div>
       </el-splitter-panel>
       <el-splitter-panel>
         <el-splitter layout="vertical" class="vertical-splitter">
