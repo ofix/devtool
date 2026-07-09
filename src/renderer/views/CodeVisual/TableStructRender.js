@@ -32,11 +32,11 @@ export class TableStructRender {
     const lineH = this.core.lineHeight;
     const maxChar = this.core.maxCharLimit;
 
-    // 1. 计算表头文字宽度
+    // 计算表头文字宽度
     const headerRaw = className.slice(0, maxChar);
     const headerW = this.core.measureText(headerRaw) + padding * 2;
 
-    // 2. 遍历所有字段，算出单行最宽文本
+    // 遍历所有字段，算出单行最宽文本
     let maxFieldTextW = 0;
     for (const field of fields) {
       const cutText = field.content.slice(0, maxChar);

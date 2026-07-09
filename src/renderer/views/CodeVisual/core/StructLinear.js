@@ -1,4 +1,3 @@
-// core/StructLinear.js
 import { StructContainer } from './StructContainer.js';
 
 export class StructLinear extends StructContainer {

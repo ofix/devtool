@@ -1,5 +1,4 @@
 
-// structs/StructDblList.js
 import { StructLinear } from '../core/StructLinear.js';
 
 export class StructDblList extends StructLinear {

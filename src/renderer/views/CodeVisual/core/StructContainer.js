@@ -1,4 +1,3 @@
-// core/StructContainer.js
 import { StructBase } from './StructBase.js';
 
 export class StructContainer extends StructBase {

@@ -1,5 +1,3 @@
-
-// utils/SpatialIndex.js
 import RBush from 'rbush';
 
 export class SpatialIndex {

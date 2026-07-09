@@ -1,4 +1,3 @@
-// core/StructBase.js
 import { Matrix } from '../utils/Matrix.js';
 import { EventEmitter } from '../utils/EventEmitter.js';
 
@@ -23,13 +22,18 @@ export class StructBase extends EventEmitter {
         this.padding = options.padding || 8;
         this.title = options.title || 'Struct';
         this.titleHeight = 24;
-        
+
         // 布局缓存
         this._layoutCache = null;
         this._fieldPositions = new Map();
-        
+
         // 颜色主题
-        this.theme = {
+        this.theme = this.applyTheme('dark');
+    }
+
+    // 预设主题
+    static themes = {
+        light: {
             backgroundColor: '#ffffff',
             borderColor: '#4a90d9',
             titleColor: '#ffffff',
@@ -41,7 +45,40 @@ export class StructBase extends EventEmitter {
             fieldActiveTextColor: '#0d47a1',
             gridLineColor: '#e9ecef',
             shadowColor: 'rgba(0,0,0,0.1)'
+        },
+        dark: {
+            backgroundColor: '#1e1e2e',
+            borderColor: '#bd93f9',
+            titleColor: '#f8f8f2',
+            titleBgColor: '#6272a4',
+            fieldBgColor: '#282a36',
+            fieldHoverColor: '#44475a',
+            fieldActiveColor: '#6272a4',
+            fieldTextColor: '#f8f8f2',
+            fieldActiveTextColor: '#ffffff',
+            gridLineColor: '#44475a',
+            shadowColor: 'rgba(0,0,0,0.3)'
+        },
+    };
+
+    setTheme(theme) {
+        // 合并主题
+        this.theme = {
+            ...this.theme,
+            ...theme
         };
+        this.markDirty();
+        this.emit('themeChanged', this.theme);
+        return this;
+    }
+
+    // 使用预设主题
+    applyTheme(themeName) {
+        const theme = this.themes[themeName];
+        if (theme) {
+            this.setTheme(theme);
+        }
+        return this;
     }
 
     // 添加字段
@@ -81,12 +118,12 @@ export class StructBase extends EventEmitter {
     // 计算布局
     calculateLayout(ctx) {
         if (!this.dirty) return;
-        
+
         const padding = this.padding;
         let maxWidth = 0;
         let totalHeight = this.titleHeight + padding * 2;
         let currentY = totalHeight;
-        
+
         // 第一遍：计算最大宽度
         const visibleFields = this.fields.filter(f => f.visible && !f.collapsed);
         if (visibleFields.length > 0) {
@@ -99,7 +136,7 @@ export class StructBase extends EventEmitter {
                 field._cachedWidth = Math.min(fieldWidth, maxFieldWidth);
                 maxWidth = Math.max(maxWidth, field._cachedWidth);
             });
-            
+
             // 第二遍：计算每个字段的位置
             visibleFields.forEach((field, index) => {
                 const fieldHeight = 28; // 固定行高
@@ -122,7 +159,7 @@ export class StructBase extends EventEmitter {
             totalHeight = this.titleHeight + padding * 2 + 20;
             maxWidth = Math.max(maxWidth, 80);
         }
-        
+
         // 确保最小宽度
         maxWidth = Math.max(maxWidth, 120);
         this.width = maxWidth + padding * 2;
@@ -132,7 +169,7 @@ export class StructBase extends EventEmitter {
             fieldHeight: 28,
             visibleFields: visibleFields
         };
-        
+
         this.dirty = false;
         this.emit('layoutChanged');
     }
@@ -159,15 +196,15 @@ export class StructBase extends EventEmitter {
         if (!this.visible) return false;
         const rect = this.getBoundingRect();
         return x >= rect.x && x <= rect.x + rect.width &&
-               y >= rect.y && y <= rect.y + rect.height;
+            y >= rect.y && y <= rect.y + rect.height;
     }
 
     // 获取边界矩形
     getBoundingRect() {
         const p1 = this.transform.applyToPoint({ x: this.x, y: this.y });
-        const p2 = this.transform.applyToPoint({ 
-            x: this.x + this.width, 
-            y: this.y + this.height 
+        const p2 = this.transform.applyToPoint({
+            x: this.x + this.width,
+            y: this.y + this.height
         });
         return {
             x: Math.min(p1.x, p2.x),
@@ -223,18 +260,18 @@ export class StructBase extends EventEmitter {
     // 渲染
     render(ctx, viewport) {
         if (!this.visible) return;
-        
+
         // 视口裁剪优化
         if (viewport) {
             const rect = this.getBoundingRect();
-            if (rect.x + rect.width < viewport.x || 
+            if (rect.x + rect.width < viewport.x ||
                 rect.x > viewport.x + viewport.width ||
                 rect.y + rect.height < viewport.y ||
                 rect.y > viewport.y + viewport.height) {
                 return;
             }
         }
-        
+
         this.calculateLayout(ctx);
         this.draw(ctx);
         this.drawFields(ctx);
@@ -245,19 +282,19 @@ export class StructBase extends EventEmitter {
     draw(ctx) {
         const rect = this.getBoundingRect();
         const { x, y, width, height } = rect;
-        
+
         // 阴影
         ctx.shadowColor = this.theme.shadowColor;
         ctx.shadowBlur = 10;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 2;
-        
+
         // 主背景
         ctx.shadowColor = this.theme.shadowColor;
         ctx.shadowBlur = 10;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 2;
-        
+
         const radius = 6;
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -270,19 +307,19 @@ export class StructBase extends EventEmitter {
         ctx.lineTo(x, y + radius);
         ctx.quadraticCurveTo(x, y, x + radius, y);
         ctx.closePath();
-        
+
         ctx.fillStyle = this.theme.backgroundColor;
         ctx.fill();
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        
+
         // 边框
         ctx.strokeStyle = this.selected ? '#ff6b6b' : this.theme.borderColor;
         ctx.lineWidth = this.selected ? 2.5 : 1.5;
         ctx.stroke();
-        
+
         // 标题栏
         const titleY = y;
         ctx.fillStyle = this.theme.titleBgColor;
@@ -296,14 +333,14 @@ export class StructBase extends EventEmitter {
         ctx.quadraticCurveTo(x, titleY, x + radius, titleY);
         ctx.closePath();
         ctx.fill();
-        
+
         // 标题文字
         ctx.fillStyle = this.theme.titleColor;
         ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.title, x + width / 2, titleY + this.titleHeight / 2);
-        
+
         // 标题栏底部分隔线
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1;
@@ -317,7 +354,7 @@ export class StructBase extends EventEmitter {
     drawFields(ctx) {
         const rect = this.getBoundingRect();
         const { x, y, width, height } = rect;
-        
+
         if (!this._layoutCache || this._layoutCache.visibleFields.length === 0) {
             // 没有字段时的提示
             ctx.fillStyle = '#adb5bd';
@@ -327,37 +364,37 @@ export class StructBase extends EventEmitter {
             ctx.fillText('(empty)', x + width / 2, y + this.titleHeight + 20);
             return;
         }
-        
+
         const visibleFields = this._layoutCache.visibleFields;
         const padding = this.padding;
-        
+
         visibleFields.forEach(field => {
             const pos = this._fieldPositions.get(field.id);
             if (!pos) return;
-            
+
             const fx = x + pos.x;
             const fy = y + pos.y;
             const fw = pos.width;
             const fh = pos.height;
-            
+
             // 字段背景
             let bgColor = this.theme.fieldBgColor;
             let textColor = this.theme.fieldTextColor;
-            
+
             if (field.active) {
                 bgColor = this.theme.fieldActiveColor;
                 textColor = this.theme.fieldActiveTextColor;
             } else if (field.hovered || field === this._hoveredField) {
                 bgColor = this.theme.fieldHoverColor;
             }
-            
+
             // 透明背景（只有行分隔线）
             // 仅在鼠标悬浮或激活时显示背景
             if (field.active || field.hovered || field === this._hoveredField) {
                 ctx.fillStyle = bgColor;
                 ctx.fillRect(fx, fy, fw, fh);
             }
-            
+
             // 行分隔线
             ctx.strokeStyle = this.theme.gridLineColor;
             ctx.lineWidth = 0.5;
@@ -365,13 +402,13 @@ export class StructBase extends EventEmitter {
             ctx.moveTo(fx + padding, fy + fh);
             ctx.lineTo(fx + fw - padding, fy + fh);
             ctx.stroke();
-            
+
             // 字段名
             ctx.fillStyle = textColor;
             ctx.font = '13px system-ui, -apple-system, sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            
+
             let displayName = field.name;
             const maxWidth = fw - padding * 2;
             if (ctx.measureText(displayName).width > maxWidth) {
@@ -383,10 +420,10 @@ export class StructBase extends EventEmitter {
             } else {
                 field._truncated = false;
             }
-            
+
             // 绘制字段名
             ctx.fillText(displayName, fx + padding, fy + fh / 2);
-            
+
             // 如果有描述且空间足够，绘制描述
             if (field.desc) {
                 const descX = fx + fw - padding;
@@ -394,7 +431,7 @@ export class StructBase extends EventEmitter {
                 ctx.font = '11px system-ui, -apple-system, sans-serif';
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
-                
+
                 let displayDesc = field.desc;
                 const descMaxWidth = Math.min(fw / 2, 150);
                 if (ctx.measureText(displayDesc).width > descMaxWidth) {
@@ -417,10 +454,10 @@ export class StructBase extends EventEmitter {
     getFieldAt(x, y) {
         const rect = this.getBoundingRect();
         if (!this.hitTest(x, y)) return null;
-        
+
         const localX = x - rect.x;
         const localY = y - rect.y;
-        
+
         for (const [fieldId, pos] of this._fieldPositions) {
             if (localX >= pos.x && localX <= pos.x + pos.width &&
                 localY >= pos.y && localY <= pos.y + pos.height) {
