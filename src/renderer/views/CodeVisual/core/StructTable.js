@@ -1,4 +1,5 @@
 import Shape from "./Shape.js"
+import FieldType from "./FieldType.js";
 
 /**
  * 功能特性
@@ -7,6 +8,7 @@ import Shape from "./Shape.js"
  * 3. 支持面板整体折叠和展开
  * 4. Alt+F可以一键将隐藏字段打开
  * 5. 支持字段计数(总字段数目|隐藏字段)
+ * 6. 支持选中
  **/
 class StructTable extends Shape {
     constructor(options = {}) {
@@ -15,20 +17,26 @@ class StructTable extends Shape {
         this.type = 'table';
 
         // 数据
-        this.fields = options.fields || [];
-
+        this.fields = options.fields || []; // 原始字段集合
+        this.visibleFields = []; // 合并隐藏字段或者折叠Union字段后的所有字段缓存
+     
         // 状态
-        this.expandedFields = new Set(options.expandedFields || []);
+        this.expandedFields = new Set(options.expandedFields || []); // union 字段才会展开和折叠
         this.highlightedFields = new Set(options.highlightedFields || []);
-        this.hiddenFields = new Set(options.hiddenFields || []);
+        this.hiddenFields = new Set(options.hiddenFields || []); // 用户手动隐藏的字段
         this.fieldColors = new Map(options.fieldColors || []); // 自定义颜色覆盖
+        this.fieldBytes = new Map(); // 每个字段占用的字节数
+
+        // 统计
+        this.totalBytes = 0; // 所有字段占用的字节总数
         this.totalFieldsCount = this.fields.length;
         this.hiddenFieldsCount = this.hiddenFields.length;
 
         // 折叠状态
         this.collapsed = options.collapsed || false;
         this.mergeHiddenFields = options.mergeHiddenFields || false;
-
+        this.selected = false; // 当前是否选中
+        this.build
 
 
         // 拖拽状态
@@ -201,40 +209,45 @@ class StructTable extends Shape {
 
         const result = [];
         let hiddenGroup = [];
+        let hiddenGroupId = 0;
 
-        for (const field of fields) {
+        const flushGroup = () => {
+            if (hiddenGroup.length === 0) return;
+
+            result.push({
+                id: `hg_${hiddenGroupId++}`,
+                name: `隐藏字段 (${hiddenGroup.length})`,  // 统一命名风格
+                type: FieldType.HIDDEN_GROUP,  // 只保留一个 type
+                count: hiddenGroup.length,
+                children: [...hiddenGroup]
+            });
+            hiddenGroup = [];
+        };
+
+        for (let i = 0; i < fields.length; i++) {
+            let field = fields[i];
             if (this.hiddenFields.has(field.id)) {
                 hiddenGroup.push(field);
             } else {
-                if (hiddenGroup.length > 0) {
-                    result.push({
-                        id: `hidden_group_${Date.now()}`,
-                        name: `隐藏字段 (${hiddenGroup.length})`,
-                        type: 'hidden_group',
-                        hiddenCount: hiddenGroup.length,
-                        _hiddenFields: hiddenGroup,
-                        _isHiddenGroup: true,
-                        children: hiddenGroup
-                    });
-                    hiddenGroup = [];
-                }
+                flushGroup();
                 result.push(field);
             }
         }
 
-        if (hiddenGroup.length > 0) {
-            result.push({
-                id: `hidden_group_${Date.now()}`,
-                name: `隐藏字段 (${hiddenGroup.length})`,
-                type: 'hidden_group',
-                hiddenCount: hiddenGroup.length,
-                _hiddenFields: hiddenGroup,
-                _isHiddenGroup: true,
-                children: hiddenGroup
-            });
-        }
+        flushGroup(); // 处理最后剩余的隐藏字段
 
         return result;
+    }
+
+    getVisibleFields() {
+        if (this.mergeHiddenFields) {
+            if (this.visibleFields.length > 0) {
+                return this.visibleFields;
+            }
+            this.visibleFields = this._mergeHiddenFields(this.fields);
+            return this.visibleFields;
+        }
+        return this.fields;
     }
 
     // 绘制
@@ -267,21 +280,18 @@ class StructTable extends Shape {
 
         // 获取可见字段
         let visibleFields = this.getVisibleFields();
-        if (this.mergeHiddenFields) {
-            visibleFields = this._mergeHiddenFields(visibleFields);
-        }
 
         // 绘制数据行
         let currentY = y + this.headerHeight;
         let rowIndex = 0;
 
         for (const field of visibleFields) {
-            if (field._isHiddenGroup) {
-                currentY = this._drawHiddenGroupRow(ctx, field, x, currentY, w, rowIndex);
+            if (field.type == FieldType.HIDDEN_GROUP) {
+                currentY = this._drawHiddenFields(ctx, field, x, currentY, w, rowIndex);
             } else {
                 const isExpanded = this.expandedFields.has(field.id);
                 const isHighlighted = this.highlightedFields.has(field.id);
-                const isPointer = this.isPointerOrReference(field);
+                const isPointer = (field.type == FieldType.POINTER || field.type == FieldType.REFERENCE);
                 const color = this.getFieldColor(field);
                 const indentLevel = 0;
 
@@ -308,7 +318,7 @@ class StructTable extends Shape {
         ctx.strokeRect(x, y, w, h);
     }
 
-    _drawHiddenGroupRow(ctx, field, x, y, w, rowIndex) {
+    _drawHiddenFields(ctx, field, x, y, w, rowIndex) {
         const rowHeight = this.rowHeight;
         const padding = this.cellPadding;
 
