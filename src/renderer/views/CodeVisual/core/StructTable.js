@@ -1,4 +1,4 @@
-import Shape from "./Shape.js"
+import Component from "./Component.js"
 import FieldType from "./FieldType.js";
 
 /**
@@ -10,16 +10,14 @@ import FieldType from "./FieldType.js";
  * 5. 支持字段计数(总字段数目|隐藏字段)
  * 6. 支持选中
  **/
-class StructTable extends Shape {
+class StructTable extends Component {
     constructor(options = {}) {
-        super(options);
-
+        super(options.parent || null, options.children || []);
         this.type = 'table';
-
         // 数据
-        this.fields = options.fields || []; // 原始字段集合
+        this.children = options.children || []; // 原始字段集合
         this.visibleFields = []; // 合并隐藏字段或者折叠Union字段后的所有字段缓存
-     
+
         // 状态
         this.expandedFields = new Set(options.expandedFields || []); // union 字段才会展开和折叠
         this.highlightedFields = new Set(options.highlightedFields || []);
@@ -29,7 +27,7 @@ class StructTable extends Shape {
 
         // 统计
         this.totalBytes = 0; // 所有字段占用的字节总数
-        this.totalFieldsCount = this.fields.length;
+        this.totalFieldsCount = this.children.length;
         this.hiddenFieldsCount = this.hiddenFields.length;
 
         // 折叠状态
@@ -40,11 +38,11 @@ class StructTable extends Shape {
 
 
         // 拖拽状态
-        this._resizing = false;
-        this._resizeType = null;
-        this._resizeColumn = null;
-        this._resizeStartX = 0;
-        this._resizeStartWidth = 0;
+        this.isDragging = false;
+        // this._resizeType = null;
+        // this._resizeColumn = null;
+        this.draggingStartX = 0;
+        this.draggingWidth = 0;
         this._hoverResizeColumn = null;
         this._isHoveringRightEdge = false;
 
@@ -100,13 +98,13 @@ class StructTable extends Shape {
 
     autoFitColumns() {
         let maxNameWidth = 60;
-        for (const field of this.fields) {
+        for (const field of this.children) {
             const nameWidth = this._measureText(this._getDisplayName(field));
             maxNameWidth = Math.max(maxNameWidth, nameWidth);
         }
 
         let maxValueWidth = 80;
-        for (const field of this.fields) {
+        for (const field of this.children) {
             const value = field.value !== undefined ? String(field.value) : 'null';
             const valueWidth = this._measureText(value);
             maxValueWidth = Math.max(maxValueWidth, valueWidth);
@@ -123,7 +121,7 @@ class StructTable extends Shape {
 
     getCollapsedHeight() {
         let referenceFields = 0;
-        for (let i = 0; i < this.fields.length; i++) {
+        for (let i = 0; i < this.children.length; i++) {
             referenceFields += 1;
         }
         return (referenceFields + 1) * 18;
@@ -204,8 +202,8 @@ class StructTable extends Shape {
         this.fire('themeChanged', { theme });
     }
 
-    _mergeHiddenFields(fields) {
-        if (!this.mergeHiddenFields) return fields;
+    _mergeHiddenFields(children) {
+        if (!this.mergeHiddenFields) return children;
 
         const result = [];
         let hiddenGroup = [];
@@ -224,8 +222,8 @@ class StructTable extends Shape {
             hiddenGroup = [];
         };
 
-        for (let i = 0; i < fields.length; i++) {
-            let field = fields[i];
+        for (let i = 0; i < children.length; i++) {
+            let field = children[i];
             if (this.hiddenFields.has(field.id)) {
                 hiddenGroup.push(field);
             } else {
@@ -244,10 +242,10 @@ class StructTable extends Shape {
             if (this.visibleFields.length > 0) {
                 return this.visibleFields;
             }
-            this.visibleFields = this._mergeHiddenFields(this.fields);
+            this.visibleFields = this._mergeHiddenFields(this.children);
             return this.visibleFields;
         }
-        return this.fields;
+        return this.children;
     }
 
     // 绘制
@@ -595,14 +593,13 @@ class StructTable extends Shape {
 
 
     //  绘制右边框拖拽手柄 
-
     _drawRightEdgeHandle(ctx, x, y, w, h) {
         const theme = this.getTheme();
         const elements = theme.elements;
         const spacing = theme.spacing;
 
         const handleSize = spacing.resizeHandleSize * 2;
-        const isActive = this._resizing && this._resizeType === 'table';
+        const isActive = this.isDragging;
         const isHover = this._isHoveringRightEdge;
 
         const handleX = x + w - handleSize / 2;
@@ -819,6 +816,21 @@ class StructTable extends Shape {
         ctx.fillText(isCollapsed ? '▶' : '▼', btnX + btnSize / 2, btnY + btnSize / 2 + 1);
     }
 
+    hitTest(mouseX, mouseY) {
+        if (mouseX >= (this.x + this.width - 2) && mouseX <= (this.x + this.width + 2
+            && mouseY >= this.y && mouseY <= this.y + this.height)
+        ) {
+            return this;
+        }
+        for (let i = 0; i < this.children.length; i++) {
+            let hitted = this.children[i].hitTest(mouseX, mouseY);
+            if (hitted) {
+                return hitted;
+            }
+        }
+        return null;
+    }
+
     //  工具方法
     _truncateText(text, maxWidth) {
         const font = themeManager.getFontConfig();
@@ -927,90 +939,40 @@ class StructTable extends Shape {
     /**
      * 开始拖拽调整
      */
-    startResize(type, data, startX) {
-        this._resizing = true;
-        this._resizeType = type;
-        this._resizeStartX = startX;
-
-        if (type === 'column') {
-            this._resizeColumn = data.column;
-            this._resizeStartWidth = this.columnWidths[data.column];
-        } else if (type === 'table') {
-            this._resizeStartWidth = this.width;
-        }
-
-        // 改变光标样式
-        if (this._canvas) {
-            this._canvas.canvas.style.cursor = 'col-resize';
-        }
-
-        this.fire('resizeStarted', { type, data });
+    onDragStart(data, startX) {
+        this.isDragging = true;
+        this.draggingStartX = startX;
+        this.draggingWidth = this.width;
+        this.fire('table:dragStart', { data });
     }
 
     /**
      * 更新拖拽
      */
-    updateResize(currentX) {
-        if (!this._resizing) return;
+    onDragging(currentX) {
+        if (!this.isDragging) return;
 
-        const deltaX = currentX - this._resizeStartX;
-
-        if (this._resizeType === 'column') {
-            const newWidth = Math.max(
-                this.minColumnWidth,
-                Math.min(this.maxColumnWidth, this._resizeStartWidth + deltaX)
-            );
-            this.columnWidths[this._resizeColumn] = newWidth;
-            this._updateDimensions();
-            this._markDirty();
-            this.fire('resizing', {
-                type: 'column',
-                column: this._resizeColumn,
-                width: newWidth
-            });
-        } else if (this._resizeType === 'table') {
-            const newWidth = Math.max(
-                this.minTableWidth,
-                Math.min(this.maxTableWidth, this._resizeStartWidth + deltaX)
-            );
-            // 按比例调整各列
-            const ratio = newWidth / this._resizeStartWidth;
-            for (const col of ['name', 'value', 'action']) {
-                this.columnWidths[col] = Math.max(
-                    this.minColumnWidth,
-                    Math.min(this.maxColumnWidth, this.columnWidths[col] * ratio)
-                );
-            }
-            this._updateDimensions();
-            this._markDirty();
-            this.fire('resizing', {
-                type: 'table',
-                width: newWidth
-            });
-        }
-
-        // 重新渲染
-        if (this._canvas) {
-            this._canvas.render();
-        }
+        const deltaX = currentX - this.draggingStartX;
+        const newWidth = Math.max(
+            this.minTableWidth,
+            Math.min(this.maxTableWidth, this.draggingWidth + deltaX)
+        );
+        // 按比例调整各列
+        const ratio = newWidth / this.draggingWidth;
+        this._updateDimensions();
+        this._markDirty();
+        this.fire('table:dragging', {
+            width: newWidth
+        });
     }
 
     /**
      * 结束拖拽调整
      */
-    endResize() {
-        if (this._resizing) {
-            this._resizing = false;
-            this._resizeType = null;
-            this._resizeColumn = null;
-
-            // 恢复光标
-            if (this._canvas) {
-                this._canvas.canvas.style.cursor = 'default';
-            }
-
-            this.fire('resizeEnded', {
-                type: this._resizeType,
+    onDragEnd() {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.fire('table:dragEnd', {
                 widths: this.columnWidths,
                 tableWidth: this.width
             });
@@ -1045,7 +1007,7 @@ class StructTable extends Shape {
         if (this._canvas) {
             if (hoverColumn || hoverRightEdge) {
                 this._canvas.canvas.style.cursor = 'col-resize';
-            } else if (!this._resizing) {
+            } else if (!this.isDragging) {
                 this._canvas.canvas.style.cursor = 'default';
             }
         }
@@ -1054,7 +1016,7 @@ class StructTable extends Shape {
     toJSON() {
         return {
             ...super.toJSON(),
-            fields: this.fields,
+            children: this.children,
             expandedFields: Array.from(this.expandedFields),
             highlightedFields: Array.from(this.highlightedFields),
             hiddenFields: Array.from(this.hiddenFields),
@@ -1066,7 +1028,7 @@ class StructTable extends Shape {
 
     fromJSON(data) {
         super.fromJSON(data);
-        this.fields = data.fields || [];
+        this.children = data.children || [];
         this.expandedFields = new Set(data.expandedFields || []);
         this.highlightedFields = new Set(data.highlightedFields || []);
         this.hiddenFields = new Set(data.hiddenFields || []);
