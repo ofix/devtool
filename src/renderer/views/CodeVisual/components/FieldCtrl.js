@@ -1,8 +1,8 @@
-import FieldType from "./FieldType.js";
+import FieldType from "../core/FieldType.js";
 // 数据结构字段基类
-export class FieldBasic extends Component{
+export class FieldCtrl extends Component {
     constructor(options = {}) {
-        super(options.parent||null,[]);
+        super(options.parent || null, []);
         this.id = options.id || `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         this.name = options.name || 'field';
         this.type = options.type || FieldType.NUMBER;
@@ -15,11 +15,22 @@ export class FieldBasic extends Component{
         this.width = options.width || 0;
         this.height = options.height || 0;
 
+        // 布局相关
+        this.margin = {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0
+        };
         // 渲染相关
+        this.refFields = []; // 引用/指针端点，加速Curve曲线连接
+        this.codeLineStart = 0;  // 结构体起始代码行号
+        this.codeLineEnd = 0; // 结构体结束代码行号
+        this.codeFileAbsPath = null; // 结构体/类所在代码文件绝对路径
         this._truncated = false;
         this._fullName = options.name || 'field';
         this._cachedWidth = 0;
-        
+
         // 类型颜色
         this.typeColors = {
             'string': '#e83e8c',
@@ -33,6 +44,24 @@ export class FieldBasic extends Component{
             'undefined': '#adb5bd',
             'null': '#adb5bd'
         };
+        this.bindEvents(); // 监听resize事件
+    }
+
+    bindEvents() {
+        this.on('resize:height', (event, data) => {
+
+        })
+    }
+
+    resize() {
+        let height = 0;
+        for (let i = 0; i < this.children.lenght; i++) {
+            let child = this.children[i];
+            if (child.isVisible()) {
+                height += child.getHeight();
+            }
+        }
+        this.height = height;
     }
 
     // 获取显示名称（截断后）
@@ -68,74 +97,73 @@ export class FieldBasic extends Component{
         return ['pointer', 'reference', 'object', 'array'].includes(this.type);
     }
 
-    // 渲染
-    doDraw(ctx) {
-        if (!this.visible) return;
-        
-        // 背景
-        let bgColor = '#f8f9fa';
-        let textColor = '#212529';
-        let borderColor = 'transparent';
-        
-        if (this.active) {
-            bgColor = '#bbdefb';
-            textColor = '#0d47a1';
-            borderColor = '#4a90d9';
-        } else if (this.hovered) {
-            bgColor = '#e3f2fd';
-        }
-        
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(x, y, width, height);
-        
-        // 边框
-        if (borderColor !== 'transparent') {
-            ctx.strokeStyle = borderColor;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(x, y, width, height);
-        }
-        
-        // 类型标签
-        const typeLabel = this.type;
-        const typeColor = this.getTypeColor();
-        const padding = 4;
-        const typeWidth = ctx.measureText(typeLabel).width + padding * 2;
-        const typeX = x + width - typeWidth - padding;
-        const typeY = y + padding;
-        const typeHeight = height - padding * 2;
-        
-        // ctx.fillStyle = typeColor;
-        // ctx.font = '9px system-ui, -apple-system, sans-serif';
-        // ctx.textAlign = 'left';
-        // ctx.textBaseline = 'middle';
-        // ctx.fillText(typeLabel, typeX + typeWidth / 2, typeY + typeHeight / 2);
-        
-        // 字段名
-        const nameMaxWidth = width - padding * 2 - typeWidth - padding * 2;
-        const formatName = this.formatName(ctx, nameMaxWidth);
-        
-        ctx.fillStyle = textColor;
-        ctx.font = '12px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(formatName, x + padding, y + height / 2);
-        
-        // 如果有描述且空间足够，显示描述
-        // if (this.desc && width > 150) {
-        //     const descMaxWidth = Math.min(width / 2, 120);
-        //     let displayDesc = this.desc;
-        //     if (ctx.measureText(displayDesc).width > descMaxWidth) {
-        //         while (ctx.measureText(displayDesc + '…').width > descMaxWidth && displayDesc.length > 1) {
-        //             displayDesc = displayDesc.slice(0, -1);
-        //         }
-        //         displayDesc += '…';
-        //     }
-        //     ctx.fillStyle = '#6c757d';
-        //     ctx.font = '10px system-ui, -apple-system, sans-serif';
-        //     ctx.textAlign = 'right';
-        //     ctx.textBaseline = 'middle';
-        //     ctx.fillText(displayDesc, x + width - typeWidth - padding - 4, y + height / 2);
-        // }
+    addChild(child) {
+        child.parent = this;
+        this.children.push(child);
+        return this;
+    }
+
+    isLeaf() {
+        return this.children.length === 0;
+    }
+
+    isUnion() {
+        return this.type === FieldType.UNION;
+    }
+
+    isObject() {
+        return this.type === FieldType.CLASS;
+    }
+
+    isClass() {
+        return this.type === FieldType.CLASS;
+    }
+
+    isArray() {
+        return this.type === FieldType.ARRAY;
+    }
+
+    setMargin({ left = 0, top = 0, right = 0, bottom = 0 }) {
+        this.margin.left = left;
+        this.margin.top = top;
+        this.margin.right = right;
+        this.margin.bottom = bottom;
+    }
+
+    getMargin() {
+        return this.margin;
+    }
+
+    setMarginLeft(left) {
+        this.margin.left = left;
+    }
+
+    getMarginLeft() {
+        return this.margin.left;
+    }
+
+    setMarginRight(right) {
+        this.margin.right = right;
+    }
+
+    getMarginRight() {
+        return this.margin.right;
+    }
+
+    setMarginTop(top) {
+        this.margin.top = top;
+    }
+
+    getMarginTop() {
+        return this.margin.top;
+    }
+
+    setMarginBottom(bottom) {
+        this.margin.bottom = bottom;
+    }
+
+    getMarginBottom() {
+        return this.margin.bottom;
     }
 
     // 序列化
@@ -181,5 +209,90 @@ export class FieldBasic extends Component{
             collapsed: this.collapsed,
             active: this.active
         });
+    }
+
+    /**
+     * 通用工具函数，测量文字宽度
+     * @param {Context2D} ctx Canvas 2D画布上下文
+     * @param {String} text 待测量的文字，没有换行符
+     * @param {FontFamily} font 字体大小
+     */
+    measureText(ctx,text,font="12px sans-serif"){
+        ctx.font = font; // 和绘制字体保持一致
+        return ctx.measureText(text).width;
+    }
+
+    /**
+     * @param [Ctx]
+     */
+    doDraw(ctx, level) {
+        if (!this.visible) return;
+
+        // 背景
+        let bgColor = '#f8f9fa';
+        let textColor = '#212529';
+        let borderColor = 'transparent';
+
+        if (this.active) {
+            bgColor = '#bbdefb';
+            textColor = '#0d47a1';
+            borderColor = '#4a90d9';
+        } else if (this.hovered) {
+            bgColor = '#e3f2fd';
+        }
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(x, y, width, height);
+
+        // 边框
+        if (borderColor !== 'transparent') {
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x, y, width, height);
+        }
+
+        // 类型标签
+        const typeLabel = this.type;
+        const typeColor = this.getTypeColor();
+        const padding = 4;
+        const typeWidth = ctx.measureText(typeLabel).width + padding * 2;
+        const typeX = x + width - typeWidth - padding;
+        const typeY = y + padding;
+        const typeHeight = height - padding * 2;
+
+        // ctx.fillStyle = typeColor;
+        // ctx.font = '9px system-ui, -apple-system, sans-serif';
+        // ctx.textAlign = 'left';
+        // ctx.textBaseline = 'middle';
+        // ctx.fillText(typeLabel, typeX + typeWidth / 2, typeY + typeHeight / 2);
+
+        // 字段名
+        const nameMaxWidth = width - padding * 2 - typeWidth - padding * 2;
+        const formatName = this.formatName(ctx, nameMaxWidth);
+
+        ctx.fillStyle = textColor;
+        ctx.font = '12px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(formatName, x + padding, y + height / 2);
+
+        // 如果有描述且空间足够，显示描述
+        // if (this.desc && width > 150) {
+        //     const descMaxWidth = Math.min(width / 2, 120);
+        //     let displayDesc = this.desc;
+        //     if (ctx.measureText(displayDesc).width > descMaxWidth) {
+        //         while (ctx.measureText(displayDesc + '…').width > descMaxWidth && displayDesc.length > 1) {
+        //             displayDesc = displayDesc.slice(0, -1);
+        //         }
+        //         displayDesc += '…';
+        //     }
+        //     ctx.fillStyle = '#6c757d';
+        //     ctx.font = '10px system-ui, -apple-system, sans-serif';
+        //     ctx.textAlign = 'right';
+        //     ctx.textBaseline = 'middle';
+        //     ctx.fillText(displayDesc, x + width - typeWidth - padding - 4, y + height / 2);
+        // }
+
+        ctx.restore();
     }
 }

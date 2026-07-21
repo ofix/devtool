@@ -5,7 +5,7 @@ import CodeProjectParser from './parser/CodeProjectParser.js';
 async function main() {
   const parser = new CodeProjectParser({
     includePaths: ['/usr/include', '/usr/local/include'],
-    classPaths: ['/path/to/classes'],
+    classPaths: [],
     maxWorkers: 4
   });
 

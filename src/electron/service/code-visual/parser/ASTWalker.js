@@ -1,5 +1,3 @@
-// parser/core/ASTWalker.js
-
 /**
  * AST 遍历器 - 提供统一的树遍历接口
  */

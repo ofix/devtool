@@ -10,7 +10,7 @@ import FieldType from "./FieldType.js";
  * 5. 支持字段计数(总字段数目|隐藏字段)
  * 6. 支持选中
  **/
-class StructTable extends Component {
+class StructPanel extends Component {
     constructor(options = {}) {
         super(options.parent || null, options.children || []);
         this.type = 'table';
@@ -34,7 +34,6 @@ class StructTable extends Component {
         this.collapsed = options.collapsed || false;
         this.mergeHiddenFields = options.mergeHiddenFields || false;
         this.selected = false; // 当前是否选中
-        this.build
 
 
         // 拖拽状态
@@ -191,6 +190,50 @@ class StructTable extends Component {
         return themeManager.getPointerColor(field);
     }
 
+    // 重新布局，获取面板真实高度
+    doLayout(parent, currentIndent = 0) {
+        let y = 0; // 当前父内部垂直起始基线
+        for (let i = 0; i < parent.children.lengthh; i++) {
+            let child = parent.children[i];
+            // 水平坐标赋值为层级缩进
+            child.x = currentIndent;
+            child.y = y;
+
+            // 获取当前子节点实际占用高度
+            const childRenderH = calcNodeHeight(child) - child.margin.bottom - child.margin.top;
+            // 基线增加当前节点高度+间距，下一个节点往下排
+            y += childRenderH + child.margin.top + child.margin.bottom;
+
+            // 递归排布子节点内部：
+            // 可折叠且收起 → 不递归内部子节点
+            if (child.isCollapsible && child.collapsed) continue;
+            // 普通节点 / 展开的折叠节点 → 继续递归排布内部子组件
+            // 子层级缩进增加一层步长
+            this.doLayout(child, currentIndent + 20);
+        }
+    }
+
+    calcNodeHeight(node) {
+        // 1.可折叠节点
+        if (node.isCollapsible) {
+            if (node.collapsed) {
+                // 折叠状态：只算标题高度
+                return node.margin.top + node.collapsedHeight + node.margin.bottom;
+            }
+            // 展开状态：先递归所有子节点，累加总高度
+            let childSum = 0;
+            for (const child of node.children) {
+                childSum += this.calcNodeHeight(child);
+            }
+            // 缓存展开总高，供布局使用
+            node.height = node.headerHeight + childSum;
+            return node.margin.top + node.height + node.margin.bottom;
+        }
+
+        // 2.普通节点总高度 = 自身内容高度 + 上边距+ 下边距
+        return node.margin.top + node.height + node.margin.bottom;
+    }
+
     /**
      * 主题变化回调
      */
@@ -263,57 +306,15 @@ class StructTable extends Component {
             return;
         }
 
-        const x = 0;
-        const y = 0;
-        const w = this.width;
-        const h = this.height;
-        const padding = spacing.cellPadding;
-
-        // 绘制背景
-        ctx.fillStyle = tableStyle.rowBg;
-        ctx.fillRect(x, y, w, h);
-
-        // 绘制表头
-        this._drawHeader(ctx, x, y, w);
-
-        // 获取可见字段
-        let visibleFields = this.getVisibleFields();
-
-        // 绘制数据行
-        let currentY = y + this.headerHeight;
-        let rowIndex = 0;
-
-        for (const field of visibleFields) {
-            if (field.type == FieldType.HIDDEN_GROUP) {
-                currentY = this._drawHiddenFields(ctx, field, x, currentY, w, rowIndex);
-            } else {
-                const isExpanded = this.expandedFields.has(field.id);
-                const isHighlighted = this.highlightedFields.has(field.id);
-                const isPointer = (field.type == FieldType.POINTER || field.type == FieldType.REFERENCE);
-                const color = this.getFieldColor(field);
-                const indentLevel = 0;
-
-                currentY = this._drawField(
-                    ctx, field, x, currentY, w, rowIndex,
-                    indentLevel, isExpanded, isHighlighted,
-                    isPointer, color
-                );
-
-                if (isExpanded && field.children) {
-                    const visibleChildren = this.getVisibleFields(field.children);
-                    currentY = this._drawChildren(
-                        ctx, visibleChildren, x, currentY, w,
-                        rowIndex + 1, indentLevel + 1
-                    );
-                }
+        this.drawBorder(); // 绘制面板边框
+        this.drawFieldBorders(); // 绘制每个Field的分割线，用于拖拽操作
+        this.drawHeader(ctx); // 绘制结构体面板顶部标题栏
+        // 调用children让其绘制自身
+        for(let child of this.children){
+            if(child.isVisible()){
+                child.doDraw(ctx,0); // 传入层级0
             }
-            rowIndex++;
         }
-
-        // 绘制边框
-        ctx.strokeStyle = tableStyle.border;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, w, h);
     }
 
     _drawHiddenFields(ctx, field, x, y, w, rowIndex) {
@@ -362,7 +363,7 @@ class StructTable extends Component {
     }
 
     //  绘制表头
-    _drawHeader(ctx, x, y, w) {
+    drawHeader(ctx, x, y, w) {
         const theme = this.getTheme();
         const tableStyle = theme.table;
         const elements = theme.elements;
@@ -398,28 +399,6 @@ class StructTable extends Component {
         ctx.textAlign = 'right';
         ctx.fillText(`共 ${total} 字段 | 显示 ${visible} | 隐藏 ${hidden}`, w - 10, y + height / 2);
 
-        // 分隔线
-        ctx.strokeStyle = tableStyle.border;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x, y + height);
-        ctx.lineTo(x + w, y + height);
-        ctx.stroke();
-
-        // 列分隔线
-        const nameEndX = x + nameWidth + padding * 2;
-        const valueEndX = nameEndX + valueWidth + padding * 2;
-
-        ctx.beginPath();
-        ctx.moveTo(nameEndX, y);
-        ctx.lineTo(nameEndX, y + height);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(valueEndX, y);
-        ctx.lineTo(valueEndX, y + height);
-        ctx.stroke();
-
         // 列标题
         ctx.fillStyle = tableStyle.headerText;
         ctx.font = `bold ${font.size * 0.9}px ${font.family}`;
@@ -429,6 +408,51 @@ class StructTable extends Component {
         ctx.fillText('值', nameEndX + padding + 5, y + height / 2);
         ctx.fillText('操作', valueEndX + padding + 5, y + height / 2);
     }
+
+    // 绘制结构体面板
+    drawBorder(ctx) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.strokeRect(x, y, w, h);
+        ctx.restore();
+    }
+
+    /**
+     * 递归批量绘制Field单元格边框（仅底边）
+     * @param {Context2D} ctx Canvas 2D画布绘制上下文
+     * @param {number} parentAbsX 父容器累计全局X偏移
+     * @param {number} parentAbsY 父容器累计全局Y偏移
+     */
+    drawFieldBorders(ctx, parentAbsX, parentAbsY) {
+        for (const field of this.children) {
+            if (!field.isVisible()) {
+                continue;
+            }
+            // 当前Field全局坐标
+            const absX = parentAbsX + field.x;
+            const absY = parentAbsY + field.y;
+            const w = field.width;
+            const h = field.height;
+
+            // ----------------------
+            // 绘制单元格单边边框: 底
+            // ----------------------
+            ctx.beginPath();
+            // 顶部横线
+            ctx.moveTo(absX, absY + h);
+            ctx.lineTo(absX + w, absY + h);
+            ctx.stroke();
+            // ----------------------
+            // 递归绘制子Field
+            // ----------------------
+            const childBaseX = absX + field.padding;
+            const childBaseY = absY + field.padding;
+            this.drawFieldBorders(field.children, childBaseX, childBaseY);
+        }
+    }
+
+
 
     // 绘制字段行 
     _drawField(
@@ -1040,4 +1064,4 @@ class StructTable extends Component {
     }
 }
 
-export default StructTable;
+export default StructPanel;

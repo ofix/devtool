@@ -65,6 +65,12 @@ class SceneManager extends EventTarget {
             hitNode: null     // 上次点击原始命中节点
         };
         this.DOUBLE_CLICK_DELAY = 250; // 双击间隔阈值 250ms
+        this.allStructs = []; // 所有结构体/类
+        this.structNameMap = new Map(); // 通过结构体名称找到结构体实例
+        this.allRefRecords = []; // 所有引用节点
+        this.refFieldIdMap = new Map(); // 通过引用节点ID找到对应的结构体实例
+        this.refCurves = []; // 所有结构体引用的贝塞尔曲线
+
         // 绑定画布原生事件
         this._bindCanvasEvents();
         // 绑定全局键盘事件
@@ -85,6 +91,78 @@ class SceneManager extends EventTarget {
             x: sceneX / this.zoom + this.offset.x,
             y: sceneY / this.zoom + this.offset.y
         }
+    }
+
+    loadStructs(parseResult) {
+        const { structList, refRecords } = parseResult;
+
+        // 清空旧数据
+        this.allStructs = [];
+        this.structNameMap.clear();
+        this.allRefRecords = [];
+        this.refFieldIdMap.clear();
+
+        this.allStructs = structList;
+        this.allRefRecords = refRecords;
+
+        // 构建结构体名索引
+        for (const struct of this.allStructs) {
+            if (this.structNameMap.has(struct.name)) {
+                console.warn(`重复结构体名称: ${struct.name}`);
+            }
+            this.structNameMap.set(struct.name, struct);
+        }
+
+        // 构建端口快速索引
+        for (const record of this.allRefRecords) {
+            this.refFieldIdMap.set(record.refField.id, record);
+        }
+    }
+
+    // 对外查询API不变
+    getAllStructs() {
+        return this.allStructs;
+    }
+
+    getStructByName(name) {
+        return this.structNameMap.get(name);
+    }
+
+    getRefRecordsByStruct(structName) {
+        return this.allRefRecords.filter(item => item.belongStructName === structName);
+    }
+
+    getAllRefRecords() {
+        return this.allRefRecords;
+    }
+
+    getRefRecordByPortName(portName) {
+        return this.refFieldIdMap.get(portName);
+    }
+
+    // 根据解析后的引用端点生成贝塞尔曲线端点
+    generateAllRefCurves() {
+        const curves = [];
+        for (const record of this.allRefRecords) {
+            const { belongStructName, refField } = record;
+            const fromStruct = this.getStructByName(belongStructName);
+            const targetStructName = refField.typeVal;
+            const toStruct = this.getStructByName(targetStructName);
+
+            if (!fromStruct || !toStruct) continue;
+
+            curves.push({
+                belongStructName,
+                portName: refField.name,
+                pointerLevel: refField.pointerLevel,
+                portOffset: refField.offset,
+                fromStruct,
+                targetStructName,
+                toStruct,
+                refField
+            });
+        }
+        return curves;
     }
 
     /**

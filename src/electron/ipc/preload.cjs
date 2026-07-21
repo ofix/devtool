@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld('channel', {
     restoreProject: (options) => ipcRenderer.invoke('fs:restoreProject', options),
     // 保存代码工程
     saveProject: (options) => ipcRenderer.invoke('fs:saveProject', options),
+    // 分析代码文件
+    parseCodeFile:(filePath)=>ipcRenderer.invoke('ca:parseCodeFile',filePath),
 
     // 快捷键相关操作
     registerShortcut: (accelerator, handlerName) => ipcRenderer.invoke('shortcut:register', accelerator, handlerName),
