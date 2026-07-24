@@ -53,6 +53,10 @@ export class FieldCtrl extends Component {
         })
     }
 
+    measureHeight(){
+        
+    }
+
     resize() {
         let height = 0;
         for (let i = 0; i < this.children.lenght; i++) {

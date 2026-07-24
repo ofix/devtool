@@ -10,12 +10,68 @@ class UnionFieldCtrl extends FieldCtrl {
         this.isCollapsed = false; // 是否已收起
         this.isCollapsing = false; // 是否收起中，（动画效果）
         this.headerHeight = 20; // 全部展开情况下，标题栏高度
-        this.collpasedHeight = 0;  // 折叠后的高度
+        // 缓存：展开状态完整高度 header + 子总和
+        this.expandedHeight = 0;
+        this.headerBox = { x: 0, y: 0, width: 0, height: 0 }; // 标题栏包围盒，用于HitTest和分割线绘制，相对父容器坐标
+        this.collapedBox = { x: 0, y: 0, width: 0, height: 0 }; // 组件折叠后的包围盒，比原有的标题栏包围盒可能会大一点，用于HitTest和分割线绘制，相对父容器坐标
+        this.collapsedHeight = 0;  // 折叠后的高度
+    }
+
+    // 对外统一同步写入父类height，不破坏外部代码读取 field.height
+    refreshHeight() {
+        if (this.isExpanded) {
+            this.height = this.expandedHeight;
+        } else {
+            this.height = this.headerHeight;
+        }
+    }
+
+    // Union切换激活分支
+    switchActiveChild(union, newChild) {
+        union.activeChild = newChild;
+        // 关键：新分支如果是容器，先递归测量整棵分支
+        if (newChild) {
+            measureAll(newChild);
+        }
+        union.measure();
+        // 继续向上冒泡更新祖先
+        let p = union.parent;
+        while (p) {
+            p.measure();
+            p = p.parent;
+        }
+        requestLayoutArrange();
+    }
+
+    measureHeight() {
+        if (this.isEditMode) {
+            // 编辑态：累加所有children高度
+            let sum = this.children.reduce((s, c) => s + c.height, 0);
+            this.expandedHeight = this.headerHeight + sum + gap;
+        } else {
+            // 运行态：只取activeChild
+            const childH = this.activeChild ? this.activeChild.height : 0;
+            this.expandedHeight = this.headerHeight + childH;
+        }
+
+        this.refreshHeight();
+    }
+
+    expand() { // 展开
+        this.isCollapsed = true;
+        this.refreshHeight(); // 更新自身 height
+        // 向上冒泡刷新所有祖先
+        let p = this.parent;
+        while (p) {
+            p.measureHeight();
+            p = p.parent;
+        }
+        requestLayoutArrange();
     }
 
     /**
-   * 添加一个选项
-   */
+     * 添加一个选项
+     */
     addOption(name, condition, fields) {
         this.options.push({
             name,
@@ -24,6 +80,37 @@ class UnionFieldCtrl extends FieldCtrl {
         });
         return this;
     }
+
+    get headerHeight() {
+        if (this.isCollapsed) {
+            return this.collapsedHeight;
+        }
+        return this.headerHeight;
+    }
+
+    // 计算Body的高度
+    calcBodyHeight(node) {
+        let height = 0;
+        for (let i = 0; i < node.length; i++) {
+            let child = node.children[i];
+            if (child.isVisible()) {
+                if (child.height === 0) {
+                    height += this.calcBodyHeight(child);
+                }
+                height += child.height;
+            }
+        }
+        return height;
+    }
+
+    getBodyHeight() {
+        if (this.isCollapsed) {
+            return 0;
+        }
+        return this.bodyHeight;
+    }
+
+
 
     /**
      * 获取当前激活的选项

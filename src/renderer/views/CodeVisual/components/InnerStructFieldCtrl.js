@@ -6,12 +6,6 @@ class InnerStructFieldCtrl extends FieldCtrl {
         super({ key, label, type: FieldType.CLASS, value, height });
         this.collapsed = false;
     }
-    addFields(fields) {
-        for (const field of fields) {
-            this.addChild(field);
-        }
-        return this;
-    }
     doDraw(ctx, level) {
         // 绘制自身，支持折叠
         // 绘制标题栏，然后直接返回
@@ -29,7 +23,7 @@ class InnerStructFieldCtrl extends FieldCtrl {
     }
 
     drawStructName(ctx){
-
+        ctx.text
     }
 }
 

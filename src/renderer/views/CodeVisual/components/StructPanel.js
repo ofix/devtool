@@ -16,7 +16,7 @@ class StructPanel extends Component {
         this.type = 'table';
         // 数据
         this.children = options.children || []; // 原始字段集合
-        this.visibleFields = []; // 合并隐藏字段或者折叠Union字段后的所有字段缓存
+        this.visibleChildren = []; // 合并隐藏字段或者折叠Union字段后的所有字段缓存
 
         // 状态
         this.expandedFields = new Set(options.expandedFields || []); // union 字段才会展开和折叠
@@ -31,38 +31,72 @@ class StructPanel extends Component {
         this.hiddenFieldsCount = this.hiddenFields.length;
 
         // 折叠状态
-        this.collapsed = options.collapsed || false;
+        this.collapsed = options.collapsed || false; // 自身的折叠状态
         this.mergeHiddenFields = options.mergeHiddenFields || false;
         this.selected = false; // 当前是否选中
 
 
         // 拖拽状态
         this.isDragging = false;
-        // this._resizeType = null;
-        // this._resizeColumn = null;
         this.draggingStartX = 0;
         this.draggingWidth = 0;
-        this._hoverResizeColumn = null;
-        this._isHoveringRightEdge = false;
+        this.isHoveringRightEdge = false;
 
         // 按钮映射
         this._buttonMap = new Map();
         // 指针或者引用的按钮
         this.pointerBtnMap = new Map();
-        this._resizeHandles = {};
-        this._rightEdgeHandle = null;
-        this._collapseButton = null;
 
         // 编辑状态
-        this._editingField = null;
-        this._editingInput = null;
+        this.editingField = null;
 
         // 主题监听
-        this._themeListener = this._onThemeChange.bind(this);
-        themeManager.onChange(this._themeListener);
+        this.themeListener = this._onThemeChange.bind(this);
+        themeManager.onChange(this.themeListener);
 
         // 计算尺寸
         this._updateDimensions();
+    }
+
+    measureAllHeight(node) {
+        for (const child of node.children) {
+            this.measureAll(child);
+        }
+        node.measure();
+    }
+
+    measureHeight() {
+        let sum = 0;
+        for (const child of this.children) {
+            if (child.isVisible()) {
+                sum += child.height;
+            }
+        }
+        this.expandedHeight = this.headerHeight + sum;
+        this.refreshHeight();
+    }
+
+    ensureWidth(width) {
+        this.setWidthRecursive(this, width);
+    }
+
+    // 重新布局
+    doLayout(){
+
+    }
+
+    setWidthRecursive(node, width) {
+        // 1. 先设置当前节点
+        node.setWidth(width);
+
+        // 2. 再递归处理子节点
+        if (node.children) {
+            for (const child of node.children) {
+                if (child.isVisible()) {
+                    this.setWidthRecursive(child, width);
+                }
+            }
+        }
     }
 
     //  列宽管理 
@@ -310,9 +344,9 @@ class StructPanel extends Component {
         this.drawFieldBorders(); // 绘制每个Field的分割线，用于拖拽操作
         this.drawHeader(ctx); // 绘制结构体面板顶部标题栏
         // 调用children让其绘制自身
-        for(let child of this.children){
-            if(child.isVisible()){
-                child.doDraw(ctx,0); // 传入层级0
+        for (let child of this.children) {
+            if (child.isVisible()) {
+                child.doDraw(ctx, 0); // 传入层级0
             }
         }
     }
@@ -425,6 +459,7 @@ class StructPanel extends Component {
      * @param {number} parentAbsY 父容器累计全局Y偏移
      */
     drawFieldBorders(ctx, parentAbsX, parentAbsY) {
+        const w = this.width;
         for (const field of this.children) {
             if (!field.isVisible()) {
                 continue;
@@ -432,7 +467,6 @@ class StructPanel extends Component {
             // 当前Field全局坐标
             const absX = parentAbsX + field.x;
             const absY = parentAbsY + field.y;
-            const w = field.width;
             const h = field.height;
 
             // ----------------------
@@ -448,6 +482,10 @@ class StructPanel extends Component {
             // ----------------------
             const childBaseX = absX + field.padding;
             const childBaseY = absY + field.padding;
+            if (field.type == FieldType.UNION || field.type == FieldType.PANEL) {
+                // 绘制标题栏
+                const h = field.getHeaderHeight();
+            }
             this.drawFieldBorders(field.children, childBaseX, childBaseY);
         }
     }
