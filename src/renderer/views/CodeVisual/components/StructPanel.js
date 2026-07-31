@@ -58,135 +58,12 @@ class StructPanel extends Component {
         this._updateDimensions();
     }
 
-    measureAllHeight(node) {
-        for (const child of node.children) {
-            this.measureAll(child);
-        }
-        node.measure();
-    }
-
-    measureHeight() {
-        let sum = 0;
-        for (const child of this.children) {
-            if (child.isVisible()) {
-                sum += child.height;
-            }
-        }
-        this.expandedHeight = this.headerHeight + sum;
-        this.refreshHeight();
-    }
-
-    ensureWidth(width) {
-        this.setWidthRecursive(this, width);
-    }
-
-    // 重新布局
-    doLayout(){
-
-    }
-
-    setWidthRecursive(node, width) {
-        // 1. 先设置当前节点
-        node.setWidth(width);
-
-        // 2. 再递归处理子节点
-        if (node.children) {
-            for (const child of node.children) {
-                if (child.isVisible()) {
-                    this.setWidthRecursive(child, width);
-                }
-            }
-        }
-    }
-
-    //  列宽管理 
-    setColumnWidth(column, width) {
-        const clampedWidth = Math.max(this.minColumnWidth, Math.min(this.maxColumnWidth, width));
-        this.columnWidths[column] = clampedWidth;
-        this._updateDimensions();
-        this._markDirty();
-        this.fire('columnWidthChanged', { column, width: clampedWidth });
-        return this;
-    }
-
-    getColumnWidth(column) {
-        return this.columnWidths[column] || 100;
-    }
-
-    setTableWidth(width) {
-        const clampedWidth = Math.max(this.minTableWidth, Math.min(this.maxTableWidth, width));
-        // 调整列宽比例
-        const ratio = clampedWidth / this.width;
-        for (const col of ['name', 'value', 'action']) {
-            this.columnWidths[col] = Math.max(
-                this.minColumnWidth,
-                Math.min(this.maxColumnWidth, this.columnWidths[col] * ratio)
-            );
-        }
-        this._updateDimensions();
-        this._markDirty();
-        this.fire('tableWidthChanged', { width: clampedWidth });
-        return this;
-    }
-
-    autoFitColumns() {
-        let maxNameWidth = 60;
-        for (const field of this.children) {
-            const nameWidth = this._measureText(this._getDisplayName(field));
-            maxNameWidth = Math.max(maxNameWidth, nameWidth);
-        }
-
-        let maxValueWidth = 80;
-        for (const field of this.children) {
-            const value = field.value !== undefined ? String(field.value) : 'null';
-            const valueWidth = this._measureText(value);
-            maxValueWidth = Math.max(maxValueWidth, valueWidth);
-        }
-
-        this.columnWidths.name = Math.min(Math.max(maxNameWidth + 40, 80), 300);
-        this.columnWidths.value = Math.min(Math.max(maxValueWidth + 40, 100), 500);
-
-        this._updateDimensions();
-        this._markDirty();
-        this.fire('columnsAutoFitted');
-        return this;
-    }
-
-    getCollapsedHeight() {
+    measureCollapsedHeight() {
         let referenceFields = 0;
         for (let i = 0; i < this.children.length; i++) {
             referenceFields += 1;
         }
         return (referenceFields + 1) * 18;
-    }
-
-    // 尺寸更新
-    _updateDimensions() {
-        if (this.collapsed) {
-            this.height = this.getCollapsedHeight();
-            return;
-        }
-
-        const visibleFields = this.getVisibleFields();
-        const displayFields = this.mergeHiddenFields ?
-            this._mergeHiddenFields(visibleFields) : visibleFields;
-
-        let totalRows = 1;
-        for (const field of displayFields) {
-            totalRows += this._getDisplayRows(field);
-        }
-
-        this.height = this.headerHeight + totalRows * this.rowHeight;
-
-        // 使用配置的列宽
-        this.nameWidth = this.columnWidths.name;
-        this.maxCellWidth = this.columnWidths.value;
-        this.actionWidth = this.columnWidths.action || 40;
-
-        // 总宽度
-        this.width = this.nameWidth + this.maxCellWidth + this.actionWidth + this.cellPadding * 4;
-        this.width = Math.max(this.width, this.minTableWidth);
-        this.width = Math.min(this.width, this.maxTableWidth);
     }
 
     /**
@@ -196,76 +73,75 @@ class StructPanel extends Component {
         return themeManager.getCurrentTheme();
     }
 
-    /**
-     * 获取表格样式（快捷方法）
-     */
-    getTableStyle() {
-        return themeManager.getTableStyle();
+    // 计算节点高度（后续遍历）
+    measureHeight(node) {
+        // 叶子节点或折叠节点
+        if (node.collapsed) {
+            return node.collapsedHeight;
+        }
+
+        // 有子节点：递归计算子节点高度
+        if (node.children && node.children.length > 0) {
+            let childrenHeight = 0;
+            for (const child of node.children) {
+                if (child.isVisible) { // 只有节点可见的时候才计算对应节点的高度
+                    childrenHeight += this.measureHeight(child);
+                }
+            }
+            // 缓存计算结果供布局使用
+            node.height = node.headerHeight + childrenHeight;
+            return node.height;
+        }
+
+        // 普通叶子节点
+        return node.height;
     }
 
-    /**
-     * 获取字段颜色
-     */
-    getFieldColor(field) {
-        return themeManager.getFieldColor(field, this.fieldColors);
+    // 计算并设置宽度（前序遍历）
+    setNodeWidth(node, containerWidth) {
+        // 设置当前节点宽度
+        node.width = containerWidth;
+
+        // 如果有子节点且展开，递归设置子节点宽度
+        if (node.children && node.children.length > 0) {
+            if (node.isCollapsible && node.collapsed) {
+                node.Width = containerWidth;
+                return; // 折叠状态不处理子节点
+            }
+
+            // 子节点可以使用相同宽度或减去缩进
+            const childContainerWidth = containerWidth - (node.indent || 0);
+            for (const child of node.children) {
+                this.setNodeWidth(child, childContainerWidth);
+            }
+        }
     }
 
-    /**
-     * 是否为指针/引用
-     */
-    isPointerOrReference(field) {
-        return themeManager.isPointerOrReference(field);
-    }
+    // 布局函数：只负责设置坐标（前序遍历）
+    doLayout(node, currentIndent = 0) {
+        let y = 0;
 
-    /**
-     * 获取指针颜色
-     */
-    getPointerColor(field) {
-        return themeManager.getPointerColor(field);
-    }
-
-    // 重新布局，获取面板真实高度
-    doLayout(parent, currentIndent = 0) {
-        let y = 0; // 当前父内部垂直起始基线
-        for (let i = 0; i < parent.children.lengthh; i++) {
-            let child = parent.children[i];
-            // 水平坐标赋值为层级缩进
+        for (let i = 0; i < node.children.length; i++) {
+            const child = node.children[i];
+            // 设置坐标
             child.x = currentIndent;
             child.y = y;
 
-            // 获取当前子节点实际占用高度
-            const childRenderH = calcNodeHeight(child) - child.margin.bottom - child.margin.top;
-            // 基线增加当前节点高度+间距，下一个节点往下排
-            y += childRenderH + child.margin.top + child.margin.bottom;
+            // 计算当前节点占用的总高度（使用缓存值）
+            y += child.height;
 
-            // 递归排布子节点内部：
-            // 可折叠且收起 → 不递归内部子节点
-            if (child.isCollapsible && child.collapsed) continue;
-            // 普通节点 / 展开的折叠节点 → 继续递归排布内部子组件
-            // 子层级缩进增加一层步长
-            this.doLayout(child, currentIndent + 20);
+            // 递归布局子节点（如果展开）
+            if (!child.collapsed) {
+                this.doLayout(child, currentIndent + 20);
+            }
         }
     }
 
-    calcNodeHeight(node) {
-        // 1.可折叠节点
-        if (node.isCollapsible) {
-            if (node.collapsed) {
-                // 折叠状态：只算标题高度
-                return node.margin.top + node.collapsedHeight + node.margin.bottom;
-            }
-            // 展开状态：先递归所有子节点，累加总高度
-            let childSum = 0;
-            for (const child of node.children) {
-                childSum += this.calcNodeHeight(child);
-            }
-            // 缓存展开总高，供布局使用
-            node.height = node.headerHeight + childSum;
-            return node.margin.top + node.height + node.margin.bottom;
-        }
-
-        // 2.普通节点总高度 = 自身内容高度 + 上边距+ 下边距
-        return node.margin.top + node.height + node.margin.bottom;
+    layout() {
+        // 后续遍历所有节点，获取面板高度
+        this.measureHeight(this);
+        // 前序遍历设置子元素相对父容器位置
+        this.doLayout(this);
     }
 
     /**
@@ -279,62 +155,75 @@ class StructPanel extends Component {
         this.fire('themeChanged', { theme });
     }
 
-    _mergeHiddenFields(children) {
-        if (!this.mergeHiddenFields) return children;
-
-        const result = [];
-        let hiddenGroup = [];
-        let hiddenGroupId = 0;
-
-        const flushGroup = () => {
-            if (hiddenGroup.length === 0) return;
-
-            result.push({
-                id: `hg_${hiddenGroupId++}`,
-                name: `隐藏字段 (${hiddenGroup.length})`,  // 统一命名风格
-                type: FieldType.HIDDEN_GROUP,  // 只保留一个 type
-                count: hiddenGroup.length,
-                children: [...hiddenGroup]
-            });
-            hiddenGroup = [];
-        };
-
-        for (let i = 0; i < children.length; i++) {
-            let field = children[i];
-            if (this.hiddenFields.has(field.id)) {
-                hiddenGroup.push(field);
-            } else {
-                flushGroup();
-                result.push(field);
+    //  交互检测
+    doHitTest(localX, localY) {
+        // 检查右边框拖拽
+        if (this._rightEdgeHandle) {
+            const handle = this._rightEdgeHandle;
+            if (localX >= handle.x && localX <= handle.x + handle.width &&
+                localY >= handle.y && localY <= handle.y + handle.height) {
+                return { type: 'resize_table', handle };
             }
         }
 
-        flushGroup(); // 处理最后剩余的隐藏字段
-
-        return result;
-    }
-
-    getVisibleFields() {
-        if (this.mergeHiddenFields) {
-            if (this.visibleFields.length > 0) {
-                return this.visibleFields;
+        // 检查列宽调整手柄
+        if (this._resizeHandles) {
+            for (const [column, rect] of Object.entries(this._resizeHandles)) {
+                if (localX >= rect.x && localX <= rect.x + rect.width &&
+                    localY >= rect.y && localY <= rect.y + rect.height) {
+                    return { type: 'resize_column', column, rect };
+                }
             }
-            this.visibleFields = this._mergeHiddenFields(this.children);
-            return this.visibleFields;
         }
-        return this.children;
+
+        // 检查折叠按钮
+        if (this._collapseButton) {
+            const btn = this._collapseButton;
+            if (localX >= btn.x && localX <= btn.x + btn.width &&
+                localY >= btn.y && localY <= btn.y + btn.height) {
+                return { type: 'toggle_collapse' };
+            }
+        }
+
+        if (this.collapsed) return null;
+
+        // 检查展开/折叠按钮
+        for (const [fieldId, btnRect] of this._buttonMap) {
+            if (localX >= btnRect.x && localX <= btnRect.x + btnRect.width &&
+                localY >= btnRect.y && localY <= btnRect.y + btnRect.height) {
+                return { type: 'toggle_field', fieldId };
+            }
+        }
+
+        // 检查隐藏组
+        if (this._hiddenGroupMap) {
+            for (const [fieldId, rect] of this._hiddenGroupMap) {
+                if (localX >= rect.x && localX <= rect.x + rect.width &&
+                    localY >= rect.y && localY <= rect.y + rect.height) {
+                    return { type: 'show_hidden_group', fieldId, hiddenFields: rect.hiddenFields };
+                }
+            }
+        }
+
+        // 检查圆圈
+        for (const [fieldId, circleRect] of this.pointerBtnMap) {
+            if (localX >= circleRect.x && localX <= circleRect.x + circleRect.width &&
+                localY >= circleRect.y && localY <= circleRect.y + circleRect.height) {
+                return { type: 'click_circle', fieldId };
+            }
+        }
+
+        // 检查字段行
+        const field = this._getFieldAtPoint(localX, localY);
+        if (field) {
+            return { type: 'click_field', fieldId: field.id, field };
+        }
+
+        return null;
     }
 
     // 绘制
-    doDraw(ctx) {
-        const theme = this.getTheme();
-        const tableStyle = theme.table;
-        const highlightStyle = theme.highlight;
-        const expandedStyle = theme.expanded;
-        const elements = theme.elements;
-        const font = theme.font;
-        const spacing = theme.spacing;
-
+    doDraw(ctx, tansform = new Matrix()) {
         if (this.collapsed) {
             this.doDrawCollapsed(ctx);
             return;
@@ -346,54 +235,9 @@ class StructPanel extends Component {
         // 调用children让其绘制自身
         for (let child of this.children) {
             if (child.isVisible()) {
-                child.doDraw(ctx, 0); // 传入层级0
+                child.draw(ctx, level); // 传入层级0
             }
         }
-    }
-
-    _drawHiddenFields(ctx, field, x, y, w, rowIndex) {
-        const rowHeight = this.rowHeight;
-        const padding = this.cellPadding;
-
-        // 背景
-        ctx.fillStyle = this.hiddenColor;
-        ctx.fillRect(x, y, w, rowHeight);
-
-        // 边框
-        ctx.strokeStyle = this.borderColor;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x, y + rowHeight);
-        ctx.lineTo(x + w, y + rowHeight);
-        ctx.stroke();
-
-        // 显示隐藏信息
-        ctx.fillStyle = '#888';
-        ctx.font = `italic ${this.fontSize}px ${this.fontFamily}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-
-        const text = `🔒 ${field.hiddenCount} 个隐藏字段 (点击展开)`;
-        ctx.fillText(text, x + padding + 20, y + rowHeight / 2);
-
-        // 统计显示隐藏字段数量
-        ctx.fillStyle = '#666';
-        ctx.font = `${this.fontSize * 0.8}px ${this.fontFamily}`;
-        ctx.textAlign = 'right';
-        ctx.fillText(`+${field.hiddenCount}`, w - padding, y + rowHeight / 2);
-
-        // 保存点击区域
-        this._hiddenGroupMap = this._hiddenGroupMap || new Map();
-        this._hiddenGroupMap.set(field.id, {
-            x: x,
-            y: y,
-            width: w,
-            height: rowHeight,
-            fieldId: field.id,
-            hiddenFields: field._hiddenFields
-        });
-
-        return y + rowHeight;
     }
 
     //  绘制表头
@@ -447,8 +291,9 @@ class StructPanel extends Component {
     drawBorder(ctx) {
         ctx.save();
         ctx.strokeStyle = color;
-        ctx.lineWidth = lineWidth;
-        ctx.strokeRect(x, y, w, h);
+        ctx.lineWidth = 1;
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + this.width, this.y);
         ctx.restore();
     }
 
@@ -488,194 +333,6 @@ class StructPanel extends Component {
             }
             this.drawFieldBorders(field.children, childBaseX, childBaseY);
         }
-    }
-
-
-
-    // 绘制字段行 
-    _drawField(
-        ctx, field, x, y, w, rowIndex,
-        indentLevel, isExpanded, isHighlighted,
-        isPointer, color
-    ) {
-        const theme = this.getTheme();
-        const config = this.getConfig();
-        const tableStyle = theme.table;
-        const highlightStyle = theme.highlight;
-        const expandedStyle = theme.expanded;
-        const elements = theme.elements;
-        const font = theme.font;
-        const spacing = config.spacing;
-
-        const rowHeight = config.rowHeight;
-        const padding = spacing.cellPadding;
-        const nameWidth = config.nameWidth;
-        const maxCellWidth = config.maxCellWidth;
-        const indent = indentLevel * config.indentSize;
-        const circleRadius = config.circleRadius;
-
-        // 背景
-        if (isHighlighted) {
-            ctx.fillStyle = highlightStyle.bg;
-        } else if (isExpanded) {
-            ctx.fillStyle = expandedStyle.bg;
-        } else if (field.frozen) {
-            ctx.fillStyle = tableStyle.frozenBg;
-        } else if (this.hiddenFields.has(field.id)) {
-            ctx.fillStyle = tableStyle.hiddenBg;
-        } else {
-            ctx.fillStyle = tableStyle.rowBg; // rowIndex % 2 === 0 ? tableStyle.rowBg : tableStyle.rowAltBg;
-        }
-        ctx.fillRect(x, y, w, rowHeight);
-
-        // 行边框
-        ctx.strokeStyle = tableStyle.border;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x, y + rowHeight);
-        ctx.lineTo(x + w, y + rowHeight);
-        ctx.stroke();
-
-        // 高亮边框
-        if (isHighlighted) {
-            ctx.strokeStyle = highlightStyle.border;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 1, y + 1, w - 2, rowHeight - 2);
-        }
-
-        // 颜色标记
-        if (color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(x + padding, y + 4, 3, rowHeight - 8);
-        }
-
-        // 字段名
-        const nameX = x + padding + indent + 6;
-        const nameY = y + rowHeight / 2;
-        const nameWidthActual = nameWidth - indent - padding * 2 - 10;
-
-        ctx.fillStyle = field.frozen ? '#888' : tableStyle.text;
-        ctx.font = `${font.size}px ${font.family}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-
-        const displayName = this._getDisplayName(field);
-        const truncatedName = this._truncateText(displayName, nameWidthActual);
-        ctx.fillText(truncatedName, nameX, nameY);
-
-        // 类型标记
-        if (field.type && !field._isHiddenGroup) {
-            const typeX = nameX + this._measureText(truncatedName) + 8;
-            ctx.fillStyle = '#888';
-            ctx.font = `${font.size * font.typeSize}px ${font.family}`;
-            ctx.fillText(`(${field.type})`, typeX, nameY);
-        }
-
-        // 值
-        const valueX = x + nameWidth + padding * 3;
-        const valueWidth = maxCellWidth - padding * 2;
-        const valueY = y + rowHeight / 2;
-
-        ctx.fillStyle = field.frozen ? '#888' : tableStyle.text;
-        ctx.font = `${font.size}px ${font.family}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-
-        let displayValue = field.value !== undefined ? String(field.value) : 'null';
-        if (field.children && field.children.length > 0 && !field._isHiddenGroup) {
-            displayValue = `{${this.getVisibleFields(field.children).length} 个子字段}`;
-        }
-        const truncatedValue = this._truncateText(displayValue, valueWidth - (isPointer ? 20 : 0));
-        ctx.fillText(truncatedValue, valueX, valueY);
-
-        // 指针/引用标记
-        if (isPointer) {
-            const circleX = valueX + valueWidth - 10;
-            const circleY = y + rowHeight / 2;
-            const pointerColor = this.getPointerColor(field);
-
-            ctx.save();
-            ctx.shadowColor = pointerColor;
-            ctx.shadowBlur = 8;
-
-            ctx.beginPath();
-            ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
-            ctx.fillStyle = pointerColor;
-            ctx.fill();
-            ctx.restore();
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
-            ctx.stroke();
-
-            this.pointerBtnMap.set(field.id, {
-                x: circleX - circleRadius,
-                y: circleY - circleRadius,
-                width: circleRadius * 2,
-                height: circleRadius * 2,
-                fieldId: field.id
-            });
-        }
-
-        // 展开/折叠按钮
-        if (field.children && field.children.length > 0 && !field._isHiddenGroup) {
-            const btnX = x + nameWidth + maxCellWidth + padding * 2;
-            const btnY = y + rowHeight / 2;
-            const btnSize = 16;
-
-            ctx.fillStyle = isExpanded ? elements.expandButtonBg : elements.collapseButtonDefault;
-            ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(btnX - btnSize / 2, btnY - btnSize / 2, btnSize, btnSize, 3);
-            } else {
-                ctx.rect(btnX - btnSize / 2, btnY - btnSize / 2, btnSize, btnSize);
-            }
-            ctx.fill();
-
-            ctx.fillStyle = elements.collapseButtonText;
-            ctx.font = `${btnSize}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(isExpanded ? '−' : '+', btnX, btnY + 1);
-
-            this._buttonMap.set(field.id, {
-                x: btnX - btnSize / 2,
-                y: btnY - btnSize / 2,
-                width: btnSize,
-                height: btnSize,
-                fieldId: field.id
-            });
-        }
-
-        return y + rowHeight;
-    }
-
-
-
-    //  绘制右边框拖拽手柄 
-    _drawRightEdgeHandle(ctx, x, y, w, h) {
-        const theme = this.getTheme();
-        const elements = theme.elements;
-        const spacing = theme.spacing;
-
-        const handleSize = spacing.resizeHandleSize * 2;
-        const isActive = this.isDragging;
-        const isHover = this._isHoveringRightEdge;
-
-        const handleX = x + w - handleSize / 2;
-        ctx.fillStyle = isActive ? elements.resizeHandleActive :
-            isHover ? 'rgba(255,255,255,0.3)' : elements.resizeHandle;
-        ctx.fillRect(handleX - handleSize / 2, y + 4, handleSize, h - 8);
-
-        this._rightEdgeHandle = {
-            x: handleX - handleSize / 2,
-            y: y + 4,
-            width: handleSize,
-            height: h - 8,
-            lineX: x + w
-        };
     }
 
     // 绘制折叠状态 
@@ -851,33 +508,6 @@ class StructPanel extends Component {
         ctx.restore();
     }
 
-    //  绘制折叠按钮 
-    _drawCollapseButton(ctx, x, y, w, height, isCollapsed) {
-        const theme = this.getTheme();
-        const elements = theme.elements;
-
-        const btnSize = 16;
-        const btnX = x + 8;
-        const btnY = y + (height - btnSize) / 2;
-
-        this._collapseButton = { x: btnX, y: btnY, width: btnSize, height: btnSize };
-
-        ctx.fillStyle = elements.collapseButtonBg;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(btnX, btnY, btnSize, btnSize, 3);
-        } else {
-            ctx.rect(btnX, btnY, btnSize, btnSize);
-        }
-        ctx.fill();
-
-        ctx.fillStyle = elements.collapseButtonText;
-        ctx.font = `${btnSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(isCollapsed ? '▶' : '▼', btnX + btnSize / 2, btnY + btnSize / 2 + 1);
-    }
-
     hitTest(mouseX, mouseY) {
         if (mouseX >= (this.x + this.width - 2) && mouseX <= (this.x + this.width + 2
             && mouseY >= this.y && mouseY <= this.y + this.height)
@@ -930,74 +560,6 @@ class StructPanel extends Component {
         return ctx.measureText(text).width;
     }
 
-    //  交互检测
-    doHitTest(localX, localY) {
-        // 检查右边框拖拽
-        if (this._rightEdgeHandle) {
-            const handle = this._rightEdgeHandle;
-            if (localX >= handle.x && localX <= handle.x + handle.width &&
-                localY >= handle.y && localY <= handle.y + handle.height) {
-                return { type: 'resize_table', handle };
-            }
-        }
-
-        // 检查列宽调整手柄
-        if (this._resizeHandles) {
-            for (const [column, rect] of Object.entries(this._resizeHandles)) {
-                if (localX >= rect.x && localX <= rect.x + rect.width &&
-                    localY >= rect.y && localY <= rect.y + rect.height) {
-                    return { type: 'resize_column', column, rect };
-                }
-            }
-        }
-
-        // 检查折叠按钮
-        if (this._collapseButton) {
-            const btn = this._collapseButton;
-            if (localX >= btn.x && localX <= btn.x + btn.width &&
-                localY >= btn.y && localY <= btn.y + btn.height) {
-                return { type: 'toggle_collapse' };
-            }
-        }
-
-        if (this.collapsed) return null;
-
-        // 检查展开/折叠按钮
-        for (const [fieldId, btnRect] of this._buttonMap) {
-            if (localX >= btnRect.x && localX <= btnRect.x + btnRect.width &&
-                localY >= btnRect.y && localY <= btnRect.y + btnRect.height) {
-                return { type: 'toggle_field', fieldId };
-            }
-        }
-
-        // 检查隐藏组
-        if (this._hiddenGroupMap) {
-            for (const [fieldId, rect] of this._hiddenGroupMap) {
-                if (localX >= rect.x && localX <= rect.x + rect.width &&
-                    localY >= rect.y && localY <= rect.y + rect.height) {
-                    return { type: 'show_hidden_group', fieldId, hiddenFields: rect.hiddenFields };
-                }
-            }
-        }
-
-        // 检查圆圈
-        for (const [fieldId, circleRect] of this.pointerBtnMap) {
-            if (localX >= circleRect.x && localX <= circleRect.x + circleRect.width &&
-                localY >= circleRect.y && localY <= circleRect.y + circleRect.height) {
-                return { type: 'click_circle', fieldId };
-            }
-        }
-
-        // 检查字段行
-        const field = this._getFieldAtPoint(localX, localY);
-        if (field) {
-            return { type: 'click_field', fieldId: field.id, field };
-        }
-
-        return null;
-    }
-
-    //  鼠标事件处理（拖拽） 
     /**
      * 开始拖拽调整
      */
@@ -1038,40 +600,6 @@ class StructPanel extends Component {
                 widths: this.columnWidths,
                 tableWidth: this.width
             });
-        }
-    }
-
-    //  鼠标移动检测（更新悬停状态） 
-    updateHover(localX, localY) {
-        // 检查是否悬停在列分隔线上
-        let hoverColumn = null;
-        for (const [column, rect] of Object.entries(this._resizeHandles)) {
-            if (localX >= rect.x && localX <= rect.x + rect.width &&
-                localY >= rect.y && localY <= rect.y + rect.height) {
-                hoverColumn = column;
-                break;
-            }
-        }
-        this._hoverResizeColumn = hoverColumn;
-
-        // 检查是否悬停在右边框
-        let hoverRightEdge = false;
-        if (this._rightEdgeHandle) {
-            const handle = this._rightEdgeHandle;
-            if (localX >= handle.x && localX <= handle.x + handle.width &&
-                localY >= handle.y && localY <= handle.y + handle.height) {
-                hoverRightEdge = true;
-            }
-        }
-        this._isHoveringRightEdge = hoverRightEdge;
-
-        // 更新光标
-        if (this._canvas) {
-            if (hoverColumn || hoverRightEdge) {
-                this._canvas.canvas.style.cursor = 'col-resize';
-            } else if (!this.isDragging) {
-                this._canvas.canvas.style.cursor = 'default';
-            }
         }
     }
 

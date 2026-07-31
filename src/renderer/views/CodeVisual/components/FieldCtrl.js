@@ -12,6 +12,7 @@ export class FieldCtrl extends Component {
         this.hovered = false;
         this.x = options.x || 0;
         this.y = options.y || 0;
+        this.level = 0 || options.level; // 控件层级
         this.width = options.width || 0;
         this.height = options.height || 0;
 
@@ -53,8 +54,8 @@ export class FieldCtrl extends Component {
         })
     }
 
-    measureHeight(){
-        
+    measureHeight() {
+
     }
 
     resize() {
@@ -103,6 +104,7 @@ export class FieldCtrl extends Component {
 
     addChild(child) {
         child.parent = this;
+        child.level = this.level++;
         this.children.push(child);
         return this;
     }
@@ -221,7 +223,7 @@ export class FieldCtrl extends Component {
      * @param {String} text 待测量的文字，没有换行符
      * @param {FontFamily} font 字体大小
      */
-    measureText(ctx,text,font="12px sans-serif"){
+    measureText(ctx, text, font = "12px sans-serif") {
         ctx.font = font; // 和绘制字体保持一致
         return ctx.measureText(text).width;
     }
