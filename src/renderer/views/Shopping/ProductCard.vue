@@ -9,11 +9,11 @@
       <div class="meta-row">
         <span class="meta-badge">
           📦 包裹 <span class="number">{{ product.packageCount }}</span
-          ><span class="unit">件</span>
+          ><span class="unit">个</span>
         </span>
         <span class="meta-badge">
-          🔢 数量 <span class="number">{{ product.itemCount }}</span
-          ><span class="unit">个</span>
+          <IconCount class="count"/> 数量 <span class="number">{{ product.itemCount }}</span
+          ><span class="unit">件</span>
         </span>
       </div>
       <div
@@ -115,6 +115,10 @@ defineEmits(["remove"]);
   font-weight: 600;
   color: #2c3e50;
   margin-left: 2px;
+}
+.count{
+    width:16px;
+    height:16px;
 }
 .status-tag {
   display: inline-block;

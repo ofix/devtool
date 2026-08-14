@@ -26,6 +26,7 @@ import IconCodeVisual from "@/icons/IconCodeVisual.vue";
 import IconDark from "@/icons/IconDark.vue";
 import IconLight from "@/icons/IconLight.vue";
 import IconShopping from "@/icons/IconShopping.vue";
+import IconCount from "@/icons/IconCount.vue";
 
 removeVueDevtoolsContainers();
 
@@ -49,6 +50,7 @@ app.component('IconCodeVisual', IconCodeVisual);
 app.component('IconDark', IconDark);
 app.component('IconLight', IconLight);
 app.component('IconShopping',IconShopping);
+app.component('IconCount',IconCount);
 
 app.use(createPinia())
 app.use(router)

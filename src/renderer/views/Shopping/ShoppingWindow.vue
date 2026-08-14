@@ -7,15 +7,6 @@
         <el-card shadow="never" class="form-card">
           <el-form :model="form" label-position="top">
             <el-form-item label="商品图片">
-              <!-- <div class="paste-area" @click="triggerFileInput">
-                <div>📋 粘贴图片 (Ctrl+V) 或点击上传</div>
-                <input
-                  type="file"
-                  ref="fileInput"
-                  accept="image/*"
-                  @change="handleFile"
-                />
-              </div> -->
               <div class="preview-thumb">
                 <img v-if="form.imageData" :src="form.imageData" alt="预览" />
                 <div v-else class="empty-preview">无图</div>
@@ -90,7 +81,7 @@
       <div class="right-panel">
         <div class="board-header">
           <h2>📋 购物清单</h2>
-          <el-tag size="large">{{ products.length }} 件</el-tag>
+          <el-tag size="large">{{ products.length }} 个</el-tag>
         </div>
 
         <div v-if="products.length" class="product-list">
@@ -135,7 +126,7 @@
             color: #2c3e50;
           "
         >
-          {{ products.length }} 件
+          {{ products.length }} 个
         </span>
       </div>
       <div
@@ -160,11 +151,104 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted, watch } from "vue"; // ⭐ 新增: 导入 onMounted, watch
 import { ElMessage } from "element-plus";
 import ProductCard from "./ProductCard.vue";
 import html2canvas from "html2canvas";
 
+// ============================================================
+// ⭐ 新增: IndexedDB 工具类 (放在组件外部)
+// ============================================================
+class LogisticsDB {
+  constructor() {
+    this.dbName = "LogisticsDB";
+    this.storeName = "products";
+    this.db = null;
+  }
+
+  // 打开/创建数据库
+  async open() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          // 创建对象存储，使用 autoIncrement 作为主键
+          db.createObjectStore(this.storeName, {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        resolve(this.db);
+      };
+
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
+    });
+  }
+
+  // 保存商品列表 (先清空再写入)
+  async saveProducts(products) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+
+      // 清空旧数据
+      store.clear();
+
+      // 写入新数据 (每件商品单独添加)
+      products.forEach((product) => {
+        // 复制对象，去掉 id 字段让数据库自动生成
+        const { id, ...productWithoutId } = product;
+        store.add(productWithoutId);
+      });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => reject(e);
+    });
+  }
+
+  // 加载商品列表
+  async loadProducts() {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e);
+    });
+  }
+
+  // 清空所有数据
+  async clear() {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      store.clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => reject(e);
+    });
+  }
+}
+
+// ============================================================
+// ⭐ 新增: 创建 IndexedDB 实例
+// ============================================================
+const db = new LogisticsDB();
+
+// ============================================================
+// 原有代码 (不变)
+// ============================================================
 const form = reactive({
   name: "",
   packageCount: 1,
@@ -180,20 +264,6 @@ const exportWrapper = ref(null);
 const exportList = ref(null);
 
 // ---- 图片处理 ----
-// const triggerFileInput = () => fileInput.value?.click();
-
-// const handleFile = (e) => {
-//   const file = e.target.files[0];
-//   if (file && file.type.startsWith("image/")) {
-//     const reader = new FileReader();
-//     reader.onload = (ev) => {
-//       form.imageData = ev.target.result;
-//     };
-//     reader.readAsDataURL(file);
-//   }
-//   e.target.value = "";
-// };
-
 // 全局粘贴图片
 document.addEventListener("paste", (e) => {
   const items = e.clipboardData?.items;
@@ -213,6 +283,70 @@ document.addEventListener("paste", (e) => {
     }
   }
 });
+
+// ============================================================
+// ⭐ 新增: 数据持久化函数
+// ============================================================
+
+// 保存数据到 IndexedDB
+const saveToDB = async () => {
+  try {
+    await db.saveProducts(products.value);
+    console.log("数据已保存到 IndexedDB");
+  } catch (error) {
+    console.error("保存到 IndexedDB 失败:", error);
+    ElMessage.warning("数据保存失败，请检查浏览器存储权限");
+  }
+};
+
+// 从 IndexedDB 加载数据
+const loadFromDB = async () => {
+  try {
+    const data = await db.loadProducts();
+    if (data && data.length > 0) {
+      products.value = data;
+      ElMessage.success(`已恢复 ${data.length} 件商品`);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("从 IndexedDB 加载失败:", error);
+    ElMessage.warning("数据加载失败，请检查浏览器存储权限");
+    return false;
+  }
+};
+
+// 清空 IndexedDB 中的所有数据
+const clearDB = async () => {
+  try {
+    await db.clear();
+    ElMessage.success("已清空所有存储数据");
+  } catch (error) {
+    console.error("清空 IndexedDB 失败:", error);
+  }
+};
+
+// ============================================================
+// ⭐ 新增: 监听 products 变化，自动保存
+// ============================================================
+watch(
+  products,
+  async () => {
+    await saveToDB();
+  },
+  { deep: true }
+);
+
+// ============================================================
+// ⭐ 新增: 组件挂载时自动加载数据
+// ============================================================
+onMounted(async () => {
+  await loadFromDB();
+});
+
+// ============================================================
+// 原有商品操作 (addProduct / removeProduct / clearForm 保持不变)
+// ============================================================
 
 // ---- 商品操作 ----
 const addProduct = () => {
@@ -234,10 +368,12 @@ const addProduct = () => {
   form.itemCount = 1;
   form.statusText = "快递网点";
   ElMessage.success("已添加");
+  // ⭐ 保存由 watch 自动触发，无需手动调用
 };
 
 const removeProduct = (idx) => {
   products.value.splice(idx, 1);
+  // ⭐ 保存由 watch 自动触发
 };
 
 const clearForm = () => {
@@ -250,12 +386,32 @@ const clearForm = () => {
   if (fileInput.value) fileInput.value.value = "";
 };
 
+// ============================================================
+// ⭐ 新增: 清空所有数据 (含 IndexedDB)
+// ============================================================
+const clearAllData = async () => {
+  if (products.value.length === 0) {
+    ElMessage.info("已经是空列表");
+    return;
+  }
+  products.value = [];
+  await clearDB();
+  ElMessage.success("已清空所有数据");
+};
+
+// ============================================================
+// 原有导出图片 (不变)
+// ============================================================
+
 // ---- 导出图片 ----
 const exportImage = async () => {
   if (!products.value.length) {
     ElMessage.warning("暂无商品，请先添加");
     return;
   }
+
+  // ⭐ 导出前先保存一次 (确保数据最新)
+  await saveToDB();
 
   // 构建导出列表
   const container = exportList.value;
@@ -268,27 +424,27 @@ const exportImage = async () => {
     const div = document.createElement("div");
     div.className = "product-item";
     div.style.cssText = `
-        display:flex; gap:24px; align-items:stretch; background:white;
-        border:none; border-bottom:2px solid #e4e9f0;
-        padding:16px 0; min-height:140px;
-      `;
+          display:flex; gap:24px; align-items:stretch; background:white;
+          border:none; border-bottom:2px solid #e4e9f0;
+          padding:16px 0; min-height:140px;
+        `;
     div.innerHTML = `
-        <div style="width:160px;height:140px;flex-shrink:0;background:#eef2f7;border:2px solid #c0ccda;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          ${imgHtml}
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:0;min-height:140px;padding:0;">
-          <div style="font-weight:700;font-size:22px;color:#1f2f3d;line-height:1.3;padding-top:0;">${escapeHtml(p.name)}</div>
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;font-size:18px;font-weight:600;color:#2c3e50;padding:4px 0;">
-            <span style="display:inline-flex;align-items:center;gap:4px;background:#eef3f9;padding:2px 16px 2px 12px;border-radius:24px;line-height:1.5;height:40px;">
-              📦 包裹 <span style="font-size:18px;font-weight:800;color:#1f2f3d;margin:0 2px;">${p.packageCount}</span><span style="font-size:18px;font-weight:600;color:#2c3e50;margin-left:2px;">件</span>
-            </span>
-            <span style="display:inline-flex;align-items:center;gap:4px;background:#eef3f9;padding:2px 16px 2px 12px;border-radius:24px;line-height:1.5;height:40px;">
-              🔢 数量 <span style="font-size:18px;font-weight:800;color:#1f2f3d;margin:0 2px;">${p.itemCount}</span><span style="font-size:18px;font-weight:600;color:#2c3e50;margin-left:2px;">个</span>
-            </span>
+          <div style="width:160px;height:140px;flex-shrink:0;background:#eef2f7;border:2px solid #c0ccda;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            ${imgHtml}
           </div>
-          <div style="display:inline-block;padding:2px 6px;font-size:20px;font-weight:700;border:none;background:transparent;color:${color};line-height:1.4;padding-bottom:0;">${escapeHtml(p.status)}</div>
-        </div>
-      `;
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:0;min-height:140px;padding:0;">
+            <div style="font-weight:700;font-size:22px;color:#1f2f3d;line-height:1.3;padding-top:0;">${escapeHtml(p.name)}</div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;font-size:18px;font-weight:600;color:#2c3e50;padding:4px 0;">
+              <span style="display:inline-flex;align-items:center;gap:4px;background:#eef3f9;padding:2px 16px 2px 12px;border-radius:24px;line-height:1.5;height:40px;">
+                📦 包裹 <span style="font-size:18px;font-weight:800;color:#1f2f3d;margin:0 2px;">${p.packageCount}</span><span style="font-size:18px;font-weight:600;color:#2c3e50;margin-left:2px;">个</span>
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:4px;background:#eef3f9;padding:2px 16px 2px 12px;border-radius:24px;line-height:1.5;height:40px;">
+                🔢 数量 <span style="font-size:18px;font-weight:800;color:#1f2f3d;margin:0 2px;">${p.itemCount}</span><span style="font-size:18px;font-weight:600;color:#2c3e50;margin-left:2px;">件</span>
+              </span>
+            </div>
+            <div style="display:inline-block;padding:2px 6px;font-size:20px;font-weight:700;border:none;background:transparent;color:${color};line-height:1.4;padding-bottom:0;">${escapeHtml(p.status)}</div>
+          </div>
+        `;
     container.appendChild(div);
   });
 
@@ -348,6 +504,13 @@ const escapeHtml = (text) => {
   div.textContent = text;
   return div.innerHTML;
 };
+
+// ============================================================
+// ⭐ 新增: 暴露清除数据的方法 (可通过 window 调用，方便调试)
+// ============================================================
+if (typeof window !== "undefined") {
+  window.__clearLogisticsData = clearAllData;
+}
 </script>
 
 <style scoped>
