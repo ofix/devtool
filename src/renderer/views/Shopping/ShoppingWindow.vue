@@ -89,7 +89,11 @@
             v-for="(p, idx) in products"
             :key="idx"
             :product="p"
+            :is-first="idx === 0"
+            :is-last="idx === products.length - 1"
             @remove="removeProduct(idx)"
+            @move-up="moveUp(idx)"
+            @move-down="moveDown(idx)"
           />
         </div>
         <div v-else class="empty-state">还没有商品，添加一些吧 ✨</div>
@@ -343,6 +347,23 @@ watch(
 onMounted(async () => {
   await loadFromDB();
 });
+
+// ---- 上下移动 ----
+const moveUp = (index) => {
+  if (index === 0) return;
+  const item = products.value[index];
+  products.value.splice(index, 1);
+  products.value.splice(index - 1, 0, item);
+  ElMessage.success("已上移");
+};
+
+const moveDown = (index) => {
+  if (index === products.value.length - 1) return;
+  const item = products.value[index];
+  products.value.splice(index, 1);
+  products.value.splice(index + 1, 0, item);
+  ElMessage.success("已下移");
+};
 
 // ============================================================
 // 原有商品操作 (addProduct / removeProduct / clearForm 保持不变)

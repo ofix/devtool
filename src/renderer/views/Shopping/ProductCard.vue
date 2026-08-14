@@ -5,14 +5,40 @@
       <div v-else class="no-img">📷<br />无图</div>
     </div>
     <div class="product-info">
-      <div class="name">{{ product.name }}</div>
+      <div class="title">
+        <div class="name">{{ product.name }}</div>
+        <div class="action-group">
+          <!-- 上移按钮 -->
+          <button
+            class="move-btn"
+            @click="$emit('move-up')"
+            :disabled="isFirst"
+            :title="isFirst ? '已是第一个' : '上移'"
+          >
+            ▲
+          </button>
+          <!-- 下移按钮 -->
+          <button
+            class="move-btn"
+            @click="$emit('move-down')"
+            :disabled="isLast"
+            :title="isLast ? '已是最后一个' : '下移'"
+          >
+            ▼
+          </button>
+          <!-- 删除按钮 -->
+          <button class="remove-btn" @click="$emit('remove')">✕</button>
+        </div>
+      </div>
+
       <div class="meta-row">
         <span class="meta-badge">
           📦 包裹 <span class="number">{{ product.packageCount }}</span
           ><span class="unit">个</span>
         </span>
         <span class="meta-badge">
-          <IconCount class="count"/> 数量 <span class="number">{{ product.itemCount }}</span
+          <IconCount class="count" /> 数量
+          <span class="number">{{ product.itemCount }}</span
           ><span class="unit">件</span>
         </span>
       </div>
@@ -23,13 +49,25 @@
         {{ product.status }}
       </div>
     </div>
-    <button class="remove-btn" @click="$emit('remove')">✕</button>
   </div>
 </template>
 
 <script setup>
-defineProps(["product"]);
-defineEmits(["remove"]);
+defineProps({
+  product: {
+    type: Object,
+    required: true,
+  },
+  isFirst: {
+    type: Boolean,
+    default: false,
+  },
+  isLast: {
+    type: Boolean,
+    default: false,
+  },
+});
+defineEmits(["remove", "move-up", "move-down"]);
 </script>
 
 <style scoped>
@@ -42,6 +80,7 @@ defineEmits(["remove"]);
   border-bottom: 2px solid #e4e9f0;
   padding: 16px 0;
   min-height: 140px;
+  position: relative;
 }
 .product-item:last-child {
   border-bottom: none;
@@ -51,7 +90,7 @@ defineEmits(["remove"]);
   height: 140px;
   flex-shrink: 0;
   background: #eef2f7;
-  border: 2px solid #c0ccda;
+  border: 1px solid #c0ccda;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,6 +115,14 @@ defineEmits(["remove"]);
   justify-content: space-between;
   min-height: 140px;
   padding: 0;
+}
+.title {
+  display: flex;
+  justify-content: space-between;
+}
+.count {
+  width: 16px;
+  height: 16px;
 }
 .name {
   font-weight: 700;
@@ -116,10 +163,6 @@ defineEmits(["remove"]);
   color: #2c3e50;
   margin-left: 2px;
 }
-.count{
-    width:16px;
-    height:16px;
-}
 .status-tag {
   display: inline-block;
   padding: 2px 6px;
@@ -131,16 +174,59 @@ defineEmits(["remove"]);
   word-break: break-word;
   padding-bottom: 0;
 }
-.remove-btn {
-  font-size: 28px;
+
+/* 按钮组 - 右上角 */
+.action-group {
+  display: flex;
+  /* flex-direction: row; */
+  /* align-items: center; */
+  gap: 2px;
+  /* flex-shrink: 0; */
+  padding-top: 0;
+  margin-left: 4px;
+}
+
+.move-btn {
+  width: 32px;
+  height: 28px;
+  font-size: 14px;
+  font-weight: 700;
   color: #8a9bb0;
   cursor: pointer;
-  padding: 0 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: all 0.2s;
+  /* display: flex;
+  align-items: center;
+  justify-content: center; */
+  line-height: 1;
+  padding: 0;
+}
+.move-btn:hover:not(:disabled) {
+  color: #409eff;
+  background: #ecf5ff;
+  border-color: #b3d8ff;
+}
+.move-btn:disabled {
+  color: #d0d7e0;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.move-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.remove-btn {
+  font-size: 20px;
+  color: #8a9bb0;
+  cursor: pointer;
+  padding: 0 4px;
   background: none;
   border: none;
-  align-self: flex-start;
-  margin-top: 2px;
-  flex-shrink: 0;
+  /* line-height: 1; */
+  /* margin-top: 2px; */
+  transition: color 0.2s;
 }
 .remove-btn:hover {
   color: #b22222;
@@ -159,6 +245,11 @@ defineEmits(["remove"]);
   }
   .meta-badge .number {
     font-size: 16px;
+  }
+  .move-btn {
+    width: 28px;
+    height: 24px;
+    font-size: 12px;
   }
 }
 </style>
