@@ -5,13 +5,13 @@ import path from 'path';
 import os from 'os';
 import { Worker } from 'worker_threads';
 import { fileURLToPath } from 'url';
-import LanguageRegistry from './core/LanguageRegistry.js';
+import LanguageRegistry from './LanguageRegistry.js';
 import CacheManager from './CacheManager.js';
 import DependencyGraph from './DependencyGraph.js';
 import TypeResolver from './TypeResolver.js';
-import CParser from './parsers/CParser.js';
-import CppParser from './parsers/CppParser.js';
-import JavaParser from './parsers/JavaParser.js';
+// import CParser from './CParser.js';
+// import CppParser from './CppParser.js';
+// import JavaParser from './JavaParser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,9 +22,9 @@ export class CodeProjectParser {
     
     // 注册所有解析器
     this.registry.registerAll([
-      new CParser({ includePaths: options.includePaths || [] }),
-      new CppParser({ includePaths: options.includePaths || [] }),
-      new JavaParser({ classPaths: options.classPaths || [] })
+    //   new CParser({ includePaths: options.includePaths || [] }),
+    //   new CppParser({ includePaths: options.includePaths || [] }),
+    //   new JavaParser({ classPaths: options.classPaths || [] })
     ]);
 
     // 其他组件

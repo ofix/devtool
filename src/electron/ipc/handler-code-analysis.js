@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import CodeProjectParser from '../service/code-visual/parser/CodeProjectParser';
+import CodeProjectParser from '../service/code-visual/parser/CodeProjectParser.js';
 
 class CodeAnalysis {
     constructor() {

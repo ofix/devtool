@@ -222,6 +222,13 @@ const allApps = ref([
     icon: "CodeVisual",
     disabled: false,
   },
+  {
+    key: "ShoppingWnd",
+    name: "商品物流",
+    category: "物流",
+    icon: "Shopping",
+    disabled: false,
+  },
 ]);
 
 // 2. 新增：搜索关键词（响应式）

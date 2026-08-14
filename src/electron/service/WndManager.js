@@ -36,6 +36,7 @@ class WndManager extends Singleton {
             'FileCompareWnd': this.getFileCompareWndConfig(),
             'AntSyncWnd': this.getAntSyncWndConfig(), // 股票行情数据维护窗口
             'RequestWnd': this.getRequestWndConfig(), // 浮动窗口，专门用来抓取第三方网站的请求头
+            'ShoppingWnd': this.getShoppingWndConfig(), // 商品物流信息合并窗口
         };
 
         this.activeWnd = "";
@@ -265,6 +266,26 @@ class WndManager extends Singleton {
                 devTool: false,
                 captureHeaders: true, // 需要捕获请求头
                 targetWnd: '' // 捕获到请求头后发送到哪个窗口显示
+            }
+        }
+    }
+
+    getShoppingWndConfig(){
+        const { screenWidth, screenHeight} = screen.getPrimaryDisplay().size;
+        const width = 1480;
+        const height = 960;
+        return {
+            browserWindow: {
+                x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width, height,
+                alwaysOnTop: false, transparent: false,
+                frame: true, // 显示窗口边框+标题栏（默认 true）
+                resizable: true,
+                titleBarStyle: 'default', // 完整原生
+                show: true,
+            },
+            custom: {
+                url: '/shopping',
+                levelName: 'normal',
             }
         }
     }

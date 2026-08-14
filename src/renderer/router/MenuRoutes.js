@@ -295,6 +295,15 @@ const MenuRoutes = [
             desc: '',
             chunkGroup: 'misc'
         }
+    }, {
+        path: '/shopping',
+        name: 'Shopping',
+        component: () => import(/* webpackChunkName: "chunk-Misc/Shopping" */ '@/views/Shopping/ShoppingWindow.vue'),
+        meta: {
+            title: '商品物流信息',
+            desc: '',
+            chunkGroup: 'shopping'
+        }
     }
 ];
 

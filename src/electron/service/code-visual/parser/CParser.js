@@ -1,6 +1,6 @@
 // parser/parsers/CParser.js
 
-import LanguageParser from '../core/LanguageParser.js';
+import LanguageParser from './LanguageParser.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import Parser from 'tree-sitter';
