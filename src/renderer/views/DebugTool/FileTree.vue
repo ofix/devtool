@@ -181,7 +181,7 @@ import {
 import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
-import { FileNodeType } from "@/components/FileNodeType.js";
+import { FileNodeType } from "@/common/FileNodeType.js";
 import { useServerListStore } from "@/stores/StoreServerList.js";
 import { useFileStore } from "@/stores/StoreFile.js";
 import { useEditorStore } from "@/stores/StoreEditor.js";
@@ -311,10 +311,11 @@ watch(
           remotePath: newServer.remotePath,
         };
         let dirData = await window.channel.sshListDir(params);
-        fileTreeData.value = [dirData];
+        fileTreeData.value = dirData;
         console.log(
           `加载服务器 ${newServer.host} 目录 ${newServer.remotePath}`
         );
+        console.log(dirData);
       } catch (e) {
         console.error("加载目录失败", e);
         ElMessage.error(`加载目录失败：${e.message || "未知错误"}`);

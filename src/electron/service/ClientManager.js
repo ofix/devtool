@@ -13,7 +13,6 @@ class ClientManager extends Singleton {
      */
     getClient(protocol, options = {}) {
         const key = this._getKey(protocol, options);
-
         if (!this._clients.has(key)) {
             let client;
             switch (protocol) {

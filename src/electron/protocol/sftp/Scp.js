@@ -1,3 +1,6 @@
+import Utils from "../../core/Utils.js";
+import { FileNodeType } from "../../core/FileNodeType.js";
+
 class Scp {
 
     /**
@@ -14,8 +17,8 @@ class Scp {
 
     /**
      * 删除目录（通过 SSH 命令）
-     */   
-    static async rmdir(conn, remotePath, options = {}){
+     */
+    static async rmdir(conn, remotePath, options = {}) {
         let cmd;
         if (options.recursive) {
             cmd = `rm -rf '${remotePath}'`;
@@ -104,7 +107,7 @@ class Scp {
 
     /**
      * 通过 SCP 协议读取文件
-     * @param {Object} conn - SSH 连接 { _sshClient, _sftpClient }
+     * @param {import('ssh2').Client} conn - SSH 连接 { _sshClient, _sftpClient }
      * @param {string} remotePath - 远程文件路径
      * @param {string} encoding - 编码（默认 utf-8）
      * @returns {Promise<string|Buffer>}
@@ -193,7 +196,7 @@ class Scp {
 
     /**
      * 通过 SCP 协议写入文件
-     * @param {Object} conn - SSH 连接
+     * @param {import('ssh2').Client} conn - SSH 连接
      * @param {string} remotePath - 远程文件路径
      * @param {string|Buffer} content - 文件内容
      */
@@ -570,20 +573,19 @@ class Scp {
 
     /**************************************************************
      * 文件夹SCP下载（支持断点续传+进度回调）
-     * @param {string} host -- SSH服务器地址
+     * @param {import('ssh2').Client} conn -- SSH 连接
      * @param {string} remoteDir - 远程文件夹路径
      * @param {string} localDir - 本地文件夹路径
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    static async scpDownloadDir(host, remoteDir, localDir, onProgress) {
+    static async scpDownloadDir(conn, remoteDir, localDir, onProgress) {
         let recvFiles = 0;
         let totalFiles = 0;
         let recvBytes = 0;
         let totalBytes = 0;
         let currentFileAbsolutePath = "";
         try {
-            let conn = await this.getSSHClient(host);
             const {
                 files: remoteFiles,
                 dirs: remoteDirs,
@@ -741,14 +743,13 @@ class Scp {
 
     /**************************************************************
      * @todo 文件夹SCP上传（支持断点续传+进度回调）
-     * @param {string} host - 远程主机
+     * @param {string} conn - 远程SSH连接
      * @param {string} localDir - 本地文件夹路径
      * @param {string} remoteDir - 远程文件夹路径
      * @param {ProgressCallback} [onProgress] - 进度回调
      * @returns {Promise<void>}
      **************************************************************/
-    static async scpUploadDir(host, localDir, remoteDir, onProgress) {
-        let conn = null;
+    static async scpUploadDir(conn, localDir, remoteDir, onProgress) {
         let totalProgress = 0;
         try {
             const {
@@ -756,7 +757,6 @@ class Scp {
                 dirs: localDirs,
                 totalBytes: totalBytes,
             } = await this.scanLocalDir(localDir);
-            conn = await this.getSSHClient(host);
 
             const { files: remoteFiles, dirs: remoteDirs } = await this.scanRemoteDir(
                 conn,
@@ -1049,7 +1049,7 @@ class Scp {
     * - dirs: 直接子目录列表（不含嵌套子目录）
     * - totalBytes: 直接子文件总大小
     **************************************************************/
-    static async listDir(host, remoteDir) {
+    static async listDir(conn, remoteDir) {
         const allItems = [];
         let dirCount = 0;
         let fileCount = 0;
@@ -1059,7 +1059,6 @@ class Scp {
         const normalizedRemoteDir = remoteDir.replace(/\/$/, "");
 
         try {
-            let conn = await this.getSSHClient(host);
             // BusyBox 兼容的 ls 命令：-l（详细信息）、-A（显示隐藏文件，不含.和..）、-p（目录结尾加/，便于区分）
             const lsCmd = `ls -lAp '${normalizedRemoteDir}' 2>/dev/null`;
 
@@ -1132,7 +1131,7 @@ class Scp {
             console.debug(
                 `非递归扫描完成：目录${normalizedRemoteDir}，找到 ${dirCount} 个子目录，${fileCount} 个文件，总大小 ${totalBytes} 字节`
             );
-            this.fileTree.addChildren(remoteDir, allItems);
+            // this.fileTree.addChildren(remoteDir, allItems);
             return { nodes: allItems, totalBytes };
         } catch (err) {
             console.error("扫描远程文件夹失败:", err.message);

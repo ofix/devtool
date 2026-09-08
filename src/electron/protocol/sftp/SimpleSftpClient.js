@@ -128,13 +128,11 @@ class SimpleSftpClient extends BaseFsClient {
      */
 
     // 连接到服务器
-    async connect(options = {}) {
-        const {
-            host,
-            username = "root",
-            password = "0penBmc",
-            port = 22,
-        } = options;
+    async connect() {
+        let host = this.host;
+        let username = this.user;
+        let password = this.password;
+        let port = this.port;
         // 参数验证
         if (!host || typeof host !== "string") {
             throw new Error("host参数必须是非空字符串");
@@ -262,63 +260,65 @@ class SimpleSftpClient extends BaseFsClient {
     }
 
     // 读取目录
-    async readdir(path,) {
+    async readDir(remotePath) {
         let conn = this.getConnection();
-        return Scp.listDir(conn, remotePath);
+        let result = await Scp.listDir(conn.sshClient, remotePath);
+        console.log(result);
+        return result.nodes;
     }
 
     // 读取文件内容
     async readFile(remotePath) {
         let conn = this.getConnection();
-        return Scp.readFile(conn, remotePath);
+        return await Scp.readFile(conn.sshClient, remotePath);
     }
 
     // 上传文件
-    async uploadFile(localPath, remotePath){
+    async uploadFile(localPath, remotePath) {
         let conn = this.getConnection();
-        return Scp.uploadFile(conn, localPath, remotePath);
+        return await Scp.uploadFile(conn.sshClient, localPath, remotePath);
     }
 
     // 下载文件
-    async downloadFile(remotePath, localPath){
+    async downloadFile(remotePath, localPath) {
         let conn = this.getConnection();
-        return Scp.downloadFile(conn, remotePath, localPath);
+        return await Scp.downloadFile(conn.sshClient, remotePath, localPath);
     }
 
     // 写入文件
     async writeFile(remotePath, content) {
         let conn = this.getConnection();
-        return Scp.writeFile(conn, remotePath, content);
+        return await Scp.writeFile(conn.sshClient, remotePath, content);
     }
 
     // 创建文件夹
     async mkdir(path, recursive) {
         let conn = this.getConnection();
-        return Scp.mkdir(conn, path, recursive);
+        return await Scp.mkdir(conn.sshClient, path, recursive);
     }
 
     // 删除文件/文件夹
     async delete(path, options) {
         let conn = this.getConnection();
-        return Scp.delete(conn, path, options);
+        return await Scp.delete(conn.sshClient, path, options);
     }
 
     // 文件/文件夹重命名
     async rename(oldPath, newPath) {
         let conn = this.getConnection();
-        return Scp.rename(conn, oldPath, newPath);
+        return await Scp.rename(conn.sshClient, oldPath, newPath);
     }
 
     // 检查文件/文件夹是否存在
     async exists(path) {
         let conn = this.getConnection();
-        return Scp.exists(conn, path);
+        return await Scp.exists(conn.sshClient, path);
     }
 
     // 获取文件/文件夹元信息
     async stat(path) {
         let conn = this.getConnection();
-        return Scp.stat(conn, path);
+        return await Scp.stat(conn.sshClient, path);
     }
 }
 

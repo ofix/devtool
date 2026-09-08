@@ -43,7 +43,7 @@ class SFTPHandler {
         ipcMain.handle("ssh:listDir", async (event, options) => {
             try {
                 const sftp = await this.manager.getClient('sftp', options);
-                return await sftp.readDir(options.host, options.remotePath);
+                return await sftp.readDir(options.remotePath);
             } catch (error) {
                 console.error('列出目录失败:', error);
                 return { success: false, error: error.message };
