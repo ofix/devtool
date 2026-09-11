@@ -182,6 +182,7 @@ import { DocumentAdd, FolderAdd, Fold } from "@element-plus/icons-vue";
 import { ElMessage, ElNotification, ElMessageBox } from "element-plus";
 import FileTreeContextMenu from "@/views/DebugTool/FileTreeContextMenu.vue";
 import { FileNodeType } from "@/common/FileNodeType.js";
+import FileTree from "@/common/FileTree.js";
 import { useServerListStore } from "@/stores/StoreServerList.js";
 import { useFileStore } from "@/stores/StoreFile.js";
 import { useEditorStore } from "@/stores/StoreEditor.js";
@@ -216,6 +217,7 @@ const { openFile, isFileOpened } = editorStore;
 // --------------------- 树组件核心状态 ---------------------
 const fileTreeRef = ref(null);
 const fileTreeData = ref([]);
+const fileTree = new FileTree();
 
 // 折叠单目录
 const vsCodeLikeFileTreeData = computed(() => {
@@ -311,11 +313,12 @@ watch(
           remotePath: newServer.remotePath,
         };
         let dirData = await window.channel.sshListDir(params);
-        fileTreeData.value = dirData;
+        fileTree.addChildren(newServer.remotePath, dirData);
+        fileTreeData.value = [fileTree.toJson()];
         console.log(
           `加载服务器 ${newServer.host} 目录 ${newServer.remotePath}`
         );
-        console.log(dirData);
+        
       } catch (e) {
         console.error("加载目录失败", e);
         ElMessage.error(`加载目录失败：${e.message || "未知错误"}`);
@@ -380,7 +383,8 @@ async function onNodeExpand(data, node) {
     };
     console.log(`增量加载 ${server.host} 目录 ${data.path}`);
     const childData = await window.channel.sshListDir(params);
-    fileTreeRef.value.setData([childData]);
+    fileTree.addChildren(data.path, childData);
+    fileTreeRef.value.setData([fileTree.toJson()]);
   } catch (e) {
     console.error("加载子目录失败", e);
     if (!data.children) {

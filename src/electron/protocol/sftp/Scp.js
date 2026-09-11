@@ -1,4 +1,6 @@
+import fs from 'fs';
 import Utils from "../../core/Utils.js";
+import Print from "../../core/Print.js";
 import { FileNodeType } from "../../core/FileNodeType.js";
 
 class Scp {

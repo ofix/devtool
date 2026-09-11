@@ -5,7 +5,7 @@ class FileTree {
     /**
      * @param {Object} [options] - 配置选项
      * @param {string} [options.rootPath='/'] - 初始根目录路径
-     * @param {string} [options.rootName='.'] - 初始根节点显示名称
+     * @param {string} [options.rootName='/'] - 初始根节点显示名称
      * @param {Object} [options.sortConfig] - 排序配置
      * @param {boolean} [options.sortConfig.enabled=true] - 是否启用排序（默认关闭）
      * @param {SortField} [options.sortConfig.field=SortField.NAME] - 排序字段
@@ -16,7 +16,7 @@ class FileTree {
         // 基础配置
         this.config = {
             rootPath: options.path || "/",
-            rootName: options.name || "root",
+            rootName: options.name || "/",
         };
 
         // 排序配置
@@ -38,7 +38,7 @@ class FileTree {
 
         this.syncedDirs = new Set();
         this.adapter = null;
-        this.setRootNode(options.name, options.path, options.size, options.mtime);
+        this.setRootNode(this.config.rootName, this.config.rootPath, options.size, options.mtime);
     }
 
     //  快速判断目录是否同步过（O(1) 复杂度） 
@@ -230,17 +230,17 @@ class FileTree {
 
         // 父节点不存在，自动创建
         if (!parentNode) {
-            Print.warn(`父节点不存在：${normalizedParentPath}，自动创建路径`);
+            console.warn(`父节点不存在：${normalizedParentPath}，自动创建路径`);
             parentNode = this.createMissingDirectoryPath(normalizedParentPath);
             if (!parentNode) {
-                Print.error(`创建父节点失败：${normalizedParentPath}`);
+                console.error(`创建父节点失败：${normalizedParentPath}`);
                 return false;
             }
         }
 
         // 父节点不是目录，返回失败
         if (!parentNode.isDirectory()) {
-            Print.error(`父节点不是目录：${normalizedParentPath}`);
+            console.error(`父节点不是目录：${normalizedParentPath}`);
             return false;
         }
 
@@ -253,7 +253,7 @@ class FileTree {
 
             // 检查子节点是否已存在（递归查找）
             if (this.findNodeByPath(childFullPath)) {
-                Print.debug(`节点已存在，跳过：${childFullPath}`);
+                console.debug(`节点已存在，跳过：${childFullPath}`);
                 return;
             }
 
@@ -508,7 +508,7 @@ class FileTree {
         return treeStr;
     }
 
-    print() {
+    console() {
         console.log(this.getFormattedTree());
     }
 

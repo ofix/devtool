@@ -268,7 +268,7 @@ class ArchiveFileManager {
         // 压缩文件 localFilePath.gz（会强制覆盖）
         await this.compressToGz(params.localFilePath);
         // SCP 上传本地压缩文件到远程服务器
-        const sftp = await this.clientManager.getClient('local',params);
+        const sftp = await this.clientManager.getClient('sftp',params);
         return await sftp.uploadFile(params.localFilePath + ".gz", params.remoteFilePath, null);
     }
 
@@ -276,7 +276,7 @@ class ArchiveFileManager {
         // 映射远程文件到本地路径
         let localFilePath = await Utils.ensureRemoteFilePath(params.host, params.remoteFilePath);
         // SCP 下载远程服务器文件到本地
-        const sftp = await this.clientManager.getClient('local',params);
+        const sftp = await this.clientManager.getClient('sftp',params);
         await sftp.downloadFile(params.remoteFilePath, localFilePath, null);
 
         // 检查文件是否是压缩文件
