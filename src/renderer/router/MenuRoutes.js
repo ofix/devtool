@@ -296,6 +296,15 @@ const MenuRoutes = [
             chunkGroup: 'misc'
         }
     }, {
+        path: '/data-clean',
+        name: 'DataClean',
+        component: () => import(/* webpackChunkName: "chunk-Misc/DataClean" */ '@/views/DataClean/DataCleanWindow.vue'),
+        meta: {
+            title: '数据清洗',
+            desc: '',
+            chunkGroup: 'misc'
+        }
+    }, {
         path: '/shopping',
         name: 'Shopping',
         component: () => import(/* webpackChunkName: "chunk-Misc/Shopping" */ '@/views/Shopping/ShoppingWindow.vue'),

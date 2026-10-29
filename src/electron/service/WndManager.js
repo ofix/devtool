@@ -16,6 +16,7 @@ class WndManager extends Singleton {
         // 分离BrowserWindow配置和自定义配置
         this.windowPresets = {
             'CodeVisualWnd': this.getCodeVisualWndConfig(),
+            "DataCleanWnd": this.getDataCleanWndConfig(),
             'MainWnd': this.getMainWndConfig(),
             'HexEditorWnd': this.getHexEditorWndConfig(),
             'VisualizeWnd': this.getVisualizeWndConfig(),
@@ -244,6 +245,26 @@ class WndManager extends Singleton {
                 devTool: false,
                 captureHeaders: false, // 需要捕获请求头
                 targetWnd: '' // 捕获到请求头后发送到哪个窗口显示
+            }
+        }
+    }
+
+    getDataCleanWndConfig(){
+        const { width, height } = screen.getPrimaryDisplay().size;
+        return {
+            browserWindow: {
+                x: 0, y: 0, width: 1240, height: 960,
+                alwaysOnTop: false, transparent: false,
+                frame: true, // 显示窗口边框+标题栏（默认 true）
+                resizable: true,
+                titleBarStyle: 'default', // 完整原生
+                show: true, // 初始隐藏
+            },
+            custom: {
+                url: '/data-clean',
+                levelName: 'pop-up-menu',
+                levelZOrder: 0,
+                devTool: false,
             }
         }
     }

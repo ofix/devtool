@@ -218,6 +218,20 @@ const allApps = ref([
     disabled: false,
   },
   {
+    key: "CodeVisualWnd",
+    name: "代码分析",
+    category: "可视化",
+    icon: "CodeVisual",
+    disabled: false,
+  },
+  {
+    key: "DataCleanWnd",
+    name: "数据清洗",
+    category: "金融",
+    icon: "DataClean",
+    disabled: false,
+  },
+  {
     key: "ShoppingWnd",
     name: "商品物流",
     category: "物流",

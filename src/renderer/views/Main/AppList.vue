@@ -223,6 +223,13 @@ const allApps = ref([
     disabled: false,
   },
   {
+    key: "DataCleanWnd",
+    name: "数据清洗",
+    category: "金融",
+    icon: "DataClean",
+    disabled: false,
+  },
+  {
     key: "ShoppingWnd",
     name: "商品物流",
     category: "物流",
