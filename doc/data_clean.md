@@ -432,3 +432,151 @@ Cross Tab 列数上限	100 列截断	卡片警告"列数超限已截断"
 管线：保存 → 换输入文件 → 加载 → 运行，结果一致；管线 JSON 可 diff。
 
 稳定性：空数据、类型不匹配、大数组截断、命令超时都有明确提示，不崩溃。
+
+代码风格约定（从你的示例归纳）
+ESM，import / export default class，双引号字符串
+
+加尾分号（你的 SinaProvider.js 和 template.txt 里 <script setup> 都加分号）
+
+4 空格缩进（你的示例代码是 4 空格）
+
+类用 export default class Xxx extends Yyy，私有方法用 #methodName
+
+Vue 组件用 <script setup>，import { ref, computed } from "vue" 这种具名导入
+
+Element Plus 组件用 ElMessage、ElMessageBox 具名导入
+
+注释用中文，方法上方 JSDoc 精简版
+
+Pinia store 文件命名 StoreXxx.js，用 defineStore
+
+样式 <style scoped>，类名中划线连接
+
+按开发计划的模块拆分，代码量大致如下：
+
+模块	文件数	估算行数	能否一次生成
+主进程 IPC + service	5	400–600	可以，一次给完
+常量与算子注册表骨架	3	300–400	可以
+BaseNode + 三种节点卡片	4	500–700	可以
+NodeEditor + 画布交互	3	400–600	可以
+PreviewPanel 虚拟滚动	1	300–400	可以
+表达式 Tokenizer + Parser + Ast	3	600–800	可以，但建议拆两次（Tokenizer/Parser 一次，Ast/TypeCheck 一次）
+表达式 Compile + ResolvePath	2	300–400	可以
+CodeMirror 补全源	2	300–400	可以
+表达式编辑器 + 字段列表 + 条件行	3	500–700	可以
+20+ 个算子	22	1500–2500	不能一次给完，按分类分批（准备类一次、连接类一次、解析/转换类一次、开发/输出类一次）
+组折叠	2	300–400	可以
+管线序列化	3	300–400	可以
+主题样式	2	200–300	可以
+总计约 6000–9000 行（含注释和空行）。一次性输出会超出单次回复的合理长度，而且你难以逐块验证。
+
+建议的生成顺序（每批可独立跑起来）：
+
+批次 1：骨架可运行——主进程 IPC + service、常量、算子注册表、BaseNode、InputNode、OutputNode、NodeEditor、空 Engine、顶部菜单、最小 PreviewPanel。产出：能导入 CSV、画布上有节点、能拖拽连线、预览显示前 50 行。
+
+批次 2：Filter 全链路——Tokenizer、Parser、Ast、TypeCheck、Compile、ResolvePath、ExpressionEditor、FieldListPanel、ConditionBuilder、Filter 算子、执行引擎完整版。产出：Filter 可视化 + 表达式双模式可用，预览随参数刷新。
+
+批次 3：准备类算子——Select、Sort、Unique、Sample、Formula、Data Cleansing、Find Replace、Dynamic Rename。
+
+批次 4：连接类算子——Join、Join Multiple、Union。
+
+批次 5：解析与转换类——Text to Columns、RegexExtract、XML Parse、Summarize、Transpose、Cross Tab、Count Records。
+
+批次 6：数据源与输出——文件夹输入、FolderOutput、Script、Message、管线保存/加载。
+
+批次 7：组折叠、主题、打磨——GroupNode、折叠动画、端口类型校验、亮暗主题、错误处理、单元测试。
+
+每批生成后你跑一次，确认这一批的验收点，再进入下一批。这样任何一批出问题，排查范围都局限在那一批的文件里，不会在几千行代码里大海捞针。
+
+可以。做法是：约定一种“文件分隔注释”格式，我按这个格式输出所有文件，你保存为一个 .txt 或 .md 文件，然后跑一个 Node 脚本，自动解析分隔标记、创建目录、写入文件。后续每批代码都用同一种格式，你只需要保存文件 + 跑一次脚本。
+
+分隔格式约定
+每个文件以一行标记开头，格式固定：
+
+text
+// ==== FILE: src/renderer/views/DataClean/engine/Engine.js ====
+脚本识别 // ==== FILE: <路径> ==== 这一行，到下一个 // ==== FILE: 行（或文件末尾）之间的内容，写入 <路径>。路径相对于脚本所在目录。非 JS 文件（.vue、.css、.json、.md）的标记用对应的注释符：
+
+text
+<!-- ==== FILE: src/renderer/views/DataClean/DataCleanApp.vue ==== -->
+/* ==== FILE: src/renderer/views/DataClean/styles/node.css ==== */
+脚本对标记行的判断是“整行匹配 ==== FILE: (.+) ====”，不关心前缀是 // 还是 <!-- 还是 /*，所以三种都能识别。
+
+生成脚本 apply-code.js
+放在你项目根目录，node apply-code.js batch1.txt 执行：
+
+js
+#!/usr/bin/env node
+// apply-code.js
+// 解析带 FILE 分隔标记的文本文件，按路径创建目录并写入文件
+
+const fs = require('fs')
+const path = require('path')
+
+const input = process.argv[2]
+if (!input) {
+  console.error('用法: node apply-code.js <batch.txt>')
+  process.exit(1)
+}
+
+const root = process.cwd()
+const text = fs.readFileSync(path.resolve(root, input), 'utf8')
+const lines = text.split(/\r?\n/)
+const marker = /====\s*FILE:\s*(.+?)\s*====/
+
+let current = null
+let buffer = []
+let written = 0
+
+function flush() {
+  if (!current) return
+  const target = path.resolve(root, current)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  const content = buffer.join('\n').replace(/^\n+|\n+$/g, '') + '\n'
+  fs.writeFileSync(target, content, 'utf8')
+  console.log(`  写入 ${current} (${content.length} 字符)`)
+  written++
+  current = null
+  buffer = []
+}
+
+for (const line of lines) {
+  const m = line.match(marker)
+  if (m) {
+    flush()
+    current = m[1].trim()
+    continue
+  }
+  if (current) buffer.push(line)
+}
+flush()
+
+console.log(`\n完成：${written} 个文件`)
+使用流程
+我把批次 1 的所有文件按上述格式输出（一个完整文本块）。
+
+你复制这个文本块，保存为 batch1.txt，放在项目根目录（和 apply-code.js 同级）。
+
+执行 node apply-code.js batch1.txt。
+
+脚本自动创建 src/renderer/views/DataClean/... 下所有目录，写入所有文件。
+
+后续批次同样流程，batch2.txt、batch3.txt，互不覆盖（如果路径相同会覆盖，这是预期行为，方便你改完再应用一次）。
+
+覆盖与安全
+脚本默认覆盖已存在的同名文件。如果你有手动改过的文件不想被覆盖，批次文件里不要包含该路径，或者在跑脚本前把那个文件备份。
+
+脚本不删除任何文件，只创建和覆盖。
+
+目录不存在会自动 mkdir -p。
+
+编码统一 UTF-8，换行统一 \n（写入时 \n，Windows 上 Git 会按 core.autocrlf 处理）。
+
+需要你确认的两点
+脚本用 CommonJS 还是 ESM。你现有项目用 ESM（import / export），但这个脚本是独立工具，require 更省事（不需要在 package.json 里加 "type": "module" 或改后缀）。如果希望统一 ESM，我改成 import 版本，文件命名为 apply-code.mjs。
+
+批次文件命名和存放位置。我建议放 scripts/batch1.txt、scripts/batch2.txt，脚本放 scripts/apply-code.js，跑的时候 node scripts/apply-code.js scripts/batch1.txt。这样批次文件和你项目源码分开，不会误提交到 src/。你同意的话，我按这个路径组织批次文件里的 FILE: 标记（标记里的路径仍是相对项目根目录的 src/...，不受批次文件位置影响）。
+
+确认后我输出批次 1 的完整文本块（包含脚本本身和第一批代码文件），你保存 + 跑脚本即可。
+
+好的，按约定实现

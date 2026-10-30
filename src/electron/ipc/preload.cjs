@@ -60,6 +60,30 @@ contextBridge.exposeInMainWorld('dt', {
     info: wndInfo
 });
 
+const PREFIX = "data-clean";
+contextBridge.exposeInMainWorld("api", {
+    // 保留你现有的其他 API 命名空间，这里只补充 dataClean
+    dataClean: {
+        dialog: {
+            openFile: (options) => ipcRenderer.invoke(`${PREFIX}:dialog:openFile`, options),
+            openDirectory: () => ipcRenderer.invoke(`${PREFIX}:dialog:openDirectory`),
+            saveFile: (options) => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
+        },
+        fs: {
+            readFile: (filePath) => ipcRenderer.invoke(`${PREFIX}:fs:readFile`, filePath),
+            writeFile: (filePath, content) => ipcRenderer.invoke(`${PREFIX}:fs:writeFile`, filePath, content),
+            listFiles: (dirPath, extensions) => ipcRenderer.invoke(`${PREFIX}:fs:listFiles`, dirPath, extensions),
+        },
+        command: {
+            exec: (command, options) => ipcRenderer.invoke(`${PREFIX}:command:exec`, command, options),
+        },
+        pipeline: {
+            save: (filePath, json) => ipcRenderer.invoke(`${PREFIX}:pipeline:save`, filePath, json),
+            load: (filePath) => ipcRenderer.invoke(`${PREFIX}:pipeline:load`, filePath),
+        },
+    },
+});
+
 contextBridge.exposeInMainWorld('channel', {
     clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
     setFullScreen: (flag, wndName) => ipcRenderer.send('full-screen', flag, wndName),

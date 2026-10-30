@@ -1,0 +1,40 @@
+/* 节点与画布局部样式补充（主题变量在 DataCleanApp 根上定义） */
+/* 亮/暗两套值通过 [data-theme="dark"] 选择器覆盖 */
+
+:root {
+    --dc-app-bg: #ffffff;
+    --dc-node-bg: #ffffff;
+    --dc-node-border: #cbd5e1;
+    --dc-text-primary: #1e293b;
+    --dc-text-secondary: #64748b;
+    --dc-border: #e2e8f0;
+    --dc-menu-bg: #ffffff;
+    --dc-canvas-bg: #f8fafc;
+    --dc-preview-bg: #ffffff;
+    --dc-preview-header-bg: #f8fafc;
+    --dc-edge-color: #94a3b8;
+    --dc-edge-selected: #3b82f6;
+    --dc-log-bg: #0f172a;
+    --dc-log-text: #e2e8f0;
+    --dc-log-border: #1e293b;
+    --dc-log-time: #64748b;
+}
+
+[data-theme="dark"] {
+    --dc-app-bg: #0f172a;
+    --dc-node-bg: #1e293b;
+    --dc-node-border: #334155;
+    --dc-text-primary: #e2e8f0;
+    --dc-text-secondary: #94a3b8;
+    --dc-border: #334155;
+    --dc-menu-bg: #1e293b;
+    --dc-canvas-bg: #0b1120;
+    --dc-preview-bg: #1e293b;
+    --dc-preview-header-bg: #0f172a;
+    --dc-edge-color: #475569;
+    --dc-edge-selected: #60a5fa;
+    --dc-log-bg: #020617;
+    --dc-log-text: #cbd5e1;
+    --dc-log-border: #1e293b;
+    --dc-log-time: #475569;
+}

@@ -1,0 +1,36 @@
+/* Vue Flow 画布主题覆盖：背景点阵、连线、控制条 */
+
+.vue-flow__background {
+    background: var(--dc-canvas-bg, #f8fafc) !important;
+}
+
+.vue-flow__background-pattern.dots {
+    color: var(--dc-canvas-dots, #cbd5e1) !important;
+}
+
+.vue-flow__controls {
+    background: var(--dc-node-bg, #ffffff);
+    border: 1px solid var(--dc-border, #e2e8f0);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.vue-flow__controls-button {
+    background: var(--dc-node-bg, #ffffff);
+    border-bottom: 1px solid var(--dc-border, #e2e8f0);
+    color: var(--dc-text-primary, #1e293b);
+}
+
+.vue-flow__controls-button:hover {
+    background: var(--dc-preview-header-bg, #f8fafc);
+}
+
+.vue-flow__minimap {
+    background: var(--dc-node-bg, #ffffff);
+    border: 1px solid var(--dc-border, #e2e8f0);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] .vue-flow__background-pattern.dots {
+    color: #334155 !important;
+}

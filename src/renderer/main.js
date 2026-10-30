@@ -29,6 +29,11 @@ import IconLight from "@/icons/IconLight.vue";
 import IconShopping from "@/icons/IconShopping.vue";
 import IconCount from "@/icons/IconCount.vue";
 
+import "@vue-flow/core/dist/style.css";
+import "@vue-flow/core/dist/theme-default.css";
+import "./views/DataClean/styles/node.css";
+import "./views/DataClean/styles/canvas.css";
+
 removeVueDevtoolsContainers();
 
 const app = createApp(App)

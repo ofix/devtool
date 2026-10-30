@@ -15,6 +15,7 @@ import StockHandler from './handler-mini-stock.js';
 import SystemHandler from './handler-system.js';
 import AntSyncHandler from "./handler-ant-sync.js";
 import CodeAnalysis from "./handler-code-analysis.js";
+import DataCleanHandler from "./handler-data-clean.js";
 
 class IPCManager extends Singleton {
     constructor() {
@@ -36,6 +37,7 @@ class IPCManager extends Singleton {
         this.system = SystemHandler;
         this.antSync = AntSyncHandler;
         this.codeAnalysis = CodeAnalysis;
+        this.dataClean = DataCleanHandler;
 
         console.log('所有 IPC 处理器已注册完成');
     }

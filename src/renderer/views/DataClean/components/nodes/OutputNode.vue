@@ -1,34 +1,76 @@
+<!-- Output 节点：输出文件路径 + 格式 -->
+<!-- 批次 1 只透传数据，落盘由 DataCleanApp 的运行流程统一处理 -->
 <template>
-    <div
-      class="node" :class="{ selected }"
-      :style="{ left: node.x + 'px', top: node.y + 'px' }"
-      @mousedown.stop="onDragStart"
-      @click.stop="$emit('select')"
-    >
-      <div class="head">
-        <span>💾 {{ node.name }}</span>
-        <span class="close" @click.stop="$emit('remove')">×</span>
-      </div>
-      <div class="meta">{{ ds?.count ?? 0 }} 行</div>
-      <div class="in-port" />
-    </div>
-  </template>
-  
-  <script setup>
-  import { computed } from 'vue'
-  import { useDataCleanStore } from '/stores/StoreDataClean'
-  const props = defineProps({ node: Object, selected: Boolean })
-  const emit = defineEmits(['select', 'remove', 'start-edge', 'drag'])
-  const store = useDataCleanStore()
-  const ds = computed(() => store.datasets[props.node.id])
-  function onDragStart(e) { emit('drag', { node: props.node, event: e }) }
-  </script>
-  
-  <style scoped>
-  .node { position: absolute; width: 220px; background: #2d2d2d; border: 1px solid #444; border-radius: 6px; color: #ddd; font-size: 12px; user-select: none; }
-  .node.selected { border-color: #79b8ff; box-shadow: 0 0 0 1px #79b8ff; }
-  .head { display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid #444; }
-  .close { cursor: pointer; color: #888; }
-  .meta { padding: 8px; color: #999; }
-  .in-port { position: absolute; left: -7px; top: 42px; width: 14px; height: 14px; border-radius: 50%; background: #79b8ff; cursor: crosshair; }
-  </style>
+    <BaseNode :node="node" :selected="selected">
+        <ParamRow label="输出">
+            <div class="file-row">
+                <el-input
+                    :model-value="node.params.filePath || ''"
+                    size="small"
+                    readonly
+                    placeholder="选择输出路径"
+                />
+                <el-button size="small" @click="onPickPath">选择</el-button>
+            </div>
+        </ParamRow>
+        <ParamRow label="格式">
+            <el-select
+                :model-value="node.params.format || 'csv'"
+                size="small"
+                style="width: 100%"
+                @update:model-value="onFormatChange"
+            >
+                <el-option label="CSV" value="csv" />
+                <el-option label="JSON" value="json" />
+            </el-select>
+        </ParamRow>
+    </BaseNode>
+</template>
+
+<script setup>
+import BaseNode from "./BaseNode.vue";
+import ParamRow from "../params/ParamRow.vue";
+import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js";
+
+const props = defineProps({
+    node: { type: Object, required: true },
+    selected: { type: Boolean, default: false },
+});
+
+const graphStore = useStoreDataCleanGraph();
+
+/**
+ * 选择输出文件路径
+ */
+async function onPickPath() {
+    const format = props.node.params.format || "csv";
+    const filters =
+        format === "json"
+            ? [{ name: "JSON", extensions: ["json"] }]
+            : [{ name: "CSV", extensions: ["csv"] }];
+    const filePath = await window.api.dataClean.dialog.saveFile({ filters });
+    if (!filePath) return;
+    graphStore.updateNodeParams(props.node.id, { filePath });
+}
+
+/**
+ * 切换格式
+ * @param {string} format
+ */
+function onFormatChange(format) {
+    graphStore.updateNodeParams(props.node.id, { format });
+}
+</script>
+
+<style scoped>
+.file-row {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+}
+
+.file-row .el-input {
+    flex: 1;
+    min-width: 0;
+}
+</style>
