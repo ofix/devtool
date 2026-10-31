@@ -1,4 +1,4 @@
-// Sort 算子：单级排序（多级可在后续扩展）
+// 修复：确保单选字段拿到的是字符串，并处理空值
 export default {
     type: "sort",
     meta: {
@@ -12,6 +12,7 @@ export default {
         outputPortType: "table",
     },
     schema: [
+        // 明确标记为单选
         { field: "field", label: "排序字段", component: "fieldSelect", multiple: false },
         { field: "order", label: "顺序", component: "select", options: [
             { label: "升序", value: "asc" },
@@ -20,7 +21,9 @@ export default {
     ],
     execute(inputs, params) {
         const data = inputs[0];
-        if (!data || !data.rows || !params.field) return data;
+        // 如果字段没选，或者上游没数据，直接透传
+        if (!data || !data.rows) return data;
+        if (!params.field || Array.isArray(params.field)) return data;
 
         const { field, order } = params;
         const isAsc = order !== "desc";

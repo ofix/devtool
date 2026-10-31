@@ -1,4 +1,4 @@
-<!-- 顶部菜单：增加 管线 保存/加载 入口 -->
+<!-- 增加暗黑模式切换按钮，清理旧样式 -->
 <template>
     <div class="top-menu">
         <div class="menu-tabs-row">
@@ -19,6 +19,10 @@
                 <el-button size="small" @click="$emit('save')">保存管线</el-button>
                 <el-button size="small" @click="$emit('load')">加载管线</el-button>
                 <el-button size="small" @click="$emit('fit')">适应画布</el-button>
+                <!-- 主题切换 -->
+                <el-button size="small" @click="toggleTheme">
+                    {{ isDark ? '亮色' : '暗色' }}
+                </el-button>
             </div>
         </div>
         <div class="menu-toolbar-row">
@@ -40,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { Document, Download, ChatDotRound, Files } from "@element-plus/icons-vue";
 import { listOperators } from "../../engine/operators/index.js";
 import { NODE_CATEGORIES } from "../../constants/NodeTypes.js";
@@ -56,6 +60,27 @@ const categories = computed(() => {
 });
 const activeTab = ref(categories.value.length > 0 ? categories.value[0].key : "");
 const activeOps = computed(() => allOps.filter((op) => op.meta.category === activeTab.value));
+
+// 主题切换逻辑
+const isDark = ref(false);
+onMounted(() => {
+    const saved = localStorage.getItem("dc-theme");
+    if (saved === "dark") {
+        isDark.value = true;
+        document.documentElement.setAttribute("data-theme", "dark");
+    }
+});
+
+function toggleTheme() {
+    isDark.value = !isDark.value;
+    if (isDark.value) {
+        document.documentElement.setAttribute("data-theme", "dark");
+        localStorage.setItem("dc-theme", "dark");
+    } else {
+        document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem("dc-theme", "light");
+    }
+}
 
 function getIcon(iconName) {
     const map = { IconFolder: Document, IconDownload: Download, IconChatDot: ChatDotRound, default: Files };
@@ -129,7 +154,7 @@ function getDefaultParams(op) {
     min-width: 64px; padding: 4px 8px; border-radius: 6px;
     cursor: pointer; transition: background 0.15s;
 }
-.tool-btn:hover { background: rgba(0,0,0,0.05); }
+.tool-btn:hover { background: rgba(0, 0, 0, 0.05); }
 .tool-icon { margin-bottom: 4px; }
 .tool-text { font-size: 12px; color: var(--dc-text-primary, #334155); white-space: nowrap; }
 </style>

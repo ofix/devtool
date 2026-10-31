@@ -1,9 +1,6 @@
-// 日志 store：底部日志条，最多保留 500 条
-
+// 升级：为每条日志打上 nodeId 标签，方便 Message 节点过滤
 import { defineStore } from "pinia";
 import { ref } from "vue";
-
-const MAX_LOGS = 500;
 
 export const useStoreDataCleanLog = defineStore("dataCleanLog", () => {
     const logs = ref([]);
@@ -11,20 +8,17 @@ export const useStoreDataCleanLog = defineStore("dataCleanLog", () => {
     /**
      * 追加日志
      * @param {string} message
-     * @param {string} [level] info | warn | error
+     * @param {string} level info | warn | error
+     * @param {string} nodeId 产生日志的节点 ID
      */
-    function push(message, level = "info") {
-        const entry = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    function push(message, level = "info", nodeId = null) {
+        logs.value.push({
+            id: `${Date.now()}-${Math.random()}`,
             message: String(message),
             level,
+            nodeId,
             time: new Date().toLocaleTimeString(),
-        };
-        logs.value.push(entry);
-        if (logs.value.length > MAX_LOGS) {
-            logs.value.splice(0, logs.value.length - MAX_LOGS);
-        }
-        return entry;
+        });
     }
 
     function clear() {

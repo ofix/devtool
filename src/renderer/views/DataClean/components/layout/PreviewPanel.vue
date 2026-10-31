@@ -1,25 +1,33 @@
-<!-- 修复：选中节点预览同步，同时增加更友好的空状态提示 -->
 <template>
     <div class="preview-panel">
+        <!-- 辅助线 -->
+        <div 
+            v-if="isResizing" 
+            class="resize-line" 
+            :style="{ left: resizeLineX + 'px' }"
+        ></div>
+
         <div class="preview-header">
             <div class="preview-title">
                 <span class="title-text">{{ title }}</span>
-                <span v-if="meta.rowCount > 0" class="title-meta">
+                <span v-if="!isMessageNode && meta.rowCount > 0" class="title-meta">
                     {{ meta.rowCount }} 行 · {{ meta.columns.length }} 列
+                </span>
+                <span v-if="isMessageNode" class="title-meta log-hint">
+                    上游节点的调试日志流
                 </span>
             </div>
             <div class="preview-actions">
-                <el-button size="small" text @click="$emit('refresh')">刷新</el-button>
+                <el-button v-if="!isMessageNode" size="small" text @click="$emit('refresh')">刷新</el-button>
             </div>
         </div>
 
-        <div class="preview-body">
-            <EmptyState
-                v-if="!hasData"
-                :text="emptyText"
-            />
+        <div class="preview-body" ref="previewBodyRef" @mousedown="handleGlobalMouseDown">
+            <EmptyState v-if="!isMessageNode && !hasData" :text="emptyText" />
+            
             <el-table-v2
-                v-else
+                v-else-if="!isMessageNode"
+                ref="tableRef"
                 :columns="tableColumns"
                 :data="visibleRows"
                 :width="tableWidth"
@@ -27,29 +35,62 @@
                 :row-height="32"
                 :header-height="36"
                 fixed
-            />
+            >
+                <template #header-cell="{ column }">
+                    <div class="custom-header-cell" :data-key="column.key">
+                        <span class="header-title">{{ column.title }}</span>
+                        <div class="col-resizer"></div>
+                    </div>
+                </template>
+            </el-table-v2>
+            
+            <div v-else class="log-viewer">
+                <div v-if="upstreamLogs.length === 0" class="empty-logs">
+                    暂无上游日志信息。触发一次自动运行以查看结果。
+                </div>
+                <div v-else class="log-list">
+                    <div v-for="entry in upstreamLogs" :key="entry.id" class="log-row" :class="'level-' + entry.level">
+                        <span class="log-time">{{ entry.time }}</span>
+                        <span class="log-node">[{{ getNodeLabel(entry.nodeId) }}]</span>
+                        <span class="log-msg">{{ entry.message }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import EmptyState from "../common/EmptyState.vue";
 import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js";
 import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js";
 import { useStoreDataCleanDatasets } from "../../stores/StoreDataCleanDatasets.js";
+import { useStoreDataCleanLog } from "../../stores/StoreDataCleanLog.js";
+import { topoSort } from "../../engine/Scheduler.js";
 
 defineEmits(["refresh"]);
 
 const graphStore = useStoreDataCleanGraph();
 const metaStore = useStoreDataCleanMeta();
 const datasetStore = useStoreDataCleanDatasets();
+const logStore = useStoreDataCleanLog();
 
-const container = ref(null);
+const previewBodyRef = ref(null);
+const tableRef = ref(null);
 const tableWidth = ref(800);
 const tableHeight = ref(300);
 
-// 依赖 Pinia 的响应式选中状态
+// 拖拽状态
+const isResizing = ref(false);
+const resizeLineX = ref(0);
+const currentColKey = ref(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+// 最终列宽数据
+const columnWidths = ref({});
+
 const selected = computed(() => graphStore.selectedNode);
 const meta = computed(() => {
     if (!selected.value) return { rowCount: 0, columns: [], stale: false, staleReason: null, error: null };
@@ -63,11 +104,11 @@ const dataset = computed(() => {
 
 const title = computed(() => {
     if (!selected.value) return "未选中节点";
-    const op = selected.value.type;
-    return `${op} · ${selected.value.id.slice(0, 12)}`;
+    return `${selected.value.type} · ${selected.value.id.slice(0, 12)}`;
 });
 
 const hasData = computed(() => Boolean(dataset.value && dataset.value.rows.length > 0));
+const isMessageNode = computed(() => selected.value && selected.value.type === "message");
 
 const emptyText = computed(() => {
     if (!selected.value) return "在画布上选中一个节点";
@@ -77,41 +118,120 @@ const emptyText = computed(() => {
     return "尚未运行，请检查参数或上游连线";
 });
 
+const upstreamLogs = computed(() => {
+    if (!selected.value) return [];
+    const order = topoSort(graphStore.nodes, graphStore.edges);
+    const msgIndex = order.indexOf(selected.value.id);
+    if (msgIndex === -1) return [];
+    const upstreamNodeIds = new Set(order.slice(0, msgIndex + 1));
+    return logStore.logs.filter(log => upstreamNodeIds.has(log.nodeId)).slice(-100);
+});
+
+function getNodeLabel(nodeId) {
+    const node = graphStore.getNode(nodeId);
+    if (!node) return "System";
+    return node.type.charAt(0).toUpperCase() + node.type.slice(1);
+}
+
 const visibleRows = computed(() => {
     if (!dataset.value) return [];
     return dataset.value.rows.slice(0, 200).map((row, idx) => ({ ...row, __idx: idx }));
 });
 
+// 渲染表头与列宽
 const tableColumns = computed(() => {
     if (!meta.value.columns || meta.value.columns.length === 0) return [];
-    return meta.value.columns.map((col) => ({
-        key: col.name,
-        dataKey: col.name,
-        title: `${col.name} (${col.type})`,
-        width: 140,
-        resizable: true,
-    }));
+    return meta.value.columns.map((col) => {
+        const customWidth = columnWidths.value[col.name];
+        const defaultWidth = Math.max(120, col.name.length * 14 + 40);
+        return {
+            key: col.name,
+            dataKey: col.name,
+            title: `${col.name} (${col.type})`,
+            width: customWidth || defaultWidth,
+            resizable: false, 
+        };
+    });
 });
 
+// 拖拽逻辑
+function handleGlobalMouseDown(e) {
+    const resizer = e.target.closest(".col-resizer");
+    if (!resizer) return;
+    e.preventDefault();
+
+    const headerCell = resizer.closest(".custom-header-cell");
+    if (!headerCell) return;
+    const colKey = headerCell.getAttribute("data-key");
+    if (!colKey) return;
+
+    const targetCol = tableColumns.value.find(c => c.key === colKey);
+    if (!targetCol) return;
+
+    isResizing.value = true;
+    currentColKey.value = colKey;
+    startX.value = e.clientX;
+    startWidth.value = targetCol.width;
+
+    const bodyRect = previewBodyRef.value.getBoundingClientRect();
+    const scrollLeft = tableRef.value?.scrollLeft ?? 0;
+    resizeLineX.value = e.clientX - bodyRect.left + scrollLeft;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    let rafId = null;
+    let finalWidth = startWidth.value;
+
+    function onMouseMove(ev) {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+            // 拖拽过程中，只做视觉上的辅助线移动，彻底做到 0 性能损耗
+            const deltaX = ev.clientX - startX.value;
+            finalWidth = Math.max(80, startWidth.value + deltaX);
+
+            const sl = tableRef.value?.scrollLeft ?? 0;
+            resizeLineX.value = ev.clientX - bodyRect.left + sl;
+        });
+    }
+
+    function onMouseUp() {
+        isResizing.value = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        if (rafId) cancelAnimationFrame(rafId);
+
+        // 【核心】松手瞬间，才把最终宽度提交给 Vue
+        // 此时触发一次虚拟表格的重新计算，速度极快，肉眼不可察觉，直接完美落位
+        if (finalWidth !== startWidth.value) {
+            columnWidths.value = {
+                ...columnWidths.value,
+                [colKey]: finalWidth
+            };
+        }
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+}
+
 function measure() {
-    if (!container.value) return;
-    const rect = container.value.getBoundingClientRect();
-    tableWidth.value = Math.max(200, rect.width - 8);
-    tableHeight.value = Math.max(120, rect.height - 8);
+    if (!previewBodyRef.value) return;
+    const rect = previewBodyRef.value.getBoundingClientRect();
+    tableWidth.value = Math.max(200, Math.floor(rect.width) - 12); 
+    tableHeight.value = Math.max(120, Math.floor(rect.height) - 12);
 }
 
 let observer = null;
-
 onMounted(() => {
-    const el = document.querySelector(".preview-panel .preview-body");
-    if (el) {
-        container.value = el;
+    if (previewBodyRef.value) {
         measure();
         observer = new ResizeObserver(measure);
-        observer.observe(el);
+        observer.observe(previewBodyRef.value);
     }
 });
-
 onBeforeUnmount(() => {
     if (observer) observer.disconnect();
 });
@@ -123,7 +243,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     height: 100%;
     background: var(--dc-preview-bg, #ffffff);
-    border-bottom: 1px solid var(--dc-border, #e2e8f0);
+    position: relative;
 }
 .preview-header {
     display: flex;
@@ -137,5 +257,65 @@ onBeforeUnmount(() => {
 .preview-title { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
 .title-text { font-weight: 600; color: var(--dc-text-primary, #1e293b); }
 .title-meta { color: var(--dc-text-secondary, #64748b); }
-.preview-body { flex: 1; overflow: hidden; padding: 4px; }
+.log-hint { color: #eab308; font-weight: 600; }
+.preview-body { flex: 1; overflow: hidden; padding: 4px; position: relative; }
+
+.custom-header-cell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+.header-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    width: 100%;
+}
+
+.col-resizer {
+    position: absolute;
+    right: -16px;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    cursor: col-resize;
+    z-index: 10;
+}
+.col-resizer:hover {
+    background-color: var(--dc-edge-selected, #3b82f6);
+    opacity: 0.1;
+}
+
+.resize-line {
+    position: absolute;
+    top: 32px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--dc-edge-selected, #3b82f6);
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.log-viewer {
+    height: 100%;
+    overflow-y: auto;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 4px;
+}
+.empty-logs { display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; }
+.log-list { display: flex; flex-direction: column; gap: 4px; }
+.log-row { display: flex; gap: 8px; line-height: 1.5; }
+.log-time { color: #64748b; flex-shrink: 0; }
+.log-node { color: #38bdf8; flex-shrink: 0; width: 80px; }
+.level-warn .log-msg { color: #fbbf24; }
+.level-error .log-msg { color: #f87171; }
 </style>

@@ -1,30 +1,27 @@
-<!-- 增强全局调度的防抖与并发控制，避免异步竞态 -->
+<!-- 使用 Element Plus 原生 splitter 重构上下布局，完美适配 Retina 屏幕 -->
 <template>
     <div class="data-clean-app">
         <TopMenu @fit="onFit" @save="onSave" @load="onLoad" />
-        <div class="preview-area">
-            <PreviewPanel @refresh="onRefreshPreview" />
-        </div>
-        <div class="canvas-area">
-            <NodeEditor ref="editorRef" @trigger-run="onAutoRun" />
-        </div>
-        <div class="log-bar">
-            <div class="log-header">
-                <span>日志（{{ logStore.logs.length }}）</span>
-                <el-button size="small" text @click="logStore.clear()">清空</el-button>
-            </div>
-            <div class="log-list">
-                <div v-for="entry in reversedLogs" :key="entry.id" class="log-row" :class="'level-' + entry.level">
-                    <span class="log-time">{{ entry.time }}</span>
-                    <span class="log-msg">{{ entry.message }}</span>
-                </div>
-            </div>
+        
+        <!-- 剩余空间全部交给 Splitter -->
+        <div class="main-content">
+            <el-splitter layout="vertical" style="height: 100%; width: 100%;">
+                <!-- 上半部分：预览区 -->
+                <el-splitter-panel size="45%" min="15%" max="80%">
+                    <PreviewPanel @refresh="onRefreshPreview" />
+                </el-splitter-panel>
+                
+                <!-- 下半部分：画布区 -->
+                <el-splitter-panel>
+                    <NodeEditor ref="editorRef" @trigger-run="onAutoRun" />
+                </el-splitter-panel>
+            </el-splitter>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
 import TopMenu from "./components/layout/TopMenu.vue";
 import PreviewPanel from "./components/layout/PreviewPanel.vue";
@@ -46,39 +43,29 @@ const logStore = useStoreDataCleanLog();
 const editorRef = ref(null);
 const engine = new Engine({ metaStore, datasetStore, graphStore });
 const scheduler = new Scheduler(engine);
-const reversedLogs = computed(() => logStore.logs.slice().reverse());
 
+// 自动运行
 let runTimer = null;
-let isRunning = false; // 增加并发锁，防止调度器自己打断自己
+let isRunning = false;
 
 function onAutoRun() {
     if (runTimer) clearTimeout(runTimer);
     runTimer = setTimeout(() => {
-        if (!isRunning) {
-            executeGraph();
-        } else {
-            // 如果当前正在跑，等 500ms 再试，确保最后一次修改被应用
-            setTimeout(onAutoRun, 500);
-        }
+        if (!isRunning) executeGraph();
+        else setTimeout(onAutoRun, 500);
     }, 300);
 }
 
 async function executeGraph() {
     if (graphStore.nodes.length === 0) return;
-    
     isRunning = true;
     try {
-        // 使用 Scheduler 重新跑一遍拓扑
         await scheduler.runAll(graphStore.nodes, graphStore.edges, {
-            log: (msg, level) => logStore.push(msg, level),
-            onProgress: (cur, total, file) => {
-                if (total > 0) logStore.push(`[Progress] 读取文件 ${cur}/${total}: ${file.split(/[/\\]/).pop()}`);
-            }
+            log: (msg, level, nodeId) => logStore.push(msg, level, nodeId)
         });
-        
         await writeOutputs();
     } catch (err) {
-        logStore.push(`运行异常：${err.message}`, "error");
+        logStore.push(`运行异常：${err.message}`, "error", null);
     } finally {
         isRunning = false;
     }
@@ -87,47 +74,38 @@ async function executeGraph() {
 async function writeOutputs() {
     for (const node of graphStore.nodes) {
         if (node.type === "output") {
-            await writeSingleFile(node);
+            const data = datasetStore.getDataset(node.id);
+            if (!data || !node.params || !node.params.filePath) continue;
+            try {
+                const content = serializeData(data, node.params.format || "csv");
+                await window.api.dataClean.fs.writeFile(node.params.filePath, content);
+                logStore.push(`[Output] 已写入 ${node.params.filePath}`, "info", node.id);
+            } catch (err) {
+                logStore.push(`[Output] 写入失败：${err.message}`, "error", node.id);
+            }
         } else if (node.type === "folderOutput") {
-            await writeFolder(node);
-        }
-    }
-}
+            const data = datasetStore.getDataset(node.id);
+            const { outputDir, fileNameField, format = "csv" } = node.params || {};
+            if (!data || !outputDir || !fileNameField) continue;
 
-async function writeSingleFile(node) {
-    const data = datasetStore.getDataset(node.id);
-    if (!data || !node.params || !node.params.filePath) return;
-    try {
-        const content = serializeData(data, node.params.format || "csv");
-        await window.api.dataClean.fs.writeFile(node.params.filePath, content);
-        logStore.push(`[Output] 已写入 ${node.params.filePath}`);
-    } catch (err) {
-        logStore.push(`[Output] 写入失败：${err.message}`, "error");
-    }
-}
-
-async function writeFolder(node) {
-    const data = datasetStore.getDataset(node.id);
-    const { outputDir, fileNameField, format = "csv" } = node.params || {};
-    if (!data || !outputDir || !fileNameField) return;
-
-    const groups = new Map();
-    for (const row of data.rows) {
-        const fileName = String(row[fileNameField] || "unnamed");
-        if (!groups.has(fileName)) groups.set(fileName, []);
-        groups.get(fileName).push(row);
-    }
-
-    const ext = format === "json" ? ".json" : ".csv";
-    for (const [fileName, rows] of groups.entries()) {
-        const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_");
-        const targetPath = `${outputDir}/${safeName}${ext}`;
-        try {
-            const content = serializeData({ rows, columns: data.columns }, format);
-            await window.api.dataClean.fs.writeFile(targetPath, content);
-            logStore.push(`[FolderOutput] 已写入 ${targetPath}（${rows.length} 行）`);
-        } catch (err) {
-            logStore.push(`[FolderOutput] 写入失败：${err.message}`, "error");
+            const groups = new Map();
+            for (const row of data.rows) {
+                const fileName = String(row[fileNameField] || "unnamed");
+                if (!groups.has(fileName)) groups.set(fileName, []);
+                groups.get(fileName).push(row);
+            }
+            const ext = format === "json" ? ".json" : ".csv";
+            for (const [fileName, rows] of groups.entries()) {
+                const safeName = fileName.replace(/[\\/:*?"<>|]/g, "_");
+                const targetPath = `${outputDir}/${safeName}${ext}`;
+                try {
+                    const content = serializeData({ rows, columns: data.columns }, format);
+                    await window.api.dataClean.fs.writeFile(targetPath, content);
+                    logStore.push(`[FolderOutput] 已写入 ${targetPath}（${rows.length} 行）`, "info", node.id);
+                } catch (err) {
+                    logStore.push(`[FolderOutput] 写入失败：${err.message}`, "error", node.id);
+                }
+            }
         }
     }
 }
@@ -151,7 +129,9 @@ function escapeCsv(v) {
 async function onRefreshPreview() {
     const id = graphStore.selectedNodeId;
     if (!id) return;
-    await engine.runNode(id, { log: (msg, level) => logStore.push(msg, level) });
+    await engine.runNode(id, { 
+        log: (msg, level, nodeId) => logStore.push(msg, level, nodeId)
+    });
 }
 
 function onFit() {
@@ -165,7 +145,7 @@ async function onSave() {
     if (!path) return;
     await window.api.dataClean.pipeline.save(path, json);
     ElMessage.success("管线已保存");
-    logStore.push(`[Pipeline] 已保存到 ${path}`);
+    logStore.push(`[Pipeline] 已保存到 ${path}`, "info", null);
 }
 
 async function onLoad() {
@@ -176,7 +156,7 @@ async function onLoad() {
         const result = deserializePipeline(json, graphStore);
         if (result.ok) {
             ElMessage.success("管线已加载");
-            logStore.push(`[Pipeline] 已加载 ${path}`);
+            logStore.push(`[Pipeline] 已加载 ${path}`, "info", null);
             onAutoRun();
         } else {
             ElMessage.error(`加载失败：${result.error}`);
@@ -189,24 +169,26 @@ async function onLoad() {
 
 <style scoped>
 .data-clean-app {
-    display: grid;
-    grid-template-rows: 108px minmax(150px, 1fr) minmax(200px, 1fr) 120px;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     background: var(--dc-app-bg, #ffffff);
     color: var(--dc-text-primary, #1e293b);
     overflow: hidden;
 }
-.preview-area { overflow: hidden; border-bottom: 1px solid var(--dc-border, #e2e8f0); z-index: 1; }
-.canvas-area { overflow: hidden; border-bottom: 1px solid var(--dc-border, #e2e8f0); }
-.log-bar {
-    display: flex; flex-direction: column;
-    background: var(--dc-log-bg, #0f172a); color: var(--dc-log-text, #e2e8f0);
-    font-size: 11px; font-family: "SF Mono", Consolas, monospace;
+
+.main-content {
+    flex: 1;
+    min-height: 0; /* 关键：解决 flex 子项无法收缩的问题 */
+    background: var(--dc-canvas-bg, #f8fafc);
 }
-.log-header { display: flex; justify-content: space-between; padding: 2px 12px; font-weight: 600; }
-.log-list { flex: 1; overflow-y: auto; padding: 4px 12px; }
-.log-row { display: flex; gap: 8px; line-height: 1.5; }
-.log-time { color: var(--dc-log-time, #64748b); flex-shrink: 0; }
-.level-warn .log-msg { color: #fbbf24; }
-.level-error .log-msg { color: #f87171; }
+
+/* 覆盖 Element Plus Splitter 的默认样式，让其融入我们的暗黑主题 */
+:deep(.el-splitter-bar) {
+    background-color: var(--dc-border, #e2e8f0);
+    border: 1px solid var(--dc-app-bg, #ffffff);
+}
+:deep(.el-splitter-bar:hover) {
+    background-color: var(--dc-edge-selected, #3b82f6);
+}
 </style>

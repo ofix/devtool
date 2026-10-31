@@ -1,5 +1,4 @@
-<!-- 修复：在 Vue Flow 的 Node Click 中同步 Pinia 状态，确保预览区同步刷新 -->
-<!-- 同时补齐 FoldInput 的插槽逻辑 -->
+<!-- 修改：将 filter 替换为 FilterNode -->
 <template>
     <div class="node-editor">
         <VueFlow
@@ -34,7 +33,16 @@
                 </BaseNode>
             </template>
             
-            <!-- 所有通用算子共享 TransformNode -->
+            <!-- 专用的 Filter 节点 -->
+            <template #node-filter="nodeProps">
+                <FilterNode 
+                    :node="nodeProps.data" 
+                    :selected="nodeProps.selected" 
+                    @trigger-run="$emit('trigger-run')" 
+                />
+            </template>
+
+            <!-- 其他通用算子共享 TransformNode -->
             <template v-for="type in transformTypes" :key="type" #[`node-${type}`]="nodeProps">
                 <TransformNode 
                     :node="nodeProps.data" 
@@ -54,6 +62,7 @@ import InputNode from "../nodes/InputNode.vue";
 import OutputNode from "../nodes/OutputNode.vue";
 import BaseNode from "../nodes/BaseNode.vue";
 import TransformNode from "../nodes/TransformNode.vue";
+import FilterNode from "../nodes/FilterNode.vue"; // 新增
 import ParamRow from "../params/ParamRow.vue";
 import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js";
 import { getOperator } from "../../engine/operators/index.js";
@@ -62,8 +71,9 @@ import { canConnect } from "../../constants/PortTypes.js";
 const emit = defineEmits(['trigger-run']);
 const graphStore = useStoreDataCleanGraph();
 
+// 排除 filter，因为 filter 有专属插槽了
 const transformTypes = [
-    "filter", "select", "sort", "unique", "sample", "formula",
+    "select", "sort", "unique", "sample", "formula",
     "join", "union", "summarize", "transpose", "crossTab", "countRecords",
     "textToColumns", "regexExtract", "folderInput", "folderOutput", "script", "dynamicRename"
 ];
@@ -124,7 +134,6 @@ function onConnect(params) {
         return;
     }
 
-    // 多输入端口占用校验
     if (targetOp.meta.inputs > 1) {
         const existingInputs = graphStore.getIncomingEdges(params.target);
         const portHandle = params.targetHandle;
@@ -150,12 +159,9 @@ function onConnect(params) {
 
 function onNodeClick(event) {
     const id = event && event.node ? event.node.id : null;
-    // 关键：同步 Vue Flow 选中状态到 Pinia，驱动 PreviewPanel
     if (id) graphStore.setSelected(id);
 }
-
 function onPaneClick() { graphStore.setSelected(null); }
-
 function onMessageChange(id, val) {
     graphStore.updateNodeParams(id, { text: val });
     emit('trigger-run');

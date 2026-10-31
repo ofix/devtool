@@ -1,4 +1,4 @@
-// 执行引擎：修复由于参数更新导致的数据丢失问题
+// 升级：在执行时，把当前 nodeId 传入 log 上下文
 import { getOperator } from "./operators/index.js";
 import { inferColumns } from "./runtime/Dataset.js";
 
@@ -23,7 +23,6 @@ export default class Engine {
             inputs.push(upstream || { rows: [], columns: [] });
         }
 
-        // 如果是有输入的节点，且上游没数据（断线/未运行），直接标记 stale 跳过
         if (op.meta.inputs > 0) {
             const hasMissing = incoming.some((e) => !this.datasetStore.getDataset(e.source));
             if (incoming.length === 0 || hasMissing) {
@@ -33,8 +32,11 @@ export default class Engine {
         }
 
         try {
+            // 关键：把所有 log 请求打上当前 nodeId
             const result = op.execute(inputs, node.params || {}, {
-                log: context.log || (() => {}),
+                log: (msg, level = "info") => {
+                    if (context.log) context.log(msg, level, nodeId);
+                },
                 rawText: resolveRawText(node, context),
                 nodeId,
                 datasetStore: this.datasetStore,
@@ -44,7 +46,6 @@ export default class Engine {
             const normalized = normalizeResult(result, inputs);
             this.datasetStore.setDataset(nodeId, normalized);
             
-            // 运行成功，更新 Meta 为最新，清除 stale 和 error
             this.metaStore.updateMeta(nodeId, {
                 rowCount: normalized.rows.length,
                 columns: normalized.columns,
@@ -55,8 +56,9 @@ export default class Engine {
             });
             return normalized;
         } catch (err) {
-            this.metaStore.setError(nodeId, err.message || String(err));
-            if (context.log) context.log(`[${node.type}] ${err.message}`, "error");
+            const errMsg = err.message || String(err);
+            this.metaStore.setError(nodeId, errMsg);
+            if (context.log) context.log(`[${node.type}] ${errMsg}`, "error", nodeId);
             return null;
         }
     }
@@ -67,7 +69,6 @@ export default class Engine {
         }
     }
 
-    // 修复：清空缓存时，Input 节点保留 rawText，其他节点直接清空
     invalidateDownstream(nodeId, reason = "参数已变更") {
         const visited = new Set();
         const queue = [nodeId];
@@ -75,10 +76,8 @@ export default class Engine {
             const id = queue.shift();
             if (visited.has(id)) continue;
             visited.add(id);
-
             this.datasetStore.removeDataset(id);
             this.metaStore.markStale(id, reason);
-
             const outgoing = this.graphStore.getOutgoingEdges(id);
             for (const edge of outgoing) {
                 queue.push(edge.target);
@@ -95,9 +94,7 @@ export default class Engine {
 }
 
 function resolveRawText(node, context) {
-    if (node.params && typeof node.params.rawText === "string") {
-        return node.params.rawText;
-    }
+    if (node.params && typeof node.params.rawText === "string") return node.params.rawText;
     return context && context.rawText ? context.rawText : "";
 }
 

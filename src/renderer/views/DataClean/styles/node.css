@@ -1,30 +1,33 @@
-/* 节点与画布局部样式补充（主题变量在 DataCleanApp 根上定义） */
-/* 亮/暗两套值通过 [data-theme="dark"] 选择器覆盖 */
-
+/* 修复亮色和暗色下的垂直边框 */
 :root {
-    --dc-app-bg: #ffffff;
+    --dc-app-bg: #f8fafc;
     --dc-node-bg: #ffffff;
     --dc-node-border: #cbd5e1;
     --dc-text-primary: #1e293b;
     --dc-text-secondary: #64748b;
     --dc-border: #e2e8f0;
     --dc-menu-bg: #ffffff;
-    --dc-canvas-bg: #f8fafc;
+    --dc-canvas-bg: #f1f5f9;
     --dc-preview-bg: #ffffff;
     --dc-preview-header-bg: #f8fafc;
     --dc-edge-color: #94a3b8;
     --dc-edge-selected: #3b82f6;
-    --dc-log-bg: #0f172a;
+    --dc-log-bg: #1e293b;
     --dc-log-text: #e2e8f0;
-    --dc-log-border: #1e293b;
+    --dc-log-border: #334155;
     --dc-log-time: #64748b;
+    --el-table-header-bg-color: #f8fafc;
+    --el-table-header-text-color: #64748b;
+    --el-table-tr-bg-color: #ffffff;
+    --el-table-row-hover-bg-color: #f1f5f9;
+    --el-table-border-color: #e2e8f0;
 }
 
 [data-theme="dark"] {
     --dc-app-bg: #0f172a;
     --dc-node-bg: #1e293b;
     --dc-node-border: #334155;
-    --dc-text-primary: #e2e8f0;
+    --dc-text-primary: #f8fafc;
     --dc-text-secondary: #94a3b8;
     --dc-border: #334155;
     --dc-menu-bg: #1e293b;
@@ -37,4 +40,101 @@
     --dc-log-text: #cbd5e1;
     --dc-log-border: #1e293b;
     --dc-log-time: #475569;
+
+    --el-bg-color: #1e293b;
+    --el-bg-color-overlay: #1e293b;
+    --el-text-color-primary: #f8fafc;
+    --el-text-color-regular: #cbd5e1;
+    --el-border-color: #334155;
+    --el-border-color-light: #334155;
+    --el-border-color-lighter: #334155;
+    --el-fill-color-blank: #0f172a;
+    --el-fill-color-light: #1e293b;
+
+    --el-table-header-bg-color: #0f172a !important;
+    --el-table-header-text-color: #94a3b8 !important;
+    --el-table-tr-bg-color: #1e293b !important;
+    --el-table-row-hover-bg-color: #334155 !important;
+    --el-table-border-color: #334155 !important;
+}
+
+/* 亮色边框（新增） */
+.el-table-v2__header-cell,
+.el-table-v2__row-cell {
+    border-right: 1px solid var(--dc-border, #e2e8f0) !important;
+    border-bottom: 1px solid var(--dc-border, #e2e8f0) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 暗黑模式强覆盖 */
+[data-theme="dark"] .el-table-v2__header,
+[data-theme="dark"] .el-table-v2__header-row,
+[data-theme="dark"] .el-table-v2__header-cell {
+    background-color: #0f172a !important;
+    color: #94a3b8 !important;
+    border-right: 1px solid #334155 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+[data-theme="dark"] .el-table-v2__row {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+[data-theme="dark"] .el-table-v2__row:hover {
+    background-color: #334155 !important;
+}
+[data-theme="dark"] .el-table-v2__row-cell {
+    border-bottom: 1px solid #334155 !important;
+    border-right: 1px solid #334155 !important;
+}
+
+/* 强制表头不换行 */
+.el-table-v2__header-cell-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ------------------ 修复输入框与下拉框 ------------------ */
+[data-theme="dark"] .el-input__wrapper,
+[data-theme="dark"] .el-select__wrapper {
+    background-color: #0f172a !important;
+    box-shadow: 0 0 0 1px var(--dc-border) inset !important;
+}
+[data-theme="dark"] .el-input__wrapper.is-focus,
+[data-theme="dark"] .el-select__wrapper.is-focused {
+    box-shadow: 0 0 0 1px var(--dc-edge-selected) inset !important;
+}
+[data-theme="dark"] .el-input__inner,
+[data-theme="dark"] .el-select__selected-item,
+[data-theme="dark"] .el-select__placeholder {
+    color: var(--dc-text-primary) !important;
+}
+[data-theme="dark"] .el-select__popper.el-popper {
+    background: var(--dc-node-bg) !important;
+    border: 1px solid var(--dc-border) !important;
+}
+[data-theme="dark"] .el-select-dropdown__item {
+    color: var(--dc-text-primary) !important;
+}
+[data-theme="dark"] .el-select-dropdown__item.is-hovering {
+    background-color: #334155 !important;
+}
+[data-theme="dark"] .el-select-dropdown__item.is-selected {
+    color: var(--dc-edge-selected) !important;
+}
+[data-theme="dark"] .el-button {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+[data-theme="dark"] .el-button:hover {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+[data-theme="dark"] .el-button.is-text {
+    background-color: transparent !important;
+    border-color: transparent !important;
 }

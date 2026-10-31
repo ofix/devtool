@@ -1,14 +1,6 @@
-// Input 算子：CSV / JSON 导入 + 类型推断
-// 实际文件读取通过 window.api.dataClean.fs.readFile 完成，
-// execute 接收 ctx.rawText（已读取的文件内容）
-
+// 增加：读取完成后的真实日志打印
 import { inferColumns } from "../runtime/Dataset.js";
 
-/**
- * 简单 CSV 解析（支持双引号转义，不支持跨行字段）
- * @param {string} text
- * @returns {{ rows: object[], columns: object[] }}
- */
 export function parseCsv(text) {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
     if (lines.length === 0) return { rows: [], columns: [] };
@@ -26,11 +18,6 @@ export function parseCsv(text) {
     return { rows, columns: inferColumns(rows, header) };
 }
 
-/**
- * 解析一行 CSV（处理双引号包裹与转义）
- * @param {string} line
- * @returns {string[]}
- */
 function splitCsvLine(line) {
     const cells = [];
     let cur = "";
@@ -63,11 +50,6 @@ function splitCsvLine(line) {
     return cells;
 }
 
-/**
- * 简单 JSON 解析：支持对象数组
- * @param {string} text
- * @returns {{ rows: object[], columns: object[] }}
- */
 export function parseJson(text) {
     const data = JSON.parse(text);
     const rows = Array.isArray(data) ? data : [data];
@@ -94,26 +76,17 @@ export default {
     },
     schema: [
         { field: "filePath", label: "文件", component: "file" },
-        {
-            field: "format",
-            label: "格式",
-            component: "select",
-            options: [
-                { label: "CSV", value: "csv" },
-                { label: "JSON", value: "json" },
-            ],
-        },
+        { field: "format", label: "格式", component: "select", options: [{ label: "CSV", value: "csv" }, { label: "JSON", value: "json" }] },
     ],
-    /**
-     * 执行入口
-     * @param {object[]} inputs 上游数据（Input 无输入）
-     * @param {object} params
-     * @param {object} ctx 运行上下文，包含 rawText（已读取的文件内容）
-     * @returns {{ rows: object[], columns: object[] }}
-     */
     execute(_inputs, params, ctx) {
         const text = ctx && ctx.rawText ? ctx.rawText : "";
-        if (params.format === "json") return parseJson(text);
-        return parseCsv(text);
+        if (ctx && typeof ctx.log === "function") {
+            ctx.log(`开始解析 ${params.format.toUpperCase()} 数据...`);
+        }
+        const result = params.format === "json" ? parseJson(text) : parseCsv(text);
+        if (ctx && typeof ctx.log === "function") {
+            ctx.log(`解析完成，共 ${result.rows.length} 行数据。`);
+        }
+        return result;
     },
 };

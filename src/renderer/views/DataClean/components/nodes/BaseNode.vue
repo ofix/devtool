@@ -1,4 +1,4 @@
-<!-- 节点外壳：Blender 风格带展开收缩点，选中边框同色系 -->
+<!-- 修复：强制覆盖暗黑模式下的文字颜色，确保标题栏和行数清晰可见 -->
 <template>
     <div 
         class="base-node" 
@@ -6,7 +6,6 @@
         :style="nodeStyle"
     >
         <div class="node-header" :style="headerStyle">
-            <!-- Blender 风格的左侧折叠点/指示器 -->
             <div class="blender-dot" @dblclick="toggleCollapse" title="双击折叠/展开">
                 <div class="dot-inner" :style="{ background: opMeta.color }" />
             </div>
@@ -23,7 +22,6 @@
             </div>
         </div>
 
-        <!-- 端口 -->
         <Handle
             v-for="idx in inputCount"
             :key="'in-' + idx"
@@ -56,9 +54,7 @@ const props = defineProps({
 });
 
 const collapsed = ref(false);
-function toggleCollapse() {
-    collapsed.value = !collapsed.value;
-}
+function toggleCollapse() { collapsed.value = !collapsed.value; }
 
 const metaStore = useStoreDataCleanMeta();
 const opMeta = computed(() => {
@@ -70,7 +66,6 @@ const inputCount = computed(() => Math.max(0, opMeta.value.inputs || 0));
 const outputCount = computed(() => Math.max(0, opMeta.value.outputs || 0));
 const metaState = computed(() => metaStore.getMeta(props.node.id));
 
-// 节点整体选中外发光颜色跟随节点主题色
 const nodeStyle = computed(() => {
     if (!props.selected) return {};
     const baseColor = opMeta.value.color || "#3b82f6";
@@ -80,19 +75,21 @@ const nodeStyle = computed(() => {
     };
 });
 
-// 极淡的上下渐变
 const headerStyle = computed(() => {
     const baseColor = opMeta.value.color || "#3b82f6";
+    // 在暗黑模式下，标题栏渐变颜色调暗，避免刺眼
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const opacityStart = isDark ? "40" : "25";
+    const opacityEnd = isDark ? "10" : "05";
     return {
-        background: `linear-gradient(to bottom, ${baseColor}25 0%, ${baseColor}05 100%)`,
-        borderBottom: `1px solid ${baseColor}30`
+        background: `linear-gradient(to bottom, ${baseColor}${opacityStart} 0%, ${baseColor}${opacityEnd} 100%)`,
+        borderBottom: `1px solid ${baseColor}${isDark ? '50' : '30'}`
     };
 });
 
 function portStyle(idx, total, kind) {
     const top = total === 1 ? "50%" : `${(idx / (total + 1)) * 100}%`;
     const colorKey = kind === "input" ? opMeta.value.inputPortType : opMeta.value.outputPortType;
-    // 让端口完全居中在边框上
     const offset = "-7px"; 
     return {
         top,
@@ -117,11 +114,11 @@ function portStyle(idx, total, kind) {
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     font-size: 12px;
+    /* 强制继承全局主题文字色 */
     color: var(--dc-text-primary, #1e293b);
     transition: box-shadow 0.15s, border-color 0.15s;
     position: relative;
 }
-/* 移除原本的全局 is-selected 样式，交由内联 nodeStyle 控制 */
 .base-node.is-stale { opacity: 0.6; border-style: dashed; }
 
 .node-header {
@@ -132,13 +129,13 @@ function portStyle(idx, total, kind) {
     font-weight: 600;
     user-select: none;
     cursor: grab;
-    color: var(--dc-text-primary, #1e293b);
     gap: 8px;
+    /* 标题栏强制继承主题色 */
+    color: var(--dc-text-primary, #1e293b);
 }
-[data-theme="dark"] .node-header { color: #f1f5f9; }
 .node-header:active { cursor: grabbing; }
 
-/* 左侧 Blender 圆点 */
+/* Blender 圆点 */
 .blender-dot {
     width: 16px;
     height: 16px;
@@ -151,14 +148,8 @@ function portStyle(idx, total, kind) {
     flex-shrink: 0;
     transition: background 0.2s;
 }
-.blender-dot:hover {
-    background: var(--dc-text-secondary, #94a3b8);
-}
-.dot-inner {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
+.blender-dot:hover { background: var(--dc-text-secondary, #94a3b8); }
+.dot-inner { width: 8px; height: 8px; border-radius: 50%; }
 
 .node-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -177,6 +168,7 @@ function portStyle(idx, total, kind) {
     padding-top: 6px;
     border-top: 1px dashed var(--dc-border, #e2e8f0);
     font-size: 11px;
+    /* 强制继承次级文字色 */
     color: var(--dc-text-secondary, #64748b);
     display: flex;
     justify-content: space-between;

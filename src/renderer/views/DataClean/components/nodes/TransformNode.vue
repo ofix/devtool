@@ -1,4 +1,4 @@
-<!-- 支持更多 component 类型：folder, saveFile -->
+<!-- 修复：当 fieldSelect 是 multiple: false 时，保证传给后端的值是字符串而不是数组 -->
 <template>
     <BaseNode :node="node" :selected="selected">
         <template v-for="row in schema" :key="row.field">
@@ -19,19 +19,11 @@
                     </div>
                 </div>
 
-                <!-- 文件夹选择 -->
+                <!-- 文件夹 / 文件 -->
                 <FilePicker 
-                    v-else-if="row.component === 'folder'"
+                    v-else-if="row.component === 'folder' || row.component === 'saveFile'"
                     :model-value="node.params[row.field]"
-                    :is-folder="true"
-                    @update:model-value="(v) => updateParam(row.field, v)"
-                />
-                
-                <!-- 文件保存 -->
-                <FilePicker 
-                    v-else-if="row.component === 'saveFile'"
-                    :model-value="node.params[row.field]"
-                    :is-folder="false"
+                    :is-folder="row.component === 'folder'"
                     @update:model-value="(v) => updateParam(row.field, v)"
                 />
 
@@ -41,7 +33,7 @@
                     :model-value="node.params[row.field] || (row.multiple ? [] : '')"
                     size="small"
                     style="width: 100%"
-                    :multiple="row.multiple"
+                    :multiple="!!row.multiple"
                     filterable
                     @update:model-value="(v) => updateParam(row.field, v)"
                 >
@@ -114,6 +106,8 @@ function getColumnsForRow(row) {
 }
 
 function updateParam(field, value) {
+    // 如果字段是单选下拉，保险起见确保拿到的是字符串（因为 Vue 的 clearable 可能会给 null）
+    if (value === null || value === undefined) value = "";
     graphStore.updateNodeParams(props.node.id, { [field]: value });
     emit("trigger-run");
 }
