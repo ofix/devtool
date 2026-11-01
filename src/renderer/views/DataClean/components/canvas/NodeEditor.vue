@@ -1,6 +1,15 @@
 <!-- 确保所有通用 TransformNode 都能抛出 trigger-run 事件 -->
 <template>
   <div class="node-editor">
+    <!-- 右键菜单 -->
+    <div
+      v-if="contextMenu.visible"
+      class="context-menu"
+      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+    >
+      <div class="menu-item" @click="deleteCurrentNode">删除 (Delete)</div>
+    </div>
+
     <VueFlow
       v-if="isReady"
       :nodes="nodes"
@@ -14,6 +23,9 @@
       @nodes-change="onNodesChange"
       @node-click="onNodeClick"
       @pane-click="onPaneClick"
+      @node-context-menu="onNodeContextMenu"
+      @edge-context-menu="onEdgeContextMenu"
+      @pane-context-menu="onPaneContextMenu"
     >
       <template #node-csvReader="nodeProps">
         <CsvReaderNode
@@ -44,7 +56,6 @@
           </ParamRow>
         </BaseNode>
       </template>
-
       <template #node-filter="nodeProps">
         <FilterNode
           :node="nodeProps.data"
@@ -52,8 +63,6 @@
           @trigger-run="$emit('trigger-run')"
         />
       </template>
-
-      <!-- 其他所有通用算子共享 TransformNode，并绑定 trigger-run -->
       <template v-for="type in transformTypes" :key="type" #[`node-${type}`]="nodeProps">
         <TransformNode
           :node="nodeProps.data"
@@ -66,7 +75,6 @@
 </template>
 
 <script setup>
-  /* 保持原有逻辑不变 */
   import { computed, onMounted, onBeforeUnmount, ref } from "vue"
   import { VueFlow, useVueFlow } from "@vue-flow/core"
   import { ElMessage } from "element-plus"
@@ -80,10 +88,11 @@
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { getOperator } from "../../engine/operators/index.js"
   import { canConnect } from "../../constants/PortTypes.js"
+
   const isReady = ref(false)
   const emit = defineEmits(["trigger-run"])
   const graphStore = useStoreDataCleanGraph()
-  const { setViewport, viewport, removeSelectedElements } = useVueFlow()
+  const { setViewport } = useVueFlow()
 
   const transformTypes = [
     "select",
@@ -108,13 +117,9 @@
     "dbConnection",
     "dbQuery",
   ]
+
   const nodes = computed(() =>
-    graphStore.nodes.map(n => ({
-      id: n.id,
-      type: n.type,
-      position: n.position,
-      data: n,
-    })),
+    graphStore.nodes.map(n => ({ id: n.id, type: n.type, position: n.position, data: n })),
   )
   const edges = computed(() =>
     graphStore.edges.map(e => ({
@@ -126,30 +131,71 @@
     })),
   )
 
+  const contextMenu = ref({ visible: false, x: 0, y: 0 })
+
+  function onNodeContextMenu(event) {
+    event.event.preventDefault()
+    graphStore.setSelected(event.node.id)
+    contextMenu.value = { visible: true, x: event.event.clientX, y: event.event.clientY }
+  }
+
+  function onEdgeContextMenu(event) {
+    event.event.preventDefault()
+    graphStore.removeEdge(event.edge.id)
+    emit("trigger-run")
+  }
+
+  function onPaneContextMenu(event) {
+    event.event.preventDefault()
+    graphStore.setSelected(null)
+    contextMenu.value.visible = false
+  }
+
+  function onWindowClick() {
+    contextMenu.value.visible = false
+  }
+
+  // 直接通过 Pinia Store 删除节点
+  function deleteCurrentNode() {
+    const id = graphStore.selectedNodeId
+    if (id) {
+      graphStore.removeNode(id)
+      emit("trigger-run")
+    }
+    contextMenu.value.visible = false
+  }
+
+  // 监听键盘删除，直接通过 Pinia Store 操作
   function handleKeyDown(e) {
     if (e.key === "Delete" || e.key === "Backspace") {
       const tag = e.target.tagName
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable) return
+
       e.preventDefault()
-      removeSelectedElements()
+      const id = graphStore.selectedNodeId
+      if (id) {
+        graphStore.removeNode(id)
+        emit("trigger-run")
+      }
     }
   }
 
   function onPaneReady() {
-    // 强制在画布渲染完毕后，直接设置一个比较舒服的缩放比例
     setViewport({ x: 0, y: 0, zoom: 1 })
   }
 
   onMounted(() => {
     window.addEventListener("keydown", handleKeyDown)
-    // 延迟 100 毫秒，等待节点 DOM 挂载完毕
+    window.addEventListener("click", onWindowClick)
     setTimeout(() => {
-      // 等待el-spliter-panel 拿到真实高度后再加载vue-flow，否则会出现控制台画布高度为0的告警
       isReady.value = true
     }, 100)
   })
 
-  onBeforeUnmount(() => window.removeEventListener("keydown", handleKeyDown))
+  onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleKeyDown)
+    window.removeEventListener("click", onWindowClick)
+  })
 
   function onNodesChange(changes) {
     for (const change of changes) {
@@ -213,9 +259,12 @@
     const id = event && event.node ? event.node.id : null
     if (id) graphStore.setSelected(id)
   }
+
   function onPaneClick() {
     graphStore.setSelected(null)
+    contextMenu.value.visible = false
   }
+
   function onMessageChange(id, val) {
     graphStore.updateNodeParams(id, { text: val })
     emit("trigger-run")
@@ -228,6 +277,28 @@
     height: 100%;
     background: var(--dc-canvas-bg, #e5e7eb);
     outline: none;
+    position: relative;
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 9999;
+    background: var(--dc-node-bg, #ffffff);
+    border: 1px solid var(--dc-border, #e2e8f0);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 4px 0;
+    min-width: 120px;
+  }
+
+  .menu-item {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #ef4444;
+    cursor: pointer;
+  }
+  .menu-item:hover {
+    background: var(--dc-preview-header-bg, #f8fafc);
   }
 
   :deep(.vue-flow__node) {
@@ -236,12 +307,10 @@
     padding: 0;
     border-radius: 0;
   }
-
   :deep(.vue-flow__edge-path) {
     stroke: var(--dc-edge-color, #64748b);
     stroke-width: 2;
   }
-
   :deep(.vue-flow__edge.selected .vue-flow__edge-path) {
     stroke: #3b82f6;
     stroke-width: 3;
