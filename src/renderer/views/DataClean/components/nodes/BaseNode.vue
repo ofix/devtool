@@ -118,7 +118,7 @@
   /* 减小节点最小宽度和内边距 */
   .base-node {
     min-width: 160px;
-    max-width: 280px;
+    max-width: 320px;
     background: var(--dc-node-bg, #ffffff);
     border: 1px solid var(--dc-node-border, #cbd5e1);
     border-radius: 6px;

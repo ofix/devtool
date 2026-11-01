@@ -1,4 +1,3 @@
-<!-- 让 PreviewPanel 依赖于 updateTick，强制驱动更新 -->
 <template>
   <div class="preview-panel">
     <div v-if="isResizing" class="resize-line" :style="{ left: resizeLineX + 'px' }"></div>
@@ -41,9 +40,7 @@
       </el-table-v2>
 
       <div v-else class="log-viewer">
-        <div v-if="upstreamLogs.length === 0" class="empty-logs">
-          暂无上游日志信息。触发一次自动运行以查看结果。
-        </div>
+        <div v-if="upstreamLogs.length === 0" class="empty-logs">暂无上游日志信息。</div>
         <div v-else class="log-list">
           <div
             v-for="entry in upstreamLogs"
@@ -95,10 +92,8 @@
     return metaStore.getMeta(selected.value.id)
   })
 
-  // 核心修复：在这里增加对 updateTick 的依赖
+  // 直接从 datasetStore 读取正向前端数据（因为 Engine 处理后，只返回正向结果给 rows）
   const dataset = computed(() => {
-    // 读取 tick，强制让这个 computed 依赖它
-    const _tick = datasetStore.updateTick
     if (!selected.value) return null
     return datasetStore.getDataset(selected.value.id)
   })
@@ -201,7 +196,6 @@
       window.removeEventListener("mousemove", onMouseMove)
       window.removeEventListener("mouseup", onMouseUp)
       if (rafId) cancelAnimationFrame(rafId)
-
       if (finalWidth !== startWidth.value) {
         columnWidths.value = { ...columnWidths.value, [colKey]: finalWidth }
       }
@@ -232,7 +226,6 @@
 </script>
 
 <style scoped>
-  /* 保持不变 */
   .preview-panel {
     display: flex;
     flex-direction: column;
