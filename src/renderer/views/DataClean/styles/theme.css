@@ -1,0 +1,308 @@
+/* Vue Flow 画布主题覆盖：背景点阵、连线、控制条 */
+.vue-flow__background {
+    background: var(--dc-canvas-bg, #f8fafc) !important;
+}
+
+.vue-flow__background-pattern.dots {
+    color: var(--dc-canvas-dots, #cbd5e1) !important;
+}
+
+.vue-flow__controls {
+    background: var(--dc-node-bg, #ffffff);
+    border: 1px solid var(--dc-border, #e2e8f0);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.vue-flow__controls-button {
+    background: var(--dc-node-bg, #ffffff);
+    border-bottom: 1px solid var(--dc-border, #e2e8f0);
+    color: var(--dc-text-primary, #1e293b);
+}
+
+.vue-flow__controls-button:hover {
+    background: var(--dc-preview-header-bg, #f8fafc);
+}
+
+.vue-flow__minimap {
+    background: var(--dc-node-bg, #ffffff);
+    border: 1px solid var(--dc-border, #e2e8f0);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] .vue-flow__background-pattern.dots {
+    color: #334155 !important;
+}
+
+/* 给整个表格外框加边框 */
+.el-table-v2 {
+    border: 1px solid var(--dc-border, #e2e8f0);
+    border-radius: 4px;
+}
+
+/* 给表头单元格加右边框和下边框 */
+.el-table-v2__header-cell {
+    border-right: 1px solid var(--dc-border, #e2e8f0);
+    border-bottom: 1px solid var(--dc-border, #e2e8f0);
+}
+
+/* 给数据单元格加右边框和下边框 */
+.el-table-v2__row-cell {
+    border-right: 1px solid var(--dc-border, #e2e8f0);
+    border-bottom: 1px solid var(--dc-border, #e2e8f0);
+}
+
+/* 消除最右侧单元格多余的右边框（可选） */
+.el-table-v2__row-cell:last-child,
+.el-table-v2__header-cell:last-child {
+    border-right: none;
+}
+
+/* 针对暗黑模式调整边框颜色 */
+[data-theme="dark"] .el-table-v2 {
+    border-color: #334155;
+}
+
+[data-theme="dark"] .el-table-v2__header-cell,
+[data-theme="dark"] .el-table-v2__row-cell {
+    border-right-color: #334155;
+    border-bottom-color: #334155;
+}
+
+/* 修复顶部菜单的普通按钮（保存管线、加载管线等） */
+[data-theme="dark"] .el-button:not(.el-button--primary):not(.is-text) {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .el-button:not(.el-button--primary):not(.is-text):hover {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+/* 修复算子面板里的输入框和下拉框 */
+[data-theme="dark"] .el-input__wrapper,
+[data-theme="dark"] .el-select__wrapper {
+    background-color: #0f172a !important;
+    box-shadow: 0 0 0 1px #334155 inset !important;
+}
+
+[data-theme="dark"] .el-input__inner,
+[data-theme="dark"] .el-select__selected-item,
+[data-theme="dark"] .el-select__placeholder {
+    color: #f8fafc !important;
+}
+
+/* 修复下拉面板（弹出层） */
+[data-theme="dark"] .el-select__popper.el-popper,
+[data-theme="dark"] .el-popper.is-light {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .el-popper.is-light .el-popper__arrow::before {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .el-select-dropdown__item {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .el-select-dropdown__item.is-hovering {
+    background-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .el-select-dropdown__item.is-selected {
+    color: #60a5fa !important;
+    font-weight: 600;
+}
+
+/* 4. 暴力修复 el-table-v2 (虚拟表格) 的表头和数据行 */
+[data-theme="dark"] .el-table-v2__header,
+[data-theme="dark"] .el-table-v2__header-row,
+[data-theme="dark"] .el-table-v2__header-cell {
+    background-color: #0f172a !important;
+    color: #94a3b8 !important;
+    border-right: 1px solid #334155 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .el-table-v2__row {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .el-table-v2__row:hover {
+    background-color: #334155 !important;
+}
+
+[data-theme="dark"] .el-table-v2__row-cell {
+    border-right: 1px solid #334155 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* 修复表格外边框 */
+[data-theme="dark"] .el-table-v2 {
+    border-color: #334155 !important;
+}
+
+/* 修复开关（Switch）的暗色底色 */
+[data-theme="dark"] .el-switch__core {
+    border-color: #334155 !important;
+    background-color: #0f172a !important;
+}
+
+/* 强杀普通按钮的亮色背景 */
+[data-theme="dark"] .el-button:not(.el-button--primary):not(.is-text):not(.is-link) {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .el-button:not(.el-button--primary):not(.is-text):not(.is-link):hover {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+/* 如果按钮是 plain 模式（比如选取数据等），也要兼容 */
+[data-theme="dark"] .el-button.is-plain:not(.el-button--primary) {
+    background-color: transparent !important;
+    border-color: #475569 !important;
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .el-button.is-plain:not(.el-button--primary):hover {
+    background-color: #334155 !important;
+    border-color: #64748b !important;
+    color: #f8fafc !important;
+}
+
+/* 修复节点内小号按钮的边框颜色 */
+[data-theme="dark"] .el-button--small {
+    border-color: #334155 !important;
+}
+
+/* 修复暗黑模式下的 Radio Button 切换组件（如 可视化/表达式） */
+[data-theme="dark"] .el-radio-button__inner {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+/* 修复未选中时的 Hover 效果 */
+[data-theme="dark"] .el-radio-button__inner:hover {
+    color: #60a5fa !important;
+}
+
+/* 修复选中时的状态（保持蓝色背景） */
+[data-theme="dark"] .el-radio-button__original-radio:checked+.el-radio-button__inner {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: -1px 0 0 0 #2563eb !important;
+}
+
+/* 如果是第一个元素，去掉左侧的阴影 */
+[data-theme="dark"] .el-radio-button:first-child .el-radio-button__original-radio:checked+.el-radio-button__inner {
+    box-shadow: none !important;
+}
+
+/* 下拉面板背景（全局挂载，必须用高优先级） */
+[data-theme="dark"] body .el-select__popper.el-popper,
+[data-theme="dark"] body .el-popper.is-light {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+
+/* 箭头颜色 */
+[data-theme="dark"] body .el-popper.is-light .el-popper__arrow::before {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+}
+
+/* 下拉面板内部的滚动容器 */
+[data-theme="dark"] body .el-select-dropdown__list {
+    background-color: #1e293b !important;
+}
+
+/* 每一项的普通文字颜色 */
+[data-theme="dark"] body .el-select-dropdown__item {
+    color: #cbd5e1 !important;
+}
+
+/* 鼠标悬浮时的背景与文字颜色 */
+[data-theme="dark"] body .el-select-dropdown__item.is-hovering,
+[data-theme="dark"] body .el-select-dropdown__item:hover {
+    background-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+/* 被选中时的文字颜色（高亮蓝） */
+[data-theme="dark"] body .el-select-dropdown__item.is-selected {
+    color: #60a5fa !important;
+    font-weight: 600 !important;
+}
+
+/* 修复弹窗（Dialog）的背景、头部、内容和底部 */
+[data-theme="dark"] .el-dialog {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .el-dialog__title {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .el-dialog__header {
+    border-bottom: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .el-dialog__footer {
+    border-top: 1px solid #334155 !important;
+}
+
+[data-theme="dark"] .el-dialog__headerbtn .el-dialog__close {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .el-dialog__headerbtn:hover .el-dialog__close {
+    color: #f8fafc !important;
+}
+
+/* 弹窗里的输入框也顺便修复一下 */
+[data-theme="dark"] .el-dialog .el-input__wrapper {
+    background-color: #0f172a !important;
+    box-shadow: 0 0 0 1px #334155 inset !important;
+}
+
+[data-theme="dark"] .el-dialog .el-input__inner {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .el-dialog .el-textarea__inner {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    box-shadow: 0 0 0 1px #334155 inset !important;
+}
+
+/* 修复禁用的按钮（Disabled） */
+[data-theme="dark"] .el-button.is-disabled,
+[data-theme="dark"] .el-button.is-disabled:hover {
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+    color: #475569 !important;
+    opacity: 0.6;
+}
+
+/* 修复禁用状态的 plain 按钮（如你的“设置范围”按钮） */
+[data-theme="dark"] .el-button.is-disabled.is-plain {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #475569 !important;
+}

@@ -1,66 +1,66 @@
-import { createApp } from 'vue'
-import router from './router'
-import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import './theme/Global.css'
-import themePlugin from './theme/ThemePlugin';
-import App from './App.vue'
-import { removeVueDevtoolsContainers } from "./vite.remove.js";
+import { createApp } from "vue"
+import router from "./router"
+import { createPinia } from "pinia"
+import ElementPlus from "element-plus"
+import "element-plus/dist/index.css"
+import "./theme/Global.css"
+import themePlugin from "./theme/ThemePlugin"
+import App from "./App.vue"
+import { removeVueDevtoolsContainers } from "./vite.remove.js"
 // SVG 图标组件
-import IconScreenshot from '@/icons/IconCaptureWindow.vue';
-import IconRuler from '@/icons/IconScreenRuler.vue';
-import IconVideoRecord from '@/icons/IconRecordVideo.vue';
-import IconHexEditor from '@/icons/IconHexEditor.vue';
-import IconUnitConvert from '@/icons/IconUnitConvert.vue';
-import IconPostman from '@/icons/IconPostman.vue';
-import IconSFTP from '@/icons/IconSFTP.vue';
-import IconFileCompare from '@/icons/IconFileCompare.vue';
-import IconDesktopTile from '@/icons/IconDesktopTile.vue';
-import IconConsole from '@/icons/IconSSH.vue';
-import IconColorPicker from "@/icons/IconColorPicker.vue";
-import IconCopy from "@/icons/IconCopy.vue";
-import IconVisualize from "@/icons/IconVisualize.vue";
-import IconDataSync from '@/icons/IconDataSync.vue';
-import IconDataClean from "@/icons/IconDataClean.vue";
-import IconCodeVisual from "@/icons/IconCodeVisual.vue";
-import IconDark from "@/icons/IconDark.vue";
-import IconLight from "@/icons/IconLight.vue";
-import IconShopping from "@/icons/IconShopping.vue";
-import IconCount from "@/icons/IconCount.vue";
+import IconScreenshot from "@/icons/IconCaptureWindow.vue"
+import IconRuler from "@/icons/IconScreenRuler.vue"
+import IconVideoRecord from "@/icons/IconRecordVideo.vue"
+import IconHexEditor from "@/icons/IconHexEditor.vue"
+import IconUnitConvert from "@/icons/IconUnitConvert.vue"
+import IconPostman from "@/icons/IconPostman.vue"
+import IconSFTP from "@/icons/IconSFTP.vue"
+import IconFileCompare from "@/icons/IconFileCompare.vue"
+import IconDesktopTile from "@/icons/IconDesktopTile.vue"
+import IconConsole from "@/icons/IconSSH.vue"
+import IconColorPicker from "@/icons/IconColorPicker.vue"
+import IconCopy from "@/icons/IconCopy.vue"
+import IconVisualize from "@/icons/IconVisualize.vue"
+import IconDataSync from "@/icons/IconDataSync.vue"
+import IconDataClean from "@/icons/IconDataClean.vue"
+import IconCodeVisual from "@/icons/IconCodeVisual.vue"
+import IconDark from "@/icons/IconDark.vue"
+import IconLight from "@/icons/IconLight.vue"
+import IconShopping from "@/icons/IconShopping.vue"
+import IconCount from "@/icons/IconCount.vue"
 
-import "@vue-flow/core/dist/style.css";
-import "@vue-flow/core/dist/theme-default.css";
-import "./views/DataClean/styles/node.css";
-import "./views/DataClean/styles/canvas.css";
+import "@vue-flow/core/dist/style.css"
+import "@vue-flow/core/dist/theme-default.css"
+import "./views/DataClean/styles/node.css"
+import "./views/DataClean/styles/theme.css"
 
-removeVueDevtoolsContainers();
+removeVueDevtoolsContainers()
 
 const app = createApp(App)
 // 注册SVG图标组件
-app.component('IconScreenshot', IconScreenshot);
-app.component('IconColorPicker', IconColorPicker);
-app.component('IconRuler', IconRuler);
-app.component('IconVideoRecord', IconVideoRecord);
-app.component('IconHexEditor', IconHexEditor);
-app.component('IconUnitConvert', IconUnitConvert);
-app.component('IconPostman', IconPostman);
-app.component('IconSFTP', IconSFTP);
-app.component('IconFileCompare', IconFileCompare);
-app.component('IconDesktopTile', IconDesktopTile);
-app.component('IconConsole', IconConsole);
-app.component('IconCopy', IconCopy);
-app.component('IconVisualize', IconVisualize);
-app.component('IconDataSync', IconDataSync);
-app.component("IconDataClean", IconDataClean);
-app.component('IconCodeVisual', IconCodeVisual);
-app.component('IconDark', IconDark);
-app.component('IconLight', IconLight);
-app.component('IconShopping',IconShopping);
-app.component('IconCount',IconCount);
+app.component("IconScreenshot", IconScreenshot)
+app.component("IconColorPicker", IconColorPicker)
+app.component("IconRuler", IconRuler)
+app.component("IconVideoRecord", IconVideoRecord)
+app.component("IconHexEditor", IconHexEditor)
+app.component("IconUnitConvert", IconUnitConvert)
+app.component("IconPostman", IconPostman)
+app.component("IconSFTP", IconSFTP)
+app.component("IconFileCompare", IconFileCompare)
+app.component("IconDesktopTile", IconDesktopTile)
+app.component("IconConsole", IconConsole)
+app.component("IconCopy", IconCopy)
+app.component("IconVisualize", IconVisualize)
+app.component("IconDataSync", IconDataSync)
+app.component("IconDataClean", IconDataClean)
+app.component("IconCodeVisual", IconCodeVisual)
+app.component("IconDark", IconDark)
+app.component("IconLight", IconLight)
+app.component("IconShopping", IconShopping)
+app.component("IconCount", IconCount)
 
 app.use(createPinia())
 app.use(router)
 app.use(ElementPlus)
-app.use(themePlugin, { router });
-app.mount('#app')
+app.use(themePlugin, { router })
+app.mount("#app")
