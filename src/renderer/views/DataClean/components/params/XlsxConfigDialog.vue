@@ -44,8 +44,8 @@
       </div>
 
       <el-radio-group v-model="localMode" size="small" class="mode-radio">
-        <el-radio-button label="uniform">统一选取范围</el-radio-button>
-        <el-radio-button label="custom">自定义选取范围</el-radio-button>
+        <el-radio-button value="uniform">统一选取范围</el-radio-button>
+        <el-radio-button value="custom">自定义选取范围</el-radio-button>
       </el-radio-group>
 
       <div v-if="localMode === 'uniform'" class="mode-content">

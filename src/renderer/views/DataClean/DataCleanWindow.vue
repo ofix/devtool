@@ -4,11 +4,11 @@
 
     <div class="main-content">
       <el-splitter layout="vertical" style="height: 100%; width: 100%">
-        <el-splitter-panel size="45%" min="15%" max="80%">
+        <el-splitter-panel size="45%" min="15%" max="85%">
           <PreviewPanel @refresh="onRefreshPreview" />
         </el-splitter-panel>
 
-        <el-splitter-panel>
+        <el-splitter-panel size="55%" min="15%" max="85%">
           <NodeEditor ref="editorRef" @trigger-run="onNodeRun" />
         </el-splitter-panel>
       </el-splitter>
@@ -143,6 +143,7 @@
   .data-clean-app {
     display: flex;
     flex-direction: column;
+    width: 100vw;
     height: 100vh;
     background: var(--dc-app-bg, #ffffff);
     color: var(--dc-text-primary, #1e293b);

@@ -2,6 +2,7 @@
 <template>
   <div class="node-editor">
     <VueFlow
+      v-if="isReady"
       :nodes="nodes"
       :edges="edges"
       @pane-ready="onPaneReady"
@@ -66,7 +67,7 @@
 
 <script setup>
   /* 保持原有逻辑不变 */
-  import { computed, onMounted, onBeforeUnmount, watch } from "vue"
+  import { computed, onMounted, onBeforeUnmount, ref } from "vue"
   import { VueFlow, useVueFlow } from "@vue-flow/core"
   import { ElMessage } from "element-plus"
   import JsonReaderNode from "../nodes/JsonReaderNode.vue"
@@ -79,10 +80,10 @@
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { getOperator } from "../../engine/operators/index.js"
   import { canConnect } from "../../constants/PortTypes.js"
-
+  const isReady = ref(false)
   const emit = defineEmits(["trigger-run"])
   const graphStore = useStoreDataCleanGraph()
-  const { setViewport, viewport } = useVueFlow()
+  const { setViewport, viewport, removeSelectedElements } = useVueFlow()
 
   const transformTypes = [
     "select",
@@ -107,13 +108,6 @@
     "dbConnection",
     "dbQuery",
   ]
-
-  function onPaneReady() {
-    // 强制在画布渲染完毕后，直接设置一个比较舒服的缩放比例
-    console.log("Pane ready, setting viewport to 0.8")
-    setViewport({ x: 0, y: 0, zoom: 0.8 })
-  }
-
   const nodes = computed(() =>
     graphStore.nodes.map(n => ({
       id: n.id,
@@ -132,8 +126,6 @@
     })),
   )
 
-  const { removeSelectedElements } = useVueFlow()
-
   function handleKeyDown(e) {
     if (e.key === "Delete" || e.key === "Backspace") {
       const tag = e.target.tagName
@@ -143,14 +135,20 @@
     }
   }
 
+  function onPaneReady() {
+    // 强制在画布渲染完毕后，直接设置一个比较舒服的缩放比例
+    setViewport({ x: 0, y: 0, zoom: 1 })
+  }
+
   onMounted(() => {
     window.addEventListener("keydown", handleKeyDown)
     // 延迟 100 毫秒，等待节点 DOM 挂载完毕
     setTimeout(() => {
-      // 强制将视图缩放设为 0.8（也就是缩小到 80%）
-      setViewport({ x: 0, y: 0, zoom: 0.8 })
+      // 等待el-spliter-panel 拿到真实高度后再加载vue-flow，否则会出现控制台画布高度为0的告警
+      isReady.value = true
     }, 100)
   })
+
   onBeforeUnmount(() => window.removeEventListener("keydown", handleKeyDown))
 
   function onNodesChange(changes) {
@@ -222,15 +220,6 @@
     graphStore.updateNodeParams(id, { text: val })
     emit("trigger-run")
   }
-
-  watch(
-    viewport,
-    newVal => {
-      console.log("当前视口:", newVal)
-      console.log("当前缩放比例:", newVal.zoom)
-    },
-    { deep: true },
-  )
 </script>
 
 <style scoped>
