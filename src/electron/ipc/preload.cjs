@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld("api", {
             saveFile: (options) => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
         },
         fs: {
+            readBuffer: (filePath) => ipcRenderer.invoke(`${PREFIX}:fs:readBuffer`, filePath),
             readFile: (filePath) => ipcRenderer.invoke(`${PREFIX}:fs:readFile`, filePath),
             writeFile: (filePath, content) => ipcRenderer.invoke(`${PREFIX}:fs:writeFile`, filePath, content),
             listFiles: (dirPath, extensions) => ipcRenderer.invoke(`${PREFIX}:fs:listFiles`, dirPath, extensions),
@@ -80,6 +81,9 @@ contextBridge.exposeInMainWorld("api", {
         pipeline: {
             save: (filePath, json) => ipcRenderer.invoke(`${PREFIX}:pipeline:save`, filePath, json),
             load: (filePath) => ipcRenderer.invoke(`${PREFIX}:pipeline:load`, filePath),
+        },
+        shell: {
+            showItemInFolder: (filePath) => ipcRenderer.invoke(`${PREFIX}:shell:showItemInFolder`, filePath),
         },
     },
 });

@@ -32,8 +32,7 @@ export default class Engine {
         }
 
         try {
-            // 关键：把所有 log 请求打上当前 nodeId
-            const result = op.execute(inputs, node.params || {}, {
+            const result = await op.execute(inputs, node.params || {}, {
                 log: (msg, level = "info") => {
                     if (context.log) context.log(msg, level, nodeId);
                 },

@@ -1,14 +1,14 @@
-import { EXECUTORS } from './Steps'
+import { EXECUTORS } from "./Steps"
 
 export function runNode(store, nodeId) {
   const node = store.nodes.find(n => n.id === nodeId)
   if (!node) return null
   if (store.datasets[nodeId]) return store.datasets[nodeId]
 
-  if (node.kind === 'input') {
+  if (node.kind === "input" || node.kind === "xlsxInput") {
     return store.datasets[nodeId] // 输入节点在导入时已写入
   }
-  if (node.kind === 'output') {
+  if (node.kind === "output") {
     const inEdge = store.edges.find(e => e.target === nodeId)
     if (!inEdge) throw new Error(`输出节点 ${node.name} 缺少输入`)
     const ds = runNode(store, inEdge.source)
@@ -31,7 +31,7 @@ export function runNode(store, nodeId) {
 }
 
 export function runAll(store) {
-  const outputs = store.nodes.filter(n => n.kind === 'output')
-  if (!outputs.length) throw new Error('没有输出节点')
+  const outputs = store.nodes.filter(n => n.kind === "output")
+  if (!outputs.length) throw new Error("没有输出节点")
   for (const o of outputs) runNode(store, o.id)
 }

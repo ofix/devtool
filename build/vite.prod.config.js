@@ -14,7 +14,8 @@ export default defineConfig({
                 assetFileNames: 'assets/[name].[hash].[ext]',
                 chunkFileNames: 'chunks/[name].[hash].js',
                 entryFileNames: 'entry/[name].[hash].js'
-            }
+            },
+            external: ["knex"],
         },
         // 关闭代码压缩对 Worker 脚本的影响
         minify: 'esbuild',

@@ -28,7 +28,7 @@ export default defineConfig({
     },
     // 解决原生模块问题
     optimizeDeps: {
-        exclude: ['ssh2'], // 排除ssh2从预构建
+        exclude: ['ssh2','knex'], // 排除ssh2从预构建
         // 预构建 Monaco 相关依赖，避免解析冲突
         include: ['monaco-editor']
     },

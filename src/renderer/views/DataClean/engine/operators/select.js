@@ -1,4 +1,4 @@
-// Select 算子：选列、重命名、调整顺序
+// 适配 RenamePanel
 export default {
     type: "select",
     meta: {
@@ -12,21 +12,18 @@ export default {
         outputPortType: "table",
     },
     schema: [
-        { field: "columns", label: "保留列", component: "fieldSelect", multiple: true },
-        { field: "renameMap", label: "重命名(旧:新)", component: "input" },
+        { field: "columns", label: "保留列", component: "columnPicker" },
+        { field: "renameMap", label: "重命名", component: "renamePanel" },
     ],
     execute(inputs, params) {
         const data = inputs[0];
         if (!data || !data.rows) return { rows: [], columns: [] };
 
-        // 处理列筛选
         let keepCols = params.columns || [];
-        if (typeof keepCols === "string") {
-            keepCols = keepCols.split(",").map(s => s.trim()).filter(Boolean);
-        }
+        if (!Array.isArray(keepCols)) keepCols = [];
+        
         if (keepCols.length === 0) keepCols = data.columns.map(c => c.name);
 
-        // 解析重命名映射 (a:b, c:d)
         const renameMap = {};
         if (params.renameMap && params.renameMap.trim()) {
             params.renameMap.split(",").forEach(pair => {

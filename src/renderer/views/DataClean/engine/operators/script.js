@@ -47,7 +47,7 @@ export default {
                 const columns = Array.from(keys).map(name => ({ name, type: "string" }));
                 return { rows, columns };
             } else if (params.outputFormat === "csv") {
-                const { parseCsv } = await import("./input.js");
+                const {parseCsv} = await import("./csvReader.js");
                 const parsed = parseCsv(outText);
                 return parsed;
             } else {

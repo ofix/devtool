@@ -1,10 +1,10 @@
 // 端口类型定义与连接校验矩阵
 
 export const PORT_TYPES = {
-    table: { label: "Table", color: "#3b82f6" },
-    scalar: { label: "Scalar", color: "#f97316" },
-    config: { label: "Config", color: "#22c55e" },
-};
+  table: { label: "Table", color: "#3b82f6" },
+  scalar: { label: "Scalar", color: "#f97316" },
+  config: { label: "Config", color: "#22c55e" },
+}
 
 /**
  * 判断 from 端口类型能否连接到 to 端口类型
@@ -14,8 +14,8 @@ export const PORT_TYPES = {
  * @returns {boolean}
  */
 export function canConnect(fromType, toType) {
-    if (fromType === "table" && toType === "table") return true;
-    return false;
+  if (fromType === "table" && toType === "table") return true
+  return false
 }
 
 /**
@@ -24,5 +24,5 @@ export function canConnect(fromType, toType) {
  * @returns {string}
  */
 export function getPortColor(type) {
-    return PORT_TYPES[type] ? PORT_TYPES[type].color : "#94a3b8";
+  return PORT_TYPES[type] ? PORT_TYPES[type].color : "#94a3b8"
 }

@@ -1,41 +1,41 @@
-<!-- 参数行：CSS Grid 72px + 1fr，标签右对齐，控件左边缘对齐 -->
+<!-- 缩小左侧标签宽度和间距 -->
 <template>
-    <div class="param-row">
-        <label class="param-label" :title="label">{{ label }}</label>
-        <div class="param-control">
-            <slot />
-        </div>
+  <div class="param-row">
+    <label class="param-label" :title="label">{{ label }}</label>
+    <div class="param-control">
+      <slot />
     </div>
+  </div>
 </template>
 
 <script setup>
-defineProps({
+  defineProps({
     label: { type: String, default: "" },
-});
+  })
 </script>
 
 <style scoped>
-.param-row {
+  .param-row {
     display: grid;
-    grid-template-columns: 72px 1fr;
+    grid-template-columns: 64px 1fr;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
-}
+    margin-bottom: 6px;
+  }
 
-.param-label {
-    text-align: right;
+  .param-label {
+    text-align: left;
     font-size: 12px;
-    line-height: 1.4;
+    line-height: 1.2;
     color: var(--dc-text-secondary, #64748b);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
+  }
 
-.param-control {
+  .param-control {
     min-width: 0;
     display: flex;
     align-items: center;
-}
+  }
 </style>
