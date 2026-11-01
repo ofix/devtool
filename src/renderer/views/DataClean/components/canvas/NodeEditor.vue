@@ -1,6 +1,6 @@
 <!-- 确保所有通用 TransformNode 都能抛出 trigger-run 事件 -->
 <template>
-  <div class="node-editor">
+  <div class="node-editor" @mousedown.capture="handleMouseDownCapture">
     <!-- 右键菜单 -->
     <div
       v-if="contextMenu.visible"
@@ -182,6 +182,30 @@
 
   function onPaneReady() {
     setViewport({ x: 0, y: 0, zoom: 1 })
+  }
+
+  // 核心修复：只截断事件冒泡，不阻止默认行为
+  function handleMouseDownCapture(e) {
+    const target = e.target
+    if (!target) return
+
+    const isInteractive =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "BUTTON" ||
+      target.tagName === "SELECT" ||
+      target.closest(".el-input") ||
+      target.closest(".el-select") ||
+      target.closest(".el-checkbox") ||
+      target.closest(".el-radio-group") ||
+      target.closest(".el-switch") ||
+      target.closest(".cm-editor") ||
+      target.closest(".el-textarea")
+
+    if (isInteractive) {
+      // 关键：只阻止事件冒泡，让输入框能正常响应光标和文字选择
+      e.stopPropagation()
+    }
   }
 
   onMounted(() => {
