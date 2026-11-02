@@ -1,0 +1,26 @@
+﻿device_id,hostname,model,vendor,firmware_version,location,purchase_date,warranty_end,cpu_cores,memory_gb,dim_status
+SRV-001,host-srv-001,NF5280M6,Dell,2.1.1,DC-Beijing-D,2023-05-20,2029-04-01,64,64,active
+SRV-002,host-srv-002,SYS-2029U,HPE,,DC-Shenzhen-B,03-09-2021,2025-11-14,24,N/A,retired
+SRV-003,host-srv-003,ProLiant DL380,Dell,4.6.10,DC-Beijing-D,2024/08/25,2028-08-29,48,64,spare
+SRV-004,host-srv-004,RH2288 V5,Supermicro,1.0.0,DC-Shenzhen-A,2024-06-16,2028-11-05,24,32,spare
+SRV-005,host-srv-005,RH2288 V5,HPE,,DC-Shanghai-C,2020-11-22,2024-06-08,24,256,retired
+SRV-006,host-srv-006,PowerEdge R750,HPE,,DC-Shenzhen-A,2020/09/02,2025-05-12,16,32,active
+SRV-007,host-srv-007,ProLiant DL380,Huawei,,DC-Shenzhen-B,2024-11-16,2029-05-28,32,256,active
+SRV-008,host-srv-008,PowerEdge R750,Huawei,,DC-Shanghai-C,11-08-2022,2027-12-02,32,64,spare
+SRV-009,host-srv-009,PowerEdge R750,Lenovo,4.0.20,DC-Shenzhen-A,20-11-2024,2028-12-09,32,512,retired
+SRV-010,host-srv-010,ProLiant DL380,HPE,1.9.11,DC-Beijing-D,2024/10/03,2028-01-07,48,64,spare
+SRV-011,host-srv-011,ProLiant DL380,Lenovo,3.6.5,DC-Beijing-D,2023/02/02,2026-11-26,32,128,spare
+SRV-012,host-srv-012,ProLiant DL380,Inspur,1.9.8,DC-Shenzhen-B,2022/10/09,2028-01-21,24,256,spare
+SRV-013,host-srv-013,ProLiant DL380,Supermicro,2.9.10,DC-Shenzhen-B,02-12-2020,2024-02-27,16,64,retired
+SRV-014,host-srv-014,SYS-2029U,Huawei,1.9.0,DC-Shanghai-C,17-08-2020,2026-06-08,64,64,retired
+SRV-015,host-srv-015,RH2288 V5,HPE,3.8.12,DC-Beijing-D,2021-11-16,2027-08-13,48,128,retired
+SRV-016,host-srv-016,ThinkSystem SR650,Lenovo,4.2.6,DC-Shenzhen-A,05-08-2020,2024-11-09,8,256,active
+SRV-017,host-srv-017,NF5280M6,HPE,2.8.20,DC-Shenzhen-A,2021-09-19,2026-01-26,8,32,active
+SRV-018,host-srv-018,RH2288 V5,HPE,4.1.13,DC-Shanghai-C,22-08-2024,2028-01-15,32,32,retired
+SRV-019,host-srv-019,ProLiant DL380,Inspur,4.9.18,DC-Shenzhen-A,06-02-2022,2026-04-07,32,N/A,spare
+SRV-020,host-srv-020,NF5280M6,Supermicro,,DC-Shanghai-C,05-12-2023,2029-07-30,32,32,spare
+SRV-021,host-srv-021,ProLiant DL380,Supermicro,1.1.7,DC-Shenzhen-A,2020/06/26,2026-02-22,32,128,active
+SRV-022,host-srv-022,SYS-2029U,Lenovo,4.3.19,DC-Beijing-D,2021-10-23,2026-07-18,8,64,retired
+SRV-023,host-srv-023,RH2288 V5,Supermicro,2.7.8,DC-Beijing-D,02-11-2022,2028-04-29,64,32,spare
+SRV-024,host-srv-024,NF5280M6,HPE,2.0.9,DC-Shanghai-C,2022/10/02,2026-09-22,8,64,active
+SRV-025,host-srv-025,ThinkSystem SR650,Lenovo,2.6.1,DC-Shanghai-C,2020-01-12,2025-03-14,16,128,retired

@@ -1,0 +1,342 @@
+{
+  "10.0.0.11": [
+    {
+      "id": "J-ALERT-0001",
+      "level": "warning",
+      "metric": "link_down",
+      "value": 0.0,
+      "ts": "2026-10-27T08:26:00Z",
+      "source": "snmp-trap"
+    },
+    {
+      "id": "J-ALERT-0002",
+      "level": "warning",
+      "metric": "power_voltage",
+      "value": 12.14,
+      "ts": "2026-10-15T19:53:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0003",
+      "level": "info",
+      "metric": "power_voltage",
+      "value": "12.58",
+      "ts": "2026-10-08T19:33:00Z",
+      "source": "syslog"
+    },
+    {
+      "id": "J-ALERT-0004",
+      "level": "warning",
+      "metric": "cpu_usage",
+      "value": 80.27,
+      "ts": "2026-10-25T20:02:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "CPUTMP",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0005",
+      "level": "warning",
+      "metric": "disk_usage",
+      "value": 68.19,
+      "ts": "2026-10-11T09:54:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 90
+      }
+    }
+  ],
+  "10.0.0.12": [
+    {
+      "id": "J-ALERT-0006",
+      "level": "warning",
+      "metric": "temp",
+      "value": 74.41,
+      "ts": "2026-10-11T17:33:00Z",
+      "source": "ipmi",
+      "detail": {
+        "sensor": "TSENS0",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0007",
+      "level": "warning",
+      "metric": "fan_speed",
+      "value": 2177.43,
+      "ts": "2026-10-29T10:58:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0008",
+      "level": "warning",
+      "metric": "power_voltage",
+      "value": 11.95,
+      "ts": "2026-10-14T21:42:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 95
+      }
+    }
+  ],
+  "10.0.0.13": [
+    {
+      "id": "J-ALERT-0009",
+      "level": "warning",
+      "metric": "mem_usage",
+      "value": 65.38,
+      "ts": "2026-10-06T03:46:00Z",
+      "source": "ipmi",
+      "detail": {
+        "sensor": "CPUTMP",
+        "threshold": 95
+      }
+    },
+    {
+      "id": "J-ALERT-0010",
+      "level": "critical",
+      "metric": "disk_usage",
+      "value": 75.14,
+      "ts": "2026-10-16T11:15:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 95
+      }
+    },
+    {
+      "id": "J-ALERT-0011",
+      "level": "critical",
+      "metric": "mem_usage",
+      "value": 25.62,
+      "ts": "2026-10-04T12:52:00Z",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 85
+      }
+    },
+    {
+      "id": "J-ALERT-0012",
+      "level": "warning",
+      "metric": "temp",
+      "value": 91.48,
+      "ts": "2026-10-19T08:32:00Z",
+      "source": "ipmi",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 85
+      }
+    }
+  ],
+  "10.0.0.14": [],
+  "10.0.0.15": [
+    {
+      "id": "J-ALERT-0013",
+      "level": "critical",
+      "metric": "fan_speed",
+      "value": 2723.56,
+      "ts": "2026-10-11T03:08:00Z",
+      "source": "snmp-trap"
+    },
+    {
+      "id": "J-ALERT-0014",
+      "level": "critical",
+      "metric": "cpu_usage",
+      "value": 61.07,
+      "ts": "2026-10-09T04:50:00Z"
+    },
+    {
+      "id": "J-ALERT-0015",
+      "level": "warning",
+      "metric": "cpu_usage",
+      "value": 67.45,
+      "ts": "2026-10-09T09:27:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 85
+      }
+    },
+    {
+      "id": "J-ALERT-0016",
+      "level": "warning",
+      "metric": "fan_speed",
+      "value": 1839.99,
+      "ts": "2026-10-01T17:37:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 85
+      }
+    },
+    {
+      "id": "J-ALERT-0017",
+      "level": "critical",
+      "metric": "fan_speed",
+      "value": 1505.74,
+      "ts": "2026-10-19T23:39:00Z",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 85
+      }
+    }
+  ],
+  "10.0.0.16": [
+    {
+      "id": "J-ALERT-0018",
+      "level": "critical",
+      "metric": "fan_speed",
+      "value": 1563.59,
+      "ts": "2026-10-08T08:06:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 95
+      }
+    },
+    {
+      "id": "J-ALERT-0019",
+      "level": "warning",
+      "metric": "temp",
+      "value": 48.23,
+      "ts": "2026-10-28T02:26:00Z",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0020",
+      "level": "warning",
+      "metric": "link_down",
+      "value": 0.0,
+      "ts": "2026-10-09T06:56:00Z",
+      "source": "ipmi",
+      "detail": {
+        "sensor": "PSUTMP",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0021",
+      "level": "warning",
+      "metric": "temp",
+      "value": 57.11,
+      "ts": "2026-10-15T19:13:00Z",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 95
+      }
+    },
+    {
+      "id": "J-ALERT-0022",
+      "level": "warning",
+      "metric": "mem_usage",
+      "value": 36.16,
+      "ts": "2026-10-11T11:25:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 95
+      }
+    }
+  ],
+  "10.0.0.17": [
+    {
+      "id": "J-ALERT-0023",
+      "level": "warning",
+      "metric": "cpu_usage",
+      "value": 62.32,
+      "ts": "2026-10-21T22:04:00Z",
+      "source": "syslog"
+    },
+    {
+      "id": "J-ALERT-0024",
+      "level": "warning",
+      "metric": "temp",
+      "value": 86.82,
+      "ts": "2026-10-03T13:16:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0025",
+      "level": "critical",
+      "metric": "mem_usage",
+      "value": 65.67,
+      "ts": "2026-10-17T19:33:00Z",
+      "source": "snmp-trap"
+    },
+    {
+      "id": "J-ALERT-0026",
+      "level": "critical",
+      "metric": "mem_usage",
+      "value": 74.23,
+      "ts": "2026-10-02T08:05:00Z",
+      "detail": {
+        "sensor": "CPUTMP",
+        "threshold": 90
+      }
+    },
+    {
+      "id": "J-ALERT-0027",
+      "level": "info",
+      "metric": "link_down",
+      "value": 0.0,
+      "ts": "2026-10-10T05:33:00Z",
+      "source": "snmp-trap",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 85
+      }
+    }
+  ],
+  "10.0.0.18": [
+    {
+      "id": "J-ALERT-0028",
+      "level": "warning",
+      "metric": "disk_usage",
+      "value": "93.4",
+      "ts": "2026-10-29T05:15:00Z",
+      "source": "snmp-trap"
+    },
+    {
+      "id": "J-ALERT-0029",
+      "level": "warning",
+      "metric": "link_down",
+      "value": 0.0,
+      "ts": "2026-10-25T14:35:00Z",
+      "source": "syslog",
+      "detail": {
+        "sensor": "INLET",
+        "threshold": 85
+      }
+    },
+    {
+      "id": "J-ALERT-0030",
+      "level": "info",
+      "metric": "disk_usage",
+      "value": "82.51",
+      "ts": "2026-10-17T00:32:00Z",
+      "detail": {
+        "sensor": "TSENS0",
+        "threshold": 90
+      }
+    }
+  ]
+}

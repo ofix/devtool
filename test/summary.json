@@ -1,0 +1,13 @@
+{
+  "main_rows": 303,
+  "dim_rows": 25,
+  "extra_rows": 50,
+  "orphan_devices": [
+    "SRV-026",
+    "SRV-027",
+    "SRV-028",
+    "SRV-029",
+    "SRV-030"
+  ],
+  "duplicate_alert_ids": 26
+}
