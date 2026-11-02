@@ -580,3 +580,82 @@ console.log(`\n完成：${written} 个文件`)
 确认后我输出批次 1 的完整文本块（包含脚本本身和第一批代码文件），你保存 + 跑脚本即可。
 
 好的，按约定实现
+
+
+DataClean V1 开发与迭代总结报告
+一、 核心架构与依赖定稿
+技术栈定稿：Electron + Vue 3 + Element Plus + Vue Flow + CodeMirror 6。纯 ES6 JS 编写，无 TypeScript。
+
+依赖收敛：
+
+Excel 解析：全面采用 exceljs（放弃 xlsx 和 xlsx-populate，以兼顾写入性能和样式支持，放弃老旧 .xls 格式支持）。
+
+数据库支持：采用 knex.js 作为统一查询构建器，配合按需动态加载各数据库驱动（pg、mysql2、tedioius、better-sqlite3）。
+
+UI 设计风格：极简 WPS 风格顶部 Tab 菜单；Blender 风格节点卡片（带折叠点、极淡同色系渐变、贴边端口）；支持亮/暗双主题切换。
+
+二、 核心功能清单 (V1 已落地)
+数据接入：
+
+拆分了独立的 CSV Reader 和 JSON Reader 节点。
+
+XLSX Reader 支持多 Sheet、自定义 A1 坐标多区域提取（如 E17:G24 F5:G50），支持包含表头和按位置/列名对齐。
+
+Folder Input 支持递归读取及合并。
+
+DB Connection + DB Query 支持直接运行原生 SQL 读取数据库。
+
+数据准备算子：
+
+Filter：支持“可视化”与“表达式”双模式，采用 CodeMirror 6 进行语法高亮和自动换行。
+
+Select：使用更紧凑的 ColumnPicker（列选择器）和 RenamePanel（重命名面板）。
+
+其他：Sort、Unique、Sample、Formula（计算列）等基础高频算子全量接入。
+
+执行引擎：
+
+纯 JS 内存级 DAG 调度（拓扑排序、防死锁、逐节点 yield）。
+
+缓存机制：采用 markRaw 进行记忆化（Memoization）缓存，参数变更时触发 triggerRef 强制刷新。
+
+预览面板：
+
+采用 el-table-v2 虚拟滚动表格，支持列宽自适应拖拽。
+
+通过 el-splitter 实现上下分屏，支持手动拖拽调整高度。
+
+日志与调试：
+
+底层算子输出真实处理行数日志。
+
+Message 节点支持过滤并展示仅包含其上游节点的调试日志。
+
+三、 重大 Bug 修复与排坑记录 (经验沉淀)
+1. 交互与 DOM 事件坑
+无法删除节点/连线：废弃了 Vue Flow 自带的 removeSelectedElements（因与 Pinia 状态不同步），改为直接调用 graphStore.removeNode(id)，并补全了全局键盘（Delete）与右键菜单删除。
+
+输入框拖拽导致画布跟着跑：使用 @mousedown.capture 在父容器捕获事件，判断 target 是否为输入类控件，是则 e.stopPropagation()，但绝不调用 preventDefault()，以保证光标正常定位。
+
+Vue Flow 尺寸报错 (width and height=0)：因为 el-splitter 是动态计算高度的，挂载瞬间拿不到尺寸。解决办法是让 VueFlow 挂载延迟（v-if="isReady"，setTimeout 100ms），并在 onPaneReady 中强制重置缩放。
+
+2. CSS 与主题坑
+macOS 缩放巨大化：在 main.js 的 BrowserWindow 中强制设置了 webContents.setZoomFactor(1.0)，并去掉 Vue Flow 的 fit-view-on-init（因为它会强行把视口放大拉满）。
+
+Element Plus 弹层无法变暗：因为弹层挂载在 body 上，使用 [data-theme="dark"] body .el-popper 这种高优先级选择器，并用 !important 暴力覆盖了下拉框、禁用按钮、弹窗（Dialog）、表格边框和 Radio 切换组件的底色。
+
+3. 引擎与数据流转坑
+数据有了但页面不刷新：因为 StoreDataCleanDatasets.js 使用了 markRaw，深度响应式丢失。解决方案是让触发算子的入口统一挂载到 window.__dcEngine.runNode，并在更新缓存后调用 triggerRef 或让调用方先 removeDataset。
+
+Excel 读不出数据：因为 ExcelJS 的 row.hasValues 对前面有大量空行的真实表格极易误判。解决办法是抛弃 hasValues，直接遍历强行取值，通过判断是否有真实值（字符串/数字）来决定是否跳过该行。
+
+多区域/多 Sheet 列名对齐：在 xlsxInput.js 中，对比不同区域的表头，按“列名”对齐时自动补 null，按“位置”对齐时强制覆盖。
+
+四、 待办与二期展望
+算子补全：目前最核心的 20+ 算子已具备，二期可补充文本解析（XML Parse）和复杂的 Join 算法（已具备基础 Inner/Left/Right）。
+
+多输出支持：目前 Filter 节点已经支持了双向输出（满足条件走 out-0，不满足走 out-1），但 Engine.js 的分发逻辑还需要完善，确保下游节点能正确接收反向数据。
+
+大文件性能：目前 10 万行级别用纯 JS 内存算子没问题，但如果是百万级别，需要引入 Web Worker 或进行分块流式处理。
+
+帮助文档系统：设计一套轻量级的 Markdown 组件（如 HelpPopover.vue），在输入端挂载图文帮助，以替代繁杂的内联提示。
