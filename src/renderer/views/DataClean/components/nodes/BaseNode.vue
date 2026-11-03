@@ -1,29 +1,50 @@
-<!-- 缩小节点卡片的基础尺寸 -->
 <template>
   <div
     class="base-node"
     :class="{ 'is-selected': selected, 'is-stale': metaState.stale }"
     :style="nodeStyle"
   >
-    <div class="node-header" :style="headerStyle" @dblclick="toggleCollapse">
+    <div class="node-header" :style="headerStyle">
+      <div class="blender-dot" @dblclick="toggleCollapse" title="双击折叠/展开">
+        <div class="dot-inner" :style="{ background: opMeta.color }" />
+      </div>
       <span class="node-title">{{ opMeta.label || node.type }}</span>
       <span v-if="metaState.stale" class="node-badge warn" title="数据已过期">stale</span>
       <span v-if="metaState.error" class="node-badge error" :title="metaState.error">!</span>
 
-      <!-- 预览按钮 -->
       <span class="node-action-btn" @click.stop="$emit('preview')">预览</span>
     </div>
 
     <div class="node-body" v-show="!collapsed">
       <slot />
 
+      <!-- 底栏：显示输入输出类型与统计 -->
       <div class="node-footer">
-        <slot name="footer">
-          <div class="node-meta">
-            <span>{{ metaState.rowCount }} 行</span>
-            <span>{{ metaState.columns.length }} 列</span>
-          </div>
-        </slot>
+        <div class="shape-info">
+          <!-- 输入类型：没连线则显示 -- -->
+          <span class="shape-text" :class="incomingType || 'unknown'">
+            {{ incomingType || "--" }}
+          </span>
+          <span class="shape-arrow">➜</span>
+          <!-- 输出类型：如果有 Meta 则显示，否则显示算子的预设 -->
+          <span class="shape-text" :class="outgoingType || 'unknown'">
+            {{ outgoingType || "--" }}
+          </span>
+        </div>
+
+        <div class="stats-info">
+          <template v-if="metaState.rowCount !== null && outgoingType">
+            <template v-if="outgoingType === 'table'">
+              {{ metaState.rowCount }} 行 / {{ metaState.columns.length }} 列
+            </template>
+            <template v-else-if="outgoingType === 'json'">
+              {{ metaState.rowCount }} 个对象
+            </template>
+          </template>
+          <template v-else>
+            <span class="stats-placeholder">-- / --</span>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -50,6 +71,7 @@
   import { computed, ref } from "vue"
   import { Handle, Position } from "@vue-flow/core"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
+  import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { getOperator } from "../../engine/operators/index.js"
   import { getPortColor } from "../../constants/PortTypes.js"
 
@@ -65,6 +87,8 @@
   }
 
   const metaStore = useStoreDataCleanMeta()
+  const graphStore = useStoreDataCleanGraph()
+
   const opMeta = computed(() => {
     const op = getOperator(props.node.type)
     return op && op.meta
@@ -76,12 +100,31 @@
   const outputCount = computed(() => Math.max(0, opMeta.value.outputs || 0))
   const metaState = computed(() => metaStore.getMeta(props.node.id))
 
+  // 获取上游数据形态
+  const incomingType = computed(() => {
+    // 如果当前节点没有输入端口，说明它是数据源，显示 Source
+    if (opMeta.value.inputs === 0) return "Source"
+
+    const edges = graphStore.getIncomingEdges(props.node.id)
+    // 如果有输入端口但没连线，显示 --
+    if (edges.length === 0) return null
+
+    return metaStore.getMeta(edges[0].source).dataCategory
+  })
+
+  // 获取当前输出形态（如果已经执行过）
+  const outgoingType = computed(() => {
+    if (metaState.value.dataCategory) return metaState.value.dataCategory
+    // 如果还没执行过，读算子静态预设
+    return opMeta.value.outputCategory
+  })
+
   const nodeStyle = computed(() => {
     if (!props.selected) return {}
     const baseColor = opMeta.value.color || "#3b82f6"
     return {
       borderColor: baseColor,
-      boxShadow: `0 0 0 1px ${baseColor}50, 0 2px 6px rgba(0, 0, 0, 0.1)`,
+      boxShadow: `0 0 0 2px ${baseColor}50, 0 4px 12px rgba(0, 0, 0, 0.1)`,
     }
   })
 
@@ -99,13 +142,13 @@
   function portStyle(idx, total, kind) {
     const top = total === 1 ? "50%" : `${(idx / (total + 1)) * 100}%`
     const colorKey = kind === "input" ? opMeta.value.inputPortType : opMeta.value.outputPortType
-    const offset = "-5px" // 缩小端口偏移量
+    const offset = "-7px"
     return {
       top,
-      width: "10px", // 缩小端口尺寸
-      height: "10px",
+      width: "14px",
+      height: "14px",
       background: getPortColor(colorKey || "table"),
-      border: "1.5px solid var(--dc-node-bg, #ffffff)",
+      border: "2px solid var(--dc-node-bg, #ffffff)",
       left: kind === "input" ? offset : "auto",
       right: kind === "output" ? offset : "auto",
       transform: "translateY(-50%)",
@@ -115,47 +158,41 @@
 </script>
 
 <style scoped>
-  /* 减小节点最小宽度和内边距 */
+  /* 保持原有 BaseNode 样式，追加 footer 样式 */
   .base-node {
-    min-width: 160px;
-    max-width: 320px;
+    min-width: 220px;
+    max-width: 340px;
     background: var(--dc-node-bg, #ffffff);
     border: 1px solid var(--dc-node-border, #cbd5e1);
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     font-size: 12px;
-    /* 字体缩小 */
     color: var(--dc-text-primary, #1e293b);
     transition:
       box-shadow 0.15s,
       border-color 0.15s;
     position: relative;
   }
-
   .base-node.is-stale {
-    opacity: 0.8;
+    opacity: 0.6;
     border-style: dashed;
   }
-
   .node-header {
     display: flex;
     align-items: center;
-    padding: 4px 8px;
-    border-radius: 6px 6px 0 0;
+    padding: 6px 10px;
+    border-radius: 8px 8px 0 0;
     font-weight: 600;
     user-select: none;
     cursor: grab;
-    gap: 6px;
-    color: var(--dc-text-primary, #1e293b);
+    gap: 8px;
   }
-
   .node-header:active {
     cursor: grabbing;
   }
-
   .blender-dot {
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--dc-border, #e2e8f0);
     display: flex;
@@ -165,73 +202,102 @@
     flex-shrink: 0;
     transition: background 0.2s;
   }
-
   .blender-dot:hover {
     background: var(--dc-text-secondary, #94a3b8);
   }
-
   .dot-inner {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
   }
-
   .node-title {
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
   }
-
   .node-badge {
     font-size: 10px;
-    padding: 1px 3px;
-    border-radius: 2px;
+    padding: 1px 4px;
+    border-radius: 3px;
     font-weight: 500;
   }
-
   .node-badge.warn {
     background: #fef3c7;
     color: #92400e;
   }
-
   .node-badge.error {
     background: #fee2e2;
     color: #991b1b;
   }
-
-  /* 预览按钮 */
   .node-action-btn {
     font-size: 11px;
     color: var(--dc-edge-selected, #3b82f6);
     cursor: pointer;
-    padding: 1px 4px;
-    border-radius: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
     transition: background 0.2s;
   }
-
   .node-action-btn:hover {
     background: rgba(59, 130, 246, 0.1);
   }
-
   .node-body {
-    padding: 8px;
-    border-radius: 0 0 6px 6px;
-    max-height: 320px;
+    padding: 10px;
+    border-radius: 0 0 8px 8px;
+    max-height: 400px;
     overflow-y: auto;
   }
 
+  /* 新增底栏样式 */
   .node-footer {
-    margin-top: 6px;
-    padding-top: 4px;
-    border-top: 1px dashed var(--dc-border, #e2e8f0);
-  }
-
-  .node-meta {
-    font-size: 12px;
-    color: var(--dc-text-secondary, #64748b);
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--dc-border, #e2e8f0);
+    font-size: 11px;
+  }
+  .shape-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .shape-text {
+    font-family: "SF Mono", Consolas, monospace;
+    font-weight: 600;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .shape-text.table {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+  }
+  .shape-text.json {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
+  }
+  .shape-text.unknown {
+    color: var(--dc-text-secondary, #94a3b8);
+    background: transparent;
+    padding: 0;
+  }
+  .shape-arrow {
+    color: var(--dc-text-secondary, #64748b);
+    font-size: 10px;
+    margin: 0 2px;
+  }
+  .stats-info {
+    color: var(--dc-text-secondary, #64748b);
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .stats-placeholder {
+    opacity: 0.5;
+  }
+  .shape-text.source {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
   }
 </style>

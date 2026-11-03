@@ -1,6 +1,5 @@
-<!-- 确保所有通用 TransformNode 都能抛出 trigger-run 事件 -->
 <template>
-  <div class="node-editor" @mousedown.capture="handleMouseDownCapture">
+  <div class="node-editor">
     <!-- 右键菜单 -->
     <div
       v-if="contextMenu.visible"
@@ -34,6 +33,8 @@
           @trigger-run="$emit('trigger-run')"
         />
       </template>
+
+      <!-- JSON Reader -->
       <template #node-jsonReader="nodeProps">
         <JsonReaderNode
           :node="nodeProps.data"
@@ -41,6 +42,7 @@
           @trigger-run="$emit('trigger-run')"
         />
       </template>
+
       <template #node-output="nodeProps">
         <OutputNode :node="nodeProps.data" :selected="nodeProps.selected" />
       </template>
@@ -78,8 +80,8 @@
   import { computed, onMounted, onBeforeUnmount, ref } from "vue"
   import { VueFlow, useVueFlow } from "@vue-flow/core"
   import { ElMessage } from "element-plus"
-  import JsonReaderNode from "../nodes/JsonReaderNode.vue"
   import CsvReaderNode from "../nodes/CsvReaderNode.vue"
+  import JsonReaderNode from "../nodes/JsonReaderNode.vue"
   import OutputNode from "../nodes/OutputNode.vue"
   import BaseNode from "../nodes/BaseNode.vue"
   import TransformNode from "../nodes/TransformNode.vue"
@@ -92,7 +94,7 @@
   const isReady = ref(false)
   const emit = defineEmits(["trigger-run"])
   const graphStore = useStoreDataCleanGraph()
-  const { setViewport } = useVueFlow()
+  const { setViewport, removeSelectedElements } = useVueFlow()
 
   const transformTypes = [
     "select",
@@ -131,6 +133,7 @@
     })),
   )
 
+  // ====== 右键菜单逻辑 ======
   const contextMenu = ref({ visible: false, x: 0, y: 0 })
 
   function onNodeContextMenu(event) {
@@ -155,7 +158,6 @@
     contextMenu.value.visible = false
   }
 
-  // 直接通过 Pinia Store 删除节点
   function deleteCurrentNode() {
     const id = graphStore.selectedNodeId
     if (id) {
@@ -165,12 +167,11 @@
     contextMenu.value.visible = false
   }
 
-  // 监听键盘删除，直接通过 Pinia Store 操作
+  // ====== 键盘删除 ======
   function handleKeyDown(e) {
     if (e.key === "Delete" || e.key === "Backspace") {
       const tag = e.target.tagName
       if (tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable) return
-
       e.preventDefault()
       const id = graphStore.selectedNodeId
       if (id) {
@@ -180,32 +181,9 @@
     }
   }
 
+  // ====== 画布初始化 ======
   function onPaneReady() {
     setViewport({ x: 0, y: 0, zoom: 1 })
-  }
-
-  // 核心修复：只截断事件冒泡，不阻止默认行为
-  function handleMouseDownCapture(e) {
-    const target = e.target
-    if (!target) return
-
-    const isInteractive =
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.tagName === "BUTTON" ||
-      target.tagName === "SELECT" ||
-      target.closest(".el-input") ||
-      target.closest(".el-select") ||
-      target.closest(".el-checkbox") ||
-      target.closest(".el-radio-group") ||
-      target.closest(".el-switch") ||
-      target.closest(".cm-editor") ||
-      target.closest(".el-textarea")
-
-    if (isInteractive) {
-      // 关键：只阻止事件冒泡，让输入框能正常响应光标和文字选择
-      e.stopPropagation()
-    }
   }
 
   onMounted(() => {
@@ -221,6 +199,7 @@
     window.removeEventListener("click", onWindowClick)
   })
 
+  // ====== Vue Flow 变更监听 ======
   function onNodesChange(changes) {
     for (const change of changes) {
       if (change.type === "position" && change.position) {
@@ -241,6 +220,7 @@
     }
   }
 
+  // ====== 连线逻辑（包含类型校验的预留接口） ======
   function onConnect(params) {
     const sourceNode = graphStore.getNode(params.source)
     const targetNode = graphStore.getNode(params.target)
@@ -279,6 +259,7 @@
     emit("trigger-run")
   }
 
+  // ====== 选中与交互 ======
   function onNodeClick(event) {
     const id = event && event.node ? event.node.id : null
     if (id) graphStore.setSelected(id)

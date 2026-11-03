@@ -1,14 +1,11 @@
 <template>
   <div class="preview-panel">
-    <div v-if="isResizing" class="resize-line" :style="{ left: resizeLineX + 'px' }"></div>
-
     <div class="preview-header">
       <div class="preview-title">
         <span class="title-text">{{ title }}</span>
-        <span v-if="!isMessageNode && meta.rowCount > 0" class="title-meta">
+        <span v-if="hasData && meta.dataCategory === 'table'" class="title-meta">
           {{ meta.rowCount }} 行 · {{ meta.columns.length }} 列
         </span>
-        <span v-if="isMessageNode" class="title-meta log-hint"> 上游节点的调试日志流 </span>
       </div>
       <div class="preview-actions">
         <el-button v-if="!isMessageNode" size="small" text @click="$emit('refresh')"
@@ -18,10 +15,12 @@
     </div>
 
     <div class="preview-body" ref="previewBodyRef" @mousedown="handleGlobalMouseDown">
+      <!-- 如果没有数据 -->
       <EmptyState v-if="!isMessageNode && !hasData" :text="emptyText" />
 
+      <!-- 如果是 Table 形态（或者默认情况） -->
       <el-table-v2
-        v-else-if="!isMessageNode"
+        v-else-if="!isMessageNode && (meta.dataCategory === 'table' || !meta.dataCategory)"
         ref="tableRef"
         :columns="tableColumns"
         :data="visibleRows"
@@ -39,28 +38,20 @@
         </template>
       </el-table-v2>
 
-      <div v-else class="log-viewer">
-        <div v-if="upstreamLogs.length === 0" class="empty-logs">暂无上游日志信息。</div>
-        <div v-else class="log-list">
-          <div
-            v-for="entry in upstreamLogs"
-            :key="entry.id"
-            class="log-row"
-            :class="'level-' + entry.level"
-          >
-            <span class="log-time">{{ entry.time }}</span>
-            <span class="log-node">[{{ getNodeLabel(entry.nodeId) }}]</span>
-            <span class="log-msg">{{ entry.message }}</span>
-          </div>
-        </div>
-      </div>
+      <!-- 如果是 JSON 形态 -->
+      <JsonPreview
+        v-else-if="!isMessageNode && meta.dataCategory === 'json' && dataset"
+        :dataset="dataset"
+        :raw-data="dataset.rows"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-  import { computed, ref, onMounted, onBeforeUnmount } from "vue"
+  import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue"
   import EmptyState from "../common/EmptyState.vue"
+  import JsonPreview from "./JsonPreview.vue"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
   import { useStoreDataCleanDatasets } from "../../stores/StoreDataCleanDatasets.js"
@@ -84,15 +75,22 @@
   const currentColKey = ref(null)
   const startX = ref(0)
   const startWidth = ref(0)
+  const columnWidths = ref({})
 
   const selected = computed(() => graphStore.selectedNode)
   const meta = computed(() => {
     if (!selected.value)
-      return { rowCount: 0, columns: [], stale: false, staleReason: null, error: null }
+      return {
+        rowCount: 0,
+        columns: [],
+        dataCategory: null,
+        stale: false,
+        staleReason: null,
+        error: null,
+      }
     return metaStore.getMeta(selected.value.id)
   })
 
-  // 直接从 datasetStore 读取正向前端数据（因为 Engine 处理后，只返回正向结果给 rows）
   const dataset = computed(() => {
     if (!selected.value) return null
     return datasetStore.getDataset(selected.value.id)
@@ -130,11 +128,9 @@
   }
 
   const visibleRows = computed(() => {
-    if (!dataset.value) return []
+    if (!dataset.value || !dataset.value.rows) return []
     return dataset.value.rows.slice(0, 200).map((row, idx) => ({ ...row, __idx: idx }))
   })
-
-  const columnWidths = ref({})
 
   const tableColumns = computed(() => {
     if (!meta.value.columns || meta.value.columns.length === 0) return []
@@ -151,16 +147,46 @@
     })
   })
 
+  // 修复：强制监听数据变化，重新计算表格尺寸
+  watch(
+    () => dataset.value,
+    () => {
+      nextTick(() => {
+        measure()
+      })
+    },
+    { deep: false },
+  )
+
+  function measure() {
+    if (!previewBodyRef.value) return
+    const rect = previewBodyRef.value.getBoundingClientRect()
+    // 强制给一个保底尺寸，防止因容器不可见导致 0 尺寸
+    tableWidth.value = Math.max(400, Math.floor(rect.width) - 12)
+    tableHeight.value = Math.max(200, Math.floor(rect.height) - 12)
+  }
+
+  let observer = null
+  onMounted(() => {
+    if (previewBodyRef.value) {
+      measure()
+      observer = new ResizeObserver(measure)
+      observer.observe(previewBodyRef.value)
+    }
+  })
+  onBeforeUnmount(() => {
+    if (observer) observer.disconnect()
+  })
+
+  // ... 拖拽列宽逻辑保持原样 ...
   function handleGlobalMouseDown(e) {
     const resizer = e.target.closest(".col-resizer")
     if (!resizer) return
     e.preventDefault()
-
     const headerCell = resizer.closest(".custom-header-cell")
     if (!headerCell) return
     const colKey = headerCell.getAttribute("data-key")
     if (!colKey) return
-
     const targetCol = tableColumns.value.find(c => c.key === colKey)
     if (!targetCol) return
 
@@ -168,7 +194,6 @@
     currentColKey.value = colKey
     startX.value = e.clientX
     startWidth.value = targetCol.width
-
     const bodyRect = previewBodyRef.value.getBoundingClientRect()
     const scrollLeft = tableRef.value?.scrollLeft ?? 0
     resizeLineX.value = e.clientX - bodyRect.left + scrollLeft
@@ -188,7 +213,6 @@
         resizeLineX.value = ev.clientX - bodyRect.left + sl
       })
     }
-
     function onMouseUp() {
       isResizing.value = false
       document.body.style.cursor = ""
@@ -200,32 +224,13 @@
         columnWidths.value = { ...columnWidths.value, [colKey]: finalWidth }
       }
     }
-
     window.addEventListener("mousemove", onMouseMove)
     window.addEventListener("mouseup", onMouseUp)
   }
-
-  function measure() {
-    if (!previewBodyRef.value) return
-    const rect = previewBodyRef.value.getBoundingClientRect()
-    tableWidth.value = Math.max(200, Math.floor(rect.width) - 12)
-    tableHeight.value = Math.max(120, Math.floor(rect.height) - 12)
-  }
-
-  let observer = null
-  onMounted(() => {
-    if (previewBodyRef.value) {
-      measure()
-      observer = new ResizeObserver(measure)
-      observer.observe(previewBodyRef.value)
-    }
-  })
-  onBeforeUnmount(() => {
-    if (observer) observer.disconnect()
-  })
 </script>
 
 <style scoped>
+  /* 保持你原有的样式 */
   .preview-panel {
     display: flex;
     flex-direction: column;
@@ -254,10 +259,6 @@
   }
   .title-meta {
     color: var(--dc-text-secondary, #64748b);
-  }
-  .log-hint {
-    color: #eab308;
-    font-weight: 600;
   }
   .preview-body {
     flex: 1;
