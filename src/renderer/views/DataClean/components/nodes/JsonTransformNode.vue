@@ -1,9 +1,10 @@
+<!-- ==== FILE: src/renderer/views/DataClean/components/nodes/JsonTransformNode.vue ==== -->
 <template>
   <BaseNode :node="node" :selected="selected" @preview="$emit('trigger-run')">
     <div class="json-transform-panel">
       <div class="mode-switch">
         <el-radio-group v-model="mode" size="small" @change="onModeChange">
-          <el-radio-button value="visual">可视化</el-radio-button>
+          <el-radio-button value="visual">可视化提取</el-radio-button>
           <el-radio-button value="advanced">高级表达式</el-radio-button>
         </el-radio-group>
       </div>
@@ -13,11 +14,13 @@
         <div class="hint-text" v-if="upstreamSchema.length === 0">请连接上游 JSON 数据。</div>
         <div class="path-selector dc-custom-scrollbar" v-else>
           <el-tree
+            ref="treeRef"
             :data="upstreamSchema"
             :props="{ label: 'label', children: 'children' }"
             node-key="path"
-            @node-click="onPathSelect"
-            highlight-current
+            show-checkbox
+            @check-change="onCheckChange"
+            default-expand-all
           >
             <template #default="{ node, data }">
               <span class="tree-node">
@@ -32,9 +35,7 @@
 
       <!-- 高级模式 -->
       <div v-else class="advanced-mode">
-        <div class="hint-text">
-          支持 jq 语法（例如：<code>.items[] | select(.price > 100)</code>）
-        </div>
+        <div class="hint-text">支持 jq 语法（例如：<code>.[] | {name, id}</code>）</div>
         <el-input
           v-model="jqCode"
           type="textarea"
@@ -49,7 +50,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, watch } from "vue"
+  import { ref, computed, watch, nextTick } from "vue"
   import BaseNode from "./BaseNode.vue"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
@@ -64,7 +65,9 @@
 
   const mode = ref(props.node.params?.mode || "visual")
   const jqCode = ref(props.node.params?.jqCode || ".")
+  const treeRef = ref(null)
 
+  // 获取上游节点的 Schema
   const upstreamSchema = computed(() => {
     const edges = graphStore.getIncomingEdges(props.node.id)
     if (edges.length === 0) return []
@@ -87,33 +90,101 @@
     graphStore.updateNodeParams(props.node.id, { mode: val })
   }
 
-  function onPathSelect(data) {
-    // 1. 基础路径（去掉根节点前缀）
-    let path = data.path === "root" ? "" : data.path
+  // ==== FILE: src/renderer/views/DataClean/components/nodes/JsonTransformNode.vue ====
 
-    // 2. 判断顶层是不是数组，如果是，必须先加上 .[] 才能取值
-    // 我们通过检查上游 Schema 树的根节点类型来判断
-    const isRootArray =
-      upstreamSchema.value.length > 0 && upstreamSchema.value[0].typeLabel === "[]"
+  // 省略前面的模板和 setup 引入...
 
-    let generatedJq = ""
+  /**
+   * 核心算法：向上溯源获取完整路径链
+   * @param {object} leafNode - 用户勾选的叶子节点数据
+   * @returns {Array} 路径段数组，例如 [{ key: 'vbs', isArray: false }, { key: 'errorid', isArray: false }]
+   */
+  function tracePath(leafNode) {
+    const pathSegments = []
+    let current = leafNode
 
-    if (isRootArray) {
-      generatedJq = `.[]`
-      if (path) {
-        generatedJq += ` | .${path}`
+    // 沿树向上爬，直到根节点
+    while (current && current.label !== "root") {
+      // 记录当前节点的 Key 以及它本身是不是数组
+      // 注意：如果节点是 "*" 或者路径包含数组元素，我们在这里不好直接区分
+      // 所以我们依赖 Schema 树上提供的节点信息
+      pathSegments.unshift({
+        key: current.label,
+        type: current.typeLabel,
+      })
+      current = current.parent // 依赖 el-tree 节点自带的 parent 指针
+    }
+    return pathSegments
+  }
+
+  // 当用户在树上勾选字段时
+  function onCheckChange() {
+    if (!treeRef.value) return
+
+    // 获取所有勾选的节点
+    const checkedNodes = treeRef.value.getCheckedNodes()
+    // 过滤出叶子节点（基础类型）
+    const leafNodes = checkedNodes.filter(n => !n.children || n.children.length === 0)
+
+    if (leafNodes.length === 0) {
+      jqCode.value = "."
+      graphStore.updateNodeParams(props.node.id, { jqCode: "." })
+      return
+    }
+
+    // 判断顶层是数组还是对象
+    const isRootArray = upstreamSchema.value[0]?.typeLabel === "[]"
+    let rootPrefix = isRootArray ? ".[]" : "."
+
+    // 如果只选了一个字段，生成简单的单列提取
+    if (leafNodes.length === 1) {
+      const leafData = leafNodes[0]
+      const pathSegments = tracePath(leafData)
+
+      // 拼接完整的 JQ 路径
+      let jqPath = rootPrefix
+      for (let i = 0; i < pathSegments.length; i++) {
+        const seg = pathSegments[i]
+        const isSpecial = !/^[a-zA-Z0-9_]+$/.test(seg.key)
+        const accessor = isSpecial ? `.["${seg.key}"]` : `.${seg.key}`
+
+        // 如果这个字段本身是数组，且在最后一位，我们需要展开它
+        const isArray = seg.type.includes("[]")
+
+        jqPath += ` | ${accessor}`
+        if (isArray && i === pathSegments.length - 1) {
+          jqPath += "[]"
+        }
       }
+
+      jqCode.value = jqPath
     } else {
-      generatedJq = path ? `.${path}` : "."
+      // 如果选了多个字段，生成对象构造语法 (Map)
+      const fields = leafNodes
+        .map(leafData => {
+          const pathSegments = tracePath(leafData)
+
+          let fullAccess = rootPrefix
+          let outputKey = leafData.label
+
+          for (let i = 0; i < pathSegments.length; i++) {
+            const seg = pathSegments[i]
+            const isSpecial = !/^[a-zA-Z0-9_]+$/.test(seg.key)
+            const accessor = isSpecial ? `.["${seg.key}"]` : `.${seg.key}`
+            fullAccess += ` | ${accessor}`
+          }
+
+          // 如果字段是特殊字符，比如 IP，加个引号保证 JQ 合法
+          const safeKey = /^[a-zA-Z0-9_]+$/.test(outputKey) ? outputKey : `"${outputKey}"`
+          return `${safeKey}: (${fullAccess})`
+        })
+        .join(", ")
+
+      // 因为是构造对象，我们必须用 ( ) 包裹表达式的右侧，防止管道符优先级导致语法错误
+      jqCode.value = `${rootPrefix} | {${fields}}`
     }
 
-    // 3. 如果用户点选的节点本身也是数组，自动加上 [] 展开
-    if (data.typeLabel.includes("[]")) {
-      generatedJq += "[]"
-    }
-
-    jqCode.value = generatedJq
-    graphStore.updateNodeParams(props.node.id, { jqCode: generatedJq })
+    graphStore.updateNodeParams(props.node.id, { jqCode: jqCode.value })
     emit("trigger-run")
   }
 
@@ -123,28 +194,40 @@
 </script>
 
 <style scoped>
-  /* 修改这里的宽度，并加上 overflow: hidden */
   .json-transform-panel {
-    width: 100%; /* 不要写死 320px，让节点自动适应 BaseNode 的宽度 */
+    width: 100%;
     max-width: 340px;
-    overflow: hidden; /* 强制隐藏超出的部分，干掉横向滚动条 */
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
+  .mode-switch {
+    display: flex;
+    justify-content: center;
+  }
+  .hint-text {
+    font-size: 11px;
+    color: var(--dc-text-secondary);
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .hint-text code {
+    background: var(--dc-border);
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-family: monospace;
+  }
 
-  /* 优化树容器 */
   .path-selector {
     border: 1px solid var(--dc-border);
     border-radius: 4px;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
-    overflow-x: hidden; /* 禁止树的横向滚动 */
+    overflow-x: hidden;
     padding: 4px;
     background: var(--dc-node-bg);
   }
-
-  /* 让树节点内容不要超长 */
   .tree-node {
     display: flex;
     align-items: center;
@@ -155,8 +238,20 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .tree-node .type {
+    font-size: 10px;
+    color: var(--dc-text-secondary);
+    opacity: 0.7;
+  }
+  .tree-node .count-tag {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+  }
 
-  /* 重新排版右侧高级表达式 */
   .advanced-mode {
     width: 100%;
   }
@@ -164,7 +259,7 @@
     font-family: monospace;
     font-size: 12px;
     line-height: 1.5;
-    width: 100% !important; /* 强制输入框宽度 100% */
-    box-sizing: border-box; /* 防止 padding 撑破宽度 */
+    width: 100% !important;
+    box-sizing: border-box;
   }
 </style>
