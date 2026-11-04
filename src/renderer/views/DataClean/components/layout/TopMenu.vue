@@ -62,6 +62,7 @@
     SetUp,
     CopyDocument,
     Filter,
+    FullScreen,
     MagicStick,
   } from "@element-plus/icons-vue"
   import { listOperators } from "../../engine/operators/index.js"
@@ -126,6 +127,8 @@
       IconExcel: DocumentAdd,
       IconDatabase: Coin,
       IconTransform: MagicStick,
+      IconExpand: FullScreen,
+      IconExtract: Position,
       default: Files,
     }
     return map[iconName] || map.default

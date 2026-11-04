@@ -1,6 +1,11 @@
 import csvReader from "./csvReader.js"
 import jsonReader from "./jsonReader.js"
-import jsonTransform from "./jsonTransform.js"
+import jqExpression from "./jqExpression.js"
+import jsonUnnest from "./jsonUnnest.js"
+import jsonUnpivot from "./jsonUnpivot.js"
+import jsonFlatten from "./jsonFlatten.js"
+import jsonExtract from "./jsonExtract.js"
+import jsonFilter from "./jsonFilter.js"
 import output from "./output.js"
 import message from "./message.js"
 import filter from "./filter.js"
@@ -29,7 +34,12 @@ import dbQuery from "./dbQuery.js"
 const modules = [
   csvReader,
   jsonReader,
-  jsonTransform,
+  jqExpression,
+  jsonUnnest,
+  jsonUnpivot,
+  jsonFlatten,
+  jsonExtract,
+  jsonFilter,
   output,
   message,
   filter,

@@ -1,0 +1,12 @@
+{
+  "config": {
+    "theme": "dark",
+    "font_size": 14,
+    "notify": true,
+    "auto_save": true
+  },
+  "data":{
+    "172.26.3.2":["user_name","config"]	
+  }
+}
+

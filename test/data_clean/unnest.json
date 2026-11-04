@@ -1,0 +1,25 @@
+   {
+      "members": [
+        {
+          "name": "A",
+          "level": "gold",
+          "active": true
+        },
+        {
+          "name": "B",
+          "level": "silver",
+          "active": true
+        },
+        {
+          "name": "C",
+          "level": "platinum",
+          "active": false
+        },
+        {
+          "name": "D",
+          "level": "gold",
+          "active": true
+        }
+      ]
+    }
+

@@ -14,10 +14,10 @@ async function getJq() {
 }
 
 export default {
-  type: "jsonTransform",
+  type: "jqExpression",
   meta: {
     label: "JSON Transform",
-    icon: "IconTransform",
+    icon: "IconCode",
     color: "#8b5cf6",
     category: "json",
     inputs: 1,

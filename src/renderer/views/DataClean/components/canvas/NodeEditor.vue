@@ -43,8 +43,44 @@
       </template>
 
       <!-- JSON 处理专属节点 -->
-      <template #node-jsonTransform="nodeProps">
-        <JsonTransformNode
+      <template #node-jqExpression="nodeProps">
+        <JqExpressionNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+      <template #node-jsonUnnest="nodeProps">
+        <JsonUnnestNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+      <template #node-jsonExtract="nodeProps">
+        <JsonExtractNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+      <template #node-jsonFilter="nodeProps">
+        <JsonFilterNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+      <!-- JSON Unpivot 和 Flatten 复用 TransformNode 的外壳 -->
+      <template #node-jsonUnpivot="nodeProps">
+        <TransformNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+      <template #node-jsonFlatten="nodeProps">
+        <TransformNode
           :node="nodeProps.data"
           :selected="nodeProps.selected"
           @trigger-run="$emit('trigger-run')"
@@ -93,7 +129,10 @@
   import { ElMessage } from "element-plus"
   import CsvReaderNode from "../nodes/CsvReaderNode.vue"
   import JsonReaderNode from "../nodes/JsonReaderNode.vue"
-  import JsonTransformNode from "../nodes/JsonTransformNode.vue" // 新增
+  import JqExpressionNode from "../nodes/JqExpressionNode.vue"
+  import JsonUnnestNode from "../nodes/JsonUnnestNode.vue"
+  import JsonExtractNode from "../nodes/JsonExtractNode.vue"
+  import JsonFilterNode from "../nodes/JsonFilterNode.vue"
   import OutputNode from "../nodes/OutputNode.vue"
   import BaseNode from "../nodes/BaseNode.vue"
   import TransformNode from "../nodes/TransformNode.vue"
