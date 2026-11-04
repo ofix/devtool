@@ -1,4 +1,4 @@
-// Union 算子
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 export default {
   type: "union",
   meta: {
@@ -8,8 +8,8 @@ export default {
     category: "join", // 归入连接类
     inputs: 2,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [],
   execute(inputs, params) {

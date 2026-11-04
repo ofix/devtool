@@ -1,4 +1,5 @@
 // Output 算子：单文件导出（批次 1 只做透传，落盘由上层调用 IPC）
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 
 export default {
   type: "output",
@@ -9,8 +10,8 @@ export default {
     category: "output",
     inputs: 1,
     outputs: 0,
-    inputPortType: "table",
-    outputPortType: null,
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: null,
   },
   schema: [
     { field: "filePath", label: "输出文件", component: "saveFile" },

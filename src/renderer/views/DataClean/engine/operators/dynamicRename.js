@@ -1,4 +1,6 @@
 // Dynamic Rename 算子：按映射表批量重命名列
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "dynamicRename",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "develop",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "renameMap", label: "映射表(旧:新,)", component: "input" },

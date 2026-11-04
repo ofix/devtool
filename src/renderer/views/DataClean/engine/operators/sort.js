@@ -1,4 +1,5 @@
-// 修复：确保单选字段拿到的是字符串，并处理空值
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "sort",
   meta: {
@@ -8,8 +9,8 @@ export default {
     category: "prepare",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     // 明确标记为单选

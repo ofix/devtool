@@ -1,4 +1,4 @@
-// ==== FILE: src/renderer/views/DataClean/engine/operators/filter.js ====
+import { DATA_CATEGORY } from "../../constants/DataCategories.js";
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
 
@@ -11,8 +11,8 @@ export default {
     category: "prepare",
     inputs: 1,
     outputs: 2,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "expression", label: "条件", component: "expression" }],
   execute(inputs, params, ctx) {

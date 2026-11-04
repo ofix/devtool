@@ -1,3 +1,4 @@
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 export default {
   type: "xlsxInput",
   meta: {
@@ -7,8 +8,8 @@ export default {
     category: "source",
     inputs: 0,
     outputs: 1,
-    inputPortType: null,
-    outputPortType: "table",
+    inputCategory: null,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "filePath", label: "文件路径", component: "file", extensions: ["xlsx"] },

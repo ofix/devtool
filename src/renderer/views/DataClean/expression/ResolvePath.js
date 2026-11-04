@@ -1,5 +1,4 @@
 // JSON 路径解析：用于在行对象中取值
-
 export function resolvePath(row, path) {
   if (!row || typeof row !== "object") return undefined
 

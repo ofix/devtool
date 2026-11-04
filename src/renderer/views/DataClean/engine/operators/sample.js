@@ -1,4 +1,5 @@
-// 修复：行数为空或非法时，直接透传，不返回空数组
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "sample",
   meta: {
@@ -8,8 +9,8 @@ export default {
     category: "prepare",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "count", label: "行数", component: "input", defaultValue: "10" },

@@ -1,4 +1,6 @@
 // Unique 算子：单列或多列去重
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "unique",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "prepare",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "fields", label: "去重列", component: "fieldSelect", multiple: true }],
   execute(inputs, params) {

@@ -1,5 +1,5 @@
 <template>
-  <div class="node-editor">
+  <div class="node-editor" @mousedown.capture="handleMouseDownCapture">
     <!-- 右键菜单 -->
     <div
       v-if="contextMenu.visible"
@@ -26,6 +26,7 @@
       @edge-context-menu="onEdgeContextMenu"
       @pane-context-menu="onPaneContextMenu"
     >
+      <!-- 数据源节点 -->
       <template #node-csvReader="nodeProps">
         <CsvReaderNode
           :node="nodeProps.data"
@@ -33,8 +34,6 @@
           @trigger-run="$emit('trigger-run')"
         />
       </template>
-
-      <!-- JSON Reader -->
       <template #node-jsonReader="nodeProps">
         <JsonReaderNode
           :node="nodeProps.data"
@@ -43,6 +42,16 @@
         />
       </template>
 
+      <!-- JSON 处理专属节点 -->
+      <template #node-jsonTransform="nodeProps">
+        <JsonTransformNode
+          :node="nodeProps.data"
+          :selected="nodeProps.selected"
+          @trigger-run="$emit('trigger-run')"
+        />
+      </template>
+
+      <!-- 输出与调试 -->
       <template #node-output="nodeProps">
         <OutputNode :node="nodeProps.data" :selected="nodeProps.selected" />
       </template>
@@ -58,6 +67,8 @@
           </ParamRow>
         </BaseNode>
       </template>
+
+      <!-- 表格处理节点 -->
       <template #node-filter="nodeProps">
         <FilterNode
           :node="nodeProps.data"
@@ -82,6 +93,7 @@
   import { ElMessage } from "element-plus"
   import CsvReaderNode from "../nodes/CsvReaderNode.vue"
   import JsonReaderNode from "../nodes/JsonReaderNode.vue"
+  import JsonTransformNode from "../nodes/JsonTransformNode.vue" // 新增
   import OutputNode from "../nodes/OutputNode.vue"
   import BaseNode from "../nodes/BaseNode.vue"
   import TransformNode from "../nodes/TransformNode.vue"
@@ -94,7 +106,7 @@
   const isReady = ref(false)
   const emit = defineEmits(["trigger-run"])
   const graphStore = useStoreDataCleanGraph()
-  const { setViewport, removeSelectedElements } = useVueFlow()
+  const { setViewport } = useVueFlow()
 
   const transformTypes = [
     "select",
@@ -220,7 +232,7 @@
     }
   }
 
-  // ====== 连线逻辑（包含类型校验的预留接口） ======
+  // ====== 连线逻辑（核心：类型强校验） ======
   function onConnect(params) {
     const sourceNode = graphStore.getNode(params.source)
     const targetNode = graphStore.getNode(params.target)
@@ -230,11 +242,20 @@
     const targetOp = getOperator(targetNode.type)
     if (!sourceOp || !targetOp) return
 
-    if (!canConnect(sourceOp.meta.outputPortType, targetOp.meta.inputPortType)) {
-      ElMessage.warning(`端口类型不兼容`)
-      return
+    // 优先使用新的 outputCategory/inputCategory 契约
+    const sourceCategory = sourceOp.meta.outputCategory || "table"
+    const targetCategory = targetOp.meta.inputCategory
+
+    // 如果目标节点的类型契约是动态的，或者未声明，暂时放行
+    if (targetCategory && targetCategory !== "dynamic") {
+      // JSON 连到 Table 算子，或者 Table 连到 JSON 算子，拦截
+      if (sourceCategory !== targetCategory && sourceCategory !== "dynamic") {
+        ElMessage.warning(`类型不兼容：上游输出 [${sourceCategory}]，下游要求 [${targetCategory}]`)
+        return
+      }
     }
 
+    // 针对多输入节点（如 Join）的占用校验
     if (targetOp.meta.inputs > 1) {
       const existingInputs = graphStore.getIncomingEdges(params.target)
       const portHandle = params.targetHandle
@@ -273,6 +294,24 @@
   function onMessageChange(id, val) {
     graphStore.updateNodeParams(id, { text: val })
     emit("trigger-run")
+  }
+
+  // ====== 输入框拖拽拦截 ======
+  function handleMouseDownCapture(e) {
+    const target = e.target
+    if (!target) return
+    const isInteractive =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.closest(".el-input") ||
+      target.closest(".el-select") ||
+      target.closest(".el-checkbox") ||
+      target.closest(".el-radio-group") ||
+      target.closest(".el-switch") ||
+      target.closest(".cm-editor")
+    if (isInteractive) {
+      e.stopPropagation()
+    }
   }
 </script>
 

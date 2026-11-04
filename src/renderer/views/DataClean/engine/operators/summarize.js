@@ -1,4 +1,6 @@
 // Summarize 算子：按字段分组，对指定列执行聚合 (SUM/AVG/COUNT/MIN/MAX)
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "summarize",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "transform",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "groupFields", label: "分组字段", component: "fieldSelect", multiple: true },

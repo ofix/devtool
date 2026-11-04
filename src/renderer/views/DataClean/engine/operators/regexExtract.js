@@ -1,4 +1,6 @@
 // RegexExtract 算子：正则提取命名捕获组
+import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+
 export default {
   type: "regexExtract",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "parse",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "sourceField", label: "源字段", component: "fieldSelect", multiple: false },

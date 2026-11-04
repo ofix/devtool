@@ -1,4 +1,3 @@
-// 确保分类涵盖所有新算子
 export const NODE_TYPES = {
   INPUT: "input",
   OUTPUT: "output",
@@ -12,6 +11,7 @@ export const NODE_CATEGORIES = [
   { key: "join", label: "连接" },
   { key: "parse", label: "解析" },
   { key: "transform", label: "转换" },
+  { key: "json", label: "JSON 处理" }, // 新增 JSON 分类
   { key: "develop", label: "开发" },
   { key: "output", label: "输出" },
 ]

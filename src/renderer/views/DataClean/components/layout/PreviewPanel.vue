@@ -6,6 +6,13 @@
         <span v-if="hasData && meta.dataCategory === 'table'" class="title-meta">
           {{ meta.rowCount }} 行 · {{ meta.columns.length }} 列
         </span>
+        <span
+          v-if="meta.isTruncated"
+          class="title-meta log-hint"
+          style="color: #f59e0b; margin-left: 8px"
+        >
+          ⚠️ 数据过大，已截断展示
+        </span>
       </div>
       <div class="preview-actions">
         <el-button v-if="!isMessageNode" size="small" text @click="$emit('refresh')"
@@ -15,12 +22,14 @@
     </div>
 
     <div class="preview-body" ref="previewBodyRef" @mousedown="handleGlobalMouseDown">
-      <!-- 如果没有数据 -->
-      <EmptyState v-if="!isMessageNode && !hasData" :text="emptyText" />
+      <EmptyState
+        v-if="!isMessageNode && !hasData && meta.dataCategory !== 'empty'"
+        :text="emptyText"
+      />
 
-      <!-- 如果是 Table 形态（或者默认情况） -->
+      <!-- 表格视图 -->
       <el-table-v2
-        v-else-if="!isMessageNode && (meta.dataCategory === 'table' || !meta.dataCategory)"
+        v-else-if="meta.dataCategory === 'table'"
         ref="tableRef"
         :columns="tableColumns"
         :data="visibleRows"
@@ -38,12 +47,17 @@
         </template>
       </el-table-v2>
 
-      <!-- 如果是 JSON 形态 -->
+      <!-- JSON 视图 -->
       <JsonPreview
-        v-else-if="!isMessageNode && meta.dataCategory === 'json' && dataset"
+        v-else-if="meta.dataCategory === 'json' && dataset"
         :dataset="dataset"
-        :raw-data="dataset.rows"
+        :json-schema-tree="meta.jsonSchemaTree"
       />
+
+      <!-- 其他/未知状态 -->
+      <div v-else class="log-viewer">
+        <div class="empty-logs">无有效数据格式展示。</div>
+      </div>
     </div>
   </div>
 </template>
@@ -55,7 +69,6 @@
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
   import { useStoreDataCleanDatasets } from "../../stores/StoreDataCleanDatasets.js"
-  import { useStoreDataCleanLog } from "../../stores/StoreDataCleanLog.js"
   import { topoSort } from "../../engine/Scheduler.js"
 
   defineEmits(["refresh"])
@@ -63,7 +76,6 @@
   const graphStore = useStoreDataCleanGraph()
   const metaStore = useStoreDataCleanMeta()
   const datasetStore = useStoreDataCleanDatasets()
-  const logStore = useStoreDataCleanLog()
 
   const previewBodyRef = ref(null)
   const tableRef = ref(null)
@@ -87,6 +99,8 @@
         stale: false,
         staleReason: null,
         error: null,
+        jsonSchemaTree: null,
+        isTruncated: false,
       }
     return metaStore.getMeta(selected.value.id)
   })
@@ -101,31 +115,26 @@
     return `${selected.value.type} · ${selected.value.id.slice(0, 12)}`
   })
 
-  const hasData = computed(() => Boolean(dataset.value && dataset.value.rows.length > 0))
+  const hasData = computed(() => {
+    if (!meta.value.dataCategory) return false
+    if (meta.value.dataCategory === "table") {
+      return Boolean(dataset.value && dataset.value.rows.length > 0)
+    }
+    if (meta.value.dataCategory === "json") {
+      return Boolean(dataset.value && dataset.value.json !== null)
+    }
+    return false
+  })
+
   const isMessageNode = computed(() => selected.value && selected.value.type === "message")
 
   const emptyText = computed(() => {
     if (!selected.value) return "在画布上选中一个节点"
     if (meta.value.error) return `运行错误：${meta.value.error}`
     if (meta.value.stale) return `上游已断开（${meta.value.staleReason || "参数已变更"}）`
-    if (dataset.value && dataset.value.rows.length === 0) return "节点输出为空"
+    if (meta.value.dataCategory === "empty") return "节点输出为空"
     return "尚未运行，请检查参数或上游连线"
   })
-
-  const upstreamLogs = computed(() => {
-    if (!selected.value) return []
-    const order = topoSort(graphStore.nodes, graphStore.edges)
-    const msgIndex = order.indexOf(selected.value.id)
-    if (msgIndex === -1) return []
-    const upstreamNodeIds = new Set(order.slice(0, msgIndex + 1))
-    return logStore.logs.filter(log => upstreamNodeIds.has(log.nodeId)).slice(-100)
-  })
-
-  function getNodeLabel(nodeId) {
-    const node = graphStore.getNode(nodeId)
-    if (!node) return "System"
-    return node.type.charAt(0).toUpperCase() + node.type.slice(1)
-  }
 
   const visibleRows = computed(() => {
     if (!dataset.value || !dataset.value.rows) return []
@@ -147,13 +156,10 @@
     })
   })
 
-  // 修复：强制监听数据变化，重新计算表格尺寸
   watch(
     () => dataset.value,
     () => {
-      nextTick(() => {
-        measure()
-      })
+      nextTick(() => measure())
     },
     { deep: false },
   )
@@ -161,9 +167,8 @@
   function measure() {
     if (!previewBodyRef.value) return
     const rect = previewBodyRef.value.getBoundingClientRect()
-    // 强制给一个保底尺寸，防止因容器不可见导致 0 尺寸
-    tableWidth.value = Math.max(400, Math.floor(rect.width) - 12)
-    tableHeight.value = Math.max(200, Math.floor(rect.height) - 12)
+    tableWidth.value = Math.max(200, Math.floor(rect.width) - 12)
+    tableHeight.value = Math.max(120, Math.floor(rect.height) - 12)
   }
 
   let observer = null
@@ -178,7 +183,6 @@
     if (observer) observer.disconnect()
   })
 
-  // ... 拖拽列宽逻辑保持原样 ...
   function handleGlobalMouseDown(e) {
     const resizer = e.target.closest(".col-resizer")
     if (!resizer) return
@@ -230,7 +234,6 @@
 </script>
 
 <style scoped>
-  /* 保持你原有的样式 */
   .preview-panel {
     display: flex;
     flex-direction: column;
@@ -249,7 +252,7 @@
   }
   .preview-title {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     font-size: 12px;
   }
@@ -259,6 +262,10 @@
   }
   .title-meta {
     color: var(--dc-text-secondary, #64748b);
+  }
+  .log-hint {
+    color: #eab308;
+    font-weight: 600;
   }
   .preview-body {
     flex: 1;
@@ -320,30 +327,5 @@
     justify-content: center;
     height: 100%;
     color: #64748b;
-  }
-  .log-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .log-row {
-    display: flex;
-    gap: 8px;
-    line-height: 1.5;
-  }
-  .log-time {
-    color: #64748b;
-    flex-shrink: 0;
-  }
-  .log-node {
-    color: #38bdf8;
-    flex-shrink: 0;
-    width: 80px;
-  }
-  .level-warn .log-msg {
-    color: #fbbf24;
-  }
-  .level-error .log-msg {
-    color: #f87171;
   }
 </style>

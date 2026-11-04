@@ -1,97 +1,130 @@
-import { getOperator } from "./operators/index.js";
-import { inferDataCategory } from "./runtime/InferCategory.js";
+// 增加严格的类型校验拦截
+import { markRaw } from "vue"
+import { getOperator } from "./operators/index.js"
+import { inferDataCategory } from "./runtime/InferCategory.js"
+import { DATA_CATEGORY } from "../constants/DataCategories.js"
+import { JsonSchemaTree } from "./runtime/JsonSchemaTree.js"
 
 export default class Engine {
-    constructor({ metaStore, datasetStore, graphStore }) {
-        this.metaStore = metaStore;
-        this.datasetStore = datasetStore;
-        this.graphStore = graphStore;
+  constructor({ metaStore, datasetStore, graphStore }) {
+    this.metaStore = metaStore
+    this.datasetStore = datasetStore
+    this.graphStore = graphStore
+  }
+
+  async runNode(nodeId, context = {}) {
+    const node = this.graphStore.getNode(nodeId)
+    if (!node) return null
+
+    const op = getOperator(node.type)
+    if (!op) return null
+
+    const inputs = []
+    const incoming = this.graphStore.getIncomingEdges(nodeId)
+
+    for (const edge of incoming) {
+      const upstreamData = this.datasetStore.getDataset(edge.source)
+      if (!upstreamData) {
+        inputs.push({ dataCategory: DATA_CATEGORY.TABLE, rows: [], columns: [], json: null })
+        continue
+      }
+
+      // 上游形态校验
+      const expected = op.meta.inputCategory
+      if (expected && expected !== "dynamic" && upstreamData.dataCategory !== expected) {
+        throw new Error(
+          `输入类型不匹配：算子需要 [${expected}]，但上游是 [${upstreamData.dataCategory}]`,
+        )
+      }
+
+      inputs.push(upstreamData)
     }
 
-    async runNode(nodeId, context = {}) {
-        const node = this.graphStore.getNode(nodeId);
-        if (!node) return null;
-
-        const op = getOperator(node.type);
-        if (!op) return null;
-
-        const inputs = [];
-        const incoming = this.graphStore.getIncomingEdges(nodeId);
-        for (const edge of incoming) {
-            const upstream = this.datasetStore.getDataset(edge.source);
-            inputs.push(upstream || { rows: [], columns: [], dataCategory: "table" });
-        }
-
-        if (op.meta.inputs > 0) {
-            const hasMissing = incoming.some((e) => !this.datasetStore.getDataset(e.source));
-            if (incoming.length === 0 || hasMissing) {
-                this.metaStore.markStale(nodeId, "上游无数据");
-                return null;
-            }
-        }
-
-        try {
-            // 将上游的 dataCategory 透传给算子
-            const result = op.execute(inputs, node.params || {}, {
-                log: context.log || (() => {}),
-                rawText: resolveRawText(node, context),
-                nodeId,
-                datasetStore: this.datasetStore,
-                metaStore: this.metaStore,
-            });
-
-            // 推断输出形态
-            const finalCategory = result.dataCategory || inferDataCategory(result.rows);
-            
-            const normalized = {
-                rows: result.rows || [],
-                columns: result.columns || [],
-                dataCategory: finalCategory
-            };
-
-            this.datasetStore.setDataset(nodeId, normalized);
-            
-            this.metaStore.updateMeta(nodeId, {
-                rowCount: normalized.rows.length,
-                columns: normalized.columns,
-                dataCategory: finalCategory,
-                columnsVersion: Date.now(),
-                stale: false,
-                staleReason: null,
-                error: null,
-            });
-            return normalized;
-        } catch (err) {
-            this.metaStore.setError(nodeId, err.message || String(err));
-            if (context.log) context.log(`[${node.type}] ${err.message}`, "error");
-            return null;
-        }
+    if (op.meta.inputs > 0) {
+      const hasMissing = incoming.some(e => !this.datasetStore.getDataset(e.source))
+      if (incoming.length === 0 || hasMissing) {
+        this.metaStore.markStale(nodeId, "上游无数据")
+        return null
+      }
     }
 
-    // ... (保留原有的 invalidateDownstream 和 invalidateAll 逻辑，无需改动)
-    invalidateDownstream(nodeId, reason = "参数已变更") {
-        const visited = new Set();
-        const queue = [nodeId];
-        while (queue.length > 0) {
-            const id = queue.shift();
-            if (visited.has(id)) continue;
-            visited.add(id);
-            this.datasetStore.removeDataset(id);
-            this.metaStore.markStale(id, reason);
-            const outgoing = this.graphStore.getOutgoingEdges(id);
-            for (const edge of outgoing) queue.push(edge.target);
-        }
-    }
+    try {
+      const result = await op.execute(inputs, node.params || {}, {
+        log: context.log || (() => {}),
+        rawText: resolveRawText(node, context),
+        nodeId,
+        datasetStore: this.datasetStore,
+        metaStore: this.metaStore,
+      })
 
-    invalidateAll() {
-        for (const node of this.graphStore.nodes) {
-            this.datasetStore.removeDataset(node.id);
-            this.metaStore.markStale(node.id, "管线已变更");
-        }
+      const finalCategory = result.dataCategory || inferDataCategory(result.rows)
+
+      const normalized = {
+        dataCategory: finalCategory,
+        rows: finalCategory === DATA_CATEGORY.TABLE ? result.rows || [] : [],
+        columns: finalCategory === DATA_CATEGORY.TABLE ? result.columns || [] : [],
+        json: finalCategory === DATA_CATEGORY.JSON ? result.json || null : null,
+        formattedText: result.formattedText || null,
+        isTruncated: result.isTruncated || false,
+      }
+
+      let jsonSchemaTree = null
+      if (finalCategory === DATA_CATEGORY.JSON && normalized.json) {
+        const builder = new JsonSchemaTree(normalized.json)
+        jsonSchemaTree = markRaw(builder.build())
+      }
+
+      this.datasetStore.setDataset(nodeId, normalized)
+      this.metaStore.updateMeta(nodeId, {
+        rowCount:
+          finalCategory === DATA_CATEGORY.TABLE
+            ? normalized.rows.length
+            : finalCategory === DATA_CATEGORY.JSON
+              ? Array.isArray(normalized.json)
+                ? normalized.json.length
+                : 1
+              : 0,
+        columns: normalized.columns,
+        dataCategory: finalCategory,
+        jsonSchemaTree,
+        formattedText: normalized.formattedText,
+        isTruncated: normalized.isTruncated,
+        stale: false,
+        staleReason: null,
+        error: null,
+      })
+      return normalized
+    } catch (err) {
+      const errMsg = err.message || String(err)
+      this.metaStore.setError(nodeId, errMsg)
+      if (context.log) context.log(`[${node.type}] ${errMsg}`, "error")
+      return null
     }
+  }
+
+  invalidateDownstream(nodeId, reason = "参数已变更") {
+    const visited = new Set()
+    const queue = [nodeId]
+    while (queue.length > 0) {
+      const id = queue.shift()
+      if (visited.has(id)) continue
+      visited.add(id)
+      this.datasetStore.removeDataset(id)
+      this.metaStore.markStale(id, reason)
+      const outgoing = this.graphStore.getOutgoingEdges(id)
+      for (const edge of outgoing) queue.push(edge.target)
+    }
+  }
+
+  invalidateAll() {
+    for (const node of this.graphStore.nodes) {
+      this.datasetStore.removeDataset(node.id)
+      this.metaStore.markStale(node.id, "管线已变更")
+    }
+  }
 }
 
 function resolveRawText(node, context) {
-    if (node.params && typeof node.params.rawText === "string") return node.params.rawText;
-    return context && context.rawText ? context.rawText : "";
+  if (node.params && typeof node.params.rawText === "string") return node.params.rawText
+  return context && context.rawText ? context.rawText : ""
 }

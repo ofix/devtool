@@ -1,4 +1,5 @@
 // FolderOutput 算子：按列分文件输出到目录
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 export default {
   type: "folderOutput",
   meta: {
@@ -8,8 +9,8 @@ export default {
     category: "output",
     inputs: 1,
     outputs: 0,
-    inputPortType: "table",
-    outputPortType: null,
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: null,
   },
   schema: [
     { field: "outputDir", label: "输出目录", component: "folder" },

@@ -1,3 +1,4 @@
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { DB_DRIVERS } from "../db/DBDrivers.js"
 import { dbManager } from "../db/DbManager.js"
 
@@ -10,8 +11,8 @@ export default {
     category: "source",
     inputs: 0,
     outputs: 1,
-    inputPortType: null,
-    outputPortType: "table",
+    inputCategory: null,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     {

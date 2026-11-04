@@ -1,4 +1,6 @@
 // Join 算子：左右表连接
+import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+
 export default {
   type: "join",
   meta: {
@@ -8,11 +10,11 @@ export default {
     category: "join",
     inputs: 2,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
-    // 重点：指定 sourcePort 让 TransformNode 去读对应的输入端口
+    // 指定 sourcePort 让 TransformNode 去读对应的输入端口
     { field: "leftKey", label: "左表键", component: "fieldSelect", sourcePort: 0, multiple: false },
     {
       field: "rightKey",

@@ -1,4 +1,6 @@
 // XLSX Output 算子：基于 ExcelJS
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "xlsxOutput",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "output",
     inputs: 1,
     outputs: 0,
-    inputPortType: "table",
-    outputPortType: null,
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: null,
   },
   schema: [
     { field: "filePath", label: "输出文件", component: "saveFile", extensions: ["xlsx"] },

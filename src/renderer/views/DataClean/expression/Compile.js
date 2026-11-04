@@ -1,5 +1,4 @@
 // 编译期：将 AST 编译为快速闭包 (row) => value
-
 import { resolvePath } from "./ResolvePath.js"
 
 export function compile(ast) {

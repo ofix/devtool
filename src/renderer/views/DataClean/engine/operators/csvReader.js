@@ -1,4 +1,23 @@
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { inferColumns } from "../runtime/Dataset.js"
+
+// 简单的 CSV 解析（支持双引号转义，不支持跨行字段）
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0)
+  if (lines.length === 0) return { rows: [], columns: [] }
+
+  const header = splitCsvLine(lines[0])
+  const rows = []
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitCsvLine(lines[i])
+    const row = {}
+    for (let c = 0; c < header.length; c++) {
+      row[header[c]] = cells[c] !== undefined ? cells[c] : ""
+    }
+    rows.push(row)
+  }
+  return { rows, columns: inferColumns(rows, header) }
+}
 
 function splitCsvLine(line) {
   const cells = []
@@ -32,23 +51,6 @@ function splitCsvLine(line) {
   return cells
 }
 
-export function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0)
-  if (lines.length === 0) return { rows: [], columns: [] }
-
-  const header = splitCsvLine(lines[0])
-  const rows = []
-  for (let i = 1; i < lines.length; i++) {
-    const cells = splitCsvLine(lines[i])
-    const row = {}
-    for (let c = 0; c < header.length; c++) {
-      row[header[c]] = cells[c] !== undefined ? cells[c] : ""
-    }
-    rows.push(row)
-  }
-  return { rows, columns: inferColumns(rows, header) }
-}
-
 export default {
   type: "csvReader",
   meta: {
@@ -58,33 +60,30 @@ export default {
     category: "source",
     inputs: 0,
     outputs: 1,
-    inputPortType: null,
-    outputPortType: "table",
+    inputCategory: null,
+    outputCategory: DATA_CATEGORY.TABLE, // 强类型声明
   },
   schema: [
-    {
-      field: "filePath",
-      label: "文件",
-      component: "file",
-      extensions: ["csv"],
-    },
+    { field: "filePath", label: "文件", component: "file", extensions: ["csv"] },
     {
       field: "encoding",
       label: "编码",
       component: "select",
       options: [
-        {
-          label: "UTF-8",
-          value: "utf-8",
-        },
-        {
-          label: "GBK",
-          value: "gbk",
-        },
+        { label: "UTF-8", value: "utf-8" },
+        { label: "GBK", value: "gbk" },
       ],
     },
   ],
   execute(_inputs, params, ctx) {
-    return parseCsv(ctx.rawText || "")
+    const text = ctx && ctx.rawText ? ctx.rawText : ""
+    if (!text && ctx?.log) ctx.log("[CSV Reader] 未读取到文件内容", "warn")
+
+    const parsed = parseCsv(text)
+    return {
+      dataCategory: DATA_CATEGORY.TABLE,
+      rows: parsed.rows,
+      columns: parsed.columns,
+    }
   },
 }

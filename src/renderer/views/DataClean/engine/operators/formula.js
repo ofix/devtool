@@ -1,4 +1,5 @@
 // Formula 算子：计算列，复用表达式系统
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
 
@@ -11,8 +12,8 @@ export default {
     category: "prepare",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "newField", label: "输出列名", component: "input" },

@@ -1,4 +1,6 @@
 // Transpose 算子：宽表转长表 (Unpivot)
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "transpose",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "transform",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "keepFields", label: "保留列", component: "fieldSelect", multiple: true },

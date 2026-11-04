@@ -1,3 +1,4 @@
+<!-- 修复底栏：数据源显示 Source，未连线显示 --，输出类型未定显示 -- -->
 <template>
   <div
     class="base-node"
@@ -18,27 +19,26 @@
     <div class="node-body" v-show="!collapsed">
       <slot />
 
-      <!-- 底栏：显示输入输出类型与统计 -->
       <div class="node-footer">
         <div class="shape-info">
-          <!-- 输入类型：没连线则显示 -- -->
-          <span class="shape-text" :class="incomingType || 'unknown'">
-            {{ incomingType || "--" }}
+          <!-- 输入类型 -->
+          <span class="shape-text" :class="inputTypeClass">
+            {{ inputTypeLabel }}
           </span>
           <span class="shape-arrow">➜</span>
-          <!-- 输出类型：如果有 Meta 则显示，否则显示算子的预设 -->
-          <span class="shape-text" :class="outgoingType || 'unknown'">
-            {{ outgoingType || "--" }}
+          <!-- 输出类型 -->
+          <span class="shape-text" :class="outputTypeClass">
+            {{ outputTypeLabel }}
           </span>
         </div>
 
         <div class="stats-info">
-          <template v-if="metaState.rowCount !== null && outgoingType">
-            <template v-if="outgoingType === 'table'">
+          <template v-if="metaState.rowCount !== null && metaState.dataCategory">
+            <template v-if="metaState.dataCategory === 'table'">
               {{ metaState.rowCount }} 行 / {{ metaState.columns.length }} 列
             </template>
-            <template v-else-if="outgoingType === 'json'">
-              {{ metaState.rowCount }} 个对象
+            <template v-else-if="metaState.dataCategory === 'json'">
+              {{ metaState.rowCount !== null ? metaState.rowCount + " 个对象" : "--" }}
             </template>
           </template>
           <template v-else>
@@ -100,23 +100,32 @@
   const outputCount = computed(() => Math.max(0, opMeta.value.outputs || 0))
   const metaState = computed(() => metaStore.getMeta(props.node.id))
 
-  // 获取上游数据形态
-  const incomingType = computed(() => {
-    // 如果当前节点没有输入端口，说明它是数据源，显示 Source
-    if (opMeta.value.inputs === 0) return "Source"
-
+  // --- 底栏输入类型推断 ---
+  const inputTypeLabel = computed(() => {
+    if (opMeta.value.inputs === 0) return "SOURCE" // 数据源
     const edges = graphStore.getIncomingEdges(props.node.id)
-    // 如果有输入端口但没连线，显示 --
-    if (edges.length === 0) return null
-
-    return metaStore.getMeta(edges[0].source).dataCategory
+    if (edges.length === 0) return "--" // 未连线
+    return metaStore.getMeta(edges[0].source).dataCategory?.toUpperCase() || "--"
+  })
+  const inputTypeClass = computed(() => {
+    if (inputTypeLabel.value === "--" || inputTypeLabel.value === "SOURCE") return "unknown"
+    return inputTypeLabel.value.toLowerCase()
   })
 
-  // 获取当前输出形态（如果已经执行过）
-  const outgoingType = computed(() => {
-    if (metaState.value.dataCategory) return metaState.value.dataCategory
-    // 如果还没执行过，读算子静态预设
-    return opMeta.value.outputCategory
+  // --- 底栏输出类型推断 ---
+  const outputTypeLabel = computed(() => {
+    // 优先取运行后存下的 dataCategory
+    if (metaState.value.dataCategory) return metaState.value.dataCategory.toUpperCase()
+    // 其次取算子的静态声明
+    if (opMeta.value.outputCategory && opMeta.value.outputCategory !== "dynamic") {
+      return opMeta.value.outputCategory.toUpperCase()
+    }
+    // 如果是动态输出且未运行
+    return "--"
+  })
+  const outputTypeClass = computed(() => {
+    if (outputTypeLabel.value === "--") return "unknown"
+    return outputTypeLabel.value.toLowerCase()
   })
 
   const nodeStyle = computed(() => {
@@ -158,7 +167,7 @@
 </script>
 
 <style scoped>
-  /* 保持原有 BaseNode 样式，追加 footer 样式 */
+  /* 保持原有样式，补充底栏状态类 */
   .base-node {
     min-width: 220px;
     max-width: 340px;
@@ -247,8 +256,6 @@
     max-height: 400px;
     overflow-y: auto;
   }
-
-  /* 新增底栏样式 */
   .node-footer {
     display: flex;
     justify-content: space-between;
@@ -295,9 +302,5 @@
   }
   .stats-placeholder {
     opacity: 0.5;
-  }
-  .shape-text.source {
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
   }
 </style>

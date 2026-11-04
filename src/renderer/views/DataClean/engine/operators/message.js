@@ -1,3 +1,4 @@
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 // 修改：标准的透传算子
 export default {
   type: "message",
@@ -8,8 +9,8 @@ export default {
     category: "develop",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "text", label: "消息", component: "input" }],
   execute(inputs, params, ctx) {

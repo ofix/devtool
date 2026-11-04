@@ -1,27 +1,23 @@
 <template>
   <div class="json-preview-container">
-    <!-- 左侧：Schema 导航树 -->
     <div class="json-sidebar" :style="{ width: sidebarWidth + 'px' }">
       <div class="sidebar-toolbar">
-        <div class="toolbar-left">
-          <el-button link size="small" @click="toggleExpandAll">
-            {{ isAllExpanded ? "全部折叠" : "全部展开" }}
-          </el-button>
-        </div>
+        <el-button link size="small" @click="toggleExpandAll">
+          {{ isAllExpanded ? "全部折叠" : "全部展开" }}
+        </el-button>
         <el-input
           v-model="searchText"
           size="small"
-          placeholder="搜索字段..."
+          placeholder="搜索..."
           clearable
           prefix-icon="Search"
           class="search-input"
         />
       </div>
-
       <div class="schema-tree-wrapper dc-custom-scrollbar">
         <el-tree
           ref="treeRef"
-          :data="schemaTree"
+          :data="jsonSchemaTree"
           :props="{ label: 'label', children: 'children' }"
           node-key="path"
           :filter-node-method="filterNode"
@@ -34,17 +30,15 @@
             <span class="custom-tree-node">
               <span class="label">{{ data.label }}</span>
               <span class="type">{{ data.typeLabel }}</span>
-              <span v-if="data.depth > 0" class="depth-badge">[+{{ data.depth }}]</span>
+              <span v-if="data.countTag" class="count-tag">{{ data.countTag }}</span>
             </span>
           </template>
         </el-tree>
       </div>
     </div>
 
-    <!-- 拖拽分割线 -->
     <div class="resizer" @mousedown="startResize"></div>
 
-    <!-- 右侧：数据视图 -->
     <div class="json-main">
       <div class="viewer-toolbar">
         <el-switch
@@ -55,15 +49,11 @@
           size="small"
         />
       </div>
-
       <div class="viewer-content dc-custom-scrollbar">
-        <!-- Raw 模式 -->
         <div v-if="isRawMode" ref="rawEditorRef" class="raw-editor-host"></div>
-
-        <!-- Tree 模式 -->
         <div v-else class="tree-viewer-wrapper">
           <vue-json-pretty
-            :data="rawData"
+            :data="dataset.json"
             :deep="2"
             :show-length="true"
             :highlight-selected-node="true"
@@ -76,7 +66,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, watch, onBeforeUnmount, nextTick } from "vue"
+  import { ref, watch, onBeforeUnmount, nextTick, computed } from "vue"
   import VueJsonPretty from "vue-json-pretty"
   import "vue-json-pretty/lib/styles.css"
   import { EditorView, lineNumbers } from "@codemirror/view"
@@ -85,7 +75,7 @@
 
   const props = defineProps({
     dataset: { type: Object, required: true },
-    rawData: { type: Array, default: () => [] },
+    jsonSchemaTree: { type: Array, default: () => [] },
   })
 
   const isRawMode = ref(true)
@@ -99,12 +89,12 @@
   let startX = 0
   let startWidth = 0
 
-  // 过滤与树操作
   watch(searchText, val => treeRef.value?.filter(val))
   function filterNode(value, data) {
     if (!value) return true
     return data.label.toLowerCase().includes(value.toLowerCase())
   }
+
   function toggleExpandAll() {
     isAllExpanded.value = !isAllExpanded.value
     const nodes = treeRef.value?.store.nodesMap
@@ -112,7 +102,6 @@
     for (const key in nodes) nodes[key].expanded = isAllExpanded.value
   }
 
-  // 拖拽
   function startResize(e) {
     startX = e.clientX
     startWidth = sidebarWidth.value
@@ -131,20 +120,14 @@
     window.removeEventListener("mouseup", onMouseUp)
   }
 
-  // 核心：CodeMirror 初始化
-  const rawFormattedJson = computed(() => {
-    try {
-      return JSON.stringify(props.rawData, null, 2)
-    } catch (e) {
-      return "// JSON 格式化失败"
-    }
-  })
+  const rawFormattedJson = computed(
+    () => props.dataset.formattedText || JSON.stringify(props.dataset.json, null, 2),
+  )
 
   function initCodeMirror() {
     if (!rawEditorRef.value) return
     if (cmView) cmView.destroy()
 
-    // 使用原生轻量级主题，不引入任何高阶高亮扩展，确保绝对不会报错
     const customTheme = EditorView.theme({
       "&": { height: "100%", fontSize: "12px", backgroundColor: "transparent" },
       ".cm-content": { fontFamily: "Consolas, monospace", padding: "8px 0" },
@@ -159,27 +142,17 @@
 
     const state = EditorState.create({
       doc: rawFormattedJson.value,
-      extensions: [
-        lineNumbers(),
-        json(), // 借助 lang-json 自带的 token 类名，用 CSS 上色
-        customTheme,
-        EditorView.editable.of(false),
-      ],
+      extensions: [lineNumbers(), json(), customTheme, EditorView.editable.of(false)],
     })
 
-    cmView = new EditorView({
-      state,
-      parent: rawEditorRef.value,
-    })
+    cmView = new EditorView({ state, parent: rawEditorRef.value })
   }
 
   watch(
     [isRawMode, rawFormattedJson],
     () => {
       if (isRawMode.value) {
-        nextTick(() => {
-          initCodeMirror()
-        })
+        nextTick(() => initCodeMirror())
       }
     },
     { immediate: true },
@@ -189,65 +162,21 @@
     if (cmView) cmView.destroy()
   })
 
-  // Schema 提取
-  const schemaTree = computed(() => {
-    if (!props.rawData || props.rawData.length === 0) return []
-    const root = { label: "root", typeLabel: "{}", path: "root", depth: 0, children: new Map() }
-    const sample = props.rawData.slice(0, 100)
-    for (const item of sample) traverse(item, root.children, "root")
-
-    function mapToArray(childrenMap) {
-      const arr = []
-      for (const [key, node] of childrenMap.entries()) {
-        let typeLabel = "string"
-        let depth = 0
-        if (Array.isArray(node.value)) {
-          typeLabel = "[]"
-          let current = node.value
-          while (Array.isArray(current) && current.length > 0) {
-            depth++
-            current = current[0]
-          }
-        } else if (typeof node.value === "object" && node.value !== null) {
-          typeLabel = "{}"
-        } else {
-          typeLabel = typeof node.value
-        }
-        arr.push({
-          label: node.key,
-          typeLabel,
-          depth,
-          path: node.path,
-          children: mapToArray(node.children),
-        })
-      }
-      return arr
-    }
-    return mapToArray(root.children)
-  })
-
-  function traverse(obj, childrenMap, parentPath) {
-    if (obj === null || obj === undefined) return
-    if (Array.isArray(obj)) {
-      for (const item of obj) traverse(item, childrenMap, parentPath)
-    } else if (typeof obj === "object") {
-      for (const [key, val] of Object.entries(obj)) {
-        const currentPath = parentPath === "root" ? key : `${parentPath}.${key}`
-        if (!childrenMap.has(key)) {
-          childrenMap.set(key, { key, value: val, path: currentPath, children: new Map() })
-        }
-        traverse(val, childrenMap.get(key).children, currentPath)
-      }
-    }
-  }
-
+  // 点击左侧节点，右侧滚动
   function onNodeClick(data) {
-    console.log("点击了 Schema 路径:", data.path)
+    if (isRawMode.value && cmView && data.firstLine > 0) {
+      const lineCount = cmView.state.doc.lines
+      const targetLine = Math.min(data.firstLine, lineCount)
+      const line = cmView.state.doc.line(targetLine)
+      cmView.dispatch({
+        selection: { anchor: line.from },
+        effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+      })
+    }
   }
 </script>
 
 <style scoped>
-  /* 局部布局样式 */
   .json-preview-container {
     display: flex;
     height: 100%;
@@ -269,9 +198,6 @@
     gap: 8px;
     padding: 8px;
     border-bottom: 1px solid var(--dc-border);
-  }
-  .toolbar-left {
-    flex-shrink: 0;
   }
   .search-input {
     flex: 1;
@@ -338,17 +264,17 @@
     font-size: 10px;
     opacity: 0.7;
   }
-  .custom-tree-node .depth-badge {
+  .count-tag {
     background: rgba(139, 92, 246, 0.1);
     color: #8b5cf6;
     font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 3px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
   }
 </style>
 
 <style>
-  /* 全局穿透样式 */
   .schema-tree-wrapper .el-tree {
     min-width: max-content !important;
   }
@@ -403,13 +329,9 @@
   [data-theme="dark"] .vjs-value__null {
     color: #64748b !important;
   }
-
-  /* CodeMirror 滚动条接管 */
   .viewer-content .cm-scroller {
     overflow: auto !important;
   }
-
-  /* 原生 CSS 语法高亮 */
   .cm-content .tok-propertyName {
     color: #3b82f6;
   }
@@ -428,7 +350,6 @@
   .cm-content .tok-punctuation {
     color: #64748b;
   }
-
   [data-theme="dark"] .cm-content .tok-propertyName {
     color: #60a5fa;
   }

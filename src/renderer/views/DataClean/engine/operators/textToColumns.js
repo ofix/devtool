@@ -1,4 +1,6 @@
 // Text to Columns：按分隔符或正则拆分一列
+import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+
 export default {
   type: "textToColumns",
   meta: {
@@ -8,8 +10,8 @@ export default {
     category: "parse",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "sourceField", label: "拆分列", component: "fieldSelect", multiple: false },

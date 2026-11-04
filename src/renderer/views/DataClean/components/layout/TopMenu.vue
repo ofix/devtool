@@ -62,6 +62,7 @@
     SetUp,
     CopyDocument,
     Filter,
+    MagicStick,
   } from "@element-plus/icons-vue"
   import { listOperators } from "../../engine/operators/index.js"
   import { NODE_CATEGORIES } from "../../constants/NodeTypes.js"
@@ -124,6 +125,7 @@
       IconCalculator: Coin,
       IconExcel: DocumentAdd,
       IconDatabase: Coin,
+      IconTransform: MagicStick,
       default: Files,
     }
     return map[iconName] || map.default

@@ -1,4 +1,5 @@
 // Cross Tab 算子：长转宽 (Pivot)
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 export default {
   type: "crossTab",
   meta: {
@@ -8,8 +9,8 @@ export default {
     category: "transform",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
     { field: "rowField", label: "行字段", component: "fieldSelect", multiple: false },

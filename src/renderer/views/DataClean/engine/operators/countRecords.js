@@ -1,4 +1,5 @@
 // Count Records 算子：输出单行单列
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 export default {
   type: "countRecords",
   meta: {
@@ -8,8 +9,8 @@ export default {
     category: "transform",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "newField", label: "计数字段名", component: "input", defaultValue: "count" }],
   execute(inputs, params) {

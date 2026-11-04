@@ -1,3 +1,4 @@
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { dbManager } from "../db/DbManager.js"
 
 export default {
@@ -9,8 +10,8 @@ export default {
     category: "source",
     inputs: 1,
     outputs: 1,
-    inputPortType: "table",
-    outputPortType: "table",
+    inputCategory: DATA_CATEGORY.TABLE,
+    outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "sql", label: "SQL 查询", component: "expression" }],
   async execute(inputs, params, ctx) {
