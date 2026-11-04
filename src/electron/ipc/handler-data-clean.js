@@ -131,6 +131,23 @@ class DataCleanHandler {
     ipcMain.handle(`${CHANNEL_PREFIX}:shell:showItemInFolder`, async (_e, filePath) => {
       shell.showItemInFolder(filePath)
     })
+
+    ipcMain.handle(`${CHANNEL_PREFIX}:fs:writeFile`, async (_e, filePath, content) => {
+      await fs.promises.mkdir(path.dirname(filePath), {
+        recursive: true,
+      })
+      await fs.promises.writeFile(filePath, content, "utf8")
+      return true
+    })
+
+    // 👇 新增这个：用于写入 Excel 等二进制文件
+    ipcMain.handle(`${CHANNEL_PREFIX}:fs:writeBuffer`, async (_e, filePath, buffer) => {
+      await fs.promises.mkdir(path.dirname(filePath), {
+        recursive: true,
+      })
+      await fs.promises.writeFile(filePath, buffer)
+      return true
+    })
   }
 }
 

@@ -1,3 +1,4 @@
+<!-- ==== FILE: src/renderer/views/DataClean/components/expression/JqHelpDialog.vue ==== -->
 <template>
   <el-dialog
     :model-value="visible"
@@ -8,7 +9,7 @@
     @update:model-value="$emit('update:visible', $event)"
   >
     <div class="jq-help-layout">
-      <!-- 左侧分类导航 (保持不变) -->
+      <!-- 左侧分类导航 -->
       <div class="help-sidebar">
         <div class="search-box">
           <el-input
@@ -19,7 +20,7 @@
             prefix-icon="Search"
           />
         </div>
-        <div class="category-list">
+        <div class="category-list dc-custom-scrollbar">
           <div
             v-for="cat in filteredCategories"
             :key="cat.category"
@@ -36,27 +37,27 @@
       <div class="help-content dc-custom-scrollbar">
         <template v-if="currentItems.length > 0">
           <div v-for="item in currentItems" :key="item.title" class="help-item">
+            <!-- 头部 -->
             <div class="item-header">
-              <span class="title">{{ item.title }}</span>
-              <span class="desc">{{ item.desc }}</span>
+              <div class="title-wrap">
+                <span class="title">{{ item.title }}</span>
+                <span class="desc">{{ item.desc }}</span>
+              </div>
               <el-button size="small" type="primary" plain @click="applyCode(item.code)"
                 >插入代码</el-button
               >
             </div>
 
-            <!-- 表达式区域 -->
-            <div class="expr-preview">
-              <div class="io-label">JQ 表达式</div>
-              <JsonViewer :value="item.code" language="text" max-height="80px" />
+            <!-- 表达式代码 -->
+            <div class="expr-box">
+              <JsonViewer :value="item.code" height="32px" />
             </div>
 
-            <!-- 输入输出对比区域 -->
+            <!-- 输入输出对比 -->
             <div class="io-preview">
-              <!-- 输入 JSON -->
               <div class="io-box">
                 <div class="io-header">
                   <span class="io-label">输入 JSON</span>
-                  <!-- 切换开关 -->
                   <el-switch
                     v-model="item.isInputTree"
                     inline-prompt
@@ -65,30 +66,22 @@
                     size="small"
                   />
                 </div>
-                <div class="io-content">
+                <div class="io-content dc-custom-scrollbar">
                   <vue-json-pretty
                     v-if="item.isInputTree"
                     :data="item.input"
-                    :deep="1"
+                    :deep="3"
                     :show-icon="true"
-                    class="dc-custom-scrollbar"
                   />
-                  <jq-expression-panel
-                    v-else
-                    :value="formatJson(item.input)"
-                    language="json"
-                    max-height="220px"
-                  />
+                  <JsonViewer v-else :value="formatJson(item.input)" max-height="160px" />
                 </div>
               </div>
 
               <div class="io-arrow">➜</div>
 
-              <!-- 输出 JSON -->
               <div class="io-box">
                 <div class="io-header">
                   <span class="io-label">输出 JSON</span>
-                  <!-- 切换开关 -->
                   <el-switch
                     v-model="item.isOutputTree"
                     inline-prompt
@@ -97,20 +90,14 @@
                     size="small"
                   />
                 </div>
-                <div class="io-content">
+                <div class="io-content dc-custom-scrollbar">
                   <vue-json-pretty
                     v-if="item.isOutputTree"
                     :data="item.output"
-                    :deep="1"
+                    :deep="3"
                     :show-icon="true"
-                    class="dc-custom-scrollbar"
                   />
-                  <JsonViewer
-                    v-else
-                    :value="formatJson(item.output)"
-                    language="json"
-                    max-height="220px"
-                  />
+                  <JsonViewer v-else :value="formatJson(item.output)" max-height="160px" />
                 </div>
               </div>
             </div>
@@ -123,29 +110,22 @@
 </template>
 
 <script setup>
+  // ... (省略 script setup 里的逻辑，与你之前的一致，无需修改) ...
   import { ref, computed, watch } from "vue"
   import VueJsonPretty from "vue-json-pretty"
   import "vue-json-pretty/lib/styles.css"
   import JsonViewer from "../common/JsonViewer.vue"
   import { JQ_CHEATSHEET } from "../../constants/jqCheatsheet.js"
 
-  const props = defineProps({
-    visible: { type: Boolean, default: false },
-  })
+  const props = defineProps({ visible: { type: Boolean, default: false } })
   const emit = defineEmits(["update:visible", "apply"])
-
   const searchText = ref("")
   const currentCategory = ref("")
 
-  // 初始化数据：给每个 item 增加 isInputTree 和 isOutputTree 状态，默认为 false (Raw 模式)
   const cheatsheetData = ref(
     JQ_CHEATSHEET.map(cat => ({
       ...cat,
-      items: cat.items.map(item => ({
-        ...item,
-        isInputTree: false,
-        isOutputTree: false,
-      })),
+      items: cat.items.map(item => ({ ...item, isInputTree: false, isOutputTree: false })),
     })),
   )
 
@@ -202,18 +182,22 @@
 <style scoped>
   .jq-help-layout {
     display: flex;
-    height: 600px;
-    gap: 16px;
+    height: 550px; /* 调整整体弹窗高度 */
+    gap: 0;
+    background: var(--dc-app-bg, #ffffff);
   }
 
-  /* 左侧 */
+  /* 左侧导航 */
   .help-sidebar {
     width: 180px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
     border-right: 1px solid var(--dc-border);
-    padding-right: 12px;
+    background: var(--dc-preview-header-bg);
+    padding: 12px;
+  }
+  .search-box {
+    margin-bottom: 12px;
   }
   .category-list {
     flex: 1;
@@ -226,34 +210,43 @@
     cursor: pointer;
     color: var(--dc-text-primary);
     margin-bottom: 4px;
+    transition: background 0.2s;
   }
   .category-item:hover {
-    background: var(--dc-preview-header-bg);
+    background: rgba(59, 130, 246, 0.08);
   }
   .category-item.active {
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(59, 130, 246, 0.15);
     color: #3b82f6;
     font-weight: 600;
   }
 
-  /* 右侧 */
+  /* 右侧内容区 */
   .help-content {
     flex: 1;
     overflow-y: auto;
-    padding-right: 8px;
+    padding: 16px;
   }
+
   .help-item {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     background: var(--dc-preview-bg);
     border: 1px solid var(--dc-border);
     border-radius: 6px;
-    padding: 16px;
+    padding: 12px; /* 减少内边距，更加紧凑 */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   }
+
   .item-header {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 12px;
+  }
+  .title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .title {
     font-weight: 600;
@@ -261,30 +254,33 @@
     color: var(--dc-text-primary);
   }
   .desc {
-    flex: 1;
     font-size: 12px;
     color: var(--dc-text-secondary);
   }
 
-  /* 代码与 IO 预览 */
-  .expr-preview {
+  .expr-box {
+    border: 1px solid var(--dc-border);
+    border-radius: 4px;
+    background: var(--dc-canvas-bg);
     margin-bottom: 12px;
+    overflow: hidden;
   }
+
   .io-preview {
     display: flex;
     gap: 12px;
     align-items: stretch;
   }
+
   .io-box {
     flex: 1;
-    background: var(--dc-canvas-bg);
-    border-radius: 4px;
     border: 1px solid var(--dc-border);
-    overflow: hidden;
+    border-radius: 4px;
+    background: var(--dc-canvas-bg);
     display: flex;
     flex-direction: column;
   }
-  /* 头部包含标题和 switch */
+
   .io-header {
     display: flex;
     justify-content: space-between;
@@ -293,23 +289,27 @@
     background: var(--dc-preview-header-bg);
     border-bottom: 1px solid var(--dc-border);
   }
+
   .io-label {
     font-size: 11px;
     font-weight: 600;
     color: var(--dc-text-secondary);
   }
 
-  /* 内容容器，负责统一的高度和滚动 */
+  /* 去掉固定高度，让内容自行撑开，最多撑到 160px，超过就滚动 */
   .io-content {
-    flex: 1;
     overflow: auto;
-    max-height: 220px;
+    max-height: 160px;
   }
+
+  /* 覆盖 vue-json-pretty 默认样式，让它更紧凑 */
   .io-content :deep(.vjs-tree) {
-    padding: 8px;
+    padding: 4px 8px;
     font-size: 12px;
-    font-family: monospace;
+    font-family: "SF Mono", Consolas, monospace;
+    background-color: transparent;
   }
+
   .io-arrow {
     display: flex;
     align-items: center;
@@ -321,5 +321,22 @@
     text-align: center;
     padding: 40px 0;
     color: var(--dc-text-secondary);
+  }
+</style>
+
+<style>
+  /* 修复整个 Dialog 的样式 */
+  .jq-help-dialog {
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--dc-app-bg, #ffffff);
+  }
+  .jq-help-dialog .el-dialog__header {
+    border-bottom: 1px solid var(--dc-border);
+    margin-right: 0;
+    padding: 16px 20px;
+  }
+  .jq-help-dialog .el-dialog__body {
+    padding: 0;
   }
 </style>

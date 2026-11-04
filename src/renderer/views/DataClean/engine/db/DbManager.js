@@ -81,6 +81,68 @@ class DbManager {
       await this.destroyConnection(nodeId)
     }
   }
+
+  /**
+   * 获取某张表的所有列信息
+   */
+  async getTableColumns(nodeId, tableName) {
+    const db = this.getConnection(nodeId)
+    if (!db) throw new Error("未建立数据库连接")
+
+    const hasTable = await db.schema.hasTable(tableName)
+    if (!hasTable) return []
+
+    const info = await db(tableName).columnInfo()
+    return Object.keys(info).map(key => ({
+      name: key,
+      type: info[key].type,
+    }))
+  }
+
+  /**
+   * 自动建表（支持用户的类型映射）
+   */
+  async createTable(nodeId, tableName, columns) {
+    const db = this.getConnection(nodeId)
+    if (!db) throw new Error("未建立数据库连接")
+
+    const hasTable = await db.schema.hasTable(tableName)
+    if (hasTable) return
+
+    await db.schema.createTable(tableName, table => {
+      // 默认加个自增主键
+      table.increments("id").primary()
+      for (const col of columns) {
+        const dbType = col.dbType || "text" // text 是最安全的兼容类型
+        table.specificType(col.name, dbType)
+      }
+    })
+  }
+
+  /**
+   * 预览前 N 行数据
+   */
+  async previewTable(nodeId, tableName, limit = 10) {
+    const db = this.getConnection(nodeId)
+    if (!db) throw new Error("未建立数据库连接")
+    return await db(tableName).limit(limit)
+  }
+
+  /**
+   * 批量插入数据
+   */
+  async insertBatch(nodeId, tableName, rows, mode = "append", batchSize = 500) {
+    const db = this.getConnection(nodeId)
+    if (!db) throw new Error("未建立数据库连接")
+
+    if (mode === "truncate") {
+      await db(tableName).truncate()
+    }
+
+    if (rows.length === 0) return
+
+    await db.batchInsert(tableName, rows, batchSize)
+  }
 }
 
 export const dbManager = new DbManager()

@@ -1,6 +1,6 @@
 <template>
   <BaseNode :node="node" :selected="selected" @preview="handlePreview">
-    <template v-for="row in schema" :key="row.field">
+    <template v-for="row in mainSchema" :key="row.field">
       <ParamRow v-if="shouldShow(row)" :label="row.label">
         <!-- 1. 表达式 -->
         <div v-if="row.component === 'expression'" class="expr-container">
@@ -98,7 +98,25 @@
           @update:model-value="v => updateParam(row.field, v)"
         />
 
-        <!-- 7. 字段单选/多选 -->
+        <!-- 7. 多键连接配置 -->
+        <JoinKeyConfig
+          v-else-if="row.component === 'joinKeyList'"
+          :model-value="node.params[row.field] || []"
+          :left-columns="getColumnsForJoinKey(row, 'left')"
+          :right-columns="getColumnsForJoinKey(row, 'right')"
+          :disabled="isJoinKeyDisabled(row)"
+          @update:model-value="v => updateParam(row.field, v)"
+        />
+
+        <DbWriterConfig
+          v-else-if="row.component === 'dbWriterConfig'"
+          :model-value="node.params[row.field] || {}"
+          :node-id="node.id"
+          :input-columns="getColumnsForRow(row)"
+          @update:model-value="v => updateParam(row.field, v)"
+        />
+
+        <!-- 8. 字段单选/多选 -->
         <el-select
           v-else-if="row.component === 'fieldSelect'"
           :model-value="node.params[row.field] || (row.multiple ? [] : '')"
@@ -116,7 +134,7 @@
           />
         </el-select>
 
-        <!-- 8. 普通枚举 -->
+        <!-- 9. 普通枚举 -->
         <el-select
           v-else-if="row.component === 'select'"
           :model-value="node.params[row.field] || ''"
@@ -132,7 +150,7 @@
           />
         </el-select>
 
-        <!-- 9. 开关 -->
+        <!-- 10. 开关 -->
         <el-switch
           v-else-if="row.component === 'switch'"
           :model-value="node.params[row.field] !== false"
@@ -140,7 +158,7 @@
           @update:model-value="v => updateParam(row.field, v)"
         />
 
-        <!-- 10. 普通输入 -->
+        <!-- 11. 普通输入 -->
         <el-input
           v-else
           :model-value="node.params[row.field] || ''"
@@ -150,6 +168,50 @@
         />
       </ParamRow>
     </template>
+
+    <!-- 高级设置：默认折叠，仅当存在 advanced 项时渲染 -->
+    <el-collapse
+      v-if="advancedSchema.length > 0"
+      v-model="advancedActiveNames"
+      class="advanced-collapse"
+    >
+      <el-collapse-item name="advanced">
+        <template #title>
+          <span class="advanced-title">高级设置</span>
+        </template>
+        <template v-for="row in advancedSchema" :key="row.field">
+          <ParamRow v-if="shouldShow(row)" :label="row.label">
+            <el-select
+              v-if="row.component === 'select'"
+              :model-value="node.params[row.field] || ''"
+              size="small"
+              style="width: 100%"
+              @update:model-value="v => updateParam(row.field, v)"
+            >
+              <el-option
+                v-for="opt in row.options"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+            <el-switch
+              v-else-if="row.component === 'switch'"
+              :model-value="node.params[row.field] !== false"
+              size="small"
+              @update:model-value="v => updateParam(row.field, v)"
+            />
+            <el-input
+              v-else
+              :model-value="node.params[row.field] || ''"
+              size="small"
+              :placeholder="row.defaultValue || ''"
+              @update:model-value="v => updateParam(row.field, v)"
+            />
+          </ParamRow>
+        </template>
+      </el-collapse-item>
+    </el-collapse>
 
     <!-- Xlsx 弹窗 -->
     <XlsxConfigDialog
@@ -173,7 +235,9 @@
   import FilePicker from "../params/FilePicker.vue"
   import ColumnPicker from "../params/ColumnPicker.vue"
   import RenamePanel from "../params/RenamePanel.vue"
+  import JoinKeyConfig from "../params/JoinKeyConfig.vue"
   import XlsxConfigDialog from "../params/XlsxConfigDialog.vue"
+  import DbWriterConfig from "../params/DbWriterConfig.vue"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
   import { getOperator } from "../../engine/operators/index.js"
@@ -188,6 +252,7 @@
   const op = computed(() => getOperator(props.node.type))
   const incomingEdges = computed(() => graphStore.getIncomingEdges(props.node.id))
   const showXlsxDialog = ref(false)
+  const advancedActiveNames = ref([])
 
   const emit = defineEmits(["trigger-run"])
 
@@ -204,6 +269,16 @@
       ]
     }
     return baseSchema
+  })
+
+  // 主面板：无 group 或 group === 'default'
+  const mainSchema = computed(() => {
+    return schema.value.filter(row => !row.group || row.group === "default")
+  })
+
+  // 高级设置：group === 'advanced'
+  const advancedSchema = computed(() => {
+    return schema.value.filter(row => row.group === "advanced")
   })
 
   const excelSheets = ref([])
@@ -283,6 +358,23 @@
       else return []
     }
     return metaStore.getMeta(targetEdge.source).columns || []
+  }
+
+  // 取 joinKeyList 左/右两侧的列（依据 componentProps 的端口 id）
+  function getColumnsForJoinKey(row, side) {
+    const cfg = row.componentProps || {}
+    const portId = side === "left" ? cfg.leftInputId : cfg.rightInputId
+    if (!portId) return []
+    const matched = incomingEdges.value.find(e => e.targetHandle === portId)
+    if (!matched) return []
+    return metaStore.getMeta(matched.source).columns || []
+  }
+
+  // 任一侧无列时禁用连接键配置
+  function isJoinKeyDisabled(row) {
+    const left = getColumnsForJoinKey(row, "left")
+    const right = getColumnsForJoinKey(row, "right")
+    return left.length === 0 || right.length === 0
   }
 
   function updateParam(field, value) {
@@ -414,6 +506,19 @@
 
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
     background-color: rgba(150, 150, 150, 0.4);
+  }
+
+  .advanced-collapse {
+    border: 1px solid var(--dc-border, #ebeef5);
+    border-radius: 4px;
+    padding: 0 8px;
+    width: 100%;
+  }
+
+  .advanced-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dc-text-secondary, #606266);
   }
 </style>
 

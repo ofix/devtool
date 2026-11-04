@@ -169,6 +169,10 @@
     "xlsxOutput",
     "dbConnection",
     "dbQuery",
+    "csvWriter",
+    "xlsxWriter",
+    "jsonWriter",
+    "dbWriter",
   ]
 
   const nodes = computed(() =>

@@ -1,236 +1,272 @@
-const { contextBridge, ipcRenderer } = require('electron/renderer')
+const { contextBridge, ipcRenderer } = require("electron/renderer")
 
 function safeStringify(arg) {
-    const seen = new WeakMap();
-    try {
-        return JSON.stringify(arg, (key, value) => {
-            if (typeof value === 'object' && value !== null) {
-                if (seen.has(value)) return '[循环引用]';
-                seen.set(value, true);
-            }
-            // 处理特殊类型
-            if (value === undefined) return 'undefined';
-            if (typeof value === 'function') return '[Function]';
-            return value;
-        }, 2);
-    } catch (e) {
-        return `[序列化失败: ${e.message}]`;
-    }
+  const seen = new WeakMap()
+  try {
+    return JSON.stringify(
+      arg,
+      (key, value) => {
+        if (typeof value === "object" && value !== null) {
+          if (seen.has(value)) return "[循环引用]"
+          seen.set(value, true)
+        }
+        // 处理特殊类型
+        if (value === undefined) return "undefined"
+        if (typeof value === "function") return "[Function]"
+        return value
+      },
+      2,
+    )
+  } catch (e) {
+    return `[序列化失败: ${e.message}]`
+  }
 }
 
 // 封装日志发送到主进程的核心逻辑（加异常捕获+日志打印）
 function sendLogToMainProcess(type, args) {
-    try {
-        // 前置校验：ipcRenderer 是否就绪
-        if (!ipcRenderer || typeof ipcRenderer.send !== 'function') {
-            console.error('[日志发送失败] ipcRenderer 未就绪');
-            return;
-        }
-
-        const logData = {
-            type,
-            timestamp: new Date().toLocaleString(),
-            args: Array.from(args).map(arg => {
-                if (typeof arg === 'object' && arg !== null) {
-                    return safeStringify(arg);
-                }
-                // 基础类型直接返回，处理 undefined/function
-                return arg === undefined ? 'undefined' :
-                    typeof arg === 'function' ? '[Function]' : arg;
-            })
-        };
-
-        ipcRenderer.send('console-log', logData);
-    } catch (e) {
-        // 降级到原生console输出错误（带详细栈信息）
-        console.error('[日志转发到调试面板失败]', e.stack);
+  try {
+    // 前置校验：ipcRenderer 是否就绪
+    if (!ipcRenderer || typeof ipcRenderer.send !== "function") {
+      console.error("[日志发送失败] ipcRenderer 未就绪")
+      return
     }
+
+    const logData = {
+      type,
+      timestamp: new Date().toLocaleString(),
+      args: Array.from(args).map(arg => {
+        if (typeof arg === "object" && arg !== null) {
+          return safeStringify(arg)
+        }
+        // 基础类型直接返回，处理 undefined/function
+        return arg === undefined ? "undefined" : typeof arg === "function" ? "[Function]" : arg
+      }),
+    }
+
+    ipcRenderer.send("console-log", logData)
+  } catch (e) {
+    // 降级到原生console输出错误（带详细栈信息）
+    console.error("[日志转发到调试面板失败]", e.stack)
+  }
 }
 
-const wndLog = (...args) => sendLogToMainProcess('log', args);
-const wndError = (...args) => sendLogToMainProcess('error', args);
-const wndWarn = (...args) => sendLogToMainProcess('warn', args);
-const wndInfo = (...args) => sendLogToMainProcess('info', args);
+const wndLog = (...args) => sendLogToMainProcess("log", args)
+const wndError = (...args) => sendLogToMainProcess("error", args)
+const wndWarn = (...args) => sendLogToMainProcess("warn", args)
+const wndInfo = (...args) => sendLogToMainProcess("info", args)
 
 // 2. 通过 contextBridge 暴露 wnd（无需 initWndLog，直接全局可用）
-contextBridge.exposeInMainWorld('dt', {
-    log: wndLog,
-    error: wndError,
-    warn: wndWarn,
-    info: wndInfo
-});
+contextBridge.exposeInMainWorld("dt", {
+  log: wndLog,
+  error: wndError,
+  warn: wndWarn,
+  info: wndInfo,
+})
 
-const PREFIX = "data-clean";
+const PREFIX = "data-clean"
 contextBridge.exposeInMainWorld("api", {
-    // 保留你现有的其他 API 命名空间，这里只补充 dataClean
-    dataClean: {
-        dialog: {
-            openFile: (options) => ipcRenderer.invoke(`${PREFIX}:dialog:openFile`, options),
-            openDirectory: () => ipcRenderer.invoke(`${PREFIX}:dialog:openDirectory`),
-            saveFile: (options) => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
-        },
-        fs: {
-            readBuffer: (filePath) => ipcRenderer.invoke(`${PREFIX}:fs:readBuffer`, filePath),
-            readFile: (filePath) => ipcRenderer.invoke(`${PREFIX}:fs:readFile`, filePath),
-            writeFile: (filePath, content) => ipcRenderer.invoke(`${PREFIX}:fs:writeFile`, filePath, content),
-            listFiles: (dirPath, extensions) => ipcRenderer.invoke(`${PREFIX}:fs:listFiles`, dirPath, extensions),
-        },
-        command: {
-            exec: (command, options) => ipcRenderer.invoke(`${PREFIX}:command:exec`, command, options),
-        },
-        pipeline: {
-            save: (filePath, json) => ipcRenderer.invoke(`${PREFIX}:pipeline:save`, filePath, json),
-            load: (filePath) => ipcRenderer.invoke(`${PREFIX}:pipeline:load`, filePath),
-        },
-        shell: {
-            showItemInFolder: (filePath) => ipcRenderer.invoke(`${PREFIX}:shell:showItemInFolder`, filePath),
-        },
+  // 保留你现有的其他 API 命名空间，这里只补充 dataClean
+  dataClean: {
+    dialog: {
+      openFile: options => ipcRenderer.invoke(`${PREFIX}:dialog:openFile`, options),
+      openDirectory: () => ipcRenderer.invoke(`${PREFIX}:dialog:openDirectory`),
+      saveFile: options => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
     },
-});
+    fs: {
+      readBuffer: filePath => ipcRenderer.invoke(`${PREFIX}:fs:readBuffer`, filePath),
+      readFile: filePath => ipcRenderer.invoke(`${PREFIX}:fs:readFile`, filePath),
+      writeFile: (filePath, content) =>
+        ipcRenderer.invoke(`${PREFIX}:fs:writeFile`, filePath, content),
+      listFiles: (dirPath, extensions) =>
+        ipcRenderer.invoke(`${PREFIX}:fs:listFiles`, dirPath, extensions),
+      // 👇 新增这个：
+      writeBuffer: (filePath, buffer) =>
+        ipcRenderer.invoke(`${PREFIX}:fs:writeBuffer`, filePath, buffer),
+    },
+    command: {
+      exec: (command, options) => ipcRenderer.invoke(`${PREFIX}:command:exec`, command, options),
+    },
+    pipeline: {
+      save: (filePath, json) => ipcRenderer.invoke(`${PREFIX}:pipeline:save`, filePath, json),
+      load: filePath => ipcRenderer.invoke(`${PREFIX}:pipeline:load`, filePath),
+    },
+    shell: {
+      showItemInFolder: filePath =>
+        ipcRenderer.invoke(`${PREFIX}:shell:showItemInFolder`, filePath),
+    },
+  },
+})
 
-contextBridge.exposeInMainWorld('channel', {
-    clearDebugLogs: () => ipcRenderer.send('clear-debug-logs'),
-    setFullScreen: (flag, wndName) => ipcRenderer.send('full-screen', flag, wndName),
-    send: (channel, ...args) => ipcRenderer.send(channel, ...args),
-    on: (channel, callback) => {
-        const wrappedCallback = (event, ...args) => {
-            callback(event, ...args); // 解构参数，确保渲染进程能拿到 logs
-        };
-        ipcRenderer.on(channel, wrappedCallback);
-        // 返回移除监听的方法（可选）
-        return () => ipcRenderer.removeListener(channel, wrappedCallback);
-    },
-    off: (channel, listener) => ipcRenderer.off(channel, listener),
-    // 控制台调试打印
-    debug: (...data) => ipcRenderer.invoke('debug', ...data),
-    // 控制窗口
-    showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
-    hideWindow: (wndName) => ipcRenderer.invoke("hide-window", wndName),
-    closeWindow: (wndName) => ipcRenderer.invoke("close-window", wndName),
-    minimizeWindow: (wndName) => ipcRenderer.invoke('minimize-window', wndName),
-    maximizeWindow: (wndName) => ipcRenderer.invoke('maximize-window', wndName),
-    restoreWindow: (wndName) => ipcRenderer.invoke('restore-window', wndName),
-    getWindowBounds: (wndName) => ipcRenderer.invoke('get-window-bounds', wndName),
-    setWindowBounds: (wndName, bounds) => ipcRenderer.invoke('set-window-bounds', wndName, bounds),
-    moveWindow: (wndName, deltaX, deltaY) => ipcRenderer.invoke('move-window', wndName, deltaX, deltaY),
-    getWindowOptions: (wndName) => ipcRenderer.invoke("get-window-options", wndName),
-    onMaximized: (cb) => ipcRenderer.on('maximized', cb),
-    onUnmaximized: (cb) => ipcRenderer.on('unmaximized', cb),
-    ignoreMouseEvents: (wndName, enable) => ipcRenderer.invoke('ignoreMouseEvents', wndName, enable),
-    getScreenMousePos: () => ipcRenderer.invoke('get-screen-mouse-pos'),
-    getPlatformInfo: () => ipcRenderer.invoke('get-platform-info'),
-    removeMaximized: (cb) => ipcRenderer.off('maximized', cb),
-    removeUnmaximized: (cb) => ipcRenderer.off('unmaximized', cb),
-    // SSH 连接/断开
-    sshConnect: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:connect', { host, port, username, password, remotePath }),
-    sshDisconnect: (host) => ipcRenderer.invoke('ssh:disconnect', host),
-    // SFTP 操作
-    sshListDir: ({ host, port, username, password, remotePath }) => ipcRenderer.invoke('ssh:listDir', { host, port, username, password, remotePath }),
-    // 加载SFTP远程文件内容,支持自动解压和代码格式化
-    sftpLoadRemoteFile: ({ host, port, username, password, remoteFilePath }) => ipcRenderer.invoke('sftp:loadRemoteFile', { host, port, username, password, remoteFilePath }),
-    // 保存文件并上传到SFTP远程，支持自动压缩,(后续支持代码内容压缩)
-    sftpSaveRemoteFile: ({ host, port, usernmae, password, localFilePath, remoteFilePath, content }) => ipcRenderer.invoke('sftp:saveRemoteFile', { host, port, usernmae, password, localFilePath, remoteFilePath, content }),
-    // 压缩文件读写
-    extractFile: (archivePath) => ipcRenderer.invoke('mmf:extract', archivePath),
-    loadFileContents: (fileMeta) => ipcRenderer.invoke('mmf:loadFileContents', fileMeta),
-    writeFile: (cacheKey, offset, data) => ipcRenderer.invoke('mmf:write', cacheKey, offset, data),
-    saveFile: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:save', cacheKey, outputPath),
-    compressGZ: (cacheKey, outputPath) => ipcRenderer.invoke('mmf:compress-gz', cacheKey, outputPath),
-    decompressGZ: (gzPath) => ipcRenderer.invoke('mmf:decompress-gz', gzPath),
-    clear: () => ipcRenderer.invoke('mmf:clear'),
-    // 本地文件树操作
-    // 打开本地文件夹
-    selectLocalDir: (options) => ipcRenderer.invoke('fs:selectLocalDir', options),
-    // 读取本地文件夹
-    readLocalDir: (options) => ipcRenderer.invoke('fs:readdir', options),
-    // 读取文件内容
-    readLocalFile: (options) => ipcRenderer.invoke('fs:readFile', options),
-    // 恢复代码工程
-    restoreProject: (options) => ipcRenderer.invoke('fs:restoreProject', options),
-    // 保存代码工程
-    saveProject: (options) => ipcRenderer.invoke('fs:saveProject', options),
-    // 分析代码文件
-    parseCodeFile:(filePath)=>ipcRenderer.invoke('ca:parseCodeFile',filePath),
+contextBridge.exposeInMainWorld("channel", {
+  clearDebugLogs: () => ipcRenderer.send("clear-debug-logs"),
+  setFullScreen: (flag, wndName) => ipcRenderer.send("full-screen", flag, wndName),
+  send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+  on: (channel, callback) => {
+    const wrappedCallback = (event, ...args) => {
+      callback(event, ...args) // 解构参数，确保渲染进程能拿到 logs
+    }
+    ipcRenderer.on(channel, wrappedCallback)
+    // 返回移除监听的方法（可选）
+    return () => ipcRenderer.removeListener(channel, wrappedCallback)
+  },
+  off: (channel, listener) => ipcRenderer.off(channel, listener),
+  // 控制台调试打印
+  debug: (...data) => ipcRenderer.invoke("debug", ...data),
+  // 控制窗口
+  showWindow: (wndName, options = {}) => ipcRenderer.invoke("show-window", wndName, options),
+  hideWindow: wndName => ipcRenderer.invoke("hide-window", wndName),
+  closeWindow: wndName => ipcRenderer.invoke("close-window", wndName),
+  minimizeWindow: wndName => ipcRenderer.invoke("minimize-window", wndName),
+  maximizeWindow: wndName => ipcRenderer.invoke("maximize-window", wndName),
+  restoreWindow: wndName => ipcRenderer.invoke("restore-window", wndName),
+  getWindowBounds: wndName => ipcRenderer.invoke("get-window-bounds", wndName),
+  setWindowBounds: (wndName, bounds) => ipcRenderer.invoke("set-window-bounds", wndName, bounds),
+  moveWindow: (wndName, deltaX, deltaY) =>
+    ipcRenderer.invoke("move-window", wndName, deltaX, deltaY),
+  getWindowOptions: wndName => ipcRenderer.invoke("get-window-options", wndName),
+  onMaximized: cb => ipcRenderer.on("maximized", cb),
+  onUnmaximized: cb => ipcRenderer.on("unmaximized", cb),
+  ignoreMouseEvents: (wndName, enable) => ipcRenderer.invoke("ignoreMouseEvents", wndName, enable),
+  getScreenMousePos: () => ipcRenderer.invoke("get-screen-mouse-pos"),
+  getPlatformInfo: () => ipcRenderer.invoke("get-platform-info"),
+  removeMaximized: cb => ipcRenderer.off("maximized", cb),
+  removeUnmaximized: cb => ipcRenderer.off("unmaximized", cb),
+  // SSH 连接/断开
+  sshConnect: ({ host, port, username, password, remotePath }) =>
+    ipcRenderer.invoke("ssh:connect", { host, port, username, password, remotePath }),
+  sshDisconnect: host => ipcRenderer.invoke("ssh:disconnect", host),
+  // SFTP 操作
+  sshListDir: ({ host, port, username, password, remotePath }) =>
+    ipcRenderer.invoke("ssh:listDir", { host, port, username, password, remotePath }),
+  // 加载SFTP远程文件内容,支持自动解压和代码格式化
+  sftpLoadRemoteFile: ({ host, port, username, password, remoteFilePath }) =>
+    ipcRenderer.invoke("sftp:loadRemoteFile", { host, port, username, password, remoteFilePath }),
+  // 保存文件并上传到SFTP远程，支持自动压缩,(后续支持代码内容压缩)
+  sftpSaveRemoteFile: ({
+    host,
+    port,
+    usernmae,
+    password,
+    localFilePath,
+    remoteFilePath,
+    content,
+  }) =>
+    ipcRenderer.invoke("sftp:saveRemoteFile", {
+      host,
+      port,
+      usernmae,
+      password,
+      localFilePath,
+      remoteFilePath,
+      content,
+    }),
+  // 压缩文件读写
+  extractFile: archivePath => ipcRenderer.invoke("mmf:extract", archivePath),
+  loadFileContents: fileMeta => ipcRenderer.invoke("mmf:loadFileContents", fileMeta),
+  writeFile: (cacheKey, offset, data) => ipcRenderer.invoke("mmf:write", cacheKey, offset, data),
+  saveFile: (cacheKey, outputPath) => ipcRenderer.invoke("mmf:save", cacheKey, outputPath),
+  compressGZ: (cacheKey, outputPath) => ipcRenderer.invoke("mmf:compress-gz", cacheKey, outputPath),
+  decompressGZ: gzPath => ipcRenderer.invoke("mmf:decompress-gz", gzPath),
+  clear: () => ipcRenderer.invoke("mmf:clear"),
+  // 本地文件树操作
+  // 打开本地文件夹
+  selectLocalDir: options => ipcRenderer.invoke("fs:selectLocalDir", options),
+  // 读取本地文件夹
+  readLocalDir: options => ipcRenderer.invoke("fs:readdir", options),
+  // 读取文件内容
+  readLocalFile: options => ipcRenderer.invoke("fs:readFile", options),
+  // 恢复代码工程
+  restoreProject: options => ipcRenderer.invoke("fs:restoreProject", options),
+  // 保存代码工程
+  saveProject: options => ipcRenderer.invoke("fs:saveProject", options),
+  // 分析代码文件
+  parseCodeFile: filePath => ipcRenderer.invoke("ca:parseCodeFile", filePath),
 
-    // 快捷键相关操作
-    registerShortcut: (accelerator, handlerName) => ipcRenderer.invoke('shortcut:register', accelerator, handlerName),
-    unregisterShortcut: (accelerator) => ipcRenderer.invoke('shortcut:unregister', accelerator),
-    getAllShortcuts: () => ipcRenderer.invoke('shortcut:getAll'),
-    isShortcutRegistered: (accelerator) => ipcRenderer.invoke('shortcut:isRegistered', accelerator),
-    onShortcut: (handlerName, callback) => {
-        const channel = `shortcut:${handlerName}`
-        ipcRenderer.on(channel, (event, ...args) => callback(...args));
-    },
-    // 发送网络请求
-    doPost: (options) => ipcRenderer.invoke('https:post', options),
-    doGet: (options) => ipcRenderer.invoke("https:get", options),
-    doDelete: (options) => ipcRenderer.invoke("https:delete", options),
-    doPatch: (options) => ipcRenderer.invoke("https:patch", options),
-    doPut: (options) => ipcRenderer.invoke("https:put", options),
-    // 屏幕截图
-    freezeScreen: () => ipcRenderer.invoke('freeze-screen'),
-    unFreezeScreen: () => ipcRenderer.invoke('unfreeze-screen'),
-    isScreenFreezeed: () => ipcRenderer.invoke('is-screen-locked'),
-    startScreenshot: (mode) => ipcRenderer.invoke("start-screenshot", mode),
-    cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
-    finishScreenshot: () => ipcRenderer.invoke('finish-screenshot'),
-    sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
-    openScreenshotSettings: (data) => ipcRenderer.invoke("open-screenshot-settings", data),
-    getDesktopScreenshot: (method = "base64") => ipcRenderer.invoke('get-desktop-screenshot', method),
-    enumWindowList: () => ipcRenderer.invoke('enum-window-list'),
-    saveScrollScreenshot: (screenshotBase64) => ipcRenderer.send('save-scroll-screenshot', screenshotBase64),
-    closeScreenshotWindow: () => ipcRenderer.send('close-screenshot-window'),
-    // 贴图
-    createPinImage: (imageBuffer) => ipcRenderer.invoke('pin-image:create', imageBuffer),
-    getAllPinImages: () => ipcRenderer.invoke('pin-image:get-all'),
-    getPinImage: (pinId) => ipcRenderer.invoke('pin-image:get-one', pinId),
-    deletePinImage: (pinId) => ipcRenderer.invoke('pin-image:delete-one', pinId),
-    deleteAllPinImages: () => ipcRenderer.invoke('pin-image:delete-all'),
-    openPinWnd: (pinId) => ipcRenderer.invoke('pin-image:open-wnd', pinId),
-    closePinWnd: (pinId) => ipcRenderer.invoke('pin-image:close-wnd', pinId),
-    closeAllPinWnd: () => ipcRenderer.invoke('pin-image:close-all-wnd'),
-    setPinWndBounds: (x, y, width, height) => ipcRenderer.invoke('pin-image:set-wnd-bounds', x, y, width, height),
-    // 视频录制
-    startVideoRecord: (options) => ipcRenderer.invoke('video-record:start', options),
-    pauseVideoRecord: (id) => ipcRenderer.invoke('video-record:pause', id),
-    resumeVideoRecord: (id) => ipcRenderer.invoke('video-record:resume', id),
-    stopVideoRecord: (id, path) => ipcRenderer.invoke('video-record:stop', id, path),
-    // 屏幕取色器
-    openColorPicker: () => ipcRenderer.invoke('color-picker:open'),
-    cancelColorPicker: () => ipcRenderer.invoke('color-picker:cancel'),
-    closeColorPicker: (color) => ipcRenderer.invoke('color-picker:close', color),
-    getColorPickerColor: () => ipcRenderer.invoke('color-picker:get-color'),
-    // 屏幕标尺
-    rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
-    rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),
-    rulerSetBounds: (bounds) => ipcRenderer.invoke("ruler:set-bounds", bounds),
-    rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
-    rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
-    rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
-    updateMeasureLinePos: (option) => ipcRenderer.invoke("ruler:update-measure-line-pos", option),
-    // 文件比对
-    selectFile: (side) => ipcRenderer.invoke('select-file', side),
-    readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
-    diffFileContent: (leftLines, rightLines) => ipcRenderer.invoke('diff-file-content', leftLines, rightLines),
-    // 选择文件夹
-    selectFolder: () => ipcRenderer.invoke('select-folder'),
-    loadFolder: (dirPath) => ipcRenderer.invoke('load-folder', dirPath),
-    diffFolder: (folderA, folderB) => ipcRenderer.invoke('diff-folder', folderA, folderB),
-    // 股票行情
-    searchShares: (keyword) => ipcRenderer.invoke('mini-stock:search-shares', keyword),
-    getKline: (codes, market, period, startDate, endDate) => ipcRenderer.invoke('mini-stock:kline', codes, market, period, startDate, endDate),
-    getShareMinuteKline: (shares, days = 1) => ipcRenderer.invoke('mini-stock:minute-kline', shares, days),
-    shareRankList: (n, order = "top") => ipcRenderer.invoke('mini-stock:share-rank-list', n, order),
-    favoriteShares: () => ipcRenderer.invoke('mini-stock:favorite-shares'),
-    addFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:add-favorite-share', code),
-    delFavoriteShare: (code) => ipcRenderer.invoke('mini-stock:del-favorite-share', code),
-    addSearchShare: (code) => ipcRenderer.invoke('mini-stock:add-search-share', code),
-    // 数据同步
-    getBkOverview: () => ipcRenderer.invoke('ant-sync:get-bk-overview'),
-    getBkList: (type, keyword) => ipcRenderer.invoke('ant-sync:get-bk-list', type, keyword),
-    syncBkList: (type) => ipcRenderer.invoke('ant-sync:sync-bk-list', type),
-    getBkShares: (type, bkCode) => ipcRenderer.invoke('ant-sync:get-bk-shares', type, bkCode),
-    syncBkShares: (type, bkList) => ipcRenderer.invoke('ant-sync:sync-bk-shares', type, bkList),
-    saveProviderSettings: (data) => ipcRenderer.invoke('ant-sync:save-provider-settings', data),
-    loadProviderSettings: () => ipcRenderer.invoke('ant-sync:load-provider-settings'),
+  // 快捷键相关操作
+  registerShortcut: (accelerator, handlerName) =>
+    ipcRenderer.invoke("shortcut:register", accelerator, handlerName),
+  unregisterShortcut: accelerator => ipcRenderer.invoke("shortcut:unregister", accelerator),
+  getAllShortcuts: () => ipcRenderer.invoke("shortcut:getAll"),
+  isShortcutRegistered: accelerator => ipcRenderer.invoke("shortcut:isRegistered", accelerator),
+  onShortcut: (handlerName, callback) => {
+    const channel = `shortcut:${handlerName}`
+    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+  },
+  // 发送网络请求
+  doPost: options => ipcRenderer.invoke("https:post", options),
+  doGet: options => ipcRenderer.invoke("https:get", options),
+  doDelete: options => ipcRenderer.invoke("https:delete", options),
+  doPatch: options => ipcRenderer.invoke("https:patch", options),
+  doPut: options => ipcRenderer.invoke("https:put", options),
+  // 屏幕截图
+  freezeScreen: () => ipcRenderer.invoke("freeze-screen"),
+  unFreezeScreen: () => ipcRenderer.invoke("unfreeze-screen"),
+  isScreenFreezeed: () => ipcRenderer.invoke("is-screen-locked"),
+  startScreenshot: mode => ipcRenderer.invoke("start-screenshot", mode),
+  cancelScreenshot: () => ipcRenderer.invoke("cancel-screenshot"),
+  finishScreenshot: () => ipcRenderer.invoke("finish-screenshot"),
+  sendToolCmd: (cmd, data) => ipcRenderer.invoke("tool-cmd", cmd, data),
+  openScreenshotSettings: data => ipcRenderer.invoke("open-screenshot-settings", data),
+  getDesktopScreenshot: (method = "base64") => ipcRenderer.invoke("get-desktop-screenshot", method),
+  enumWindowList: () => ipcRenderer.invoke("enum-window-list"),
+  saveScrollScreenshot: screenshotBase64 =>
+    ipcRenderer.send("save-scroll-screenshot", screenshotBase64),
+  closeScreenshotWindow: () => ipcRenderer.send("close-screenshot-window"),
+  // 贴图
+  createPinImage: imageBuffer => ipcRenderer.invoke("pin-image:create", imageBuffer),
+  getAllPinImages: () => ipcRenderer.invoke("pin-image:get-all"),
+  getPinImage: pinId => ipcRenderer.invoke("pin-image:get-one", pinId),
+  deletePinImage: pinId => ipcRenderer.invoke("pin-image:delete-one", pinId),
+  deleteAllPinImages: () => ipcRenderer.invoke("pin-image:delete-all"),
+  openPinWnd: pinId => ipcRenderer.invoke("pin-image:open-wnd", pinId),
+  closePinWnd: pinId => ipcRenderer.invoke("pin-image:close-wnd", pinId),
+  closeAllPinWnd: () => ipcRenderer.invoke("pin-image:close-all-wnd"),
+  setPinWndBounds: (x, y, width, height) =>
+    ipcRenderer.invoke("pin-image:set-wnd-bounds", x, y, width, height),
+  // 视频录制
+  startVideoRecord: options => ipcRenderer.invoke("video-record:start", options),
+  pauseVideoRecord: id => ipcRenderer.invoke("video-record:pause", id),
+  resumeVideoRecord: id => ipcRenderer.invoke("video-record:resume", id),
+  stopVideoRecord: (id, path) => ipcRenderer.invoke("video-record:stop", id, path),
+  // 屏幕取色器
+  openColorPicker: () => ipcRenderer.invoke("color-picker:open"),
+  cancelColorPicker: () => ipcRenderer.invoke("color-picker:cancel"),
+  closeColorPicker: color => ipcRenderer.invoke("color-picker:close", color),
+  getColorPickerColor: () => ipcRenderer.invoke("color-picker:get-color"),
+  // 屏幕标尺
+  rulerToggleType: () => ipcRenderer.invoke("ruler:toggle-type"),
+  rulerGetBounds: () => ipcRenderer.invoke("ruler:get-bounds"),
+  rulerSetBounds: bounds => ipcRenderer.invoke("ruler:set-bounds", bounds),
+  rulerGetSize: () => ipcRenderer.invoke("ruler:get-size"),
+  rulerSetSize: (width, height) => ipcRenderer.invoke("ruler:set-size", width, height),
+  rulerGetPosition: () => ipcRenderer.invoke("ruler:get-position"),
+  updateMeasureLinePos: option => ipcRenderer.invoke("ruler:update-measure-line-pos", option),
+  // 文件比对
+  selectFile: side => ipcRenderer.invoke("select-file", side),
+  readFileContent: filePath => ipcRenderer.invoke("read-file-content", filePath),
+  diffFileContent: (leftLines, rightLines) =>
+    ipcRenderer.invoke("diff-file-content", leftLines, rightLines),
+  // 选择文件夹
+  selectFolder: () => ipcRenderer.invoke("select-folder"),
+  loadFolder: dirPath => ipcRenderer.invoke("load-folder", dirPath),
+  diffFolder: (folderA, folderB) => ipcRenderer.invoke("diff-folder", folderA, folderB),
+  // 股票行情
+  searchShares: keyword => ipcRenderer.invoke("mini-stock:search-shares", keyword),
+  getKline: (codes, market, period, startDate, endDate) =>
+    ipcRenderer.invoke("mini-stock:kline", codes, market, period, startDate, endDate),
+  getShareMinuteKline: (shares, days = 1) =>
+    ipcRenderer.invoke("mini-stock:minute-kline", shares, days),
+  shareRankList: (n, order = "top") => ipcRenderer.invoke("mini-stock:share-rank-list", n, order),
+  favoriteShares: () => ipcRenderer.invoke("mini-stock:favorite-shares"),
+  addFavoriteShare: code => ipcRenderer.invoke("mini-stock:add-favorite-share", code),
+  delFavoriteShare: code => ipcRenderer.invoke("mini-stock:del-favorite-share", code),
+  addSearchShare: code => ipcRenderer.invoke("mini-stock:add-search-share", code),
+  // 数据同步
+  getBkOverview: () => ipcRenderer.invoke("ant-sync:get-bk-overview"),
+  getBkList: (type, keyword) => ipcRenderer.invoke("ant-sync:get-bk-list", type, keyword),
+  syncBkList: type => ipcRenderer.invoke("ant-sync:sync-bk-list", type),
+  getBkShares: (type, bkCode) => ipcRenderer.invoke("ant-sync:get-bk-shares", type, bkCode),
+  syncBkShares: (type, bkList) => ipcRenderer.invoke("ant-sync:sync-bk-shares", type, bkList),
+  saveProviderSettings: data => ipcRenderer.invoke("ant-sync:save-provider-settings", data),
+  loadProviderSettings: () => ipcRenderer.invoke("ant-sync:load-provider-settings"),
 })

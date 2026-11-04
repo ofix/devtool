@@ -30,6 +30,10 @@ import xlsxInput from "./xlsxInput.js"
 import xlsxOutput from "./xlsxOutput.js"
 import dbConnection from "./dbConnection.js"
 import dbQuery from "./dbQuery.js"
+import jsonWriter from "./jsonWriter.js"
+import csvWriter from "./csvWriter.js"
+import xlsxWriter from "./xlsxWriter.js"
+import dbWriter from "./dbWriter.js"
 
 const modules = [
   csvReader,
@@ -64,6 +68,10 @@ const modules = [
   xlsxOutput,
   dbConnection,
   dbQuery,
+  jsonWriter,
+  csvWriter,
+  xlsxWriter,
+  dbWriter,
 ]
 
 export const OPERATORS = {}
