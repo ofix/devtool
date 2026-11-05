@@ -32,6 +32,14 @@
           </span>
         </div>
 
+        <!-- 底部字段变化展示 -->
+        <div v-if="lineageOp" class="lineage-op-bar">
+          <span class="lineage-tag" :class="lineageOp.action">
+            {{ lineageOp.action === "pass" ? "直传" : "转换" }}:
+            {{ lineageOp.field }}
+          </span>
+        </div>
+
         <div class="stats-info">
           <template v-if="metaState.rowCount !== null && metaState.dataCategory">
             <template v-if="metaState.dataCategory === 'table'">
@@ -88,6 +96,20 @@
 
   const metaStore = useStoreDataCleanMeta()
   const graphStore = useStoreDataCleanGraph()
+
+  // 查找当前节点在当前血缘链路里的记录
+  const lineageOp = computed(() => {
+    if (!graphStore.activeLineageGraph) return null
+    // 找到当前节点的记录
+    const ops = graphStore.activeLineageGraph.filter(item => item.nodeId === props.node.id)
+    if (ops.length === 0) return null
+    // 目前一个节点在该链路里只会有一条对应记录（因为每次只追一个字段）
+    return ops[0]
+  })
+
+  const isInLineage = computed(() => {
+    return !!lineageOp.value
+  })
 
   const opMeta = computed(() => {
     const op = getOperator(props.node.type)
@@ -302,5 +324,28 @@
   }
   .stats-placeholder {
     opacity: 0.5;
+  }
+  
+  .lineage-op-bar {
+    border-top: 1px dashed var(--dc-border, #e2e8f0);
+    padding: 4px 8px;
+    font-size: 11px;
+    background: var(--dc-node-bg, #ffffff);
+  }
+  .lineage-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #64748b;
+  }
+  .lineage-tag.rename {
+    background: #eff6ff;
+    color: #3b82f6;
+    border: 1px solid #bfdbfe;
+  }
+  .lineage-tag.source {
+    background: #f0fdf4;
+    color: #16a34a;
   }
 </style>

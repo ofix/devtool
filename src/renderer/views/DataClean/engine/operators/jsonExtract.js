@@ -49,6 +49,15 @@ export default {
         if (ctx?.log) ctx.log(`[JSON Extract] 提取完成，共 ${outRows.length} 行`);
 
         const columns = fields.map(f => ({ name: f.alias || f.path, type: "string" }));
-        return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns };
+
+        // 构建血缘映射字典
+        // 输出的列名是别名（或路径），它的来源就是对应的 JSON Path
+        const columnMapping = {};
+        for (const f of fields) {
+            const outName = f.alias || f.path;
+            columnMapping[outName] = f.path;
+        }
+
+        return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns, columnMapping };
     }
 };

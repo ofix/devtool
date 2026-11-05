@@ -20,7 +20,7 @@ export default {
   ],
   execute(inputs, params) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
 
     let groupFields = params.groupFields || []
     if (typeof groupFields === "string")
@@ -76,12 +76,22 @@ export default {
       }
     }
 
+    // 构建血缘映射字典
+    const columnMapping = {}
+
     // 构建输出
     const outRows = []
-    const outCols = groupFields.map(f => ({ name: f, type: "string" }))
+    const outCols = groupFields.map(f => {
+      // 分组列：直接来源于上游同名列
+      columnMapping[f] = f
+      return { name: f, type: "string" }
+    })
 
     for (const cfg of aggConfigs) {
-      outCols.push({ name: `${cfg.field}_${cfg.func}`, type: "number" })
+      const aggName = `${cfg.field}_${cfg.func}`
+      outCols.push({ name: aggName, type: "number" })
+      // 聚合列：依赖上游的指标列（因为是一对多聚合，所以记录为依赖源字段）
+      columnMapping[aggName] = cfg.field
     }
 
     for (const { base, aggs } of groups.values()) {
@@ -111,6 +121,6 @@ export default {
       outRows.push(newRow)
     }
 
-    return { rows: outRows, columns: outCols }
+    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

@@ -20,7 +20,7 @@ export default {
   ],
   execute(inputs, params) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
 
     const { sourceField, delimiter = ",", newFieldPrefix = "split" } = params
     if (!sourceField) return data
@@ -53,6 +53,21 @@ export default {
       return newRow
     })
 
-    return { rows: outRows, columns: outCols }
+    // 构建血缘映射字典
+    const columnMapping = {}
+    
+    // 保留下来的原有列：直接透传
+    for (const c of data.columns) {
+      if (c.name !== sourceField) {
+        columnMapping[c.name] = c.name
+      }
+    }
+    
+    // 新生成的拆分列：全部依赖于被拆分的 sourceField
+    for (const nc of newCols) {
+      columnMapping[nc.name] = sourceField
+    }
+
+    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

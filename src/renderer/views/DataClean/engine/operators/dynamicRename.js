@@ -20,7 +20,7 @@ export default {
   ],
   execute(inputs, params) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
 
     const renameMap = {}
     if (params.renameMap && params.renameMap.trim()) {
@@ -32,9 +32,17 @@ export default {
 
     const { prefix = "", suffix = "" } = params
 
+    // 构建血缘映射字典
+    const columnMapping = {}
+
     const outCols = data.columns.map(c => {
       let name = renameMap[c.name] || c.name
-      return { name: `${prefix}${name}${suffix}`, type: c.type }
+      const finalName = `${prefix}${name}${suffix}`
+
+      // 记录新字段名的来源是哪个旧字段
+      columnMapping[finalName] = c.name
+
+      return { name: finalName, type: c.type }
     })
 
     const outRows = data.rows.map(row => {
@@ -46,6 +54,6 @@ export default {
       return newRow
     })
 
-    return { rows: outRows, columns: outCols }
+    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

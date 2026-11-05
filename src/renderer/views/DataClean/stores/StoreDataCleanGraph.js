@@ -9,6 +9,9 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
   const edges = ref([])
   const selectedNodeId = ref(null)
 
+  // 👇 新增：存储当前被激活的血缘图链路
+  const activeLineageGraph = ref(null)
+
   const selectedNode = computed(() => nodes.value.find(n => n.id === selectedNodeId.value) || null)
 
   /**
@@ -98,6 +101,11 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     selectedNodeId.value = id
   }
 
+  // 👇 新增：设置激活的血缘图
+  function setActiveLineageGraph(graph) {
+    activeLineageGraph.value = graph
+  }
+
   /**
    * 清空整图（加载新管线前用）
    */
@@ -105,6 +113,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     nodes.value = []
     edges.value = []
     selectedNodeId.value = null
+    activeLineageGraph.value = null // 👈 顺便清理激活的血缘
   }
 
   return {
@@ -112,6 +121,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     edges,
     selectedNodeId,
     selectedNode,
+    activeLineageGraph, // 👈 导出
     addNode,
     updateNodeParams,
     updateNodePosition,
@@ -122,6 +132,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     getIncomingEdges,
     getOutgoingEdges,
     setSelected,
+    setActiveLineageGraph, // 👈 导出方法
     clear,
   }
 })

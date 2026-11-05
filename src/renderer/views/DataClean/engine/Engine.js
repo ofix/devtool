@@ -1,4 +1,4 @@
-// 增加严格的类型校验拦截
+// 增加严格的类型校验拦截，并支持字段血缘映射收集
 import { markRaw } from "vue"
 import { getOperator } from "./operators/index.js"
 import { inferDataCategory } from "./runtime/InferCategory.js"
@@ -12,6 +12,11 @@ export default class Engine {
     this.graphStore = graphStore
   }
 
+  /**
+   * 执行单个节点
+   * 核心思想：节点执行产生数据和列映射(Mapping)，不直接修改全局血缘图，
+   * 把建图的动作延迟到用户触发溯源查询时再执行。
+   */
   async runNode(nodeId, context = {}) {
     const node = this.graphStore.getNode(nodeId)
     if (!node) return null
@@ -49,15 +54,31 @@ export default class Engine {
     }
 
     try {
+      // 将 nodeId 注入到 ctx 中，供算子内部（如 SQL 解析）记录来源标识
       const result = await op.execute(inputs, node.params || {}, {
         log: context.log || (() => {}),
         rawText: resolveRawText(node, context),
         nodeId,
         datasetStore: this.datasetStore,
         metaStore: this.metaStore,
+        graphStore: this.graphStore, // 传递图状态，供复杂算子（如 Join）查上游
       })
 
       const finalCategory = result.dataCategory || inferDataCategory(result.rows)
+
+      if (!result.columnMapping && result.columns) {
+        result.columnMapping = {}
+        for (const col of result.columns) {
+          result.columnMapping[col.name] = col.name
+        }
+      }
+
+      // 👇 添加这两行打印
+      console.log("【Engine 接收到的结果】", result)
+      console.log("【Engine 接收到的 columnMapping】", result?.columnMapping)
+
+      // 核心：智能兜底构建 columnMapping / jsonSchemaMapping
+      let finalMapping = result.columnMapping
 
       const normalized = {
         dataCategory: finalCategory,
@@ -66,6 +87,8 @@ export default class Engine {
         json: finalCategory === DATA_CATEGORY.JSON ? result.json || null : null,
         formattedText: result.formattedText || null,
         isTruncated: result.isTruncated || false,
+        // 把列映射字典随数据一起缓存下来，供后续图谱组装使用
+        columnMapping: finalMapping,
       }
 
       let jsonSchemaTree = null
@@ -74,7 +97,9 @@ export default class Engine {
         jsonSchemaTree = markRaw(builder.build())
       }
 
+      // 写入缓存，让下游节点可以读
       this.datasetStore.setDataset(nodeId, normalized)
+
       this.metaStore.updateMeta(nodeId, {
         rowCount:
           finalCategory === DATA_CATEGORY.TABLE
@@ -93,6 +118,7 @@ export default class Engine {
         staleReason: null,
         error: null,
       })
+
       return normalized
     } catch (err) {
       const errMsg = err.message || String(err)
@@ -102,6 +128,10 @@ export default class Engine {
     }
   }
 
+  /**
+   * 失效下游节点缓存
+   * 当某个节点的参数变更时，必须向下游传播失效信号，清理掉旧的 Dataset。
+   */
   invalidateDownstream(nodeId, reason = "参数已变更") {
     const visited = new Set()
     const queue = [nodeId]
@@ -116,6 +146,10 @@ export default class Engine {
     }
   }
 
+  /**
+   * 清空所有节点缓存
+   * 通常在整个管线变更或重新加载工程时调用
+   */
   invalidateAll() {
     for (const node of this.graphStore.nodes) {
       this.datasetStore.removeDataset(node.id)

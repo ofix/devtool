@@ -215,6 +215,16 @@ export default {
       rightSuffix,
     )
 
+    // 构建血缘映射字典
+    // 在 Join 节点中，最终输出的每个字段要么来自左表，要么来自右表（右键列已被剔除）。
+    const columnMapping = {}
+    for (const [src, dst] of leftRenameMap) {
+      columnMapping[dst] = src // 记录目标的来源
+    }
+    for (const [src, dst] of rightRenameMap) {
+      columnMapping[dst] = src // 记录目标的来源
+    }
+
     // 右表建哈希：复合键 -> 行数组
     const rightMap = new Map()
     for (const row of right.rows) {
@@ -240,7 +250,7 @@ export default {
           outRows.push(buildOutputRow(leftRow, null, leftRenameMap, rightRenameMap, outCols))
         }
       }
-      return { rows: outRows, columns: outCols }
+      return { rows: outRows, columns: outCols, columnMapping }
     }
 
     // 其余类型：先遍历左表
@@ -268,13 +278,7 @@ export default {
         }
       }
     }
-    // 临时排查代码
-    const nullRow = outRows.find(r => r.level === null || r.desc === null || r.left_key === null)
-    if (nullRow) {
-      console.log("【找到未匹配行的结构】", JSON.stringify(nullRow))
-    } else {
-      console.log("【没有找到任何 null 行】 outRows 总数:", outRows.length)
-    }
-    return { rows: outRows, columns: outCols }
+
+    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

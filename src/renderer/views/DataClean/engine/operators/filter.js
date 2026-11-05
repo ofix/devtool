@@ -1,4 +1,4 @@
-import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
 
@@ -15,6 +15,7 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "expression", label: "条件", component: "expression" }],
+
   execute(inputs, params, ctx) {
     const data = inputs[0]
     if (!data || !data.rows) return { rows: [], columns: [], _falseRows: [] }
@@ -47,6 +48,9 @@ export default {
       ctx.log(`[Filter] 满足: ${trueRows.length} 行, 不满足: ${falseRows.length} 行`)
     }
 
+    // 核心机制：
+    // 因为 Filter 不改变列的形态，所以直接透传上游的 columns。
+    // Engine 层会自动推断：未提供 columnMapping 的算子，默认所有列直传 (action: "pass")
     return {
       rows: trueRows,
       columns: data.columns,

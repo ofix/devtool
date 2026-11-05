@@ -1,4 +1,5 @@
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+
 export default {
   type: "select",
   meta: {
@@ -17,7 +18,7 @@ export default {
   ],
   execute(inputs, params) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
 
     let keepCols = params.columns || []
     if (!Array.isArray(keepCols)) keepCols = []
@@ -34,11 +35,16 @@ export default {
 
     const outCols = []
     const validCols = new Set()
+    // 记录输出字段与源头字段的映射字典
+    const columnMapping = {}
+
     for (const c of data.columns) {
       if (keepCols.includes(c.name)) {
         const newName = renameMap[c.name] || c.name
         outCols.push({ name: newName, type: c.type })
         validCols.add(c.name)
+        // 记录当前字段的来源（如果是改了名，映射到老名字；如果没改，映射到自己）
+        columnMapping[newName] = c.name
       }
     }
 
@@ -51,6 +57,6 @@ export default {
       return newRow
     })
 
-    return { rows: outRows, columns: outCols }
+    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

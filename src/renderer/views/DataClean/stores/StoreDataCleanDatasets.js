@@ -17,6 +17,7 @@ export const useStoreDataCleanDatasets = defineStore("dataCleanDatasets", () => 
       json: category === DATA_CATEGORY.JSON ? data.json || null : null,
       formattedText: data.formattedText || null, // 存放格式化后的 JSON 文本
       isTruncated: data.isTruncated || false, // 大文件截断标记
+      columnMapping: data.columnMapping || null,  // 缓存血缘字段映射
     })
     triggerRef(datasets)
   }

@@ -78,12 +78,40 @@ export default {
 
     if (ctx?.log) ctx.log(`[JSON Unnest] 展开完成，共生成 ${outRows.length} 条数据`)
 
-    // 4. 自动推断并降维
+    // 自动推断并降维
     const category = inferDataCategory(outRows)
     if (category === DATA_CATEGORY.TABLE) {
       // 取第一行的所有 Key 作为列名
-      const columns = Object.keys(outRows[0] || {}).map(k => ({ name: k, type: "string" }))
-      return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns }
+      const firstRow = outRows[0] || {}
+      const columns = Object.keys(firstRow).map(k => ({ name: k, type: "string" }))
+
+      // 核心：构建血缘映射字典
+      const columnMapping = {}
+
+      // 简单提取父级的 key（不包含 path 的）
+      const parentKeys = new Set()
+      for (const item of dataArray) {
+        if (item && typeof item === "object") {
+          for (const k of Object.keys(item)) {
+            if (k !== path) parentKeys.add(k)
+          }
+        }
+      }
+
+      for (const col of columns) {
+        if (parentKeys.has(col.name)) {
+          // 来源于父级 JSON 的同名字段
+          columnMapping[col.name] = col.name
+        } else if (col.name === "value") {
+          // 来源于被展开的目标路径（因为数组里是基础类型）
+          columnMapping[col.name] = path
+        } else {
+          // 来源于子元素对象内部的字段
+          columnMapping[col.name] = col.name
+        }
+      }
+
+      return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns, columnMapping }
     }
 
     return { dataCategory: DATA_CATEGORY.JSON, json: outRows }

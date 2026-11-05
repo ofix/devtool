@@ -1,4 +1,3 @@
-// ==== FILE: src/renderer/views/DataClean/engine/operators/jsonUnpivot.js ====
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { inferDataCategory } from "../runtime/InferCategory.js"
 
@@ -55,8 +54,21 @@ export default {
     if (category === DATA_CATEGORY.TABLE) {
       // 如果是纯平铺结构，转为表格
       const columns = Object.keys(outRows[0] || {}).map(k => ({ name: k, type: "string" }))
+
+      // 构建血缘映射字典
+      const columnMapping = {}
+      for (const col of columns) {
+        if (col.name === keyName) {
+          // 动态键列，来源于 JSON 的 Key
+          columnMapping[col.name] = keyName
+        } else {
+          // 其他列，来源于 JSON Value 里的同名字段
+          columnMapping[col.name] = col.name
+        }
+      }
+
       if (ctx?.log) ctx.log(`[JSON Unpivot] 数据已完全平铺，输出 Table`)
-      return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns }
+      return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns, columnMapping }
     }
 
     // 如果还含有嵌套对象（如 detail），保持 JSON 形态

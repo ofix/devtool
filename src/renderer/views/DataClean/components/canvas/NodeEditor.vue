@@ -175,17 +175,52 @@
     "dbWriter",
   ]
 
+  // 获取当前高亮的节点 ID 集合
+  const activeNodeIds = computed(() => {
+    if (!graphStore.activeLineageGraph) return new Set()
+    return new Set(graphStore.activeLineageGraph.map(item => item.nodeId))
+  })
+
+  // 👇 1. 改造节点渲染逻辑，给不在链路上的节点加变暗类
   const nodes = computed(() =>
-    graphStore.nodes.map(n => ({ id: n.id, type: n.type, position: n.position, data: n })),
+    graphStore.nodes.map(n => {
+      const isActive = activeNodeIds.value.size === 0 || activeNodeIds.value.has(n.id)
+      return {
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: n,
+        class: isActive ? "" : "opacity-20",
+      }
+    }),
   )
+
+  // 👇 2. 改造连线渲染逻辑
   const edges = computed(() =>
-    graphStore.edges.map(e => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      sourceHandle: e.sourceHandle,
-      targetHandle: e.targetHandle,
-    })),
+    graphStore.edges.map(e => {
+      // 如果起点和终点都在激活的链路上，说明是路径的一部分
+      const isActive =
+        activeNodeIds.value.size === 0 ||
+        (activeNodeIds.value.has(e.source) && activeNodeIds.value.has(e.target))
+
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        class: isActive ? "" : "opacity-20",
+        style:
+          isActive && activeNodeIds.value.size > 0
+            ? {
+                stroke: "#3b82f6",
+                strokeWidth: 3,
+                strokeDasharray: "5 5",
+                animation: "dash 1s linear infinite",
+              }
+            : {},
+      }
+    }),
   )
 
   // ====== 右键菜单逻辑 ======
@@ -401,5 +436,19 @@
   :deep(.vue-flow__edge.selected .vue-flow__edge-path) {
     stroke: #3b82f6;
     stroke-width: 3;
+  }
+
+  /* 变暗效果 */
+  :deep(.vue-flow__node.opacity-20),
+  :deep(.vue-flow__edge.opacity-20) {
+    opacity: 0.2;
+    transition: opacity 0.3s ease;
+  }
+
+  /* 连线发光动画 */
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -10;
+    }
   }
 </style>
