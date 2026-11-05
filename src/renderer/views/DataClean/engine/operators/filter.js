@@ -1,6 +1,7 @@
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
+import StreamDataset from "../runtime/StreamDataset.js"
 
 export default {
   type: "filter",
@@ -15,46 +16,56 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "expression", label: "条件", component: "expression" }],
-
-  execute(inputs, params, ctx) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], _falseRows: [] }
+    if (!data) return null
 
     const exprText = params.expression
+    // 如果无表达式，原样透传流
     if (!exprText || !exprText.trim()) {
-      return { rows: data.rows, columns: data.columns, _falseRows: [] }
+      return data
     }
 
-    let ast, fn
+    let fn
     try {
-      ast = parse(exprText)
+      const ast = parse(exprText)
       fn = compile(ast)
     } catch (err) {
       throw new Error(`表达式语法错误: ${err.message}`)
     }
 
-    const trueRows = []
-    const falseRows = []
-    for (const row of data.rows) {
-      try {
-        if (fn(row)) trueRows.push(row)
-        else falseRows.push(row)
-      } catch (e) {
-        console.error("Error evaluating expression for row:", row, e)
+    // 👇 核心：定义流式处理生成器
+    async function* filterGenerator() {
+      let trueCount = 0,
+        falseCount = 0
+      for await (const chunk of data) {
+        const trueRows = []
+        const falseRows = []
+        for (const row of chunk) {
+          try {
+            if (fn(row)) {
+              trueRows.push(row)
+              trueCount++
+            } else {
+              falseRows.push(row)
+              falseCount++
+            }
+          } catch (e) {
+            console.error("表达式求值错误", e)
+          }
+        }
+        // 目前简化处理：只 yield 满足条件的数据。如果后续有 False 分支，需要更复杂的路由。
+        if (trueRows.length > 0) {
+          yield trueRows
+        }
       }
+      if (ctx?.log) ctx.log(`[Filter 流式] 满足: ${trueCount} 行, 不满足: ${falseCount} 行`)
     }
 
-    if (ctx && typeof ctx.log === "function") {
-      ctx.log(`[Filter] 满足: ${trueRows.length} 行, 不满足: ${falseRows.length} 行`)
-    }
-
-    // 核心机制：
-    // 因为 Filter 不改变列的形态，所以直接透传上游的 columns。
-    // Engine 层会自动推断：未提供 columnMapping 的算子，默认所有列直传 (action: "pass")
-    return {
-      rows: trueRows,
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
       columns: data.columns,
-      _falseRows: falseRows,
-    }
+      generator: filterGenerator,
+    })
   },
 }

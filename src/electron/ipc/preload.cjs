@@ -73,6 +73,31 @@ contextBridge.exposeInMainWorld("api", {
       saveFile: options => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
     },
     fs: {
+      stat: filePath => ipcRenderer.invoke(`${PREFIX}:fs:stat`, filePath),
+      startStream: filePath => ipcRenderer.invoke(`${PREFIX}:fs:startStream`, filePath),
+
+      onStreamData: (streamId, callback) => {
+        const channel = `${PREFIX}:fs:chunk:${streamId}`
+        const listener = (event, chunk) => callback(chunk)
+        ipcRenderer.on(channel, listener)
+        // 返回取消监听的方法
+        return () => ipcRenderer.removeListener(channel, listener)
+      },
+
+      onStreamEnd: (streamId, callback) => {
+        const channel = `${PREFIX}:fs:end:${streamId}`
+        const listener = () => callback()
+        ipcRenderer.on(channel, listener)
+        return () => ipcRenderer.removeListener(channel, listener)
+      },
+
+      onStreamError: (streamId, callback) => {
+        const channel = `${PREFIX}:fs:error:${streamId}`
+        const listener = (event, errMsg) => callback(new Error(errMsg))
+        ipcRenderer.on(channel, listener)
+        return () => ipcRenderer.removeListener(channel, listener)
+      },
+      abortStream: streamId => ipcRenderer.send(`${PREFIX}:fs:abort:${streamId}`),
       readBuffer: filePath => ipcRenderer.invoke(`${PREFIX}:fs:readBuffer`, filePath),
       readFile: filePath => ipcRenderer.invoke(`${PREFIX}:fs:readFile`, filePath),
       writeFile: (filePath, content) =>

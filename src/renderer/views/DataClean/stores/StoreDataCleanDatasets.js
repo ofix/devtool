@@ -1,24 +1,16 @@
 import { defineStore } from "pinia"
 import { ref, markRaw, triggerRef } from "vue"
-import { DATA_CATEGORY } from "../constants/DataCategories.js"
 
 export const useStoreDataCleanDatasets = defineStore("dataCleanDatasets", () => {
   const datasets = ref({})
 
+  /**
+   * 保存数据集实例
+   * 注意：这里的 data 已经是 Engine 处理好的 InMemoryDataset 或 StreamDataset 实例
+   */
   function setDataset(id, data) {
-    const category = data.dataCategory || DATA_CATEGORY.TABLE
-    const isTableData = category === DATA_CATEGORY.TABLE
-
-    datasets.value[id] = markRaw({
-      dataCategory: category,
-      // 双字段严格互斥
-      rows: isTableData ? data.rows || [] : [],
-      columns: isTableData ? data.columns || [] : [],
-      json: category === DATA_CATEGORY.JSON ? data.json || null : null,
-      formattedText: data.formattedText || null, // 存放格式化后的 JSON 文本
-      isTruncated: data.isTruncated || false, // 大文件截断标记
-      columnMapping: data.columnMapping || null,  // 缓存血缘字段映射
-    })
+    // 直接存实例，用 markRaw 避免 Vue 深度代理流对象内部复杂的生成器状态
+    datasets.value[id] = markRaw(data)
     triggerRef(datasets)
   }
 

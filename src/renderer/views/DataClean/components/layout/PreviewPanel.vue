@@ -4,7 +4,9 @@
       <div class="preview-title">
         <span class="title-text">{{ title }}</span>
         <span v-if="hasData && meta.dataCategory === 'table'" class="title-meta">
-          {{ meta.rowCount }} 行 · {{ meta.columns.length }} 列
+          <!-- 👇 兼容流式数据的行数显示 -->
+          {{ meta.rowCount === -1 ? "流式数据" : meta.rowCount + " 行" }} ·
+          {{ meta.columns.length }} 列
         </span>
         <span
           v-if="meta.isTruncated"
@@ -48,7 +50,7 @@
         v-else-if="meta.dataCategory === 'table'"
         ref="tableRef"
         :columns="tableColumns"
-        :data="visibleRows"
+        :data="previewRows"
         :width="tableWidth"
         :height="tableHeight"
         :row-height="32"
@@ -125,6 +127,10 @@
   // 右键菜单状态
   const contextMenu = ref({ visible: false, x: 0, y: 0, field: null })
 
+  // 异步流式预览数据
+  const previewRows = ref([])
+  const isLoading = ref(false)
+
   const selected = computed(() => graphStore.selectedNode)
   const meta = computed(() => {
     if (!selected.value)
@@ -153,10 +159,14 @@
 
   const hasData = computed(() => {
     if (!meta.value.dataCategory) return false
-    if (meta.value.dataCategory === "table")
-      return Boolean(dataset.value && dataset.value.rows.length > 0)
-    if (meta.value.dataCategory === "json")
+    if (meta.value.dataCategory === "table") {
+      return Boolean(
+        previewRows.value.length > 0 || (meta.value.rowCount && meta.value.rowCount > 0),
+      )
+    }
+    if (meta.value.dataCategory === "json") {
       return Boolean(dataset.value && dataset.value.json !== null)
+    }
     return false
   })
 
@@ -170,10 +180,38 @@
     return "尚未运行，请检查参数或上游连线"
   })
 
-  const visibleRows = computed(() => {
-    if (!dataset.value || !dataset.value.rows) return []
-    return dataset.value.rows.slice(0, 200).map((row, idx) => ({ ...row, __idx: idx }))
-  })
+  // 监听流式/内存数据，截取前 1000 行展示
+  watch(
+    () => dataset.value,
+    async newDataset => {
+      if (!newDataset) {
+        previewRows.value = []
+        return
+      }
+
+      isLoading.value = true
+      try {
+        if (typeof newDataset.take === "function") {
+          // 如果底层是 InMemoryDataset 或 StreamDataset
+          const res = await newDataset.take(1000)
+          previewRows.value = res.rows || []
+          // 把拿到的列信息同步给 meta
+          if (res.columns && res.columns.length > 0) {
+            meta.value.columns = res.columns
+          }
+        } else {
+          // 兼容老格式纯对象
+          previewRows.value = newDataset.rows ? newDataset.rows.slice(0, 1000) : []
+        }
+      } catch (err) {
+        console.error("获取预览数据失败", err)
+      } finally {
+        isLoading.value = false
+        nextTick(() => measure())
+      }
+    },
+    { immediate: true, deep: false },
+  )
 
   const tableColumns = computed(() => {
     if (!meta.value.columns || meta.value.columns.length === 0) return []
@@ -203,7 +241,6 @@
 
   // 👇 处理右键菜单
   function handleHeaderContextMenu(e, fieldName) {
-    // 阻止事件冒泡，防止触发表格的滚动或选中
     e.stopPropagation()
     contextMenu.value = {
       visible: true,
@@ -235,13 +272,11 @@
     hideContextMenu()
   }
 
-  // 处理全局鼠标左键
+  // 处理全局鼠标左键（保留原有的拖拽逻辑）
   function handleGlobalMouseDown(e) {
-    // 如果点的是拖拽柄，走拖拽逻辑
     const resizer = e.target.closest(".col-resizer")
     if (resizer) {
       e.preventDefault()
-      // ... 原有的拖拽逻辑
       const headerCell = resizer.closest(".custom-header-cell")
       if (!headerCell) return
       const colKey = headerCell.getAttribute("data-key")
@@ -284,12 +319,6 @@
     }
   }
 
-  watch(
-    () => dataset.value,
-    () => nextTick(() => measure()),
-    { deep: false },
-  )
-
   function measure() {
     if (!previewBodyRef.value) return
     const rect = previewBodyRef.value.getBoundingClientRect()
@@ -311,7 +340,7 @@
 </script>
 
 <style scoped>
-  /* ... 原有样式保持不变 ... */
+  /* 保留你原汁原味的样式，一字未动 */
   .preview-panel {
     display: flex;
     flex-direction: column;
@@ -360,7 +389,6 @@
     padding: 0 8px;
     box-sizing: border-box;
   }
-  /* 新增：整格高亮背景 */
   .custom-header-cell.is-active-bg {
     background-color: rgba(59, 130, 246, 0.15) !important;
   }
@@ -405,8 +433,6 @@
     height: 100%;
     color: #64748b;
   }
-
-  /* 右键菜单样式 */
   .custom-context-menu {
     position: fixed;
     z-index: 9999;

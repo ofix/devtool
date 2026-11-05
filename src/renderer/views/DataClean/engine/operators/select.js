@@ -1,4 +1,5 @@
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
 
 export default {
   type: "select",
@@ -16,9 +17,9 @@ export default {
     { field: "columns", label: "保留列", component: "columnPicker" },
     { field: "renameMap", label: "重命名", component: "renamePanel" },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     let keepCols = params.columns || []
     if (!Array.isArray(keepCols)) keepCols = []
@@ -35,7 +36,6 @@ export default {
 
     const outCols = []
     const validCols = new Set()
-    // 记录输出字段与源头字段的映射字典
     const columnMapping = {}
 
     for (const c of data.columns) {
@@ -43,20 +43,33 @@ export default {
         const newName = renameMap[c.name] || c.name
         outCols.push({ name: newName, type: c.type })
         validCols.add(c.name)
-        // 记录当前字段的来源（如果是改了名，映射到老名字；如果没改，映射到自己）
         columnMapping[newName] = c.name
       }
     }
 
-    const outRows = data.rows.map(row => {
-      const newRow = {}
-      for (const oldName of validCols) {
-        const newName = renameMap[oldName] || oldName
-        newRow[newName] = row[oldName]
+    // 流式处理生成器
+    async function* selectGenerator() {
+      for await (const chunk of data) {
+        const outRows = chunk.map(row => {
+          const newRow = {}
+          for (const oldName of validCols) {
+            const newName = renameMap[oldName] || oldName
+            newRow[newName] = row[oldName]
+          }
+          return newRow
+        })
+        yield outRows
       }
-      return newRow
-    })
+    }
 
-    return { rows: outRows, columns: outCols, columnMapping }
+    // 返回流式 Dataset，把 mapping 挂载在实例上
+    const resultStream = new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: outCols,
+      generator: selectGenerator,
+    })
+    resultStream.columnMapping = columnMapping
+
+    return resultStream
   },
 }

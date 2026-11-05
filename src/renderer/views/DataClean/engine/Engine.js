@@ -1,9 +1,10 @@
-// 增加严格的类型校验拦截，并支持字段血缘映射收集
+// 增加严格的类型校验拦截，并支持字段血缘映射收集与流式数据自适应
 import { markRaw } from "vue"
 import { getOperator } from "./operators/index.js"
 import { inferDataCategory } from "./runtime/InferCategory.js"
 import { DATA_CATEGORY } from "../constants/DataCategories.js"
 import { JsonSchemaTree } from "./runtime/JsonSchemaTree.js"
+import InMemoryDataset from "./runtime/InMemoryDataset.js"
 
 export default class Engine {
   constructor({ metaStore, datasetStore, graphStore }) {
@@ -30,7 +31,10 @@ export default class Engine {
     for (const edge of incoming) {
       const upstreamData = this.datasetStore.getDataset(edge.source)
       if (!upstreamData) {
-        inputs.push({ dataCategory: DATA_CATEGORY.TABLE, rows: [], columns: [], json: null })
+        // 如果上游没数据，构造一个空的 InMemoryDataset 传入
+        inputs.push(
+          new InMemoryDataset({ dataCategory: DATA_CATEGORY.TABLE, rows: [], columns: [] }),
+        )
         continue
       }
 
@@ -64,8 +68,12 @@ export default class Engine {
         graphStore: this.graphStore, // 传递图状态，供复杂算子（如 Join）查上游
       })
 
+      if (!result) return null
+
       const finalCategory = result.dataCategory || inferDataCategory(result.rows)
 
+      // ================= 血缘映射智能兜底 =================
+      // 如果算子没有返回 columnMapping（比如 Filter/Sort 等直传算子），则自动按同名映射补全
       if (!result.columnMapping && result.columns) {
         result.columnMapping = {}
         for (const col of result.columns) {
@@ -73,53 +81,63 @@ export default class Engine {
         }
       }
 
-      // 👇 添加这两行打印
-      console.log("【Engine 接收到的结果】", result)
-      console.log("【Engine 接收到的 columnMapping】", result?.columnMapping)
-
-      // 核心：智能兜底构建 columnMapping / jsonSchemaMapping
-      let finalMapping = result.columnMapping
-
-      const normalized = {
-        dataCategory: finalCategory,
-        rows: finalCategory === DATA_CATEGORY.TABLE ? result.rows || [] : [],
-        columns: finalCategory === DATA_CATEGORY.TABLE ? result.columns || [] : [],
-        json: finalCategory === DATA_CATEGORY.JSON ? result.json || null : null,
-        formattedText: result.formattedText || null,
-        isTruncated: result.isTruncated || false,
-        // 把列映射字典随数据一起缓存下来，供后续图谱组装使用
-        columnMapping: finalMapping,
+      // ================= 数据结构自适应 =================
+      let finalDataset = result
+      // 如果算子返回的是纯对象（尚未改造的算子），将其包装成 InMemoryDataset
+      if (
+        !result.isStream &&
+        !(result instanceof InMemoryDataset) &&
+        result.dataCategory !== DATA_CATEGORY.JSON
+      ) {
+        finalDataset = new InMemoryDataset({
+          dataCategory: finalCategory,
+          rows: result.rows || [],
+          columns: result.columns || [],
+        })
+        // 将兜底的 mapping 挂载到新实例上
+        finalDataset.columnMapping = result.columnMapping
+      } else {
+        // 如果是已改造的实例，确保它带有 mapping（极少数可能遗漏）
+        finalDataset.columnMapping = result.columnMapping
       }
 
+      // ================= JSON Schema 构建 =================
       let jsonSchemaTree = null
-      if (finalCategory === DATA_CATEGORY.JSON && normalized.json) {
-        const builder = new JsonSchemaTree(normalized.json)
-        jsonSchemaTree = markRaw(builder.build())
+      let rowCount = 0
+      let jsonData = null
+
+      if (finalCategory === DATA_CATEGORY.JSON) {
+        jsonData = result.json || null
+        if (jsonData) {
+          const builder = new JsonSchemaTree(jsonData)
+          jsonSchemaTree = markRaw(builder.build())
+        }
+        rowCount = Array.isArray(jsonData) ? jsonData.length : 1
+      } else if (finalCategory === DATA_CATEGORY.TABLE) {
+        // 流式数据无法提前知道总行数，设置为 -1，内存数据则取实际长度
+        if (finalDataset instanceof InMemoryDataset) {
+          rowCount = finalDataset.rows.length
+        } else if (finalDataset.isStream) {
+          rowCount = -1 // UI 层需处理 -1 的情况（显示“未知/流式中”）
+        }
       }
 
-      // 写入缓存，让下游节点可以读
-      this.datasetStore.setDataset(nodeId, normalized)
+      // 将实例写入缓存，供下游节点读取
+      this.datasetStore.setDataset(nodeId, finalDataset)
 
       this.metaStore.updateMeta(nodeId, {
-        rowCount:
-          finalCategory === DATA_CATEGORY.TABLE
-            ? normalized.rows.length
-            : finalCategory === DATA_CATEGORY.JSON
-              ? Array.isArray(normalized.json)
-                ? normalized.json.length
-                : 1
-              : 0,
-        columns: normalized.columns,
+        rowCount: rowCount,
+        columns: finalDataset.columns || [],
         dataCategory: finalCategory,
         jsonSchemaTree,
-        formattedText: normalized.formattedText,
-        isTruncated: normalized.isTruncated,
+        formattedText: result.formattedText || null,
+        isTruncated: result.isTruncated || false,
         stale: false,
         staleReason: null,
         error: null,
       })
 
-      return normalized
+      return finalDataset
     } catch (err) {
       const errMsg = err.message || String(err)
       this.metaStore.setError(nodeId, errMsg)

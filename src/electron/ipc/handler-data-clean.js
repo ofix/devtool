@@ -1,7 +1,7 @@
 // DataClean 子应用 IPC 路由
 // 负责文件/文件夹选择、文件读写、目录递归、命令执行、管线持久化
 
-import { ipcMain, dialog, shell } from "electron"
+import { ipcMain, dialog, shell, MessageChannelMain } from "electron"
 import fs from "fs"
 import path from "path"
 import { exec } from "child_process"
@@ -49,6 +49,15 @@ class DataCleanHandler {
     })
 
     // ---- 文件读写 ----
+    ipcMain.handle(`${CHANNEL_PREFIX}:fs:stat`, async (_e, filePath) => {
+      try {
+        const stats = await fs.promises.stat(filePath)
+        return { size: stats.size, isFile: stats.isFile() }
+      } catch (err) {
+        return null
+      }
+    })
+
     ipcMain.handle(`${CHANNEL_PREFIX}:fs:readFile`, async (_e, filePath) => {
       return fs.promises.readFile(filePath, "utf8")
     })
@@ -126,6 +135,34 @@ class DataCleanHandler {
 
     ipcMain.handle(`${CHANNEL_PREFIX}:fs:readBuffer`, async (_e, filePath) => {
       return fs.promises.readFile(filePath) // 返回 Node Buffer
+    })
+
+    // 流式读取超大文件，转移文件所有权，零拷贝
+    ipcMain.handle(`${CHANNEL_PREFIX}:fs:startStream`, async (evt, filePath) => {
+      // 用一个随机 ID 隔离不同文件的流
+      const streamId = Date.now().toString()
+
+      // 注意：这是 WebContents 对象，用于给前端推流
+      const webContents = evt.sender
+
+      const rs = fs.createReadStream(filePath, { highWaterMark: 128 * 1024 })
+
+      // 监听前端的终止信号
+      ipcMain.once(`${CHANNEL_PREFIX}:fs:abort:${streamId}`, () => {
+        rs.destroy()
+      })
+
+      rs.on("data", buf => {
+        // 直接发送 Uint8Array，Electron 完美支持
+        const ab = new Uint8Array(buf)
+        webContents.send(`${CHANNEL_PREFIX}:fs:chunk:${streamId}`, ab)
+      })
+
+      rs.on("end", () => webContents.send(`${CHANNEL_PREFIX}:fs:end:${streamId}`))
+      rs.on("error", err => webContents.send(`${CHANNEL_PREFIX}:fs:error:${streamId}`, err.message))
+
+      // 把 streamId 返回给前端
+      return streamId
     })
 
     ipcMain.handle(`${CHANNEL_PREFIX}:shell:showItemInFolder`, async (_e, filePath) => {
