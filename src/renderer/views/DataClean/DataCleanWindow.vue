@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-  import { ref, nextTick } from "vue"
+  import { ref, onMounted } from "vue"
   import { ElMessage } from "element-plus"
   import TopMenu from "./components/layout/TopMenu.vue"
   import PreviewPanel from "./components/layout/PreviewPanel.vue"
@@ -28,43 +28,49 @@
   import { deserializePipeline } from "./pipeline/Deserialize.js"
   import { useStoreDataCleanGraph } from "./stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "./stores/StoreDataCleanMeta.js"
-  import { useStoreDataCleanDatasets } from "./stores/StoreDataCleanDatasets.js"
+  import { useStoreDataCleanPreview } from "./stores/StoreDataCleanPreview.js"
   import { useStoreDataCleanLog } from "./stores/StoreDataCleanLog.js"
 
   const graphStore = useStoreDataCleanGraph()
   const metaStore = useStoreDataCleanMeta()
-  const datasetStore = useStoreDataCleanDatasets()
+  const previewStore = useStoreDataCleanPreview()
   const logStore = useStoreDataCleanLog()
 
   const editorRef = ref(null)
-  const engine = new Engine({ metaStore, datasetStore, graphStore })
-  const scheduler = new Scheduler(engine)
 
-  // 预览节点
+  // 实例化 Engine，注入全新依赖 (移除旧的 datasetStore)
+  const engine = new Engine({ metaStore, previewStore, graphStore })
+  const scheduler = new Scheduler({ graphStore, metaStore, engine })
+
+  // 当前活跃的 ProjectId (多标签页隔离，默认给一个)
+  const projectId = "default-project"
+
+  // 局部预览节点
   async function onNodePreview() {
     const id = graphStore.selectedNodeId
-    console.log("preview node id = ",id);
     if (!id) return
 
-    console.log("Previewing node chain for", id)
-
     try {
-      await engine.previewNode(id, {
+      await scheduler.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
       })
     } catch (err) {
-      ElMessage.error(`局部运行异常：${err.message}`)
+      ElMessage.error(`局部预览失败：${err.message}`)
     }
   }
 
+  // 全量运行整图
   async function executeGraph() {
-    if (graphStore.nodes.length === 0) return
+    if (graphStore.nodes.length === 0) {
+      ElMessage.warning("画布为空，无法运行")
+      return
+    }
     logStore.push("开始运行全图...")
     try {
-      await scheduler.runAll(graphStore.nodes, graphStore.edges, {
+      await scheduler.runTask(projectId, null, "execute", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId),
       })
-      await writeOutputs()
+      // 注意：全量运行后的写入落盘已经由 Writer 算子内部完成，无需外部 writeOutputs
       ElMessage.success("运行完成")
     } catch (err) {
       logStore.push(`运行异常：${err.message}`, "error", null)
@@ -72,49 +78,26 @@
     }
   }
 
-  async function writeOutputs() {
-    for (const node of graphStore.nodes) {
-      if (node.type === "output") {
-        const data = datasetStore.getDataset(node.id)
-        if (!data || !node.params || !node.params.filePath) continue
-        try {
-          const content = serializeData(data, node.params.format || "csv")
-          await window.api.dataClean.fs.writeFile(node.params.filePath, content)
-          logStore.push(`[Output] 已写入 ${node.params.filePath}`, "info", node.id)
-        } catch (err) {
-          logStore.push(`[Output] 写入失败：${err.message}`, "error", node.id)
-        }
-      }
-    }
-  }
-
-  function serializeData(data, format) {
-    if (format === "json") return JSON.stringify(data.rows, null, 2)
-    const cols = data.columns.map(c => c.name)
-    const lines = [cols.map(c => escapeCsv(c)).join(",")]
-    for (const row of data.rows) {
-      lines.push(cols.map(c => escapeCsv(row[c])).join(","))
-    }
-    return lines.join("\n")
-  }
-
-  function escapeCsv(v) {
-    if (v === null || v === undefined) return ""
-    const s = String(v)
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-
+  // 刷新预览
   async function onRefreshPreview() {
     const id = graphStore.selectedNodeId
     if (!id) return
-    await engine.runNode(id, { log: (msg, level, nodeId) => logStore.push(msg, level, id) })
+    try {
+      await scheduler.runTask(projectId, id, "preview", {
+        log: (msg, level, nodeId) => logStore.push(msg, level, id),
+      })
+    } catch (err) {
+      ElMessage.error(`刷新失败：${err.message}`)
+    }
   }
 
+  // 适应画布大小
   function onFit() {
     const el = document.querySelector(".node-editor")
     if (el) el.dispatchEvent(new CustomEvent("dc-fit-view"))
   }
 
+  // 保存管线
   async function onSave() {
     const json = JSON.stringify(serializePipeline(graphStore), null, 2)
     const path = await window.api.dataClean.dialog.saveFile({
@@ -125,6 +108,7 @@
     ElMessage.success("管线已保存")
   }
 
+  // 加载管线
   async function onLoad() {
     const path = await window.api.dataClean.dialog.openFile({
       filters: [{ name: "Pipeline", extensions: ["json"] }],
@@ -142,9 +126,15 @@
       ElMessage.error(`加载失败：${err.message}`)
     }
   }
+
+  // 生命周期钩子
+  onMounted(() => {
+    // 可以做一些初始化操作
+  })
 </script>
 
 <style scoped>
+  /* 原有样式保持不变 */
   .data-clean-app {
     display: flex;
     flex-direction: column;

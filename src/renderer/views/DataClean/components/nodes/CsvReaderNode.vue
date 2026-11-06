@@ -27,44 +27,30 @@
 
 <script setup>
   import { ref } from "vue"
-  import { ElMessage } from "element-plus"
   import BaseNode from "./BaseNode.vue"
   import ParamRow from "../params/ParamRow.vue"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanLog } from "../../stores/StoreDataCleanLog.js"
-  import { useStoreDataCleanDatasets } from "../../stores/StoreDataCleanDatasets.js"
 
   const props = defineProps({
     node: { type: Object, required: true },
     selected: { type: Boolean, default: false },
   })
+
   const graphStore = useStoreDataCleanGraph()
   const logStore = useStoreDataCleanLog()
-  const datasetStore = useStoreDataCleanDatasets()
-  const loading = ref(false)
   const emit = defineEmits(["trigger-run"])
 
+  // 只读取文件路径，不读取文件内容，数据读取交给底层的流式算子
   async function onPickFile() {
     const filePath = await window.api.dataClean.dialog.openFile({
       filters: [{ name: "CSV", extensions: ["csv"] }],
     })
     if (!filePath) return
-    graphStore.updateNodeParams(props.node.id, { filePath })
-    await autoReadFile(filePath)
-  }
 
-  async function autoReadFile(filePath) {
-    loading.value = true
-    try {
-      const text = await window.api.dataClean.fs.readFile(filePath)
-      graphStore.updateNodeParams(props.node.id, { rawText: text })
-      logStore.push(`[CSV Reader] 已读取 ${filePath}`)
-    } catch (err) {
-      ElMessage.error(`读取失败：${err.message}`)
-      logStore.push(`[CSV Reader] 读取失败：${err.message}`, "error")
-    } finally {
-      loading.value = false
-    }
+    // 只更新路径，不读文件内容
+    graphStore.updateNodeParams(props.node.id, { filePath })
+    logStore.push(`[CSV Reader] 已选择文件: ${filePath}`)
   }
 
   function updateParam(field, value) {
@@ -72,7 +58,7 @@
   }
 
   async function handlePreview() {
-    datasetStore.removeDataset(props.node.id)
+    // 触发上层调度，由 Scheduler 去执行流式读取
     emit("trigger-run")
   }
 </script>

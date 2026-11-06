@@ -46,7 +46,6 @@ export default {
 
         const trueRows = []
         const falseRows = []
-
         for (const row of chunk.rows) {
           try {
             if (fn(row)) {
@@ -73,6 +72,8 @@ export default {
       }
 
       if (ctx.log) ctx.log(`[Filter] 满足: ${trueCount} 行, 不满足: ${falseCount} 行`)
+      // 👇 加这一行，看看到底匹配了多少
+      console.log(`【Filter】最终匹配行数: ${trueCount}`)
     }
 
     return new StreamDataset({

@@ -6,7 +6,6 @@ import jsonUnpivot from "./jsonUnpivot.js"
 import jsonFlatten from "./jsonFlatten.js"
 import jsonExtract from "./jsonExtract.js"
 import jsonFilter from "./jsonFilter.js"
-import output from "./output.js"
 import message from "./message.js"
 import filter from "./filter.js"
 import select from "./select.js"
@@ -44,7 +43,6 @@ const modules = [
   jsonFlatten,
   jsonExtract,
   jsonFilter,
-  output,
   message,
   filter,
   select,

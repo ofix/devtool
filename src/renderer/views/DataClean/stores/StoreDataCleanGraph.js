@@ -7,11 +7,10 @@ import { ref, computed } from "vue"
 export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
   const nodes = ref([])
   const edges = ref([])
+  // 当前选中的算子节点ID
   const selectedNodeId = ref(null)
-
-  // 👇 新增：存储当前被激活的血缘图链路
+  // 存储当前被激活的血缘图链路
   const activeLineageGraph = ref(null)
-
   const selectedNode = computed(() => nodes.value.find(n => n.id === selectedNodeId.value) || null)
 
   /**
@@ -101,7 +100,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     selectedNodeId.value = id
   }
 
-  // 👇 新增：设置激活的血缘图
+  // 设置激活的血缘图
   function setActiveLineageGraph(graph) {
     activeLineageGraph.value = graph
   }
@@ -113,7 +112,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     nodes.value = []
     edges.value = []
     selectedNodeId.value = null
-    activeLineageGraph.value = null // 👈 顺便清理激活的血缘
+    activeLineageGraph.value = null // 顺便清理激活的血缘
   }
 
   return {
@@ -121,7 +120,7 @@ export const useStoreDataCleanGraph = defineStore("dataCleanGraph", () => {
     edges,
     selectedNodeId,
     selectedNode,
-    activeLineageGraph, // 👈 导出
+    activeLineageGraph, // 导出
     addNode,
     updateNodeParams,
     updateNodePosition,

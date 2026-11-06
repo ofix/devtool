@@ -1,21 +1,23 @@
-import { v4 as uuidv4 } from "uuid" // 如果没有 uuid 库，可用 Date.now() + Math.random() 替代
+// 移除 uuid 依赖，改用原生生成，避免打包报错
+function generateTaskId() {
+  return `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
 
 export default class TaskContext {
-  /**
-   * @param {String} projectId 工程/标签页ID
-   * @param {String} mode 'preview' | 'execute'
-   * @param {String} priority 'high' | 'low'
-   */
   constructor(projectId, mode = "preview", priority = "high") {
-    this.taskId = `task-${uuidv4()}`
+    this.taskId = generateTaskId()
     this.projectId = projectId
     this.mode = mode
     this.priority = priority
 
+    // 核心修复：直接赋值，彻底消除 getter 的上下文丢失问题
     this.abortController = new AbortController()
-    this.hardTimeout = null
+    this.signal = this.abortController.signal
 
-    // 统计埋点（指标不重叠）
+    this.hardTimeout = null
+    this.onDestroy = null
+
+    // 统计埋点
     this.metrics = {
       mainRows: 0,
       errorRows: 0,
@@ -25,20 +27,15 @@ export default class TaskContext {
     }
   }
 
-  get signal() {
-    return this.abortController.signal
-  }
-
   /**
    * 触发取消（手动或超时）
    */
   abort(reason = "用户取消") {
-    if (!this.signal.aborted) {
+    if (this.signal && !this.signal.aborted) {
       this.abortController.abort(reason)
       this.stopHardTimeout()
       this.reportMetrics("cancelled")
 
-      // 👇 新增：触发物理资源销毁
       if (this.onDestroy) {
         this.onDestroy()
         this.onDestroy = null
@@ -46,15 +43,10 @@ export default class TaskContext {
     }
   }
 
-  /**
-   * 启动硬超时（从第一个 chunk 开始计时）
-   * @param {Number} timeoutMs 超时时长
-   * @param {Function} onTimeout 超时回调
-   */
   startHardTimeout(timeoutMs, onTimeout) {
     if (!timeoutMs) return
     this.hardTimeout = setTimeout(() => {
-      if (!this.signal.aborted) {
+      if (this.signal && !this.signal.aborted) {
         onTimeout()
         this.abort("硬超时熔断")
       }
@@ -68,9 +60,6 @@ export default class TaskContext {
     }
   }
 
-  /**
-   * 标记首个 chunk 到达，开始计时并触发进度
-   */
   markFirstChunk() {
     if (!this.firstChunkTime) {
       this.firstChunkTime = Date.now()
@@ -81,14 +70,9 @@ export default class TaskContext {
     }
   }
 
-  /**
-   * 上报指标
-   */
   reportMetrics(status = "active") {
     const now = Date.now()
     const duration = this.metrics.startTime ? now - this.metrics.startTime : 0
-
-    // 校验指标统计守恒
     const total = this.metrics.mainRows + this.metrics.errorRows + this.metrics.discardedRows
 
     console.log(`[TaskMetrics] ${this.taskId} | 状态: ${status} | 耗时: ${duration}ms`)

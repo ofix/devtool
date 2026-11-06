@@ -5,7 +5,7 @@ const EMPTY_META = {
   rowCount: null,
   columns: [],
   dataCategory: null,
-  jsonSchemaTree: null, // 新增：缓存的 JSON Schema 树
+  jsonSchemaTree: null, // 缓存的 JSON Schema 树
   formattedText: null,
   isTruncated: false,
   stale: false,

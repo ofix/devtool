@@ -1,176 +1,238 @@
 import Papa from "papaparse"
-import { resourceManager } from "./ResourceManager.js"
 
 export default class CsvStreamParser {
-    /**
-     * @param {String} filePath 文件绝对路径
-     * @param {Object} taskContext 任务上下文 (包含 signal 和 metrics)
-     * @param {Object} options 额外配置
-     */
-    constructor(filePath, taskContext, options = {}) {
-        this.filePath = filePath
-        this.ctx = taskContext
-        this.encoding = options.encoding || "utf-8"
-        
-        this.streamId = null
-        this.decoder = new TextDecoder(this.encoding)
-        
+  constructor(filePath, taskContext, options = {}) {
+    this.filePath = filePath
+    this.ctx = taskContext
+    this.encoding = options.encoding || "utf-8"
+    this.hasHeader = options.hasHeader !== false
+
+    this.streamId = null
+    this.decoder = new TextDecoder(this.encoding)
+
+    this.inQuote = false
+    this.textBuffer = ""
+    this.pendingRows = []
+    this.isDone = false
+    this.isStreamStopped = false
+
+    this.columns = []
+    this.headerFields = null
+    this.resolveHeaderReady = null
+    this.headerReadyPromise = new Promise(resolve => {
+      this.resolveHeaderReady = resolve
+    })
+
+    this.currentResolver = null
+  }
+
+  async start() {
+    if (this.ctx?.signal?.aborted) {
+      this.isStreamStopped = true
+      this._safeResolveHeader()
+      return
+    }
+
+    if (this.ctx?.signal) {
+      this.ctx.signal.addEventListener("abort", () => this.stop(), { once: true })
+    }
+
+    const oldDestroy = this.ctx?.onDestroy
+    this.ctx.onDestroy = () => {
+      this.stop()
+      oldDestroy?.()
+    }
+
+    try {
+      this.streamId = await window.api.dataClean.fs.startStream(this.filePath)
+    } catch (err) {
+      this.isDone = true
+      this._safeResolveHeader()
+      throw err
+    }
+
+    window.api.dataClean.fs.onStreamData(this.streamId, chunk => {
+      if (this.isStreamStopped) return
+      if (this.ctx?.markFirstChunk) this.ctx.markFirstChunk()
+
+      const text = this.decoder.decode(chunk, { stream: true })
+      if (text) this._processText(text)
+    })
+
+    window.api.dataClean.fs.onStreamEnd(this.streamId, () => {
+      if (this.isStreamStopped) return
+      // 刷尾
+      const finalText = this.decoder.decode(new Uint8Array(), { stream: false })
+      if (finalText) this._processText(finalText)
+
+      if (this.textBuffer) {
+        this._onCompleteBlock(this.textBuffer)
         this.textBuffer = ""
-        this.pendingRows = []
-        this.isDone = false
-        this.isStreamStopped = false
-        
-        // 表头与元数据
-        this.columns = []
-        this.resolveHeaderReady = null
-        this.headerReadyPromise = new Promise(resolve => { this.resolveHeaderReady = resolve })
-        
-        // 背压唤醒
-        this.currentResolver = null
-    }
+      }
+      this.isDone = true
+      this._wakeupConsumer()
+    })
 
-    /**
-     * 启动解析器 (接驳主进程)
-     */
-    async start() {
-        // 注册信号监听，一旦用户取消立刻止损
-        this.ctx.signal.addEventListener("abort", () => this.stop(), { once: true })
+    window.api.dataClean.fs.onStreamError(this.streamId, err => {
+      console.error("[CsvParser] stream error", err)
+      this.isDone = true
+      this._safeResolveHeader()
+      this._wakeupConsumer()
+    })
+  }
 
-        // 向主进程申请流通道
-        this.streamId = await window.api.dataClean.fs.startStream(this.filePath)
-
-        // 注册底层回调
-        const removeData = window.api.dataClean.fs.onStreamData(this.streamId, chunk => {
-            if (this.isStreamStopped) return
-            this.ctx.markFirstChunk()
-            
-            // 流式解码，解决中文跨块截断
-            const text = this.decoder.decode(chunk, { stream: true })
-            if (text) this._processText(text)
-        })
-
-        const removeEnd = window.api.dataClean.fs.onStreamEnd(this.streamId, () => {
-            this.isDone = true
-            if (this.textBuffer.trim()) {
-                this._parseChunk(this.textBuffer, false) // 解析末尾残余
-            }
-            this._wakeupConsumer()
-        })
-
-        const removeErr = window.api.dataClean.fs.onStreamError(this.streamId, err => {
-            console.error("[CsvParser] 底层流异常:", err)
-            this.isDone = true
-            this._wakeupConsumer()
-            this.resolveHeaderReady() // 防止异常卡死
-        })
-
-        // 挂载清理器
-        this.ctx.onDestroy = () => {
-            removeData(); removeEnd(); removeErr()
+  _processText(text) {
+    this.textBuffer += text
+    let pos = 0
+    const len = this.textBuffer.length
+    for (; pos < len; pos++) {
+      const ch = this.textBuffer[pos]
+      if (ch === '"') {
+        if (pos + 1 < len && this.textBuffer[pos + 1] === '"') {
+          pos++
+          continue
         }
+        this.inQuote = !this.inQuote
+      }
+      if (!this.inQuote) {
+        if (ch === "\r" && pos + 1 < len && this.textBuffer[pos + 1] === "\n") {
+          const block = this.textBuffer.slice(0, pos + 2)
+          this.textBuffer = this.textBuffer.slice(pos + 2)
+          pos = 0
+          this._onCompleteBlock(block)
+          continue
+        }
+        if (ch === "\n") {
+          const block = this.textBuffer.slice(0, pos + 1)
+          this.textBuffer = this.textBuffer.slice(pos + 1)
+          pos = 0
+          this._onCompleteBlock(block)
+        }
+      }
     }
+  }
 
-    /**
-     * 处理文本，解决跨块行截断
-     */
-    _processText(text) {
-        this.textBuffer += text
-        const lastNewlineIndex = this.textBuffer.lastIndexOf("\n")
-        if (lastNewlineIndex === -1) return
-
-        const completeText = this.textBuffer.slice(0, lastNewlineIndex + 1)
-        this.textBuffer = this.textBuffer.slice(lastNewlineIndex + 1)
-        
-        this._parseChunk(completeText, true)
+  _onCompleteBlock(block) {
+    if (this.headerFields === null) {
+      return this._detectHeader(block)
     }
+    this._parseChunk(block)
+  }
 
-    /**
-     * 调用 Papa 解析，提取表头并填充缓冲
-     */
-    _parseChunk(textToParse, checkHeader = true) {
-        Papa.parse(textToParse, {
-            header: true,
-            skipEmptyLines: true,
-            step: (results) => {
-                // 第一次抓取到表头，标记就绪并广播
-                if (checkHeader && this.columns.length === 0 && results.meta.fields) {
-                    this.columns = results.meta.fields.map(name => ({ name, type: "string" }))
-                    this.resolveHeaderReady()
-                }
-                this.pendingRows.push(results.data)
-            },
-            complete: () => {
-                this._wakeupConsumer()
-            }
+  _detectHeader(block) {
+    const preview = Papa.parse(block, { header: false, preview: 1, skipEmptyLines: false })
+    if (!preview.data || preview.data.length === 0) return
+
+    const firstRow = preview.data[0]
+    if (this.hasHeader) {
+      this._parseHeader(firstRow)
+      // 兼容 CRLF / LF
+      let nlPos = block.indexOf("\r\n")
+      let offset = 2
+      if (nlPos === -1) {
+        nlPos = block.indexOf("\n")
+        offset = 1
+      }
+      if (nlPos !== -1) {
+        const restBlock = block.slice(nlPos + offset)
+        if (restBlock.trim()) {
+          this._parseChunk(restBlock)
+        }
+      }
+    } else {
+      this._parseHeader([], firstRow.length)
+      this._parseChunk(block)
+    }
+  }
+
+  _parseHeader(fields = [], fallbackCount = 0) {
+    if (this.headerFields !== null) return
+    if (Array.isArray(fields) && fields.length > 0) {
+      this.headerFields = fields.map(f => String(f).trim())
+    } else {
+      const count = fallbackCount || 10
+      this.headerFields = Array.from({ length: count }, (_, i) => `col_${i}`)
+    }
+    this.columns = this.headerFields.map(name => ({ name, type: "string" }))
+    this.resolveHeaderReady()
+  }
+
+  _parseChunk(textToParse) {
+    if (!textToParse.trim()) return
+    Papa.parse(textToParse, {
+      header: false,
+      skipEmptyLines: true,
+      step: results => {
+        const rowArray = results.data
+        const rowObject = {}
+        this.headerFields.forEach((field, idx) => {
+          const val = rowArray[idx]
+          rowObject[field] = val !== undefined ? String(val).trim() : null
         })
+        this.pendingRows.push(rowObject)
+      },
+      complete: () => {
+        this._wakeupConsumer()
+      },
+    })
+  }
+
+  _safeResolveHeader() {
+    if (this.headerFields === null) {
+      this._parseHeader([], 0)
     }
+    this.resolveHeaderReady()
+  }
 
-    /**
-     * 唤醒挂起的下游消费者 (核心 Pull 机制)
-     */
-    _wakeupConsumer() {
-        if (!this.currentResolver) return
+  _wakeupConsumer() {
+    if (!this.currentResolver) return
+    if (this.pendingRows.length > 0) {
+      const chunk = this.pendingRows
+      this.pendingRows = []
+      this.currentResolver({ value: chunk, done: false })
+      this.currentResolver = null
+    } else if (this.isDone) {
+      this.currentResolver({ done: true })
+      this.currentResolver = null
+    }
+  }
 
+  async *createIterator() {
+    await this.headerReadyPromise
+    try {
+      while (true) {
+        if (this.ctx?.signal?.aborted) return
         if (this.pendingRows.length > 0) {
-            const chunk = this.pendingRows
-            this.pendingRows = []
-            this.currentResolver({ value: chunk, done: false })
-            this.currentResolver = null
+          const chunk = this.pendingRows
+          this.pendingRows = []
+          if (this.ctx?.metrics) this.ctx.metrics.mainRows += chunk.length
+          yield { columns: this.columns, rows: chunk }
         } else if (this.isDone) {
-            this.currentResolver({ done: true })
-            this.currentResolver = null
+          break
+        } else {
+          const next = await new Promise(resolve => {
+            this.currentResolver = resolve
+          })
+          if (next.done) break
+          if (this.ctx?.metrics) this.ctx.metrics.mainRows += next.value.length
+          yield { columns: this.columns, rows: next.value }
         }
+      }
+    } finally {
+      this.stop()
     }
+  }
 
-    /**
-     * 对外暴露的异步迭代器（下游算子直接调用）
-     */
-    async *createIterator() {
-        await this.headerReadyPromise // 保证 UI 能够先拿到列名
-
-        try {
-            while (true) {
-                if (this.ctx.signal.aborted) return
-
-                if (this.pendingRows.length > 0) {
-                    const chunk = this.pendingRows
-                    this.pendingRows = []
-                    // 记录 metrics
-                    this.ctx.metrics.mainRows += chunk.length 
-                    yield chunk
-                } else if (this.isDone) {
-                    break
-                } else {
-                    // 缓冲区为空，挂起等待唤醒
-                    const next = await new Promise(resolve => { this.currentResolver = resolve })
-                    if (next.done) break
-                    this.ctx.metrics.mainRows += next.value.length
-                    yield next.value
-                }
-            }
-        } finally {
-            // 如果下游提前 break (take 1000 达成) 或发生异常，触发 finally
-            this.stop()
-        }
+  stop() {
+    if (this.isStreamStopped) return
+    this.isStreamStopped = true
+    if (this.streamId) {
+      window.api.dataClean.fs.abortStream(this.streamId)
     }
-
-    /**
-     * 彻底刹车，关闭 IPC 通道并清理
-     */
-    stop() {
-        if (this.isStreamStopped) return
-        this.isStreamStopped = true
-
-        if (this.streamId) {
-            window.api.dataClean.fs.abortStream(this.streamId)
-        }
-        if (this.ctx.onDestroy) {
-            this.ctx.onDestroy()
-        }
-        // 让可能还在挂起的 resolve 收到结束信号，防止泄漏
-        if (this.currentResolver) {
-            this.currentResolver({ done: true })
-            this.currentResolver = null
-        }
+    if (this.ctx?.onDestroy) this.ctx.onDestroy()
+    if (this.currentResolver) {
+      this.currentResolver({ done: true })
+      this.currentResolver = null
     }
+  }
 }

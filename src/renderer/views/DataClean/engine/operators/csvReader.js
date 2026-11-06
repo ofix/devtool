@@ -1,6 +1,9 @@
+import Papa from "papaparse"
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import StreamDataset from "../runtime/StreamDataset.js"
 import CsvStreamParser from "../runtime/CsvStreamParser.js"
+
+const SMALL_FILE_THRESHOLD = 100 * 1024 * 1024 // 100MB 以下走全量内存
 
 export default {
   type: "csvReader",
@@ -21,22 +24,104 @@ export default {
     const filePath = params.filePath
     if (!filePath) throw new Error("请选择文件路径")
 
-    if (ctx?.log) ctx.log(`[CSV Reader] 准备启动流式引擎...`)
+    const encoding = params.encoding || "utf-8"
+    const cacheKey = `${filePath}::${encoding}`
 
-    const parser = new CsvStreamParser(filePath, params.encoding || "utf-8")
-    
-    // 1. 启动通道读取
-    await parser.start()
+    // ================== 1. 尝试命中全量快照缓存 ==================
+    if (ctx.snapshotCache && ctx.snapshotCache.has(cacheKey)) {
+      const cached = ctx.snapshotCache.get(cacheKey)
+      if (ctx.log) ctx.log(`[CSV Reader] 命中全量快照缓存，极速响应...`)
 
-    // 👇 核心修复：在这里阻塞等待表头解析完成
-    // 保证 Engine 拿到 StreamDataset 时，columns 已经有值了
-    await parser.headerReadyPromise
+      async function* cachedGenerator() {
+        const CHUNK_SIZE = 100000
+        for (let i = 0; i < cached.rows.length; i += CHUNK_SIZE) {
+          if (ctx.signal.aborted) return
+          const chunkRows = cached.rows.slice(i, i + CHUNK_SIZE)
+          if (ctx.metrics) ctx.metrics.mainRows += chunkRows.length
+          yield { columns: cached.columns, rows: chunkRows }
+          await new Promise(resolve => setTimeout(resolve, 0))
+        }
+      }
 
-    // 2. 将解析引擎的迭代器喂给通用 Dataset，返回给 Engine
-    return new StreamDataset({
+      return new StreamDataset({
         dataCategory: DATA_CATEGORY.TABLE,
-        columns: parser.columns, // 👈 直接传已经就绪的数组
-        generator: () => parser.createAsyncIterator()
+        columns: cached.columns,
+        controller: { sourceGenerator: cachedGenerator, strategy: "rendezvous" },
+      })
+    }
+
+    // ================== 2. 无缓存，开始读取文件 ==================
+    const stat = await window.api.dataClean.fs.stat(filePath)
+    if (!stat || !stat.isFile) throw new Error("文件不存在")
+
+    // ------- 2.1 小文件模式（全量内存极速解析） -------
+    if (stat.size < SMALL_FILE_THRESHOLD) {
+      if (ctx.log)
+        ctx.log(
+          `[CSV Reader] 小文件模式 (${(stat.size / 1024 / 1024).toFixed(2)} MB)，启动极速解析...`,
+        )
+
+      const text = await window.api.dataClean.fs.readFile(filePath)
+      const results = Papa.parse(text, { header: true, skipEmptyLines: true, encoding })
+
+      const columns = results.meta.fields
+        ? results.meta.fields.map(name => ({ name, type: "string" }))
+        : []
+      const allRows = results.data
+
+      // 👇 核心：将全量解析结果写入 Engine 的全局快照缓存
+      if (ctx.snapshotCache) {
+        ctx.snapshotCache.set(cacheKey, { rows: allRows, columns })
+      }
+
+      async function* memoryStreamGenerator() {
+        const CHUNK_SIZE = 5000
+        for (let i = 0; i < allRows.length; i += CHUNK_SIZE) {
+          if (ctx.signal.aborted) return
+          const chunkRows = allRows.slice(i, i + CHUNK_SIZE)
+          if (ctx.metrics) ctx.metrics.mainRows += chunkRows.length
+          yield { columns, rows: chunkRows }
+          await new Promise(resolve => setTimeout(resolve, 0))
+        }
+      }
+
+      return new StreamDataset({
+        dataCategory: DATA_CATEGORY.TABLE,
+        columns,
+        controller: { sourceGenerator: memoryStreamGenerator, strategy: "rendezvous" },
+      })
+    }
+
+    // ------- 2.2 大文件模式（分块流式读取） -------
+    if (ctx.log)
+      ctx.log(
+        `[CSV Reader] 大文件模式 (${(stat.size / 1024 / 1024).toFixed(2)} MB)，启动流式解析...`,
+      )
+
+    // 先探测表头
+    const headerParser = new CsvStreamParser(filePath, ctx, { encoding })
+    await headerParser.start()
+    await headerParser.headerReadyPromise
+    const detectedColumns = headerParser.columns
+    headerParser.stop()
+
+    const generatorFactory = () => {
+      return (async function* () {
+        const freshParser = new CsvStreamParser(filePath, ctx, { encoding })
+        await freshParser.start()
+        await freshParser.headerReadyPromise
+        try {
+          yield* freshParser.createIterator()
+        } finally {
+          freshParser.stop()
+        }
+      })()
+    }
+
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: detectedColumns,
+      controller: { sourceGenerator: generatorFactory, strategy: "rendezvous" },
     })
   },
 }
