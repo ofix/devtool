@@ -2,6 +2,7 @@ import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
 import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "filter",
@@ -16,15 +17,13 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "expression", label: "条件", component: "expression" }],
+
   async execute(inputs, params, ctx) {
     const data = inputs[0]
     if (!data) return null
 
     const exprText = params.expression
-    // 如果无表达式，原样透传流
-    if (!exprText || !exprText.trim()) {
-      return data
-    }
+    if (!exprText || !exprText.trim()) return data
 
     let fn
     try {
@@ -34,14 +33,21 @@ export default {
       throw new Error(`表达式语法错误: ${err.message}`)
     }
 
-    // 👇 核心：定义流式处理生成器
     async function* filterGenerator() {
-      let trueCount = 0,
-        falseCount = 0
-      for await (const chunk of data) {
+      let trueCount = 0
+      let falseCount = 0
+
+      // 使用 StreamController 获取数据，支持 1 对 N 的源分发
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("filter-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
         const trueRows = []
         const falseRows = []
-        for (const row of chunk) {
+
+        for (const row of chunk.rows) {
           try {
             if (fn(row)) {
               trueRows.push(row)
@@ -51,21 +57,28 @@ export default {
               falseCount++
             }
           } catch (e) {
+            ctx.metrics.errorRows++ // 计入脏数据
             console.error("表达式求值错误", e)
           }
         }
-        // 目前简化处理：只 yield 满足条件的数据。如果后续有 False 分支，需要更复杂的路由。
+
         if (trueRows.length > 0) {
-          yield trueRows
+          yield { ...chunk, rows: trueRows }
         }
+        // 如果定义了 _falseRows 通道，可在此处返回
+        // if (falseRows.length > 0) { ... }
+
+        // 让出主线程，防止 100 万行卡死
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
-      if (ctx?.log) ctx.log(`[Filter 流式] 满足: ${trueCount} 行, 不满足: ${falseCount} 行`)
+
+      if (ctx.log) ctx.log(`[Filter] 满足: ${trueCount} 行, 不满足: ${falseCount} 行`)
     }
 
     return new StreamDataset({
       dataCategory: DATA_CATEGORY.TABLE,
       columns: data.columns,
-      generator: filterGenerator,
+      controller: { sourceGenerator: filterGenerator, strategy: "rendezvous" },
     })
   },
 }

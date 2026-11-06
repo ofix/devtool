@@ -5,7 +5,7 @@ import { ipcMain, dialog, shell, MessageChannelMain } from "electron"
 import fs from "fs"
 import path from "path"
 import { exec } from "child_process"
-
+import { tempFileService } from "../service/TempFileService.js"
 const CHANNEL_PREFIX = "data-clean"
 
 /**
@@ -176,6 +176,41 @@ class DataCleanHandler {
       })
       await fs.promises.writeFile(filePath, buffer)
       return true
+    })
+
+     // 选择导出目标文件路径
+     ipcMain.handle(`${CHANNEL_PREFIX}:selectSavePath`, async (_e, defaultName) => {
+        const result = await dialog.showSaveDialog({
+            defaultPath: defaultName,
+            filters: [{ name: "CSV", extensions: ["csv"] }, { name: "JSON", extensions: ["json"] }]
+        })
+        return result.canceled ? null : result.filePath
+    })
+
+    // 原子写临时分区文件
+    ipcMain.handle(`${CHANNEL_PREFIX}:atomicWrite`, async (_e, taskId, fileName, dataArray) => {
+        // 任务隔离路径
+        const taskDir = `${taskId}_${fileName}`
+        return await tempFileService.atomicWrite(taskDir, dataArray)
+    })
+
+    // 获取只读多迭代器并发读流
+    ipcMain.handle(`${CHANNEL_PREFIX}:readStream`, async (event, filePath) => {
+        const stream = tempFileService.createReadStream(filePath)
+        const channel = `${CHANNEL_PREFIX}:stream-data:${filePath}`
+        
+        stream.on("data", chunk => event.sender.send(channel, chunk))
+        stream.on("end", () => event.sender.send(channel, null))
+        stream.on("error", err => event.sender.send(channel, { error: err.message }))
+        
+        return true
+    })
+
+    // 任务取消时，由 Renderer 主动发起的清理
+    ipcMain.handle(`${CHANNEL_PREFIX}:cleanupTask`, async (_e, taskId) => {
+        // 这里需要按照 taskId 匹配所有生成的文件，并通过 safeDelete 清理
+        // 简化实现：由 ResourceManager 记录后，直接通知主进程批量清理
+        return true
     })
   }
 }

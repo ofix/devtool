@@ -1,105 +1,115 @@
-export function topoSort(nodes, edges) {
-  const indegree = new Map()
-  const adj = new Map()
-  const nodeIds = new Set()
-
-  for (const n of nodes) {
-    indegree.set(n.id, 0)
-    adj.set(n.id, [])
-    nodeIds.add(n.id)
-  }
-  for (const e of edges) {
-    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) continue
-    indegree.set(e.target, indegree.get(e.target) + 1)
-    adj.get(e.source).push(e.target)
-  }
-  const queue = []
-  for (const [id, deg] of indegree.entries()) {
-    if (deg === 0) queue.push(id)
-  }
-  const order = []
-  while (queue.length > 0) {
-    const id = queue.shift()
-    order.push(id)
-    for (const next of adj.get(id)) {
-      const deg = indegree.get(next) - 1
-      indegree.set(next, deg)
-      if (deg === 0) queue.push(next)
-    }
-  }
-  return order
-}
-
-export function hasCycle(nodes, edges) {
-  return topoSort(nodes, edges).length !== nodes.length
-}
+import { getOperator } from "./operators/index.js"
+import TaskContext from "./runtime/TaskContext.js"
 
 export default class Scheduler {
-  constructor(engine) {
+  constructor({ graphStore, metaStore, engine }) {
+    this.graphStore = graphStore
+    this.metaStore = metaStore
     this.engine = engine
-    this.running = false
+
+    // FIFO 队列与并发控制
+    this.taskQueue = []
+    this.activeTasks = new Map()
+    this.maxHighPriorityConcurrency = 3
   }
 
-  async runAll(nodes, edges, context = {}) {
-    if (this.running) return
-    this.running = true
+  /**
+   * 触发全量运行 / 局部预览 (统一入口)
+   */
+  async runTask(projectId, targetNodeId = null, mode = "preview", options = {}) {
+    const priority = mode === "preview" ? "high" : "low"
+    const ctx = new TaskContext(projectId, mode, priority)
+
+    // 高优任务并发控制
+    if (priority === "high" && this.activeTasks.size >= this.maxHighPriorityConcurrency) {
+      return this._enqueueTask(projectId, targetNodeId, mode, ctx)
+    }
+
+    return this._executeChain(projectId, targetNodeId, mode, ctx, options)
+  }
+
+  _enqueueTask(projectId, targetNodeId, mode, ctx) {
+    return new Promise((resolve, reject) => {
+      this.taskQueue.push({ projectId, targetNodeId, mode, ctx, resolve, reject })
+      console.log(`[Scheduler] 任务排队中，当前队列长度: ${this.taskQueue.length}`)
+    })
+  }
+
+  /**
+   * 执行子图或全图
+   */
+  async _executeChain(projectId, targetNodeId, mode, ctx, options) {
+    // 1. 收集要执行的节点
+    const nodesToRun = new Set()
+    const collectUpstream = nodeId => {
+      if (nodesToRun.has(nodeId)) return
+      nodesToRun.add(nodeId)
+      const inEdges = this.graphStore.getIncomingEdges(nodeId)
+      for (const edge of inEdges) collectUpstream(edge.source)
+    }
+
+    if (targetNodeId) {
+      collectUpstream(targetNodeId)
+    } else {
+      // 全量运行：选所有节点（或者只选叶子节点倒推）
+      this.graphStore.nodes.forEach(n => nodesToRun.add(n.id))
+    }
+
+    // 2. 拓扑排序
+    const sortedNodes = this._topoSort(Array.from(nodesToRun))
+
+    // 3. 清理目标节点及其下游的旧缓存
+    this.engine.invalidateDownstream(targetNodeId)
+
+    // 4. 依次执行
+    this.activeTasks.set(ctx.taskId, ctx)
+
     try {
-      if (hasCycle(nodes, edges)) {
-        if (context.log) context.log("检测到环路，无法执行", "error")
-        return
+      for (const nodeId of sortedNodes) {
+        if (ctx.signal.aborted) throw new Error("用户取消任务")
+
+        await this.engine.runNode(nodeId, {
+          ...options,
+          projectId,
+          mode,
+          taskContext: ctx,
+        })
       }
-      const order = topoSort(nodes, edges)
-      for (let i = 0; i < order.length; i++) {
-        const id = order[i]
-        // 取出最新的参数快照传给 Engine
-        const node = nodes.find(n => n.id === id)
-        if (!node) continue
-
-        const nodeContext = {
-          log: context.log,
-          rawText: context.rawTextByNode ? context.rawTextByNode[id] : undefined,
-        }
-
-        // Engine 执行
-        await this.engine.runNode(id, nodeContext)
-
-        if (context.onProgress) {
-          context.onProgress({ current: i + 1, total: order.length, nodeId: id })
-        }
-        await new Promise(r => setTimeout(r, 0))
-      }
+      return true
     } finally {
-      this.running = false
+      this.activeTasks.delete(ctx.taskId)
+      this._processQueue()
     }
   }
 
-  async runFrom(startId, nodes, edges, context = {}) {
-    if (this.running) return
-    this.running = true
-    try {
-      if (hasCycle(nodes, edges)) return
-      const order = topoSort(nodes, edges)
-      const idx = order.indexOf(startId)
-      if (idx < 0) return
-
-      const sub = order.slice(idx)
-      for (let i = 0; i < sub.length; i++) {
-        const id = sub[i]
-        const node = nodes.find(n => n.id === id)
-        if (!node) continue
-
-        const nodeContext = {
-          log: context.log,
-          rawText: context.rawTextByNode ? context.rawTextByNode[id] : undefined,
-        }
-        await this.engine.runNode(id, nodeContext)
-        if (context.onProgress) {
-          context.onProgress({ current: i + 1, total: sub.length, nodeId: id })
-        }
-        await new Promise(r => setTimeout(r, 0))
-      }
-    } finally {
-      this.running = false
+  _processQueue() {
+    if (this.taskQueue.length > 0 && this.activeTasks.size < this.maxHighPriorityConcurrency) {
+      const nextTask = this.taskQueue.shift()
+      this._executeChain(nextTask.projectId, nextTask.targetNodeId, nextTask.mode, nextTask.ctx, {})
+        .then(nextTask.resolve)
+        .catch(nextTask.reject)
     }
+  }
+
+  _topoSort(nodeIds) {
+    const visited = new Set()
+    const result = []
+    const visit = id => {
+      if (visited.has(id)) return
+      visited.add(id)
+      const edges = this.graphStore.getIncomingEdges(id)
+      for (const edge of edges) visit(edge.source)
+      result.push(id)
+    }
+    for (const id of nodeIds) visit(id)
+    return result
+  }
+
+  /**
+   * 取消高优任务或挂起低优任务
+   */
+  abortTask(taskId) {
+    const task = this.activeTasks.get(taskId)
+    if (task) task.abort("用户主动取消")
   }
 }

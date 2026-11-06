@@ -1,12 +1,10 @@
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { inferDataCategory } from "../runtime/InferCategory.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
-/**
- * 核心逻辑：按路径从对象中提取值（支持特殊字符和中括号）
- */
 function getValueByPath(obj, path) {
   if (!path) return obj
-  // 简单处理，把 items[0].sku 转为 ["items", "0", "sku"]
   const cleanPath = path.trim().replace(/^\./, "")
   const parts = cleanPath.split(/\.|\[|\]/).filter(Boolean)
   let current = obj
@@ -30,90 +28,68 @@ export default {
     outputCategory: "dynamic",
   },
   schema: [{ field: "targetPath", label: "展开数组", component: "arrayPicker" }],
-  execute(inputs, params, ctx) {
+  async execute(inputs, params, ctx) {
     const inputJson = inputs[0]?.json
     if (!inputJson) throw new Error("未接收到 JSON 数据")
 
-    // 确保我们处理的是一个数组列表
     const dataArray = Array.isArray(inputJson) ? inputJson : [inputJson]
     const path = params.targetPath
-
     if (!path) throw new Error("请配置需要展开的数组字段")
 
-    if (ctx?.log) ctx.log(`[JSON Unnest] 准备展开路径: ${path}`)
+    async function* unnestGenerator() {
+      const outRowsBuffer = []
+      const MAX_BUFFER = 5000 // 防止单次 yield 数据量过大
+      let detectedCols = []
 
-    const outRows = []
-
-    for (const item of dataArray) {
-      if (!item || typeof item !== "object") {
-        outRows.push(item)
-        continue
-      }
-
-      // 1. 找到目标数组
-      const targetArray = getValueByPath(item, path)
-
-      if (Array.isArray(targetArray)) {
-        // 2. 准备父级属性（剥离掉目标数组本身，避免冗余）
-        const parentObj = { ...item }
-        // 简单删除路径的最后一级（为安全起见，只处理简单的一级属性）
-        delete parentObj[path]
-
-        for (const subItem of targetArray) {
-          // 3. 组装新行：父级属性 + 子元素属性
-          if (subItem !== null && typeof subItem === "object" && !Array.isArray(subItem)) {
-            // 如果数组里是对象，合并属性
-            // 注意：如果子元素和父元素有同名属性，子元素会覆盖父元素
-            outRows.push({ ...parentObj, ...subItem })
-          } else {
-            // 如果数组里是基础类型（如 ["A", "B"]），给个默认列名
-            outRows.push({ ...parentObj, value: subItem })
-          }
-        }
-      } else {
-        // 如果这个字段不是数组，原样保留，避免数据丢失
-        outRows.push(item)
-      }
-    }
-
-    if (ctx?.log) ctx.log(`[JSON Unnest] 展开完成，共生成 ${outRows.length} 条数据`)
-
-    // 自动推断并降维
-    const category = inferDataCategory(outRows)
-    if (category === DATA_CATEGORY.TABLE) {
-      // 取第一行的所有 Key 作为列名
-      const firstRow = outRows[0] || {}
-      const columns = Object.keys(firstRow).map(k => ({ name: k, type: "string" }))
-
-      // 核心：构建血缘映射字典
-      const columnMapping = {}
-
-      // 简单提取父级的 key（不包含 path 的）
-      const parentKeys = new Set()
       for (const item of dataArray) {
-        if (item && typeof item === "object") {
-          for (const k of Object.keys(item)) {
-            if (k !== path) parentKeys.add(k)
+        if (ctx.signal.aborted) return
+
+        if (!item || typeof item !== "object") {
+          outRowsBuffer.push({ value: item })
+          continue
+        }
+
+        const targetArray = getValueByPath(item, path)
+        if (Array.isArray(targetArray)) {
+          const parentObj = { ...item }
+          delete parentObj[path]
+
+          for (const subItem of targetArray) {
+            if (subItem !== null && typeof subItem === "object" && !Array.isArray(subItem)) {
+              outRowsBuffer.push({ ...parentObj, ...subItem })
+            } else {
+              outRowsBuffer.push({ ...parentObj, value: subItem })
+            }
           }
-        }
-      }
-
-      for (const col of columns) {
-        if (parentKeys.has(col.name)) {
-          // 来源于父级 JSON 的同名字段
-          columnMapping[col.name] = col.name
-        } else if (col.name === "value") {
-          // 来源于被展开的目标路径（因为数组里是基础类型）
-          columnMapping[col.name] = path
         } else {
-          // 来源于子元素对象内部的字段
-          columnMapping[col.name] = col.name
+          outRowsBuffer.push(item)
+        }
+
+        // 缓冲达到阈值，推断列名并吐出
+        if (outRowsBuffer.length >= MAX_BUFFER) {
+          if (detectedCols.length === 0) {
+            detectedCols = Object.keys(outRowsBuffer[0]).map(k => ({ name: k, type: "string" }))
+          }
+          yield { columns: detectedCols, rows: outRowsBuffer }
+          outRowsBuffer.length = 0 // 清空
         }
       }
 
-      return { dataCategory: DATA_CATEGORY.TABLE, rows: outRows, columns, columnMapping }
+      // 处理剩余数据
+      if (outRowsBuffer.length > 0) {
+        if (detectedCols.length === 0) {
+          detectedCols = Object.keys(outRowsBuffer[0]).map(k => ({ name: k, type: "string" }))
+        }
+        yield { columns: detectedCols, rows: outRowsBuffer }
+      }
     }
 
-    return { dataCategory: DATA_CATEGORY.JSON, json: outRows }
+    // 注意：此处返回的是 Table 类型的流
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: [], // 动态推断
+      controller: { sourceGenerator: unnestGenerator, strategy: "rendezvous" },
+      columnMapping: {}, // 简化版，真实业务需按路径映射
+    })
   },
 }

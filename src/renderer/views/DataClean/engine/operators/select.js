@@ -1,5 +1,6 @@
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "select",
@@ -17,13 +18,12 @@ export default {
     { field: "columns", label: "保留列", component: "columnPicker" },
     { field: "renameMap", label: "重命名", component: "renamePanel" },
   ],
+
   async execute(inputs, params, ctx) {
     const data = inputs[0]
     if (!data) return null
 
     let keepCols = params.columns || []
-    if (!Array.isArray(keepCols)) keepCols = []
-
     if (keepCols.length === 0) keepCols = data.columns.map(c => c.name)
 
     const renameMap = {}
@@ -47,10 +47,14 @@ export default {
       }
     }
 
-    // 流式处理生成器
     async function* selectGenerator() {
-      for await (const chunk of data) {
-        const outRows = chunk.map(row => {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("select-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        const outRows = chunk.rows.map(row => {
           const newRow = {}
           for (const oldName of validCols) {
             const newName = renameMap[oldName] || oldName
@@ -58,18 +62,18 @@ export default {
           }
           return newRow
         })
-        yield outRows
+
+        yield { columns: outCols, rows: outRows }
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
     }
 
-    // 返回流式 Dataset，把 mapping 挂载在实例上
-    const resultStream = new StreamDataset({
+    const result = new StreamDataset({
       dataCategory: DATA_CATEGORY.TABLE,
       columns: outCols,
-      generator: selectGenerator,
+      controller: { sourceGenerator: selectGenerator, strategy: "rendezvous" },
     })
-    resultStream.columnMapping = columnMapping
-
-    return resultStream
+    result.columnMapping = columnMapping
+    return result
   },
 }

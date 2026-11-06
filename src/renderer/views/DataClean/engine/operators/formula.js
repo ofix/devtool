@@ -1,7 +1,8 @@
-// Formula 算子：计算列，复用表达式系统
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
 import { parse } from "../../expression/Parser.js"
 import { compile } from "../../expression/Compile.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "formula",
@@ -19,9 +20,9 @@ export default {
     { field: "newField", label: "输出列名", component: "input" },
     { field: "expression", label: "公式", component: "expression" },
   ],
-  execute(inputs, params, ctx) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     const { newField, expression } = params
     if (!newField || !expression) return data
@@ -34,54 +35,41 @@ export default {
       throw new Error(`公式语法错误: ${err.message}`)
     }
 
-    const outRows = data.rows.map(row => {
-      let val
-      try {
-        val = fn(row)
-      } catch (e) {
-        val = null
+    // 此处简单推断类型，真实生产可通过首块数据探测
+    const outCols = [...data.columns, { name: newField, type: "string" }]
+    const columnMapping = {
+      ...data.columnMapping,
+      [newField]: [] /* 依赖由 AST 解析注入，此处简化 */,
+    }
+
+    async function* formulaGenerator() {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("formula-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        const outRows = chunk.rows.map(row => {
+          let val
+          try {
+            val = fn(row)
+          } catch (e) {
+            val = null
+            ctx.metrics.errorRows++
+          }
+          return { ...row, [newField]: val }
+        })
+
+        yield { columns: outCols, rows: outRows }
+        await new Promise(resolve => setTimeout(resolve, 0)) // 让出主线程
       }
-      return { ...row, [newField]: val }
+    }
+
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: outCols,
+      controller: { sourceGenerator: formulaGenerator, strategy: "rendezvous" },
+      columnMapping,
     })
-
-    let newColType = "string"
-    if (outRows.length > 0 && typeof outRows[0][newField] === "number") newColType = "number"
-    if (outRows.length > 0 && typeof outRows[0][newField] === "boolean") newColType = "boolean"
-
-    const outCols = [...data.columns, { name: newField, type: newColType }]
-
-    // 构建血缘映射字典
-    // 因为公式可以依赖任意数量的原有列，这里最简单的做法是：
-    // 1. 原有列：直传映射
-    // 2. 新增列：尝试从 AST 中提取依赖字段（如果 AST 树结构支持），否则标记为空数组
-
-    const columnMapping = {}
-    // 原有的列直传
-    for (const c of data.columns) {
-      columnMapping[c.name] = c.name
-    }
-
-    // 尝试提取依赖字段
-    let dependencies = []
-    try {
-      // 这里的 extractVariables 是一个假设的方法，通常 AST 库都会提供
-      // 如果你的 Parser 能提供字段提取能力，替换这里即可
-      if (typeof ast.extractVariables === "function") {
-        dependencies = ast.extractVariables()
-      } else if (ast.type === "Identifier") {
-        dependencies = [ast.name]
-      } else if (ast.type === "BinaryExpression") {
-        const left = ast.left.type === "Identifier" ? [ast.left.name] : []
-        const right = ast.right.type === "Identifier" ? [ast.right.name] : []
-        dependencies = [...left, ...right]
-      }
-    } catch (e) {
-      console.warn("无法从公式中提取血缘依赖", e)
-    }
-
-    // 新列记录依赖来源
-    columnMapping[newField] = dependencies
-
-    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

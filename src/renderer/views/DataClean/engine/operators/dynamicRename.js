@@ -1,5 +1,6 @@
-// Dynamic Rename 算子：按映射表批量重命名列
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "dynamicRename",
@@ -18,9 +19,9 @@ export default {
     { field: "prefix", label: "统一前缀", component: "input" },
     { field: "suffix", label: "统一后缀", component: "input" },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     const renameMap = {}
     if (params.renameMap && params.renameMap.trim()) {
@@ -32,28 +33,41 @@ export default {
 
     const { prefix = "", suffix = "" } = params
 
-    // 构建血缘映射字典
+    // 构建列映射
     const columnMapping = {}
-
     const outCols = data.columns.map(c => {
       let name = renameMap[c.name] || c.name
       const finalName = `${prefix}${name}${suffix}`
-
-      // 记录新字段名的来源是哪个旧字段
       columnMapping[finalName] = c.name
-
       return { name: finalName, type: c.type }
     })
 
-    const outRows = data.rows.map(row => {
-      const newRow = {}
-      for (const c of data.columns) {
-        let name = renameMap[c.name] || c.name
-        newRow[`${prefix}${name}${suffix}`] = row[c.name]
-      }
-      return newRow
-    })
+    async function* renameGenerator() {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("rename-node", ctx.signal)
 
-    return { rows: outRows, columns: outCols, columnMapping }
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        const outRows = chunk.rows.map(row => {
+          const newRow = {}
+          for (const c of data.columns) {
+            let name = renameMap[c.name] || c.name
+            newRow[`${prefix}${name}${suffix}`] = row[c.name]
+          }
+          return newRow
+        })
+
+        yield { columns: outCols, rows: outRows }
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+    }
+
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: outCols,
+      controller: { sourceGenerator: renameGenerator, strategy: "rendezvous" },
+      columnMapping,
+    })
   },
 }

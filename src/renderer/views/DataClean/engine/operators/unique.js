@@ -1,48 +1,58 @@
-// Unique 算子：单列或多列去重
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "unique",
   meta: {
     label: "Unique",
-    icon: "IconCopy",
-    color: "#8b5cf6",
+    icon: "IconListCheck",
+    color: "#0ea5e9",
     category: "prepare",
     inputs: 1,
     outputs: 1,
     inputCategory: DATA_CATEGORY.TABLE,
     outputCategory: DATA_CATEGORY.TABLE,
   },
-  schema: [{ field: "fields", label: "去重列", component: "fieldSelect", multiple: true }],
-  execute(inputs, params) {
+  schema: [{ field: "keyFields", label: "去重依据列", component: "fieldSelect", multiple: true }],
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data) return null
 
-    let keys = params.fields || []
-    if (typeof keys === "string") {
-      keys = keys
-        .split(",")
-        .map(s => s.trim())
-        .filter(Boolean)
+    let keyFields = params.keyFields || []
+    if (keyFields.length === 0) {
+      keyFields = data.columns.map(c => c.name)
     }
 
-    const seen = new Set()
-    const outRows = []
+    async function* uniqueGenerator() {
+      const seen = new Set()
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("unique-node", ctx.signal)
 
-    for (const row of data.rows) {
-      let keyStr = ""
-      if (keys.length > 0) {
-        keyStr = keys.map(k => String(row[k])).join("|||")
-      } else {
-        keyStr = JSON.stringify(row)
-      }
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
 
-      if (!seen.has(keyStr)) {
-        seen.add(keyStr)
-        outRows.push(row)
+        const outRows = []
+        for (const row of chunk.rows) {
+          const key = keyFields.map(f => String(row[f])).join("|||")
+          if (!seen.has(key)) {
+            seen.add(key)
+            outRows.push(row)
+          }
+        }
+
+        if (outRows.length > 0) {
+          yield { ...chunk, rows: outRows }
+        }
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
     }
 
-    return { rows: outRows, columns: data.columns }
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: data.columns,
+      controller: { sourceGenerator: uniqueGenerator, strategy: "rendezvous" },
+      columnMapping: data.columnMapping,
+    })
   },
 }

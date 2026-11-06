@@ -1,67 +1,64 @@
-// RegexExtract 算子：正则提取命名捕获组
-import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "regexExtract",
   meta: {
-    label: "RegexExtract",
-    icon: "IconSearch",
+    label: "Regex Extract",
+    icon: "IconRegex",
     color: "#f59e0b",
-    category: "parse",
+    category: "transform",
     inputs: 1,
     outputs: 1,
     inputCategory: DATA_CATEGORY.TABLE,
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
-    { field: "sourceField", label: "源字段", component: "fieldSelect", multiple: false },
-    { field: "regex", label: "正则表达式", component: "input", defaultValue: "(?<year>\\d{4})" },
+    { field: "sourceField", label: "源列", component: "fieldSelect" },
+    { field: "regex", label: "正则表达式", component: "input" },
+    { field: "newField", label: "新列名", component: "input" },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [] }
+    if (!data) return null
 
-    const { sourceField, regex } = params
-    if (!sourceField || !regex) return data
+    const { sourceField, regex, newField } = params
+    if (!sourceField || !regex || !newField) return data
 
-    let re
+    let regExp
     try {
-      re = new RegExp(regex)
-    } catch (err) {
-      throw new Error(`正则表达式无效: ${err.message}`)
+      regExp = new RegExp(regex)
+    } catch (e) {
+      throw new Error("正则表达式不合法")
     }
 
-    // 获取所有命名捕获组
-    const groupNames = []
-    const match = regex.match(/\(\?<([^>]+)>/g)
-    if (match) {
-      for (const m of match) {
-        groupNames.push(m.slice(3, -1))
+    // 构建新的列结构
+    const outCols = [...data.columns, { name: newField, type: "string" }]
+    const columnMapping = { ...data.columnMapping, [newField]: sourceField }
+
+    async function* extractGenerator() {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("regex-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        const outRows = chunk.rows.map(row => {
+          const match = String(row[sourceField] || "").match(regExp)
+          return { ...row, [newField]: match ? match[1] || match[0] : null }
+        })
+
+        yield { columns: outCols, rows: outRows }
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
     }
 
-    // 只有命名捕获组时才能识别输出列名
-    const outCols = [
-      ...data.columns,
-      ...groupNames.map(name => ({ name: `regex_${name}`, type: "string" })),
-    ]
-
-    const outRows = data.rows.map(row => {
-      const newRow = { ...row }
-      const val = String(row[sourceField] || "")
-      const matchResult = val.match(re)
-      if (matchResult) {
-        for (const name of groupNames) {
-          newRow[`regex_${name}`] = matchResult.groups[name] || null
-        }
-      } else {
-        for (const name of groupNames) {
-          newRow[`regex_${name}`] = null
-        }
-      }
-      return newRow
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: outCols,
+      controller: { sourceGenerator: extractGenerator, strategy: "rendezvous" },
+      columnMapping,
     })
-
-    return { rows: outRows, columns: outCols }
   },
 }

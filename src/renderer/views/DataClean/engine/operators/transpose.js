@@ -1,5 +1,6 @@
-// Transpose 算子：宽表转长表 (Unpivot)
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "transpose",
@@ -17,44 +18,25 @@ export default {
     { field: "keepFields", label: "保留列", component: "fieldSelect", multiple: true },
     { field: "unpivotFields", label: "转置列", component: "fieldSelect", multiple: true },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     let keepFields = params.keepFields || []
+    let unpivotFields = params.unpivotFields || []
+
     if (typeof keepFields === "string")
       keepFields = keepFields
         .split(",")
         .map(s => s.trim())
         .filter(Boolean)
-
-    let unpivotFields = params.unpivotFields || []
     if (typeof unpivotFields === "string")
       unpivotFields = unpivotFields
         .split(",")
         .map(s => s.trim())
         .filter(Boolean)
 
-    // 如果没有指定转置列，原样透传，补齐映射
-    if (unpivotFields.length === 0) {
-        const columnMapping = {}
-        data.columns.forEach(c => columnMapping[c.name] = c.name)
-        return { ...data, columnMapping }
-    }
-
-    const outRows = []
-    for (const row of data.rows) {
-      const base = {}
-      keepFields.forEach(f => (base[f] = row[f]))
-
-      for (const uf of unpivotFields) {
-        outRows.push({
-          ...base,
-          key: uf,
-          value: row[uf],
-        })
-      }
-    }
+    if (unpivotFields.length === 0) return data
 
     const outCols = [
       ...keepFields.map(f => ({ name: f, type: "string" })),
@@ -62,20 +44,53 @@ export default {
       { name: "value", type: "string" },
     ]
 
-    // 核心：构建血缘映射字典
     const columnMapping = {}
-    
-    // 保留列：直接透传
-    for (const f of keepFields) {
-      columnMapping[f] = f
-    }
-    
-    // key 列：来源于被转置的列名，依赖多列
+    keepFields.forEach(f => (columnMapping[f] = f))
     columnMapping["key"] = unpivotFields
-    
-    // value 列：来源于被转置列的具体值，依赖多列
     columnMapping["value"] = unpivotFields
 
-    return { rows: outRows, columns: outCols, columnMapping }
+    async function* transposeGenerator() {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("transpose-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        // 宽表转长表，行数会膨胀，需要重新切块
+        let outRowsBuffer = []
+        const MAX_BUFFER = 5000
+
+        for (const row of chunk.rows) {
+          const base = {}
+          keepFields.forEach(f => (base[f] = row[f]))
+
+          for (const uf of unpivotFields) {
+            outRowsBuffer.push({
+              ...base,
+              key: uf,
+              value: row[uf],
+            })
+
+            // 达到上限则吐出
+            if (outRowsBuffer.length >= MAX_BUFFER) {
+              yield { columns: outCols, rows: outRowsBuffer }
+              outRowsBuffer = []
+            }
+          }
+        }
+
+        if (outRowsBuffer.length > 0) {
+          yield { columns: outCols, rows: outRowsBuffer }
+        }
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+    }
+
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: outCols,
+      controller: { sourceGenerator: transposeGenerator, strategy: "rendezvous" },
+      columnMapping,
+    })
   },
 }

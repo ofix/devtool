@@ -9,7 +9,7 @@
         </el-splitter-panel>
 
         <el-splitter-panel size="55%" min="15%" max="85%">
-          <NodeEditor ref="editorRef" @trigger-run="onNodeRun" />
+          <NodeEditor ref="editorRef" @trigger-run="onNodePreview" />
         </el-splitter-panel>
       </el-splitter>
     </div>
@@ -40,16 +40,21 @@
   const engine = new Engine({ metaStore, datasetStore, graphStore })
   const scheduler = new Scheduler(engine)
 
-  // 接管局部预览：只运行当前选中的节点
-  async function onNodeRun() {
+  // 预览节点
+  async function onNodePreview() {
     const id = graphStore.selectedNodeId
+    console.log("preview node id = ",id);
     if (!id) return
 
-    console.log("Preview xlsx Running node", id)
-    await engine.runNode(id, {
-      log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
-    })
-    // 这里不需要手动触发视图更新，因为 Store 会响应式刷新
+    console.log("Previewing node chain for", id)
+
+    try {
+      await engine.previewNode(id, {
+        log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
+      })
+    } catch (err) {
+      ElMessage.error(`局部运行异常：${err.message}`)
+    }
   }
 
   async function executeGraph() {

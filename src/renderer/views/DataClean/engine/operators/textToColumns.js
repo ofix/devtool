@@ -1,5 +1,6 @@
-// Text to Columns：按分隔符或正则拆分一列
-import { DATA_CATEGORY } from "../../constants/DataCategories.js";
+import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "textToColumns",
@@ -14,60 +15,67 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
-    { field: "sourceField", label: "拆分列", component: "fieldSelect", multiple: false },
+    { field: "sourceField", label: "拆分列", component: "fieldSelect" },
     { field: "delimiter", label: "分隔符", component: "input", defaultValue: "," },
     { field: "newFieldPrefix", label: "新列前缀", component: "input", defaultValue: "split" },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     const { sourceField, delimiter = ",", newFieldPrefix = "split" } = params
     if (!sourceField) return data
 
-    // 先探测最大拆分列数
     let maxParts = 1
-    for (const row of data.rows) {
-      const val = String(row[sourceField] || "")
-      const parts = val.split(delimiter)
-      maxParts = Math.max(maxParts, parts.length)
+    let outCols = []
+
+    async function* splitGenerator() {
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("text-split-node", ctx.signal)
+
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+
+        // 首块探测最大列数
+        if (outCols.length === 0) {
+          for (const row of chunk.rows) {
+            const parts = String(row[sourceField] || "").split(delimiter)
+            maxParts = Math.max(maxParts, parts.length)
+          }
+          const newCols = Array.from({ length: maxParts }).map((_, i) => ({
+            name: `${newFieldPrefix}_${i + 1}`,
+            type: "string",
+          }))
+          outCols = [...data.columns.filter(c => c.name !== sourceField), ...newCols]
+        }
+
+        const outRows = chunk.rows.map(row => {
+          const newRow = {}
+          for (const c of data.columns) {
+            if (c.name !== sourceField) newRow[c.name] = row[c.name]
+          }
+          const parts = String(row[sourceField] || "").split(delimiter)
+          for (let i = 0; i < maxParts; i++) {
+            newRow[`${newFieldPrefix}_${i + 1}`] = parts[i] || null
+          }
+          return newRow
+        })
+
+        yield { columns: outCols, rows: outRows }
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
     }
 
-    const newCols = []
-    for (let i = 0; i < maxParts; i++) {
-      newCols.push({ name: `${newFieldPrefix}_${i + 1}`, type: "string" })
-    }
+    // 构建 ColumnMapping
+    const columnMapping = { ...data.columnMapping }
+    // 新列依赖 sourceField
+    // (注意：如果是首块才会生成 outCols，更严谨的做法是在 Engine 层拦截并广播 Schema 变更)
 
-    const outCols = [...data.columns.filter(c => c.name !== sourceField), ...newCols]
-
-    const outRows = data.rows.map(row => {
-      const newRow = {}
-      for (const c of data.columns) {
-        if (c.name !== sourceField) newRow[c.name] = row[c.name]
-      }
-      const val = String(row[sourceField] || "")
-      const parts = val.split(delimiter)
-      for (let i = 0; i < maxParts; i++) {
-        newRow[`${newFieldPrefix}_${i + 1}`] = parts[i] || null
-      }
-      return newRow
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: data.columns.filter(c => c.name !== sourceField), // 初始表头，运行时可能扩容
+      controller: { sourceGenerator: splitGenerator, strategy: "rendezvous" },
+      columnMapping,
     })
-
-    // 构建血缘映射字典
-    const columnMapping = {}
-    
-    // 保留下来的原有列：直接透传
-    for (const c of data.columns) {
-      if (c.name !== sourceField) {
-        columnMapping[c.name] = c.name
-      }
-    }
-    
-    // 新生成的拆分列：全部依赖于被拆分的 sourceField
-    for (const nc of newCols) {
-      columnMapping[nc.name] = sourceField
-    }
-
-    return { rows: outRows, columns: outCols, columnMapping }
   },
 }

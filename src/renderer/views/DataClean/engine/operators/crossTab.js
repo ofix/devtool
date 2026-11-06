@@ -1,5 +1,8 @@
-// Cross Tab 算子：长转宽 (Pivot)
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
+import { resourceManager } from "../runtime/ResourceManager.js"
+
 export default {
   type: "crossTab",
   meta: {
@@ -13,97 +16,164 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [
-    { field: "rowField", label: "行字段", component: "fieldSelect", multiple: false },
-    { field: "colField", label: "列字段", component: "fieldSelect", multiple: false },
-    { field: "valField", label: "值字段", component: "fieldSelect", multiple: false },
-    {
-      field: "aggFunc",
-      label: "聚合函数",
-      component: "select",
-      options: [
-        { label: "SUM", value: "SUM" },
-        { label: "COUNT", value: "COUNT" },
-        { label: "MAX", value: "MAX" },
-      ],
-    },
+    { field: "rowField", label: "行字段", component: "fieldSelect" },
+    { field: "colField", label: "列字段", component: "fieldSelect" },
+    { field: "valField", label: "值字段", component: "fieldSelect" },
+    { field: "aggFunc", label: "聚合函数", component: "select", options: [{label: "SUM", value: "SUM"}, {label: "COUNT", value: "COUNT"}] },
   ],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    if (!data || !data.rows) return { rows: [], columns: [], columnMapping: {} }
+    if (!data) return null
 
     const { rowField, colField, valField, aggFunc = "SUM" } = params
-    if (!rowField || !colField || !valField) {
-      // 参数不完整，原样透传
-      const columnMapping = {}
-      data.columns.forEach(c => (columnMapping[c.name] = c.name))
-      return { ...data, columnMapping }
-    }
+    if (!rowField || !colField || !valField) return data
 
-    const pivotMap = new Map()
-    const uniqueCols = new Set()
+    async function* crossTabGenerator() {
+        let pivotMap = new Map()
+        let uniqueCols = new Set()
+        let currentBytes = 0
+        const MEMORY_LIMIT = 50 * 1024 * 1024 // 50MB
+        const tempFilePaths = []
 
-    for (const row of data.rows) {
-      const rKey = String(row[rowField])
-      const cKey = String(row[colField])
-      const val = Number(row[valField])
+        const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+        const iterator = controller.createIterator('crosstab-node', ctx.signal)
 
-      uniqueCols.add(cKey)
-
-      if (!pivotMap.has(rKey)) {
-        pivotMap.set(rKey, {})
-      }
-      const pRow = pivotMap.get(rKey)
-
-      if (!pRow[cKey]) {
-        pRow[cKey] = { sum: 0, count: 0, max: -Infinity }
-      }
-      const state = pRow[cKey]
-      if (!isNaN(val)) {
-        state.sum += val
-        state.max = Math.max(state.max, val)
-      }
-      state.count++
-    }
-
-    // 列数限制 100
-    const colArray = Array.from(uniqueCols).slice(0, 100)
-    const outCols = [
-      { name: rowField, type: "string" },
-      ...colArray.map(c => ({ name: String(c), type: "number" })),
-    ]
-
-    const outRows = []
-    for (const [rKey, pRow] of pivotMap.entries()) {
-      const newRow = { [rowField]: rKey }
-      for (const c of colArray) {
-        const state = pRow[c]
-        if (!state) {
-          newRow[c] = null
-        } else {
-          if (aggFunc === "SUM") newRow[c] = state.sum
-          else if (aggFunc === "COUNT") newRow[c] = state.count
-          else if (aggFunc === "MAX") newRow[c] = state.max === -Infinity ? null : state.max
+        // 辅助函数：将内存 Map 溢写磁盘
+        const spillToDisk = async () => {
+            if (pivotMap.size === 0) return
+            const filePath = await resourceManager.createTempFilePath(ctx.taskId)
+            const stream = window.api.dataClean.tempFile.createWriteStream(filePath)
+            
+            for (const [rKey, pRow] of pivotMap.entries()) {
+                stream.write(JSON.stringify({ rKey, pRow }) + "\n")
+            }
+            stream.end()
+            tempFilePaths.push(filePath)
+            pivotMap.clear()
+            currentBytes = 0
         }
-      }
-      outRows.push(newRow)
+
+        // 1. 流式处理
+        for await (const chunk of iterator) {
+            if (ctx.signal.aborted) return
+            
+            for (const row of chunk.rows) {
+                const rKey = String(row[rowField])
+                const cKey = String(row[colField])
+                const val = Number(row[valField])
+
+                uniqueCols.add(cKey)
+
+                if (!pivotMap.has(rKey)) pivotMap.set(rKey, {})
+                const pRow = pivotMap.get(rKey)
+
+                if (!pRow[cKey]) pRow[cKey] = { sum: 0, count: 0 }
+                const state = pRow[cKey]
+                if (!isNaN(val)) state.sum += val
+                state.count++
+                
+                currentBytes += 100 // 粗略估算
+            }
+
+            if (currentBytes > MEMORY_LIMIT) {
+                await spillToDisk()
+            }
+            await new Promise(resolve => setTimeout(resolve, 0))
+        }
+
+        if (pivotMap.size > 0) await spillToDisk()
+
+        // 2. 全局合并：从各个分区文件合并数据
+        const finalPivotMap = new Map()
+        if (tempFilePaths.length > 0) {
+            for (const path of tempFilePaths) {
+                const fileIt = createFileIterator(path)
+                for await (const item of fileIt) {
+                    if (!finalPivotMap.has(item.rKey)) {
+                        finalPivotMap.set(item.rKey, item.pRow)
+                    } else {
+                        const existing = finalPivotMap.get(item.rKey)
+                        for (const c in item.pRow) {
+                            if (!existing[c]) existing[c] = { sum: 0, count: 0 }
+                            existing[c].sum += item.pRow[c].sum
+                            existing[c].count += item.pRow[c].count
+                        }
+                    }
+                }
+            }
+        }
+
+        const colArray = Array.from(uniqueCols).slice(0, 100) // 动态列最多 100 列
+        const outCols = [
+            { name: rowField, type: "string" },
+            ...colArray.map(c => ({ name: String(c), type: "number" })),
+        ]
+
+        // 3. 构建输出
+        const outRows = []
+        for (const [rKey, pRow] of finalPivotMap.entries()) {
+            const newRow = { [rowField]: rKey }
+            for (const c of colArray) {
+                const state = pRow[c]
+                if (!state) newRow[c] = null
+                else if (aggFunc === "SUM") newRow[c] = state.sum
+                else if (aggFunc === "COUNT") newRow[c] = state.count
+            }
+            outRows.push(newRow)
+        }
+
+        // 清理临时文件
+        for (const path of tempFilePaths) {
+            await window.api.dataClean.tempFile.cleanupFile(path)
+        }
+
+        // 4. 分块吐出
+        for (let i = 0; i < outRows.length; i += 1000) {
+            yield { columns: outCols, rows: outRows.slice(i, i + 1000) }
+            await new Promise(resolve => setTimeout(resolve, 0))
+        }
     }
 
-    // 构建血缘映射字典
-    const columnMapping = {}
-
-    // 行字段：直传
-    columnMapping[rowField] = rowField
-
-    // 动态生成的列（如 A, B）：它们的值来源于 valField 的聚合计算
-    // 注意，这里的血缘本质上指向了 valField。但在图谱追踪时，如果有多个动态列，它们都会指向同一个 valField 源头。
-    for (const c of colArray) {
-      // 因为列名是动态的（比如是 "A"），但它的源头是上游的 valField
-      // 这里我们先记录值为 valField。
-      // 进阶提示：如果为了 UI 能精确展示“A 列其实来源于 colField=A 且 valField 的值”，
-      // 可以在这里用数组形式保留依赖：[valField, colField]
-      columnMapping[c] = [valField, colField]
-    }
-
-    return { rows: outRows, columns: outCols, columnMapping }
-  },
+    // 动态列，初始只能给一个骨架
+    return new StreamDataset({
+        dataCategory: DATA_CATEGORY.TABLE,
+        columns: [{ name: rowField, type: "string" }], 
+        controller: { sourceGenerator: crossTabGenerator, strategy: "rendezvous" },
+        columnMapping: { [rowField]: rowField }
+    })
+  }
 }
+
+/**
+ * 辅助：读取临时文件迭代器
+ */
+async function* createFileIterator(filePath) {
+    let buffer = ""
+    let pendingRows = []
+    let isDone = false
+  
+    window.api.dataClean.tempFile.readStream(
+      filePath,
+      chunk => {
+        buffer += chunk
+        const lines = buffer.split("\n")
+        buffer = lines.pop()
+        for (const line of lines) {
+          if (line.trim()) pendingRows.push(JSON.parse(line))
+        }
+      },
+      () => {
+        isDone = true
+      },
+      () => {
+        isDone = true
+      },
+    )
+  
+    while (true) {
+      if (pendingRows.length > 0) yield pendingRows.shift()
+      else if (isDone) break
+      else await new Promise(resolve => setTimeout(resolve, 10))
+    }
+  }
+  

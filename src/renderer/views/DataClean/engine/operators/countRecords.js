@@ -1,5 +1,6 @@
-// Count Records 算子：输出单行单列
 import { DATA_CATEGORY } from "../../constants/DataCategories.js"
+import StreamDataset from "../runtime/StreamDataset.js"
+import StreamController from "../runtime/StreamController.js"
 
 export default {
   type: "countRecords",
@@ -14,20 +15,36 @@ export default {
     outputCategory: DATA_CATEGORY.TABLE,
   },
   schema: [{ field: "newField", label: "计数字段名", component: "input", defaultValue: "count" }],
-  execute(inputs, params) {
+  async execute(inputs, params, ctx) {
     const data = inputs[0]
-    const count = data && data.rows ? data.rows.length : 0
+    if (!data) return null
+
     const fieldName = params.newField || "count"
 
-    // 构建血缘映射字典
-    const columnMapping = {}
-    // 聚合统计列不对应上游的任何单一列，所以它的来源为空数组（阻断向上溯源）
-    columnMapping[fieldName] = []
+    async function* countGenerator() {
+      let count = 0
+      const controller = new StreamController(data.controller.sourceGenerator, "rendezvous")
+      const iterator = controller.createIterator("count-node", ctx.signal)
 
-    return {
-      rows: [{ [fieldName]: count }],
-      columns: [{ name: fieldName, type: "number" }],
-      columnMapping,
+      for await (const chunk of iterator) {
+        if (ctx.signal.aborted) return
+        count += chunk.rows.length
+        // 这里不需要 yield 中间数据，直到结束
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+
+      // 输出最终结果
+      yield {
+        columns: [{ name: fieldName, type: "number" }],
+        rows: [{ [fieldName]: count }],
+      }
     }
+
+    return new StreamDataset({
+      dataCategory: DATA_CATEGORY.TABLE,
+      columns: [{ name: fieldName, type: "number" }],
+      controller: { sourceGenerator: countGenerator, strategy: "rendezvous" },
+      columnMapping: { [fieldName]: [] }, // 聚合列不继承单一血脉
+    })
   },
 }
