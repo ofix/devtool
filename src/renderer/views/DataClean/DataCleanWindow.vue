@@ -19,11 +19,11 @@
 <script setup>
   import { ref, onMounted } from "vue"
   import { ElMessage } from "element-plus"
-  import TopMenu from "./components/layout/TopMenu.vue"
-  import PreviewPanel from "./components/layout/PreviewPanel.vue"
-  import NodeEditor from "./components/canvas/NodeEditor.vue"
-  import Engine from "./engine/Engine.js"
-  import Scheduler from "./engine/Scheduler.js"
+  import TopMenu from "./ui/panels/TopMenu.vue"
+  import PreviewPanel from "./ui/panels/PreviewPanel.vue"
+  import NodeEditor from "./ui/canvas/NodeEditor.vue"
+  // 👇 只引入 Engine，彻底移除对 Scheduler 的引入
+  import Engine from "./core/Engine.js"
   import { serializePipeline } from "./pipeline/Serialize.js"
   import { deserializePipeline } from "./pipeline/Deserialize.js"
   import { useStoreDataCleanGraph } from "./stores/StoreDataCleanGraph.js"
@@ -38,9 +38,13 @@
 
   const editorRef = ref(null)
 
-  // 实例化 Engine，注入全新依赖 (移除旧的 datasetStore)
-  const engine = new Engine({ metaStore, previewStore, graphStore })
-  const scheduler = new Scheduler({ graphStore, metaStore, engine })
+  // 👇 实例化 Engine，默认走 js 模式（后续可以通过 UI 切换为 duckdb）
+  const engine = new Engine({
+    metaStore,
+    previewStore,
+    graphStore,
+    mode: "js",
+  })
 
   // 当前活跃的 ProjectId (多标签页隔离，默认给一个)
   const projectId = "default-project"
@@ -51,7 +55,8 @@
     if (!id) return
 
     try {
-      await scheduler.runTask(projectId, id, "preview", {
+      // 👇 UI 直接调用 Engine，不再经过 Scheduler
+      await engine.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
       })
     } catch (err) {
@@ -67,10 +72,10 @@
     }
     logStore.push("开始运行全图...")
     try {
-      await scheduler.runTask(projectId, null, "execute", {
+      // 👇 全量运行，targetNodeId 传 null
+      await engine.runTask(projectId, null, "execute", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId),
       })
-      // 注意：全量运行后的写入落盘已经由 Writer 算子内部完成，无需外部 writeOutputs
       ElMessage.success("运行完成")
     } catch (err) {
       logStore.push(`运行异常：${err.message}`, "error", null)
@@ -83,7 +88,7 @@
     const id = graphStore.selectedNodeId
     if (!id) return
     try {
-      await scheduler.runTask(projectId, id, "preview", {
+      await engine.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, id),
       })
     } catch (err) {
@@ -128,13 +133,13 @@
   }
 
   // 生命周期钩子
-  onMounted(() => {
-    // 可以做一些初始化操作
+  onMounted(async () => {
+    // 👇 启动时初始化引擎
+    await engine.init()
   })
 </script>
 
 <style scoped>
-  /* 原有样式保持不变 */
   .data-clean-app {
     display: flex;
     flex-direction: column;

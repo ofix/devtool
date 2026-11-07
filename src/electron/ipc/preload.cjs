@@ -72,29 +72,33 @@ contextBridge.exposeInMainWorld("api", {
       openDirectory: () => ipcRenderer.invoke(`${PREFIX}:dialog:openDirectory`),
       saveFile: options => ipcRenderer.invoke(`${PREFIX}:dialog:saveFile`, options),
     },
+    duckdb: {
+      query: sql => ipcRenderer.invoke("data-clean:duckdb:query", sql),
+    },
     tempFile: {
-        // 导出保存路径
-        selectSavePath: (defaultName) => ipcRenderer.invoke(`${PREFIX}:selectSavePath`, defaultName),
-        
-        // 原子写入
-        atomicWrite: (taskId, fileName, dataArray) => ipcRenderer.invoke(`${PREFIX}:atomicWrite`, taskId, fileName, dataArray),
-        
-        // 流式读取
-        readStream: (filePath, onChunk, onEnd, onError) => {
-            const channel = `${PREFIX}:stream-data:${filePath}`
-            ipcRenderer.removeAllListeners(channel)
-            
-            ipcRenderer.on(channel, (event, chunk) => {
-                if (chunk === null) onEnd()
-                else if (chunk.error) onError(new Error(chunk.error))
-                else onChunk(chunk)
-            })
-            
-            return ipcRenderer.invoke(`${PREFIX}:readStream`, filePath)
-        },
-        
-        // 清理任务文件
-        cleanupTask: (taskId) => ipcRenderer.invoke(`${PREFIX}:cleanupTask`, taskId)
+      // 导出保存路径
+      selectSavePath: defaultName => ipcRenderer.invoke(`${PREFIX}:selectSavePath`, defaultName),
+
+      // 原子写入
+      atomicWrite: (taskId, fileName, dataArray) =>
+        ipcRenderer.invoke(`${PREFIX}:atomicWrite`, taskId, fileName, dataArray),
+
+      // 流式读取
+      readStream: (filePath, onChunk, onEnd, onError) => {
+        const channel = `${PREFIX}:stream-data:${filePath}`
+        ipcRenderer.removeAllListeners(channel)
+
+        ipcRenderer.on(channel, (event, chunk) => {
+          if (chunk === null) onEnd()
+          else if (chunk.error) onError(new Error(chunk.error))
+          else onChunk(chunk)
+        })
+
+        return ipcRenderer.invoke(`${PREFIX}:readStream`, filePath)
+      },
+
+      // 清理任务文件
+      cleanupTask: taskId => ipcRenderer.invoke(`${PREFIX}:cleanupTask`, taskId),
     },
     fs: {
       stat: filePath => ipcRenderer.invoke(`${PREFIX}:fs:stat`, filePath),
