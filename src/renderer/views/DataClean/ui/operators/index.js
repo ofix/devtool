@@ -1,7 +1,5 @@
 import { meta as csvReaderMeta } from "./csvReader.js"
 import { meta as jsonReaderMeta } from "./jsonReader.js"
-import { meta as folderInputMeta } from "./folderInput.js"
-import { meta as dbConnectionMeta } from "./dbConnection.js"
 import { meta as filterMeta } from "./filter.js"
 import { meta as selectMeta } from "./select.js"
 import { meta as formulaMeta } from "./formula.js"
@@ -31,8 +29,6 @@ import { meta as dbWriterMeta } from "./dbWriter.js"
 export const operatorMetas = {
   csvReader: csvReaderMeta,
   jsonReader: jsonReaderMeta,
-  folderInput: folderInputMeta,
-  dbConnection: dbConnectionMeta,
   filter: filterMeta,
   select: selectMeta,
   formula: formulaMeta,

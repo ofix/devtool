@@ -31,8 +31,8 @@ import IconCount from "@/icons/IconCount.vue"
 
 import "@vue-flow/core/dist/style.css"
 import "@vue-flow/core/dist/theme-default.css"
-import "./views/DataClean/styles/node.css"
-import "./views/DataClean/styles/theme.css"
+import "./views/DataClean/ui/styles/node.css"
+import "./views/DataClean/ui/styles/theme.css"
 
 removeVueDevtoolsContainers()
 

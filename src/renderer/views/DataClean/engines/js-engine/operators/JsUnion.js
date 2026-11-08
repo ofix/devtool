@@ -1,78 +1,49 @@
 import { BaseJsOperator } from "./BaseJsOperator.js"
 
-export class JsJoin extends BaseJsOperator {
+export class JsUnion extends BaseJsOperator {
   async execute(inputs, params, ctx) {
-    const [leftData, rightData] = inputs
-    if (!leftData || !rightData) throw new Error("Join 必须有两个输入")
+    if (!inputs || inputs.length === 0) return null
 
-    const { joinKeys = [], joinType = "inner" } = params
-    if (joinKeys.length === 0) throw new Error("请配置连接键")
-
-    // 合并输出列结构
-    const outCols = []
-    const columnMapping = {}
-    for (const c of leftData.schema) {
-      outCols.push({ name: c.name, type: c.type })
-      columnMapping[c.name] = c.name
-    }
-    for (const c of rightData.schema) {
-      if (!outCols.some(x => x.name === c.name)) {
-        outCols.push({ name: c.name, type: c.type })
-        columnMapping[c.name] = c.name
-      }
-    }
+    const skipError = params.skipErrorStream === true
+    const baseSchema = inputs[0].schema
+    const columnMapping = { ...inputs[0].columnMapping }
 
     const generator = async function* (self) {
-      // 1. 构建阶段 (拉取左表建立 Hash Map)
-      const buildMap = new Map()
+      // 严格按照输入的顺序，串行拉取
+      for (let i = 0; i < inputs.length; i++) {
+        const inputData = inputs[i]
+        if (!inputData) continue
+        if (ctx.signal.aborted) return
 
-      // 👇 核心修复 1：精准提取 streamDataset
-      for await (const chunk of self.pullStream(leftData.payload.streamDataset, ctx.nodeId, ctx)) {
-        for (const row of chunk.rows) {
-          const key = joinKeys.map(k => String(row[k.left])).join("|||")
-          if (!buildMap.has(key)) buildMap.set(key, [])
-          buildMap.get(key).push(row)
+        // 提取真实的流
+        const streamDataset = inputData.payload.streamDataset
+        if (!streamDataset) {
+          if (ctx.log) ctx.log(`[JsUnion] 第 ${i} 路流为空，跳过`, "warn")
+          continue
         }
-      }
 
-      // 2. 探测阶段 (拉取右表进行匹配)
-      const matchedLeftKeys = new Set()
-
-      // 👇 核心修复 2：精准提取 streamDataset
-      for await (const chunk of self.pullStream(rightData.payload.streamDataset, ctx.nodeId, ctx)) {
-        const outRows = []
-        for (const row of chunk.rows) {
-          const key = joinKeys.map(k => String(row[k.right])).join("|||")
-          const leftMatches = buildMap.get(key)
-
-          if (leftMatches) {
-            matchedLeftKeys.add(key)
-            for (const leftRow of leftMatches) {
-              outRows.push({ ...leftRow, ...row })
-            }
-          } else if (joinType === "right" || joinType === "full") {
-            outRows.push({ ...row })
+        try {
+          for await (const chunk of self.pullStream(streamDataset, ctx.nodeId, ctx)) {
+            if (ctx.signal.aborted) return
+            yield chunk
           }
-        }
-        if (outRows.length > 0) {
-          yield { columns: outCols, rows: outRows }
-        }
-      }
+        } catch (err) {
+          ctx.metrics.errorRows++
+          console.error(`[JsUnion] 第 ${i} 路流读取失败:`, err)
 
-      // 3. 补全 Left/Full Join 的左侧未匹配行
-      if (joinType === "left" || joinType === "full") {
-        const unmatchedLeftRows = []
-        for (const [key, rows] of buildMap.entries()) {
-          if (!matchedLeftKeys.has(key)) {
-            unmatchedLeftRows.push(...rows)
+          if (!skipError) {
+            // 默认策略：一票否决
+            throw new Error(`Union 输入流 ${i} 异常终止: ${err.message}`)
+          } else {
+            // 容错策略：忽略该流，继续下一个
+            if (ctx.log) ctx.log(`[JsUnion] 忽略异常流 ${i}，继续执行后续流`, "warn")
           }
-        }
-        if (unmatchedLeftRows.length > 0) {
-          yield { columns: outCols, rows: unmatchedLeftRows }
         }
       }
     }
 
-    return this.buildHandle(outCols, columnMapping, generator.bind(null, this))
+    if (ctx.log) ctx.log(`[JsUnion] 准备合并 ${inputs.length} 路数据流...`)
+
+    return this.buildHandle(baseSchema, columnMapping, generator.bind(null, this))
   }
 }

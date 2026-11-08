@@ -80,7 +80,7 @@
   import { Handle, Position } from "@vue-flow/core"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
-  import { getOperator } from "../../engine/operators/index.js"
+  import { getOperatorMeta } from "../operators/index.js"
   import { getPortColor } from "../../constants/PortTypes.js"
 
   const props = defineProps({
@@ -112,7 +112,7 @@
   })
 
   const opMeta = computed(() => {
-    const op = getOperator(props.node.type)
+    const op = getOperatorMeta(props.node.type)
     return op && op.meta
       ? op.meta
       : { label: props.node.type, color: "#3b82f6", inputs: 1, outputs: 1 }
@@ -325,7 +325,7 @@
   .stats-placeholder {
     opacity: 0.5;
   }
-  
+
   .lineage-op-bar {
     border-top: 1px dashed var(--dc-border, #e2e8f0);
     padding: 4px 8px;

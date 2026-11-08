@@ -1,13 +1,22 @@
+import TaskContext from "./runtime/TaskContext.js"
+
 export default class Scheduler {
   constructor({ engine, graphStore, metaStore, previewStore }) {
     this.engine = engine
     this.graphStore = graphStore
     this.metaStore = metaStore
     this.previewStore = previewStore
+    this.activeTasks = new Map()
   }
 
-  async execute(projectId, targetNodeId, runMode, ctx) {
-    // 1. 收集要运行的节点
+  /**
+   * 执行任务（全量或局部预览）
+   */
+  async runTask(projectId, targetNodeId = null, runMode = "preview", options = {}) {
+    const ctx = new TaskContext(projectId, runMode, runMode === "preview" ? "high" : "low")
+    ctx.log = options.log || ((msg, level = "info") => console.log(`[Scheduler]`, msg))
+
+    // 收集节点
     const nodesToRun = new Set()
     const collectUpstream = nodeId => {
       if (nodesToRun.has(nodeId)) return
@@ -15,23 +24,20 @@ export default class Scheduler {
       const inEdges = this.graphStore.getIncomingEdges(nodeId)
       for (const edge of inEdges) collectUpstream(edge.source)
     }
-
     if (targetNodeId) {
       collectUpstream(targetNodeId)
     } else {
       this.graphStore.nodes.forEach(n => nodesToRun.add(n.id))
     }
 
-    // 2. 拓扑排序
+    // 拓扑排序
     const sortedNodes = this._topoSort(Array.from(nodesToRun))
-
-    // 3. 执行并缓存 Handle
     const handleCache = new Map()
+    this.activeTasks.set(ctx.taskId, ctx)
 
     try {
       for (const nodeId of sortedNodes) {
         if (ctx.signal.aborted) throw new Error("任务被用户取消")
-
         const node = this.graphStore.getNode(nodeId)
 
         // 收集上游 inputs
@@ -42,22 +48,18 @@ export default class Scheduler {
           if (handle) inputs.push(handle)
         }
 
-        // 从引擎获取对应的执行器
-        const executor = this.engine.getExecutor(node.type)
-
-        // 执行算子
-        ctx.log(`准备执行节点: ${node.type} (${nodeId})`)
+        ctx.log(`执行节点: ${node.type} (${nodeId})`)
         const startTime = performance.now()
 
-        const resultHandle = await executor.execute(inputs, node.params || {}, ctx)
+        // 👇 直接调用 Engine 去执行单节点
+        const resultHandle = await this.engine.runNode(node.type, inputs, node.params || {}, ctx)
 
         const duration = performance.now() - startTime
-        ctx.log(`节点 ${node.type} 执行完毕，耗时 ${duration.toFixed(2)}ms`)
+        ctx.log(`节点执行完成，耗时 ${duration.toFixed(2)}ms`)
 
-        // 存入缓存
         handleCache.set(nodeId, resultHandle)
 
-        // 更新 UI 的节点元数据
+        // 更新元数据
         this.metaStore.updateMeta(nodeId, {
           columns: resultHandle.schema || [],
           rowCount: resultHandle.rowCount || -1,
@@ -66,28 +68,45 @@ export default class Scheduler {
           error: null,
         })
 
-        // 如果当前节点就是用户要看的目标节点
+        // 拉取预览
         if (nodeId === targetNodeId && runMode === "preview") {
-          ctx.log(`正在拉取节点 ${node.type} 的预览数据...`)
-          // 让引擎去拉取前 1000 行（根据具体引擎内部实现）
-          const previewRows = await this.engine.getPreviewData(nodeId, resultHandle.payload, 1000)
+          ctx.log(`正在拉取节点预览数据...`)
+          const previewRows = await this.engine.getPreviewData(resultHandle.payload, 1000)
 
-          // 存进 UI Store
-          this.previewStore.setPreviewData(
-            projectId,
-            nodeId,
-            {
-              rows: previewRows,
-              columns: resultHandle.schema,
-            },
-            Date.now().toString(),
-          )
+          if (resultHandle.dataCategory === "json") {
+            this.previewStore.setPreviewData(
+              projectId,
+              nodeId,
+              {
+                json: previewRows,
+                columns: [],
+              },
+              Date.now().toString(),
+            )
+          } else {
+            this.previewStore.setPreviewData(
+              projectId,
+              nodeId,
+              {
+                rows: previewRows,
+                columns: resultHandle.schema || [],
+              },
+              Date.now().toString(),
+            )
+          }
         }
       }
     } catch (err) {
       ctx.log(`执行中断: ${err.message}`, "error")
       throw err
+    } finally {
+      this.activeTasks.delete(ctx.taskId)
     }
+  }
+
+  abortTask(taskId) {
+    const task = this.activeTasks.get(taskId)
+    if (task) task.abort("用户主动取消")
   }
 
   _topoSort(nodeIds) {

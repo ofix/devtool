@@ -129,10 +129,10 @@
   import TransformNode from "./TransformNode.vue"
   import ParamRow from "../params/ParamRow.vue"
 
-  import { useStoreDataCleanGraph } from "../../../stores/StoreDataCleanGraph.js"
+  import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   // 👇 引入新的元数据注册表，而不是旧的执行器
-  import { getOperatorMeta } from "../../operators/index.js"
-  import { canConnect } from "../../../constants/PortTypes.js"
+  import { getOperatorMeta } from "../operators/index.js"
+  import { canConnect } from "../../constants/PortTypes.js"
 
   const isReady = ref(false)
   const emit = defineEmits(["trigger-run"])
@@ -264,7 +264,6 @@
     emit("trigger-run")
   }
 
-  // ... 保留原有的 contextMenu, onNodeClick, onPaneClick, handleKeyDown 等全部不变
   const contextMenu = ref({ visible: false, x: 0, y: 0 })
   function onNodeContextMenu(event) {
     event.event.preventDefault()

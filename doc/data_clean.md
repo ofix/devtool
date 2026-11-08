@@ -23,59 +23,59 @@
 
 二、功能需求
 2.1 数据源
-需求	说明
-CSV 输入	文件选择，首行表头，自动推断列类型（字符串/数值/日期/布尔），可在输入节点覆盖推断结果
-JSON 输入	文件选择，支持对象数组；嵌套对象和数组不拍平，表达式用路径直接引用
-文件夹输入	递归列出匹配扩展名的文件；per-file（默认，每文件一个输出）或 merged（纵向拼接 + _source_file 列）两种模式
-Text Input	手工录入小表（可选，二期）
-输出	单文件 CSV / JSON 导出
-文件夹输出	独立算子 FolderOutput，输出目录 + 文件名来源列，每文件一个输出文件
+需求 说明
+CSV 输入 文件选择，首行表头，自动推断列类型（字符串/数值/日期/布尔），可在输入节点覆盖推断结果
+JSON 输入 文件选择，支持对象数组；嵌套对象和数组不拍平，表达式用路径直接引用
+文件夹输入 递归列出匹配扩展名的文件；per-file（默认，每文件一个输出）或 merged（纵向拼接 + \_source_file 列）两种模式
+Text Input 手工录入小表（可选，二期）
+输出 单文件 CSV / JSON 导出
+文件夹输出 独立算子 FolderOutput，输出目录 + 文件名来源列，每文件一个输出文件
 2.2 算子清单
-分类	算子	说明
-数据源	Input（CSV/JSON/文件夹）	类型推断、文件夹递归、类型覆盖
-准备	Filter	表达式过滤，可视化条件行 + 表达式编辑器双模式
-准备	Select	选列、重命名、调整顺序
-准备	Sort	多级排序，字段 + 方向，拖拽调整优先级
-准备	Unique	一列或多列组合去重，保留首条/末条
-准备	Sample	前 N 行 / 随机 N 行 / 按百分比
-准备	Formula	计算列，复用表达式系统，输出列名 + 表达式可增删行
-准备	Data Cleansing	去首尾空白、空值替换、大小写转换、去不可见字符
-准备	Find Replace	主表 + 查找表，精确/包含/正则匹配，显示替换/未匹配统计
-连接	Join	Inner / Left / Right / Full / Anti；左右键、输出列勾选；卡片显示匹配统计
-连接	Join Multiple	动态输入端口（初始 2，可增），按输入对配置连接条件
-连接	Union	多输入纵向拼接，按位置 / 按名称对齐，列不一致标黄警告
-解析	Text to Columns	按分隔符或正则拆分一列为多列
-解析	RegexExtract	正则提取，命名捕获组 → 列名，未命名 → group_N
-解析	XML Parse	XPath 列表映射为输出列，带 XPath 测试区
-转换	Summarize	分组字段 + 聚合函数（SUM/AVG/COUNT/MIN/MAX），函数按列类型过滤
-转换	Transpose	宽表转长表
-转换	Cross Tab	长转宽，列数上限 100，超出截断并警告
-转换	Count Records	全表计数，输出单行单列
-开发	Script	shell 命令 + outputFormat: text/csv/json，不隔离，有超时和输出上限
-开发	Message	调试输出，写日志条，透传数据
-开发	Dynamic Rename	按正则/前后缀/映射表批量重命名列
-文档	Group	组折叠，跨边界连线暴露为组节点端口
-输出	Output / FolderOutput	单文件 / 文件夹输出
+分类 算子 说明
+数据源 Input（CSV/JSON/文件夹） 类型推断、文件夹递归、类型覆盖
+准备 Filter 表达式过滤，可视化条件行 + 表达式编辑器双模式
+准备 Select 选列、重命名、调整顺序
+准备 Sort 多级排序，字段 + 方向，拖拽调整优先级
+准备 Unique 一列或多列组合去重，保留首条/末条
+准备 Sample 前 N 行 / 随机 N 行 / 按百分比
+准备 Formula 计算列，复用表达式系统，输出列名 + 表达式可增删行
+准备 Data Cleansing 去首尾空白、空值替换、大小写转换、去不可见字符
+准备 Find Replace 主表 + 查找表，精确/包含/正则匹配，显示替换/未匹配统计
+连接 Join Inner / Left / Right / Full / Anti；左右键、输出列勾选；卡片显示匹配统计
+连接 Join Multiple 动态输入端口（初始 2，可增），按输入对配置连接条件
+连接 Union 多输入纵向拼接，按位置 / 按名称对齐，列不一致标黄警告
+解析 Text to Columns 按分隔符或正则拆分一列为多列
+解析 RegexExtract 正则提取，命名捕获组 → 列名，未命名 → group_N
+解析 XML Parse XPath 列表映射为输出列，带 XPath 测试区
+转换 Summarize 分组字段 + 聚合函数（SUM/AVG/COUNT/MIN/MAX），函数按列类型过滤
+转换 Transpose 宽表转长表
+转换 Cross Tab 长转宽，列数上限 100，超出截断并警告
+转换 Count Records 全表计数，输出单行单列
+开发 Script shell 命令 + outputFormat: text/csv/json，不隔离，有超时和输出上限
+开发 Message 调试输出，写日志条，透传数据
+开发 Dynamic Rename 按正则/前后缀/映射表批量重命名列
+文档 Group 组折叠，跨边界连线暴露为组节点端口
+输出 Output / FolderOutput 单文件 / 文件夹输出
 明确不做：Spatial、Predictive、Reporting、Comment 节点（暂不开发）、XML Parse 之外的 XML 工具。
 
 2.3 节点交互
-需求	说明
-折叠	双击标题栏折叠为 48×48 Logo + 英文缩写（FLT/JN/SEL），颜色按类型区分；双击展开，CSS 过渡动画
-端口	输入在左、输出在右；颜色按类型区分；端口有类型限制，不兼容连线拒绝并提示
-参数面板	el-collapse 可折叠，常用参数默认展开；参数区最大高度 320px，超出内部滚动
-标签对齐	参数行用 CSS Grid：grid-template-columns: 72px 1fr，标签右对齐，控件左边缘对齐
-元数据驱动	字段下拉选项来自上游 nodeMeta（名称 + 类型）；字段多时多选下拉 + 搜索，≤5 字段隐藏搜索
-断线行为	下游数据标记 stale、预览提示"上游已断开"，节点参数配置保留；重连后需重新运行
-组折叠	选中多节点 → 右键"折叠为组" → 组节点；跨边界连线暴露为组端口；双击展开
-画布	Vue Flow；缩放、平移；连线点击选中后 Delete 删除
+需求 说明
+折叠 双击标题栏折叠为 48×48 Logo + 英文缩写（FLT/JN/SEL），颜色按类型区分；双击展开，CSS 过渡动画
+端口 输入在左、输出在右；颜色按类型区分；端口有类型限制，不兼容连线拒绝并提示
+参数面板 el-collapse 可折叠，常用参数默认展开；参数区最大高度 320px，超出内部滚动
+标签对齐 参数行用 CSS Grid：grid-template-columns: 72px 1fr，标签右对齐，控件左边缘对齐
+元数据驱动 字段下拉选项来自上游 nodeMeta（名称 + 类型）；字段多时多选下拉 + 搜索，≤5 字段隐藏搜索
+断线行为 下游数据标记 stale、预览提示"上游已断开"，节点参数配置保留；重连后需重新运行
+组折叠 选中多节点 → 右键"折叠为组" → 组节点；跨边界连线暴露为组端口；双击展开
+画布 Vue Flow；缩放、平移；连线点击选中后 Delete 删除
 2.4 中央预览面板
-需求	说明
-位置	屏幕上半部分常驻，随选中节点切换
-虚拟滚动	el-table-v2，只渲染视口行；支持滚动浏览任意位置
-分页取数	顺序滚动从游标推进；跳转时回退 LIMIT/OFFSET，单次 200 行
-形态切换	普通表用表格；单行 JSON 聚合结果用树形/键值视图
-元信息	标题栏显示节点名、总行数、列数；刷新 + 导出按钮
-进度	文件夹输入运行进度显示在节点卡片，预览面板不显示
+需求 说明
+位置 屏幕上半部分常驻，随选中节点切换
+虚拟滚动 el-table-v2，只渲染视口行；支持滚动浏览任意位置
+分页取数 顺序滚动从游标推进；跳转时回退 LIMIT/OFFSET，单次 200 行
+形态切换 普通表用表格；单行 JSON 聚合结果用树形/键值视图
+元信息 标题栏显示节点名、总行数、列数；刷新 + 导出按钮
+进度 文件夹输入运行进度显示在节点卡片，预览面板不显示
 2.5 表达式系统
 词法规则
 
@@ -124,12 +124,12 @@ JSON 路径
 所有接受字段的算子统一支持路径寻址
 
 2.6 执行引擎
-需求	说明
-纯 JS 内存算子	JOIN 用 Map 索引、排序用 Array.sort、去重用 Set、汇总用 Map
-规模上限	10 万行级别；节点输出超阈值（20 万行）提示缩小输入
-缓存失效	参数变更递归清除所有下游缓存；断线标记下游 stale
-文件夹进度	异步执行，逐文件上报进度到节点卡片
-脚本节点	child_process.exec，超时 + 输出大小上限，不隔离（本地自用）
+需求 说明
+纯 JS 内存算子 JOIN 用 Map 索引、排序用 Array.sort、去重用 Set、汇总用 Map
+规模上限 10 万行级别；节点输出超阈值（20 万行）提示缩小输入
+缓存失效 参数变更递归清除所有下游缓存；断线标记下游 stale
+文件夹进度 异步执行，逐文件上报进度到节点卡片
+脚本节点 child_process.exec，超时 + 输出大小上限，不隔离（本地自用）
 2.7 管线
 保存/加载：nodes + edges + params 序列化为 JSON（.pipeline.json），下载/上传
 
@@ -152,55 +152,55 @@ JSON 路径
 3.1 进程分层
 text
 ┌─────────────────────────────────────────────────────┐
-│ Renderer (Vue 3 + Element Plus + Vue Flow)          │
-│  ├─ DataCleanApp：三区布局（顶部菜单 + 中央预览 +     │
-│  │                 下方画布 + 底部日志条）            │
-│  ├─ NodeEditor：Vue Flow 画布，自定义节点卡片        │
-│  ├─ PreviewPanel：虚拟表格 + 树形视图                │
-│  ├─ ExpressionEditor：CodeMirror 6 + 补全源          │
-│  └─ stores (Pinia)：graph / meta / datasets /        │
-│                     pipeline / log                   │
+│ Renderer (Vue 3 + Element Plus + Vue Flow) │
+│ ├─ DataCleanApp：三区布局（顶部菜单 + 中央预览 + │
+│ │ 下方画布 + 底部日志条） │
+│ ├─ NodeEditor：Vue Flow 画布，自定义节点卡片 │
+│ ├─ PreviewPanel：虚拟表格 + 树形视图 │
+│ ├─ ExpressionEditor：CodeMirror 6 + 补全源 │
+│ └─ stores (Pinia)：graph / meta / datasets / │
+│ pipeline / log │
 ├─────────────────────────────────────────────────────┤
-│ 执行层（纯 JS，运行在 Renderer）                      │
-│  ├─ engine/Engine：runNode / runAll / invalidate     │
-│  ├─ engine/Scheduler：拓扑排序、异步、进度上报        │
-│  ├─ engine/operators/：每个算子 execute(inputs,params)│
-│  ├─ expression/：tokenizer、AST、resolvePath、compile │
-│  └─ parsers/：CSV/JSON/XML 解析、路径树提取          │
+│ 执行层（纯 JS，运行在 Renderer） │
+│ ├─ engine/Engine：runNode / runAll / invalidate │
+│ ├─ engine/Scheduler：拓扑排序、异步、进度上报 │
+│ ├─ engine/operators/：每个算子 execute(inputs,params)│
+│ ├─ expression/：tokenizer、AST、resolvePath、compile │
+│ └─ parsers/：CSV/JSON/XML 解析、路径树提取 │
 ├─────────────────────────────────────────────────────┤
-│ Preload（contextBridge 白名单）                       │
-│  └─ window.api.dataClean = { dialog, fs, command,    │
-│                              pipeline }              │
+│ Preload（contextBridge 白名单） │
+│ └─ window.api.dataClean = { dialog, fs, command, │
+│ pipeline } │
 ├─────────────────────────────────────────────────────┤
-│ Main Process (Electron)                             │
-│  ├─ ipc/handler-data-clean.js：IPC 路由              │
-│  └─ service/data-clean/：对话框、文件系统、命令执行、 │
-│                          管线持久化                   │
+│ Main Process (Electron) │
+│ ├─ ipc/handler-data-clean.js：IPC 路由 │
+│ └─ service/data-clean/：对话框、文件系统、命令执行、 │
+│ 管线持久化 │
 └─────────────────────────────────────────────────────┘
 关键约束：节点卡片只持有元数据（rowCount、columns、columnsVersion），不持有全量数据；数据存在 StoreDataCleanDatasets 中（markRaw，不进响应式），预览按需取视口行。
 
 3.2 数据流
 text
 输入节点执行 → datasets[id] = { rows, columns }
-              → meta[id] = { rowCount, columns, columnsVersion }
-              → 下游节点字段下拉从 meta 读取选项
-              → 用户改参数 → invalidateDownstream(id) → 递归删除下游 datasets + meta 标记 stale
-              → 运行/预览 → 重新执行该节点及下游
+→ meta[id] = { rowCount, columns, columnsVersion }
+→ 下游节点字段下拉从 meta 读取选项
+→ 用户改参数 → invalidateDownstream(id) → 递归删除下游 datasets + meta 标记 stale
+→ 运行/预览 → 重新执行该节点及下游
 3.3 端口类型系统
-端口类型	颜色	说明
-table	蓝	表格数据（大多数算子的输入输出）
-scalar	橙	标量参数（二期预留）
-config	绿	配置对象（二期预留）
+端口类型 颜色 说明
+table 蓝 表格数据（大多数算子的输入输出）
+scalar 橙 标量参数（二期预留）
+config 绿 配置对象（二期预留）
 连接校验矩阵：table → table 允许；其他组合默认拒绝，除非后续显式扩展。不兼容时端口变红、连线拒绝并 ElMessage.warning。
 
 3.4 表达式系统内部结构
 text
 表达式文本
-  → Tokenizer（词法切分：标识符/索引/通配/方括号字段/操作符/字符串/括号）
-  → Parser（递归下降 → AST）
-  → TypeCheck（字段存在性、操作符类型兼容）
-  → Compile（AST → (row) => value 闭包）
-  → 逐行求值（resolvePath 处理 JSON 路径）
+→ Tokenizer（词法切分：标识符/索引/通配/方括号字段/操作符/字符串/括号）
+→ Parser（递归下降 → AST）
+→ TypeCheck（字段存在性、操作符类型兼容）
+→ Compile（AST → (row) => value 闭包）
+→ 逐行求值（resolvePath 处理 JSON 路径）
 双向：AST → 表达式文本（可视化切表达式）、AST → 条件行（表达式切可视化，无法表达时提示）。
 
 3.5 算子注册表
@@ -208,23 +208,23 @@ text
 
 js
 export default {
-  type: 'filter',
-  meta: {
-    label: 'Filter',
-    icon: 'IconFilter',
-    color: '#f59e0b',
-    category: '准备',
-    inputs: 1,
-    outputs: 1,
-    inputPortType: 'table',
-    outputPortType: 'table',
-  },
-  schema: [
-    { field: 'expression', label: '条件', component: 'expression' },
-  ],
-  execute(inputs, params, ctx) {
-    // 返回 { rows, columns }
-  },
+type: 'filter',
+meta: {
+label: 'Filter',
+icon: 'IconFilter',
+color: '#f59e0b',
+category: '准备',
+inputs: 1,
+outputs: 1,
+inputPortType: 'table',
+outputPortType: 'table',
+},
+schema: [
+{ field: 'expression', label: '条件', component: 'expression' },
+],
+execute(inputs, params, ctx) {
+// 返回 { rows, columns }
+},
 }
 engine/operators/index.js 汇总为 { [type]: operatorModule }，节点卡片、菜单、端口校验、执行调度都从这里取。
 
@@ -233,102 +233,102 @@ engine/operators/index.js 汇总为 { [type]: operatorModule }，节点卡片、
 text
 src/electron/
 ├── ipc/
-│   ├── handler-data-clean.js        # 新增：DataClean IPC 路由
-│   └── index.js                     # 修改：引入 handler-data-clean
-├── ipc/preload.cjs                  # 修改：暴露 window.api.dataClean
+│ ├── handler-data-clean.js # 新增：DataClean IPC 路由
+│ └── index.js # 修改：引入 handler-data-clean
+├── ipc/preload.cjs # 修改：暴露 window.api.dataClean
 ├── service/
-│   └── data-clean/                  # 新增
-│       ├── dialog.js                # 文件/文件夹选择
-│       ├── fs.js                    # 文件读写、目录递归、输出落盘
-│       ├── command.js               # shell 命令执行（超时、输出上限）
-│       └── pipeline.js              # 管线保存/加载
-└── main.js                          # 修改：如有需要，注册生命周期
+│ └── data-clean/ # 新增
+│ ├── dialog.js # 文件/文件夹选择
+│ ├── fs.js # 文件读写、目录递归、输出落盘
+│ ├── command.js # shell 命令执行（超时、输出上限）
+│ └── pipeline.js # 管线保存/加载
+└── main.js # 修改：如有需要，注册生命周期
 4.2 渲染进程侧：DataClean 子应用
 text
 src/renderer/views/DataClean/
-├── DataCleanApp.vue                 # 子应用根组件（三区布局 + 底部日志条）
-├── index.js                         # 子应用入口：路由注册、导出 App
+├── DataCleanApp.vue # 子应用根组件（三区布局 + 底部日志条）
+├── index.js # 子应用入口：路由注册、导出 App
 ├── components/
-│   ├── layout/
-│   │   ├── TopMenu.vue              # 一级菜单 + 二级算子面板（固定顶部）
-│   │   ├── PreviewPanel.vue         # 中央预览
-│   │   ├── LogBar.vue               # 底部可折叠日志条
-│   │   └── StatusBar.vue            # 缩放、适应画布、保存管线
-│   ├── canvas/
-│   │   ├── NodeEditor.vue           # Vue Flow 容器
-│   │   ├── GroupNode.vue            # 组折叠节点
-│   │   └── edges/                   # 自定义边
-│   ├── nodes/
-│   │   ├── BaseNode.vue             # 统一卡片外壳
-│   │   ├── InputNode.vue
-│   │   ├── OutputNode.vue
-│   │   ├── FolderOutputNode.vue
-│   │   ├── TransformNode.vue        # 通用转换节点外壳，按 schema 渲染
-│   │   ├── ScriptNode.vue
-│   │   └── MessageNode.vue
-│   ├── params/
-│   │   ├── ParamRow.vue             # 72px + 1fr grid 行
-│   │   ├── FieldSelect.vue
-│   │   ├── ColumnPicker.vue
-│   │   ├── CollapsePanel.vue
-│   │   └── PortTypeBadge.vue
-│   ├── expression/
-│   │   ├── ExpressionEditor.vue     # CodeMirror 6 封装
-│   │   ├── FieldListPanel.vue       # 常驻字段列表
-│   │   ├── ConditionBuilder.vue     # 可视化条件行
-│   │   └── ExpressionModeSwitch.vue
-│   ├── regex/
-│   │   └── RegexPanel.vue
-│   └── common/
-│       ├── ProgressBar.vue
-│       └── EmptyState.vue
+│ ├── layout/
+│ │ ├── TopMenu.vue # 一级菜单 + 二级算子面板（固定顶部）
+│ │ ├── PreviewPanel.vue # 中央预览
+│ │ ├── LogBar.vue # 底部可折叠日志条
+│ │ └── StatusBar.vue # 缩放、适应画布、保存管线
+│ ├── canvas/
+│ │ ├── NodeEditor.vue # Vue Flow 容器
+│ │ ├── GroupNode.vue # 组折叠节点
+│ │ └── edges/ # 自定义边
+│ ├── nodes/
+│ │ ├── BaseNode.vue # 统一卡片外壳
+│ │ ├── InputNode.vue
+│ │ ├── OutputNode.vue
+│ │ ├── FolderOutputNode.vue
+│ │ ├── TransformNode.vue # 通用转换节点外壳，按 schema 渲染
+│ │ ├── ScriptNode.vue
+│ │ └── MessageNode.vue
+│ ├── params/
+│ │ ├── ParamRow.vue # 72px + 1fr grid 行
+│ │ ├── FieldSelect.vue
+│ │ ├── ColumnPicker.vue
+│ │ ├── CollapsePanel.vue
+│ │ └── PortTypeBadge.vue
+│ ├── expression/
+│ │ ├── ExpressionEditor.vue # CodeMirror 6 封装
+│ │ ├── FieldListPanel.vue # 常驻字段列表
+│ │ ├── ConditionBuilder.vue # 可视化条件行
+│ │ └── ExpressionModeSwitch.vue
+│ ├── regex/
+│ │ └── RegexPanel.vue
+│ └── common/
+│ ├── ProgressBar.vue
+│ └── EmptyState.vue
 ├── stores/
-│   ├── StoreDataCleanGraph.js       # nodes / edges / 选中 / 组折叠
-│   ├── StoreDataCleanMeta.js        # nodeMeta
-│   ├── StoreDataCleanDatasets.js    # 执行结果缓存（markRaw）
-│   ├── StoreDataCleanPipeline.js    # 管线序列化
-│   └── StoreDataCleanLog.js         # 运行日志
+│ ├── StoreDataCleanGraph.js # nodes / edges / 选中 / 组折叠
+│ ├── StoreDataCleanMeta.js # nodeMeta
+│ ├── StoreDataCleanDatasets.js # 执行结果缓存（markRaw）
+│ ├── StoreDataCleanPipeline.js # 管线序列化
+│ └── StoreDataCleanLog.js # 运行日志
 ├── engine/
-│   ├── Engine.js
-│   ├── Scheduler.js
-│   ├── operators/
-│   │   ├── index.js
-│   │   ├── input.js / output.js / folderOutput.js
-│   │   ├── filter.js / select.js / sort.js / unique.js / sample.js
-│   │   ├── formula.js / dataCleansing.js / findReplace.js
-│   │   ├── join.js / joinMultiple.js / union.js
-│   │   ├── textToColumns.js / regexExtract.js / xmlParse.js
-│   │   ├── summarize.js / transpose.js / crossTab.js / countRecords.js
-│   │   ├── script.js / message.js / dynamicRename.js
-│   └── runtime/
-│       ├── Dataset.js
-│       └── Errors.js
+│ ├── Engine.js
+│ ├── Scheduler.js
+│ ├── operators/
+│ │ ├── index.js
+│ │ ├── input.js / output.js / folderOutput.js
+│ │ ├── filter.js / select.js / sort.js / unique.js / sample.js
+│ │ ├── formula.js / dataCleansing.js / findReplace.js
+│ │ ├── join.js / joinMultiple.js / union.js
+│ │ ├── textToColumns.js / regexExtract.js / xmlParse.js
+│ │ ├── summarize.js / transpose.js / crossTab.js / countRecords.js
+│ │ ├── script.js / message.js / dynamicRename.js
+│ └── runtime/
+│ ├── Dataset.js
+│ └── Errors.js
 ├── expression/
-│   ├── Tokenizer.js
-│   ├── Parser.js
-│   ├── Ast.js
-│   ├── TypeCheck.js
-│   ├── Compile.js
-│   ├── ResolvePath.js
-│   ├── PathTree.js
-│   └── completion/
-│       ├── Context.js
-│       └── Source.js
+│ ├── Tokenizer.js
+│ ├── Parser.js
+│ ├── Ast.js
+│ ├── TypeCheck.js
+│ ├── Compile.js
+│ ├── ResolvePath.js
+│ ├── PathTree.js
+│ └── completion/
+│ ├── Context.js
+│ └── Source.js
 ├── parsers/
-│   ├── Csv.js
-│   ├── Json.js
-│   └── Xml.js
+│ ├── Csv.js
+│ ├── Json.js
+│ └── Xml.js
 ├── pipeline/
-│   ├── Serialize.js
-│   ├── Deserialize.js
-│   └── Schema.js
+│ ├── Serialize.js
+│ ├── Deserialize.js
+│ └── Schema.js
 ├── constants/
-│   ├── NodeTypes.js
-│   ├── Operators.js
-│   └── PortTypes.js
+│ ├── NodeTypes.js
+│ ├── Operators.js
+│ └── PortTypes.js
 └── styles/
-    ├── node.css
-    └── canvas.css
+├── node.css
+└── canvas.css
 4.3 路由注册
 src/renderer/router/MenuRoutes.js 追加 DataClean 路由，指向 views/DataClean/DataCleanApp.vue。
 
@@ -339,87 +339,87 @@ src/renderer/router/MenuRoutes.js 追加 DataClean 路由，指向 views/DataCle
 
 stores：StoreDataClean.js 已被释放，可作为 graph store；其余 store 按 StoreDataCleanXxx.js 命名并列。
 
-IPC：通过 window.api.dataClean.* 调用，不直接碰 ipcRenderer。
+IPC：通过 window.api.dataClean.\* 调用，不直接碰 ipcRenderer。
 
 五、开发计划（分阶段）
 阶段 0：技术验证（1–2 天）
-任务	产出	验证
-Vue Flow 集成到子应用	空画布 + 3 个自定义节点	拖拽、连线、缩放正常
-CodeMirror 6 集成	空表达式编辑器	输入、补全浮层可弹出
-主题切换	亮/暗切换按钮	画布、卡片、编辑器都随主题变
+任务 产出 验证
+Vue Flow 集成到子应用 空画布 + 3 个自定义节点 拖拽、连线、缩放正常
+CodeMirror 6 集成 空表达式编辑器 输入、补全浮层可弹出
+主题切换 亮/暗切换按钮 画布、卡片、编辑器都随主题变
 阶段 1：核心骨架（3–5 天）
-任务	产出
-算子注册表 + BaseNode 外壳	constants/NodeTypes.js、engine/operators/index.js、BaseNode.vue
-输入/输出节点	CSV/JSON 导入、类型推断、预览
-Filter + Select + Sort	三个算子的 execute + schema 驱动参数面板
-PreviewPanel 虚拟滚动	el-table-v2 + 分页取数
-执行引擎	Engine.js、Scheduler.js、缓存失效、stale 标记
-表达式系统 v1	Tokenizer、Parser、TypeCheck、Compile、ResolvePath（不含补全）
-顶部菜单	一级分类 + 二级算子面板，固定顶部
+任务 产出
+算子注册表 + BaseNode 外壳 constants/NodeTypes.js、engine/operators/index.js、BaseNode.vue
+输入/输出节点 CSV/JSON 导入、类型推断、预览
+Filter + Select + Sort 三个算子的 execute + schema 驱动参数面板
+PreviewPanel 虚拟滚动 el-table-v2 + 分页取数
+执行引擎 Engine.js、Scheduler.js、缓存失效、stale 标记
+表达式系统 v1 Tokenizer、Parser、TypeCheck、Compile、ResolvePath（不含补全）
+顶部菜单 一级分类 + 二级算子面板，固定顶部
 阶段 2：表达式与 JSON（3–5 天）
-任务	产出
-CodeMirror 补全源	completion/Context.js、Source.js
-字段列表常驻面板	FieldListPanel.vue
-可视化条件行 + 双模式切换	ConditionBuilder.vue、ExpressionModeSwitch.vue
-JSON 路径树提取 + 路径补全	PathTree.js
-Filter 双模式完整接入	Filter 算子 + 表达式系统联调
+任务 产出
+CodeMirror 补全源 completion/Context.js、Source.js
+字段列表常驻面板 FieldListPanel.vue
+可视化条件行 + 双模式切换 ConditionBuilder.vue、ExpressionModeSwitch.vue
+JSON 路径树提取 + 路径补全 PathTree.js
+Filter 双模式完整接入 Filter 算子 + 表达式系统联调
 阶段 3：高频算子补齐（5–7 天）
-任务	产出
-Join / Join Multiple / Union	连接类型、匹配统计、动态输入端口
-Unique / Sample / Count Records	简单算子
-Formula / Data Cleansing	公式复用表达式系统；清理组合操作
-Find Replace	精确/包含/正则，统计
-Summarize / Transpose / Cross Tab	聚合、转置、列数上限 100
-Text to Columns / RegexExtract / XML Parse	正则面板复用、XPath 测试区
-Dynamic Rename / Message	批量重命名、日志条接入
+任务 产出
+Join / Join Multiple / Union 连接类型、匹配统计、动态输入端口
+Unique / Sample / Count Records 简单算子
+Formula / Data Cleansing 公式复用表达式系统；清理组合操作
+Find Replace 精确/包含/正则，统计
+Summarize / Transpose / Cross Tab 聚合、转置、列数上限 100
+Text to Columns / RegexExtract / XML Parse 正则面板复用、XPath 测试区
+Dynamic Rename / Message 批量重命名、日志条接入
 阶段 4：数据源与输出（3–5 天）
-任务	产出
-文件夹输入	递归、per-file/merged 模式、进度上报
-FolderOutput	输出目录、文件名来源、覆盖策略
-Script 节点	shell 命令、outputFormat、超时/输出上限
-管线保存/加载	Serialize/Deserialize/Schema、extends 合并
-主进程 IPC 完整接入	dialog/fs/command/pipeline
+任务 产出
+文件夹输入 递归、per-file/merged 模式、进度上报
+FolderOutput 输出目录、文件名来源、覆盖策略
+Script 节点 shell 命令、outputFormat、超时/输出上限
+管线保存/加载 Serialize/Deserialize/Schema、extends 合并
+主进程 IPC 完整接入 dialog/fs/command/pipeline
 阶段 5：组折叠与收尾（3–5 天）
-任务	产出
-组折叠	GroupNode、跨边界端口计算、双击展开
-节点折叠动画	双击标题栏折叠为 Logo + 缩写 + 颜色
-端口类型校验	颜色 + 兼容矩阵 + 连线拒绝提示
-主题持久化	亮/暗切换记忆
-错误处理与边界	空数据、类型不匹配、大数组截断警告
-单元测试	expression、operators、parsers、pipeline roundtrip
+任务 产出
+组折叠 GroupNode、跨边界端口计算、双击展开
+节点折叠动画 双击标题栏折叠为 Logo + 缩写 + 颜色
+端口类型校验 颜色 + 兼容矩阵 + 连线拒绝提示
+主题持久化 亮/暗切换记忆
+错误处理与边界 空数据、类型不匹配、大数组截断警告
+单元测试 expression、operators、parsers、pipeline roundtrip
 阶段 6：打磨与验证（2–3 天）
-任务	产出
-10 万行性能验证	CSV/JSON 导入、JOIN、排序、预览滚动
-100 节点画布验证	拖拽 FPS、折叠、组折叠
-管线复用验证	保存 → 换输入文件 → 加载 → 运行
-文档	用户使用说明、算子参考
+任务 产出
+10 万行性能验证 CSV/JSON 导入、JOIN、排序、预览滚动
+100 节点画布验证 拖拽 FPS、折叠、组折叠
+管线复用验证 保存 → 换输入文件 → 加载 → 运行
+文档 用户使用说明、算子参考
 六、关键设计决策
-决策	选择	理由
-画布库	Vue Flow	100 节点实测无压力；Element Plus 控件可直接内嵌；Handle 自动处理端口位置
-数据规模	10 万行，纯 JS 内存算子	避免 DuckDB native 模块打包分发坑；外部排序/分区哈希复杂度不值得
-执行位置	Renderer，一期不引入 Worker	算子不依赖 DOM，迁移 Worker 成本低；10 万行主线程可接受，异步让出事件循环
-JSON 处理	不拍平，路径直接引用	预览已能看完整 JSON，直接写路径比配置展开策略快；路径语法与 CSV 列名统一
-包裹符	合法标识符裸写，含空格/特殊字符的段用方括号	JSON key 极少含空格；局部包裹比整体包裹轻；不自动插入
-逻辑操作符	大写关键字 + &&/||/! 别名	兼容 Alteryx 风格和程序员习惯
-表达式编辑器	CodeMirror 6	光标管理、补全浮层、括号匹配成熟
-断线行为	数据失效、配置保留	对齐 Alteryx，避免误操作丢配置
-端口类型	颜色 + 连接校验	视觉区分与语义约束统一
-组折叠	一期做	画布可读性（100 节点平铺太乱），跨边界连线暴露为组端口
-脚本节点	不隔离，支持 shell	程序员本地自用；超时和输出上限兜底
-文件夹输出	独立算子 FolderOutput	端口语义、配置面板、执行逻辑不分支
-标签对齐	CSS Grid 72px 1fr	标签长度不固定时控件左边缘对齐
-主题	亮/暗双主题，CSS 变量驱动	复用现有 theme/Global.css，CodeMirror 主题跟随
-编码风格	纯 ES6 JS	与现有项目一致，不引入 TS 编译链
+决策 选择 理由
+画布库 Vue Flow 100 节点实测无压力；Element Plus 控件可直接内嵌；Handle 自动处理端口位置
+数据规模 10 万行，纯 JS 内存算子 避免 DuckDB native 模块打包分发坑；外部排序/分区哈希复杂度不值得
+执行位置 Renderer，一期不引入 Worker 算子不依赖 DOM，迁移 Worker 成本低；10 万行主线程可接受，异步让出事件循环
+JSON 处理 不拍平，路径直接引用 预览已能看完整 JSON，直接写路径比配置展开策略快；路径语法与 CSV 列名统一
+包裹符 合法标识符裸写，含空格/特殊字符的段用方括号 JSON key 极少含空格；局部包裹比整体包裹轻；不自动插入
+逻辑操作符 大写关键字 + &&/||/! 别名 兼容 Alteryx 风格和程序员习惯
+表达式编辑器 CodeMirror 6 光标管理、补全浮层、括号匹配成熟
+断线行为 数据失效、配置保留 对齐 Alteryx，避免误操作丢配置
+端口类型 颜色 + 连接校验 视觉区分与语义约束统一
+组折叠 一期做 画布可读性（100 节点平铺太乱），跨边界连线暴露为组端口
+脚本节点 不隔离，支持 shell 程序员本地自用；超时和输出上限兜底
+文件夹输出 独立算子 FolderOutput 端口语义、配置面板、执行逻辑不分支
+标签对齐 CSS Grid 72px 1fr 标签长度不固定时控件左边缘对齐
+主题 亮/暗双主题，CSS 变量驱动 复用现有 theme/Global.css，CodeMirror 主题跟随
+编码风格 纯 ES6 JS 与现有项目一致，不引入 TS 编译链
 七、待办与风险
-项	说明	应对
-CodeMirror 6 体积	约 150KB gzip	可接受；按需引入语言包，不引入完整 SQL/JS 语言
-10 万行 JSON 路径求值	逐行 resolvePath 有开销	路径树缓存 + 编译闭包；实测超阈值再考虑 Worker
-文件夹输入进度	异步执行需上报	Scheduler 用 async + yield 让出事件循环，逐文件上报
-Cross Tab 列数上限	100 列截断	卡片警告"列数超限已截断"
-脚本节点安全	不隔离	节点卡片标注"仅限本地使用"；超时 + 输出上限
-组折叠端口计算	跨边界连线过滤	遍历组内边，按目标节点位置排序生成端口
-主题切换时 CodeMirror	需要动态换主题	CodeMirror 的 Compartment 动态 reconfigure
-管线版本迁移	字段增删	Schema.js 带版本号，加载时按版本迁移
+项 说明 应对
+CodeMirror 6 体积 约 150KB gzip 可接受；按需引入语言包，不引入完整 SQL/JS 语言
+10 万行 JSON 路径求值 逐行 resolvePath 有开销 路径树缓存 + 编译闭包；实测超阈值再考虑 Worker
+文件夹输入进度 异步执行需上报 Scheduler 用 async + yield 让出事件循环，逐文件上报
+Cross Tab 列数上限 100 列截断 卡片警告"列数超限已截断"
+脚本节点安全 不隔离 节点卡片标注"仅限本地使用"；超时 + 输出上限
+组折叠端口计算 跨边界连线过滤 遍历组内边，按目标节点位置排序生成端口
+主题切换时 CodeMirror 需要动态换主题 CodeMirror 的 Compartment 动态 reconfigure
+管线版本迁移 字段增删 Schema.js 带版本号，加载时按版本迁移
 八、验收标准
 功能：算子清单中所有一期算子可配置、可运行、可预览；表达式系统支持 CSV 列名与 JSON 路径；文件夹输入/输出带进度；脚本节点可执行命令并解析三种输出格式。
 
@@ -454,20 +454,20 @@ Pinia store 文件命名 StoreXxx.js，用 defineStore
 
 按开发计划的模块拆分，代码量大致如下：
 
-模块	文件数	估算行数	能否一次生成
-主进程 IPC + service	5	400–600	可以，一次给完
-常量与算子注册表骨架	3	300–400	可以
-BaseNode + 三种节点卡片	4	500–700	可以
-NodeEditor + 画布交互	3	400–600	可以
-PreviewPanel 虚拟滚动	1	300–400	可以
-表达式 Tokenizer + Parser + Ast	3	600–800	可以，但建议拆两次（Tokenizer/Parser 一次，Ast/TypeCheck 一次）
-表达式 Compile + ResolvePath	2	300–400	可以
-CodeMirror 补全源	2	300–400	可以
-表达式编辑器 + 字段列表 + 条件行	3	500–700	可以
-20+ 个算子	22	1500–2500	不能一次给完，按分类分批（准备类一次、连接类一次、解析/转换类一次、开发/输出类一次）
-组折叠	2	300–400	可以
-管线序列化	3	300–400	可以
-主题样式	2	200–300	可以
+模块 文件数 估算行数 能否一次生成
+主进程 IPC + service 5 400–600 可以，一次给完
+常量与算子注册表骨架 3 300–400 可以
+BaseNode + 三种节点卡片 4 500–700 可以
+NodeEditor + 画布交互 3 400–600 可以
+PreviewPanel 虚拟滚动 1 300–400 可以
+表达式 Tokenizer + Parser + Ast 3 600–800 可以，但建议拆两次（Tokenizer/Parser 一次，Ast/TypeCheck 一次）
+表达式 Compile + ResolvePath 2 300–400 可以
+CodeMirror 补全源 2 300–400 可以
+表达式编辑器 + 字段列表 + 条件行 3 500–700 可以
+20+ 个算子 22 1500–2500 不能一次给完，按分类分批（准备类一次、连接类一次、解析/转换类一次、开发/输出类一次）
+组折叠 2 300–400 可以
+管线序列化 3 300–400 可以
+主题样式 2 200–300 可以
 总计约 6000–9000 行（含注释和空行）。一次性输出会超出单次回复的合理长度，而且你难以逐块验证。
 
 建议的生成顺序（每批可独立跑起来）：
@@ -498,9 +498,11 @@ text
 脚本识别 // ==== FILE: <路径> ==== 这一行，到下一个 // ==== FILE: 行（或文件末尾）之间的内容，写入 <路径>。路径相对于脚本所在目录。非 JS 文件（.vue、.css、.json、.md）的标记用对应的注释符：
 
 text
+
 <!-- ==== FILE: src/renderer/views/DataClean/DataCleanApp.vue ==== -->
-/* ==== FILE: src/renderer/views/DataClean/styles/node.css ==== */
-脚本对标记行的判断是“整行匹配 ==== FILE: (.+) ====”，不关心前缀是 // 还是 <!-- 还是 /*，所以三种都能识别。
+
+/_ ==== FILE: src/renderer/views/DataClean/styles/node.css ==== _/
+脚本对标记行的判断是“整行匹配 ==== FILE: (.+) ====”，不关心前缀是 // 还是 <!-- 还是 /\*，所以三种都能识别。
 
 生成脚本 apply-code.js
 放在你项目根目录，node apply-code.js batch1.txt 执行：
@@ -515,39 +517,39 @@ const path = require('path')
 
 const input = process.argv[2]
 if (!input) {
-  console.error('用法: node apply-code.js <batch.txt>')
-  process.exit(1)
+console.error('用法: node apply-code.js <batch.txt>')
+process.exit(1)
 }
 
 const root = process.cwd()
 const text = fs.readFileSync(path.resolve(root, input), 'utf8')
 const lines = text.split(/\r?\n/)
-const marker = /====\s*FILE:\s*(.+?)\s*====/
+const marker = /====\s*FILE:\s*(.+?)\s\*====/
 
 let current = null
 let buffer = []
 let written = 0
 
 function flush() {
-  if (!current) return
-  const target = path.resolve(root, current)
-  fs.mkdirSync(path.dirname(target), { recursive: true })
-  const content = buffer.join('\n').replace(/^\n+|\n+$/g, '') + '\n'
+if (!current) return
+const target = path.resolve(root, current)
+fs.mkdirSync(path.dirname(target), { recursive: true })
+const content = buffer.join('\n').replace(/^\n+|\n+$/g, '') + '\n'
   fs.writeFileSync(target, content, 'utf8')
   console.log(`  写入 ${current} (${content.length} 字符)`)
-  written++
-  current = null
-  buffer = []
+written++
+current = null
+buffer = []
 }
 
 for (const line of lines) {
-  const m = line.match(marker)
-  if (m) {
-    flush()
-    current = m[1].trim()
-    continue
-  }
-  if (current) buffer.push(line)
+const m = line.match(marker)
+if (m) {
+flush()
+current = m[1].trim()
+continue
+}
+if (current) buffer.push(line)
 }
 flush()
 
@@ -580,7 +582,6 @@ console.log(`\n完成：${written} 个文件`)
 确认后我输出批次 1 的完整文本块（包含脚本本身和第一批代码文件），你保存 + 跑脚本即可。
 
 好的，按约定实现
-
 
 DataClean V1 开发与迭代总结报告
 一、 核心架构与依赖定稿
@@ -632,20 +633,21 @@ Select：使用更紧凑的 ColumnPicker（列选择器）和 RenamePanel（重�
 Message 节点支持过滤并展示仅包含其上游节点的调试日志。
 
 三、 重大 Bug 修复与排坑记录 (经验沉淀)
+
 1. 交互与 DOM 事件坑
-无法删除节点/连线：废弃了 Vue Flow 自带的 removeSelectedElements（因与 Pinia 状态不同步），改为直接调用 graphStore.removeNode(id)，并补全了全局键盘（Delete）与右键菜单删除。
+   无法删除节点/连线：废弃了 Vue Flow 自带的 removeSelectedElements（因与 Pinia 状态不同步），改为直接调用 graphStore.removeNode(id)，并补全了全局键盘（Delete）与右键菜单删除。
 
 输入框拖拽导致画布跟着跑：使用 @mousedown.capture 在父容器捕获事件，判断 target 是否为输入类控件，是则 e.stopPropagation()，但绝不调用 preventDefault()，以保证光标正常定位。
 
 Vue Flow 尺寸报错 (width and height=0)：因为 el-splitter 是动态计算高度的，挂载瞬间拿不到尺寸。解决办法是让 VueFlow 挂载延迟（v-if="isReady"，setTimeout 100ms），并在 onPaneReady 中强制重置缩放。
 
 2. CSS 与主题坑
-macOS 缩放巨大化：在 main.js 的 BrowserWindow 中强制设置了 webContents.setZoomFactor(1.0)，并去掉 Vue Flow 的 fit-view-on-init（因为它会强行把视口放大拉满）。
+   macOS 缩放巨大化：在 main.js 的 BrowserWindow 中强制设置了 webContents.setZoomFactor(1.0)，并去掉 Vue Flow 的 fit-view-on-init（因为它会强行把视口放大拉满）。
 
 Element Plus 弹层无法变暗：因为弹层挂载在 body 上，使用 [data-theme="dark"] body .el-popper 这种高优先级选择器，并用 !important 暴力覆盖了下拉框、禁用按钮、弹窗（Dialog）、表格边框和 Radio 切换组件的底色。
 
 3. 引擎与数据流转坑
-数据有了但页面不刷新：因为 StoreDataCleanDatasets.js 使用了 markRaw，深度响应式丢失。解决方案是让触发算子的入口统一挂载到 window.__dcEngine.runNode，并在更新缓存后调用 triggerRef 或让调用方先 removeDataset。
+   数据有了但页面不刷新：因为 StoreDataCleanDatasets.js 使用了 markRaw，深度响应式丢失。解决方案是让触发算子的入口统一挂载到 window.\_\_dcEngine.runNode，并在更新缓存后调用 triggerRef 或让调用方先 removeDataset。
 
 Excel 读不出数据：因为 ExcelJS 的 row.hasValues 对前面有大量空行的真实表格极易误判。解决办法是抛弃 hasValues，直接遍历强行取值，通过判断是否有真实值（字符串/数字）来决定是否跳过该行。
 
@@ -659,7 +661,6 @@ Excel 读不出数据：因为 ExcelJS 的 row.hasValues 对前面有大量空�
 大文件性能：目前 10 万行级别用纯 JS 内存算子没问题，但如果是百万级别，需要引入 Web Worker 或进行分块流式处理。
 
 帮助文档系统：设计一套轻量级的 Markdown 组件（如 HelpPopover.vue），在输入端挂载图文帮助，以替代繁杂的内联提示。
-
 
 **大数据流式数据分析引擎内核架构设计说明**
 一、 完整产品需求与架构特性矩阵
@@ -684,73 +685,74 @@ Excel 读不出数据：因为 ExcelJS 的 row.hasValues 对前面有大量空�
 二、 最终类图架构（冻结版）
 text
 +-----------------------------------------------------------------------------------+
-|                                 Vue UI 视图层                                     |
-|   [多标签页] [画布] [预览面板] [进度/取消] [脏数据面板] [排队状态] [告警提示]      |
+| Vue UI 视图层 |
+| [多标签页] [画布] [预览面板] [进度/取消] [脏数据面板] [排队状态] [告警提示] |
 +-----------------------------------------------------------------------------------+
-       | 响应式快照                                ^ 指令(Project/Task/Abort/排队取消)
-       v                                           |
+| 响应式快照 ^ 指令(Project/Task/Abort/排队取消)
+v |
 +-----------------------------------------------------------------------------------+
-|                         Store 状态与缓存层 (Pinia)                                |
+| Store 状态与缓存层 (Pinia) |
 +-----------------------------------------------------------------------------------+
-| - graphStore: Map<projectId, Graph>                                               |
-| - previewStore: Map<`${projectId}::${nodeId}`, { columns, rows, versionHash }>    |
-| - snapshotCacheManager: 磁盘 NDJSON 快照（只读多迭代器并发读，引用计数）          |
+| - graphStore: Map<projectId, Graph> |
+| - previewStore: Map<`${projectId}::${nodeId}`, { columns, rows, versionHash }> |
+| - snapshotCacheManager: 磁盘 NDJSON 快照（只读多迭代器并发读，引用计数） |
 +-----------------------------------------------------------------------------------+
-       | 1. 调度
-       v
+| 1. 调度
+v
 +-----------------------------------------------------------------------------------+
-|                   Scheduler (调度器) - 每个标签页独立                             |
+| Scheduler (调度器) - 每个标签页独立 |
 +-----------------------------------------------------------------------------------+
-| + runTask(projectId, taskId, mode, targetNodeId)                                  |
-| - 拓扑排序 / 可达子图 versionHash / 高优 FIFO 限流排队                            |
+| + runTask(projectId, taskId, mode, targetNodeId) |
+| - 拓扑排序 / 可达子图 versionHash / 高优 FIFO 限流排队 |
 +-----------------------------------------------------------------------------------+
-       | 2. 上下文与仲裁
-       v
-+-----------------------------------------+        +--------------------------------+
-|          TaskContext (执行上下文)       |        |   ResourceManager (资源管家)   |
-+-----------------------------------------+        +--------------------------------+
-| - taskId / priority / abortSignal       |------->| - 临时文件三态机 + 引用计数     |
-| - hardTimeout / 状态机(Suspend/Abort)   |        | - 内存抢占仲裁 / suspend-resume |
-| - metrics 自动埋点                      |        | - 磁盘水位监控 (warn/critical)  |
-+-----------------------------------------+        | - NDJSON 原子写入 (.tmp→正式)  |
-                                                  | - 倾斜拆分深度限制              |
-                                                  +--------------------------------+
-       | 3. 执行
-       v
+| 2. 上下文与仲裁
+v
++-----------------------------------------+ +--------------------------------+
+| TaskContext (执行上下文) | | ResourceManager (资源管家) |
++-----------------------------------------+ +--------------------------------+
+| - taskId / priority / abortSignal |------->| - 临时文件三态机 + 引用计数 |
+| - hardTimeout / 状态机(Suspend/Abort) | | - 内存抢占仲裁 / suspend-resume |
+| - metrics 自动埋点 | | - 磁盘水位监控 (warn/critical) |
++-----------------------------------------+ | - NDJSON 原子写入 (.tmp→正式) |
+| - 倾斜拆分深度限制 |
++--------------------------------+
+| 3. 执行
+v
 +-----------------------------------------------------------------------------------+
-|                            Engine (无状态执行引擎)                                |
+| Engine (无状态执行引擎) |
 +-----------------------------------------------------------------------------------+
-| + runNode(nodeId, inputs, ctx): StreamDataset                                     |
-| - 字段类型强校验 / Schema 幂等广播 / 预览截断拦截                                 |
+| + runNode(nodeId, inputs, ctx): StreamDataset |
+| - 字段类型强校验 / Schema 幂等广播 / 预览截断拦截 |
 +-----------------------------------------------------------------------------------+
-       | 4. 算子
-       v
+| 4. 算子
+v
 +-----------------------------------------------------------------------------------+
-|                              Operator (算子基类)                                  |
+| Operator (算子基类) |
 +-----------------------------------------------------------------------------------+
-| + meta: skipErrorStream / error-port / sort参数(stable/nullPosition/locale)       |
-| + execute(inputs, params, ctx): StreamDataset                                     |
+| + meta: skipErrorStream / error-port / sort参数(stable/nullPosition/locale) |
+| + execute(inputs, params, ctx): StreamDataset |
 +-----------------------------------------------------------------------------------+
-       | 5. 数据流
-       v
+| 5. 数据流
+v
 +-----------------------------------------------------------------------------------+
-|                  StreamDataset (仅 Task 局部存活)                                 |
+| StreamDataset (仅 Task 局部存活) |
 +-----------------------------------------------------------------------------------+
-| + columns / columnMapping (source/rename/formula/deleted)                         |
-| + controller: StreamController                                                    |
+| + columns / columnMapping (source/rename/formula/deleted) |
+| + controller: StreamController |
 +-----------------------------------------------------------------------------------+
-       | 6. 分发
-       v
+| 6. 分发
+v
 +-----------------------------------------------------------------------------------+
-|                    StreamController (多播与背压)                                  |
+| StreamController (多播与背压) |
 +-----------------------------------------------------------------------------------+
-| - strategy: 'rendezvous' | 'independent'                                          |
-| - ringBufferLimit / consumerTimeout                                               |
-| + createIterator(consumerId, abortSignal)                                         |
+| - strategy: 'rendezvous' | 'independent' |
+| - ringBufferLimit / consumerTimeout |
+| + createIterator(consumerId, abortSignal) |
 +-----------------------------------------------------------------------------------+
 三、 关键复杂算子运行算法与步骤
+
 1. JOIN 算子（外部哈希分区 Join）
-智能选表：优先元数据估量；必须采样时走旁路 Tee，采样完成立刻 abort 旁路迭代器，不吞噬主流。
+   智能选表：优先元数据估量；必须采样时走旁路 Tee，采样完成立刻 abort 旁路迭代器，不吞噬主流。
 
 分区构建：内存建 Hash Map，超阈值按 Hash(key)%N 溢写。写入采用 .ndjson.tmp → 写完后 rename 为 .ndjson 原子写入。
 
@@ -763,41 +765,42 @@ text
 脏数据分流：类型不匹配或求值异常行路由至 error-port。
 
 2. SORT 算子（多路归并树）
-分块排序：按 stable、nullPosition、locale 参数排序，超阈值溢写（同样采用原子写入）。
+   分块排序：按 stable、nullPosition、locale 参数排序，超阈值溢写（同样采用原子写入）。
 
 归并树：每 8 个有序文件合并，逐层向上。
 
 输出：根节点流式 yield。
 
 3. UNION 算子（串行 Append）
-顺序拉取：inputs[0] 结束后释放控制器，再读 inputs[1]。
+   顺序拉取：inputs[0] 结束后释放控制器，再读 inputs[1]。
 
 错误策略：skipErrorStream 默认 false，任一路失败终止；开启后静默跳过。
 
 四、 同行评审场景问题与收口规约的全量回应
+
 1. 挂起超时的资源清理契约
-规则：低优任务达到最大挂起时长（5 分钟）自动取消时，行为与手动 abort 完全一致。
+   规则：低优任务达到最大挂起时长（5 分钟）自动取消时，行为与手动 abort 完全一致。
 
 动作：停止写入临时文件 → 执行三态机清理 → 不写入预览缓存 → 上报 cancelled metrics。
 
 2. 排队中的高优任务与磁盘 critical 水位冲突
-规则：排队中的预览任务，若磁盘达到 critical 阻断水位，直接排队失败，UI 提示“磁盘不足，无法执行”，不进入执行阶段。
+   规则：排队中的预览任务，若磁盘达到 critical 阻断水位，直接排队失败，UI 提示“磁盘不足，无法执行”，不进入执行阶段。
 
 3. NDJSON 文件写入的原子性（防损坏）
-规则：所有溢写分区文件、快照文件，必须先写入 .ndjson.tmp 临时后缀。
+   规则：所有溢写分区文件、快照文件，必须先写入 .ndjson.tmp 临时后缀。
 
 动作：写完后强制 flush、关闭 writer，最后 rename 为正式 .ndjson。防止程序崩溃或断电产生半截损坏文件（本地 ETL 经典防损坏手段）。
 
 4. metrics 指标统计口径（防打架）
-规则：discardedRows（剔除消费者丢弃行）、errorRows（脏通道行）、mainRows（主流程行）三者互相独立，不重复统计。
+   规则：discardedRows（剔除消费者丢弃行）、errorRows（脏通道行）、mainRows（主流程行）三者互相独立，不重复统计。
 
 校验：总行汇总 = mainRows + errorRows + discardedRows。
 
 5. Schema 变更事件的幂等性（防抖动）
-规则：同一个 Schema 只广播一次变更事件。重复推送相同 columns 时跳过，防止 UI 反复渲染抖动。
+   规则：同一个 Schema 只广播一次变更事件。重复推送相同 columns 时跳过，防止 UI 反复渲染抖动。
 
 6. 低优任务 suspend 的持久化边界
-大文件源（CSV/XLSX）：记录 Offset，关闭句柄。恢复时重新打开并 seek。
+   大文件源（CSV/XLSX）：记录 Offset，关闭句柄。恢复时重新打开并 seek。
 
 补充边界：seek 依赖源文件不可变；源文件中途被用户修改/删除时，resume 直接失败，上报错误。
 
@@ -806,42 +809,42 @@ text
 最大挂起时长：5 分钟（超时按第 1 条清理）。
 
 7. 高优任务排队策略
-策略：FIFO，不允许后发预览插队。UI 显示“预览排队中”，支持取消排队。
+   策略：FIFO，不允许后发预览插队。UI 显示“预览排队中”，支持取消排队。
 
 8. independent 模式消费者剔除时序
-规则：消费者剔除后，立刻释放其 ringBuffer 容量，向上游解除背压，恢复拉取。
+   规则：消费者剔除后，立刻释放其 ringBuffer 容量，向上游解除背压，恢复拉取。
 
 9. 脏数据通道生命周期
-规则：与主数据流共享同一 TaskContext 生命周期，支持 Tee 多播，支持背压与超时剔除。
+   规则：与主数据流共享同一 TaskContext 生命周期，支持 Tee 多播，支持背压与超时剔除。
 
 10. 硬超时与 abortSignal 时序
-规则：硬超时从开始消费第一个 chunk 时开始计时，排队等待时间不计入。
+    规则：硬超时从开始消费第一个 chunk 时开始计时，排队等待时间不计入。
 
 11. 进程崩溃时 suspend 状态恢复
-规则：显式写入文档——suspend/resume 是内存级软挂起，App 重启后所有挂起任务标记失效，临时文件按三态机清理。不自动恢复。
+    规则：显式写入文档——suspend/resume 是内存级软挂起，App 重启后所有挂起任务标记失效，临时文件按三态机清理。不自动恢复。
 
 12. 磁盘水位分级动作
-warn（告警）：UI 弹窗警告，任务继续。
+    warn（告警）：UI 弹窗警告，任务继续。
 
 critical（阻断）：拒绝新溢写申请，优先保障高优任务；低优任务直接 abort。
 
 13. Join 旁路预采样清理
-规则：旁路预采样拿到预估行数后，必须主动 abort 自己的迭代器，不持续消费全量流。
+    规则：旁路预采样拿到预估行数后，必须主动 abort 自己的迭代器，不持续消费全量流。
 
 14. 多消费者 Schema 推送
-规则：StreamDataset 的 Schema 变更作为事件广播给所有消费者。预览动态跟随，导出 Writer 可选择拒绝不兼容变更。
+    规则：StreamDataset 的 Schema 变更作为事件广播给所有消费者。预览动态跟随，导出 Writer 可选择拒绝不兼容变更。
 
 15. NDJSON 编码与换行容错
-规则：严格遵守 NDJSON 规范，字段内换行符（\n、\r\n）做 JSON 转义。读取器不可直接按原始换行分割，必须先按 JSON 规范解析转义。
+    规则：严格遵守 NDJSON 规范，字段内换行符（\n、\r\n）做 JSON 转义。读取器不可直接按原始换行分割，必须先按 JSON 规范解析转义。
 
 16. 单分支独立取消
-规则：createIterator 的 abortSignal 独立于 TaskContext，支持单消费者分支取消，其他分支继续执行。
+    规则：createIterator 的 abortSignal 独立于 TaskContext，支持单消费者分支取消，其他分支继续执行。
 
 17. 全量快照并发读
-规则：snapshotCacheManager 的 NDJSON 快照支持只读多迭代器并发读，通过文件句柄引用计数回收。
+    规则：snapshotCacheManager 的 NDJSON 快照支持只读多迭代器并发读，通过文件句柄引用计数回收。
 
 18. 隐性假设显式化
-仅存结构化 Table / 标准 JSON，不支持二进制 blob。
+    仅存结构化 Table / 标准 JSON，不支持二进制 blob。
 
 背压纯 Pull 向上传递，算子内部同步逻辑不主动限流。
 
@@ -856,32 +859,65 @@ versionHash 只用于 previewStore，全量快照复用需用户显式 Tee。
 源文件在任务运行/挂起期间被外部删除、修改，属于用户侧行为，引擎不做文件锁；续读时校验失败直接报错终止。
 
 五、 冻结版上线验收测试清单
+
 1. 隔离与缓存测试
-□ 多 project + 多 task 并发，验证 DAG、缓存、临时文件互不干扰。
-□ 修改无关分支节点，目标节点 versionHash 不变，缓存命中。
-□ 任务 abort 不写入 previewCache；正常完成才写入。
+   □ 多 project + 多 task 并发，验证 DAG、缓存、临时文件互不干扰。
+   □ 修改无关分支节点，目标节点 versionHash 不变，缓存命中。
+   □ 任务 abort 不写入 previewCache；正常完成才写入。
 2. 资源抢占 & suspend/resume 测试
-□ 低优导出运行中发起高优预览：低优重型算子刷盘、释放内存、进入 suspend，高优正常执行。
-□ 高优完成后，低优 resume，从断点继续，数据不丢不重。
-□ 高优超过并发上限，进入 FIFO 排队，UI 可见，支持取消排队。
-□ 简单算子（Filter/Select）抢占时只能排队，不触发 suspend。
-□ 挂起超时（5min）自动取消，资源清理干净。
+   □ 低优导出运行中发起高优预览：低优重型算子刷盘、释放内存、进入 suspend，高优正常执行。
+   □ 高优完成后，低优 resume，从断点继续，数据不丢不重。
+   □ 高优超过并发上限，进入 FIFO 排队，UI 可见，支持取消排队。
+   □ 简单算子（Filter/Select）抢占时只能排队，不触发 suspend。
+   □ 挂起超时（5min）自动取消，资源清理干净。
 3. StreamController 多播与背压测试
-□ rendezvous 模式：所有消费者同步拉取，慢消费者拖慢上游。
-□ independent 模式：ringBuffer 满触发背压；消费者超时剔除后，容量释放，上游恢复拉取。
-□ 单分支消费者独立 abort，其余分支继续消费。
+   □ rendezvous 模式：所有消费者同步拉取，慢消费者拖慢上游。
+   □ independent 模式：ringBuffer 满触发背压；消费者超时剔除后，容量释放，上游恢复拉取。
+   □ 单分支消费者独立 abort，其余分支继续消费。
 4. 核心算子正确性测试
-□ Join：元数据预估选表；旁路采样不吞噬主流；倾斜 3 层深度限制、超限告警；外连接补 null；类型异常流入 error-port。
-□ Sort：8 路归并树、稳定排序、null 位置、locale 中文排序；溢写文件 tmp+rename 原子写入。
-□ Union：skipErrorStream=false 整体终止；开启后跳过坏流继续执行。
+   □ Join：元数据预估选表；旁路采样不吞噬主流；倾斜 3 层深度限制、超限告警；外连接补 null；类型异常流入 error-port。
+   □ Sort：8 路归并树、稳定排序、null 位置、locale 中文排序；溢写文件 tmp+rename 原子写入。
+   □ Union：skipErrorStream=false 整体终止；开启后跳过坏流继续执行。
 5. 脏数据通道、Schema、UI 契约测试
-□ 脏通道独立上限、独立统计、支持 Tee；生命周期与主流程对齐。
-□ 预读 meta 出骨架 UI；运行时 Schema 广播；预览/导出各自选择跟随或拒绝。
-□ 硬超时：排队不计入，从首 chunk 开始计时，超时触发 abort，资源清理。
+   □ 脏通道独立上限、独立统计、支持 Tee；生命周期与主流程对齐。
+   □ 预读 meta 出骨架 UI；运行时 Schema 广播；预览/导出各自选择跟随或拒绝。
+   □ 硬超时：排队不计入，从首 chunk 开始计时，超时触发 abort，资源清理。
 6. 磁盘与故障兜底测试
-□ warn 水位：告警、任务继续；critical：拒绝新溢写，低优任务终止。
-□ 进程崩溃重启：挂起任务标记失效，三态机清理僵尸临时文件。
-□ NDJSON 字段换行转义校验，不按原始换行错误切分。
+   □ warn 水位：告警、任务继续；critical：拒绝新溢写，低优任务终止。
+   □ 进程崩溃重启：挂起任务标记失效，三态机清理僵尸临时文件。
+   □ NDJSON 字段换行转义校验，不按原始换行错误切分。
 7. 血缘校验
-□ columnMapping 携带来源、rename、formula、deleted 标记；UI 点击列，画布溯源高亮链路。
-□ 血缘跟随主流程，脏数据通道独立携带自身的 columnMapping。
+   □ columnMapping 携带来源、rename、formula、deleted 标记；UI 点击列，画布溯源高亮链路。
+   □ 血缘跟随主流程，脏数据通道独立携带自身的 columnMapping。
+
+[UI层] DataCleanWindow.vue
+│ 调用 scheduler.runTask()
+▼
+[调度层] Scheduler.js
+│ 1. 拓扑排序找上游
+│ 2. 创建 TaskContext
+│ 3. 调用 engine.runNode()
+▼
+[引擎门面] Engine.js
+│ 根据 mode 路由到对应引擎实例，调用 runNode()
+▼
+[执行层] engines/js-engine/index.js (EngineInstance)
+│ 去 opMap 取出 JsCsvReader 执行器
+▼
+[算子层] JsCsvReader.js (extends BaseJsOperator)
+│ 读取文件、解析，调用 this.buildHandle() 包装数据
+▼
+[流控层] BaseJsOperator -> StreamDataset -> DataHandle
+│ 返回统一的 DataHandle
+▼
+[引擎门面] Engine.js
+│ 拿到 DataHandle，调用 getPreviewData()
+▼
+[执行层] engines/js-engine/index.js
+│ 解包 DataHandle，调用生成器拉取前 1000 行
+▼
+[调度层] Scheduler.js
+│ 将 1000 行数据存入 previewStore
+▼
+[UI层] PreviewPanel.vue
+│ 监听到 store 变化，渲染表格

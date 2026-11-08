@@ -1,5 +1,4 @@
 import { opMap } from "./operators/index.js"
-import StreamController from "./runtime/StreamController.js"
 
 export function createEngineInstance() {
   return {
@@ -18,16 +17,22 @@ export function createEngineInstance() {
 
     /**
      * 提取预览数据
-     * 在 JS 引擎里，直接从 StreamDataset 里拉取前 1000 行
      */
     async getPreviewData(payload, limit = 1000) {
-      if (!payload || !payload.controller) return []
+      // 👇 核心修复：从 payload.streamDataset 里取
+      const streamDataset = payload?.streamDataset
+      if (!streamDataset || !streamDataset.controller) {
+        console.warn("[JS Engine] 预览失败：找不到有效的 streamDataset，payload:", payload)
+        return []
+      }
 
-      const controller = new StreamController(payload.controller.sourceGenerator, "rendezvous")
-      const iterator = controller.createIterator("preview", null)
       const rows = []
       try {
+        // 👇 直接调用生成器工厂，不经过 StreamController 避免多播死锁
+        const iterator = streamDataset.controller.sourceGenerator()
+
         for await (const chunk of iterator) {
+          if (!chunk || !chunk.rows) continue
           for (const row of chunk.rows) {
             rows.push(row)
             if (rows.length >= limit) break
@@ -35,11 +40,10 @@ export function createEngineInstance() {
           if (rows.length >= limit) break
         }
       } catch (e) {
-        console.warn("预览中断", e)
-      } finally {
-        if (iterator.return) await iterator.return()
-        controller.abort()
+        console.error("[JS Engine] 预览拉取异常:", e)
       }
+
+      console.log(`[JS Engine] 预览拉取完成，获取 ${rows.length} 行`)
       return rows
     },
   }

@@ -13,7 +13,6 @@ import { DuckRegexExtract } from "./operators/DuckRegexExtract.js"
 import { DuckCountRecords } from "./operators/DuckCountRecords.js"
 import { DuckTranspose } from "./operators/DuckTranspose.js"
 import { DuckCrossTab } from "./operators/DuckCrossTab.js"
-import { DuckJoin } from "./operators/DuckJoin.js"
 import { DuckTextToColumns } from "./operators/DuckTextToColumns.js"
 
 export function createEngineInstance() {

@@ -14,6 +14,17 @@
         </div>
       </div>
       <div class="menu-right-actions">
+        <!-- 👇 新增：引擎切换下拉框 -->
+        <el-select
+          v-model="engineMode"
+          size="small"
+          style="width: 110px; margin-right: 8px"
+          @change="onEngineChange"
+        >
+          <el-option label="JS 引擎" value="js" />
+          <el-option label="DuckDB 引擎" value="duckdb" />
+        </el-select>
+
         <el-button size="small" type="primary" @click="$emit('run')">运行</el-button>
         <el-button size="small" @click="$emit('save')">保存管线</el-button>
         <el-button size="small" @click="$emit('load')">加载管线</el-button>
@@ -25,11 +36,18 @@
     </div>
     <div class="menu-toolbar-row">
       <div class="tool-group">
-        <div v-for="op in activeOps" :key="op.type" class="tool-btn" @click="onAddNode(op.type)">
-          <div class="tool-icon" :style="{ color: op.meta.color }">
-            <el-icon size="24"><component :is="getIcon(op.meta.icon)" /></el-icon>
+        <!-- 👇 根据 supportedEngines 过滤算子 -->
+        <div
+          v-for="op in activeOps"
+          :key="op.type"
+          class="tool-btn"
+          :class="{ 'is-disabled': !isOpSupported(op) }"
+          @click="onAddNode(op)"
+        >
+          <div class="tool-icon" :style="{ color: op.icon }">
+            <el-icon size="24"><component :is="getIcon(op.icon)" /></el-icon>
           </div>
-          <span class="tool-text">{{ op.meta.label }}</span>
+          <span class="tool-text">{{ op.label }}</span>
         </div>
       </div>
     </div>
@@ -37,8 +55,8 @@
 </template>
 
 <script setup>
-  /* 移除自动运行提示，保留原有逻辑 */
   import { ref, computed, onMounted } from "vue"
+  import { ElMessage } from "element-plus"
   import {
     Document,
     Download,
@@ -65,22 +83,33 @@
     FullScreen,
     MagicStick,
   } from "@element-plus/icons-vue"
-  import { listOperators } from "../../engine/operators/index.js"
+
+  // 👇 引入新的元数据字典
+  import { operatorMetas } from "../operators/index.js"
   import { NODE_CATEGORIES } from "../../constants/NodeTypes.js"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
 
-  defineEmits(["fit", "save", "load", "run"])
+  // 👇 新增引擎切换事件
+  const emit = defineEmits(["fit", "save", "load", "run", "engine-change"])
 
   const graphStore = useStoreDataCleanGraph()
-  const allOps = listOperators()
+  const engineMode = ref("js")
+
+  // 👇 将字典转为数组
+  const allOps = computed(() => Object.values(operatorMetas))
 
   const categories = computed(() => {
-    const used = new Set(allOps.map(op => op.meta.category))
+    const used = new Set(allOps.value.map(op => op.category))
     return NODE_CATEGORIES.filter(c => used.has(c.key))
   })
 
   const activeTab = ref(categories.value.length > 0 ? categories.value[0].key : "")
-  const activeOps = computed(() => allOps.filter(op => op.meta.category === activeTab.value))
+
+  const activeOps = computed(() => allOps.value.filter(op => op.category === activeTab.value))
+
+  function isOpSupported(op) {
+    return op.supportedEngines && op.supportedEngines.includes(engineMode.value)
+  }
 
   const isDark = ref(false)
   onMounted(() => {
@@ -100,6 +129,10 @@
       document.documentElement.removeAttribute("data-theme")
       localStorage.setItem("dc-theme", "light")
     }
+  }
+
+  function onEngineChange(val) {
+    emit("engine-change", val)
   }
 
   function getIcon(iconName) {
@@ -134,14 +167,19 @@
     return map[iconName] || map.default
   }
 
-  function onAddNode(type) {
-    const op = allOps.find(o => o.type === type)
-    if (!op) return
-    const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  function onAddNode(op) {
+    if (!isOpSupported(op)) {
+      ElMessage.warning(`当前引擎不支持算子: ${op.label}`)
+      return
+    }
+
+    const id = `${op.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     const offset = (graphStore.nodes.length % 6) * 40
+
+    // 👇 注意：这里的 getDefaultParams 接收的是 op 的 schema
     graphStore.addNode({
       id,
-      type,
+      type: op.type,
       params: getDefaultParams(op),
       position: { x: 120 + offset, y: 80 + offset },
     })
@@ -164,7 +202,7 @@
 </script>
 
 <style scoped>
-  /* 保持原有样式 */
+  /* 保持原有样式，新增置灰样式 */
   .top-menu {
     display: flex;
     flex-direction: column;
@@ -239,6 +277,13 @@
   }
   .tool-btn:hover {
     background: rgba(0, 0, 0, 0.05);
+  }
+  .tool-btn.is-disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .tool-btn.is-disabled:hover {
+    background: transparent;
   }
   .tool-icon {
     margin-bottom: 4px;

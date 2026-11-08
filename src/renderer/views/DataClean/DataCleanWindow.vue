@@ -24,6 +24,7 @@
   import NodeEditor from "./ui/canvas/NodeEditor.vue"
   // 👇 只引入 Engine，彻底移除对 Scheduler 的引入
   import Engine from "./core/Engine.js"
+  import Scheduler from "./core/Scheduler.js"
   import { serializePipeline } from "./pipeline/Serialize.js"
   import { deserializePipeline } from "./pipeline/Deserialize.js"
   import { useStoreDataCleanGraph } from "./stores/StoreDataCleanGraph.js"
@@ -39,12 +40,8 @@
   const editorRef = ref(null)
 
   // 👇 实例化 Engine，默认走 js 模式（后续可以通过 UI 切换为 duckdb）
-  const engine = new Engine({
-    metaStore,
-    previewStore,
-    graphStore,
-    mode: "js",
-  })
+  const engine = new Engine({ metaStore, previewStore, graphStore, mode: "js" })
+  const scheduler = new Scheduler({ engine, graphStore, metaStore, previewStore })
 
   // 当前活跃的 ProjectId (多标签页隔离，默认给一个)
   const projectId = "default-project"
@@ -56,7 +53,7 @@
 
     try {
       // 👇 UI 直接调用 Engine，不再经过 Scheduler
-      await engine.runTask(projectId, id, "preview", {
+      await scheduler.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
       })
     } catch (err) {
@@ -73,7 +70,7 @@
     logStore.push("开始运行全图...")
     try {
       // 👇 全量运行，targetNodeId 传 null
-      await engine.runTask(projectId, null, "execute", {
+      await scheduler.runTask(projectId, null, "execute", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId),
       })
       ElMessage.success("运行完成")
@@ -88,7 +85,7 @@
     const id = graphStore.selectedNodeId
     if (!id) return
     try {
-      await engine.runTask(projectId, id, "preview", {
+      await scheduler.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, id),
       })
     } catch (err) {
