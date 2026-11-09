@@ -117,7 +117,7 @@
   import { VueFlow, useVueFlow } from "@vue-flow/core"
   import { ElMessage } from "element-plus"
 
-  // 👇 新的 UI 路径
+  // 新的 UI 路径
   import CsvReaderNode from "./CsvReaderNode.vue"
   import JsonReaderNode from "./JsonReaderNode.vue"
   import JqExpressionNode from "./JqExpressionNode.vue"
@@ -130,7 +130,7 @@
   import ParamRow from "../params/ParamRow.vue"
 
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
-  // 👇 引入新的元数据注册表，而不是旧的执行器
+  // 引入新的元数据注册表，而不是旧的执行器
   import { getOperatorMeta } from "../operators/index.js"
   import { canConnect } from "../../constants/PortTypes.js"
 
@@ -139,7 +139,7 @@
   const graphStore = useStoreDataCleanGraph()
   const { setViewport } = useVueFlow()
 
-  // 👇 拆分：表格处理类（输入/输出1对1）
+  // 拆分：表格处理类（输入/输出1对1）
   const transformTypes = [
     "select",
     "sort",
@@ -161,7 +161,7 @@
     "dbWriter",
   ]
 
-  // 👇 拆分：源节点与特殊节点（没有上游，或特殊UI）
+  // 拆分：源节点与特殊节点（没有上游，或特殊UI）
   const sourceAndSinkTypes = [
     "folderInput",
     "folderOutput",
@@ -219,7 +219,7 @@
     }),
   )
 
-  // 👇 核心修复：连线类型校验直接读 Meta 配置
+  // 核心修复：连线类型校验直接读 Meta 配置
   function onConnect(params) {
     const sourceNode = graphStore.getNode(params.source)
     const targetNode = graphStore.getNode(params.target)
@@ -229,7 +229,7 @@
     const targetMeta = getOperatorMeta(targetNode.type)
     if (!sourceMeta || !targetMeta) return
 
-    // 👇 使用注册表里的元数据做校验
+    // 使用注册表里的元数据做校验
     const sourceCategory = sourceMeta.outputCategory || "table"
     const targetCategory = targetMeta.inputCategory
 

@@ -39,7 +39,7 @@ export class JsJsonReader extends BaseJsOperator {
       schema: [],
       columnMapping: {},
       streamDataset: {
-        // 👇 使用一个假的生成器，让下游 JSON 算子能够兼容
+        // 使用一个假的生成器，让下游 JSON 算子能够兼容
         controller: {
           sourceGenerator: async function* () {
             yield { json: parsedData } // 把完整的 JSON 对象放在特殊字段里吐出

@@ -5,7 +5,7 @@ export class JsJsonUnpivot extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) throw new Error("未接收到 JSON 数据")
 
-    // 👇 核心修复 1：兼容两种 JSON 上游传递形态
+    // 核心修复 1：兼容两种 JSON 上游传递形态
     let inputJson = null
     if (inputData.dataCategory === "json") {
       // 如果上游返回了 payload.json
@@ -65,7 +65,7 @@ export class JsJsonUnpivot extends BaseJsOperator {
 
     if (ctx.log) ctx.log(`[JsJsonUnpivot] 准备扁平化数据...`)
 
-    // 👇 核心修复 2：返回标准的 DataHandle
+    // 核心修复 2：返回标准的 DataHandle
     const dummySchema = [{ name: keyName, type: "string" }]
     const columnMapping = { [keyName]: keyName }
 

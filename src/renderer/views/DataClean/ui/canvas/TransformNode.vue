@@ -238,11 +238,11 @@
   import JoinKeyConfig from "../params/JoinKeyConfig.vue"
   import XlsxConfigDialog from "../params/XlsxConfigDialog.vue"
 
-  // 👇 路径回退层级调整，现在 ui/canvas 要回到 DataClean 根目录需要 3 个 ../
+  // 路径回退层级调整，现在 ui/canvas 要回到 DataClean 根目录需要 3 个 ../
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
   import { useStoreDataCleanMeta } from "../../stores/StoreDataCleanMeta.js"
 
-  // 👇 彻底替换：引入新的元数据获取器
+  // 彻底替换：引入新的元数据获取器
   import { getOperatorMeta } from "../operators/index.js"
 
   const props = defineProps({
@@ -252,7 +252,7 @@
   const graphStore = useStoreDataCleanGraph()
   const metaStore = useStoreDataCleanMeta()
 
-  // 👇 通过元数据获取 schema，不再使用执行器对象
+  // 通过元数据获取 schema，不再使用执行器对象
   const opMeta = computed(() => getOperatorMeta(props.node.type))
   const incomingEdges = computed(() => graphStore.getIncomingEdges(props.node.id))
   const showXlsxDialog = ref(false)

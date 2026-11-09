@@ -14,7 +14,7 @@
         </div>
       </div>
       <div class="menu-right-actions">
-        <!-- 👇 新增：引擎切换下拉框 -->
+        <!-- 新增：引擎切换下拉框 -->
         <el-select
           v-model="engineMode"
           size="small"
@@ -36,7 +36,7 @@
     </div>
     <div class="menu-toolbar-row">
       <div class="tool-group">
-        <!-- 👇 根据 supportedEngines 过滤算子 -->
+        <!-- 根据 supportedEngines 过滤算子 -->
         <div
           v-for="op in activeOps"
           :key="op.type"
@@ -84,18 +84,18 @@
     MagicStick,
   } from "@element-plus/icons-vue"
 
-  // 👇 引入新的元数据字典
+  // 引入新的元数据字典
   import { operatorMetas } from "../operators/index.js"
   import { NODE_CATEGORIES } from "../../constants/NodeTypes.js"
   import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
 
-  // 👇 新增引擎切换事件
+  // 新增引擎切换事件
   const emit = defineEmits(["fit", "save", "load", "run", "engine-change"])
 
   const graphStore = useStoreDataCleanGraph()
   const engineMode = ref("js")
 
-  // 👇 将字典转为数组
+  // 将字典转为数组
   const allOps = computed(() => Object.values(operatorMetas))
 
   const categories = computed(() => {
@@ -176,7 +176,7 @@
     const id = `${op.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     const offset = (graphStore.nodes.length % 6) * 40
 
-    // 👇 注意：这里的 getDefaultParams 接收的是 op 的 schema
+    // 注意：这里的 getDefaultParams 接收的是 op 的 schema
     graphStore.addNode({
       id,
       type: op.type,

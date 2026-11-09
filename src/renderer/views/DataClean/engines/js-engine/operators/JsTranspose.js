@@ -5,7 +5,7 @@ export class JsTranspose extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) return null
 
-    // 👇 核心修复 1：从 inputData 提取真实的 streamDataset
+    // 核心修复 1：从 inputData 提取真实的 streamDataset
     const streamDataset = inputData.payload.streamDataset
 
     let keepFields = params.keepFields || []
@@ -24,7 +24,7 @@ export class JsTranspose extends BaseJsOperator {
     columnMapping["value"] = unpivotFields
 
     const generator = async function* (self) {
-      // 👇 核心修复 2：拉取正确的流
+      // 核心修复 2：拉取正确的流
       for await (const chunk of self.pullStream(streamDataset, ctx.nodeId, ctx)) {
         let outRowsBuffer = []
         const MAX_BUFFER = 5000

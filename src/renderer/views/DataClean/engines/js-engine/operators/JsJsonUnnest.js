@@ -17,7 +17,7 @@ export class JsJsonUnnest extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) throw new Error("未接收到 JSON 数据")
 
-    // 👇 核心修复：因为上游是 JSON 类型，payload 里的数据可能不是流，而是全量对象
+    // 核心修复：因为上游是 JSON 类型，payload 里的数据可能不是流，而是全量对象
     // 我们需要兼容两种可能：1. payload.json 是原始对象；2. payload.streamDataset 里包装了
     let inputJson = null
     if (inputData.dataCategory === "json") {

@@ -40,7 +40,7 @@ export class JsFilter extends BaseJsOperator {
       }
     }
 
-    // 👇 使用 BaseJsOperator 里的 buildHandle
+    // 使用 BaseJsOperator 里的 buildHandle
     return this.buildHandle(inputData.schema, inputData.columnMapping, generator.bind(null, this))
   }
 }

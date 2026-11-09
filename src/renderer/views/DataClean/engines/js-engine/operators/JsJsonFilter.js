@@ -22,7 +22,7 @@ export class JsJsonFilter extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) throw new Error("未接收到 JSON 数据")
 
-    // 👇 核心修复 1：获取上游的 JSON 数据
+    // 核心修复 1：获取上游的 JSON 数据
     const inputJson = await this.getUpstreamJson(inputData)
     const dataArray = Array.isArray(inputJson) ? inputJson : [inputJson]
 
@@ -82,7 +82,7 @@ export class JsJsonFilter extends BaseJsOperator {
       ctx.log(`[JsJsonFilter] 开始过滤字段: ${field}`)
     }
 
-    // 👇 核心修复 2：使用 buildJsonHandle 返回标准的 JSON 句柄
+    // 核心修复 2：使用 buildJsonHandle 返回标准的 JSON 句柄
     // 这里为了兼容 UI 的预览，我们可以先把过滤结果同步算出来，如果数据量极大，UI 预览会交由上游/下游截断
     // 但为了接口契约，我们依然返回一个流式的 DataHandle
     return this.buildJsonHandle(

@@ -19,7 +19,7 @@ export function createEngineInstance() {
      * 提取预览数据
      */
     async getPreviewData(payload, limit = 1000) {
-      // 👇 核心修复：从 payload.streamDataset 里取
+      // 核心修复：从 payload.streamDataset 里取
       const streamDataset = payload?.streamDataset
       if (!streamDataset || !streamDataset.controller) {
         console.warn("[JS Engine] 预览失败：找不到有效的 streamDataset，payload:", payload)
@@ -28,7 +28,7 @@ export function createEngineInstance() {
 
       const rows = []
       try {
-        // 👇 直接调用生成器工厂，不经过 StreamController 避免多播死锁
+        // 直接调用生成器工厂，不经过 StreamController 避免多播死锁
         const iterator = streamDataset.controller.sourceGenerator()
 
         for await (const chunk of iterator) {

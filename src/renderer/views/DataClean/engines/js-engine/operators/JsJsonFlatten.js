@@ -20,12 +20,12 @@ export class JsJsonFlatten extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) throw new Error("未接收到 JSON 数据")
 
-    // 👇 核心修复 1：获取上游 JSON
+    // 核心修复 1：获取上游 JSON
     const inputJson = await this.getUpstreamJson(inputData)
     const dataArray = Array.isArray(inputJson) ? inputJson : [inputJson]
     const delimiter = params.delimiter || "."
 
-    // 👇 核心修复 2：使用生成器，边平铺边吐出
+    // 核心修复 2：使用生成器，边平铺边吐出
     const generator = async function* () {
       let currentColumns = []
       let currentMapping = {}
@@ -92,7 +92,7 @@ export class JsJsonFlatten extends BaseJsOperator {
 
     if (ctx.log) ctx.log(`[JsJsonFlatten] 开始拍平 JSON...`)
 
-    // 👇 核心修复 3：返回标准的 Table 流句柄
+    // 核心修复 3：返回标准的 Table 流句柄
     // 由于是动态推演 Schema，初始化时给一个空数组即可，下游 UI 在流开始消费时会自动收到真实列名
     return this.buildHandle([], {}, generator.bind(null, this))
   }

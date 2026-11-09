@@ -47,7 +47,7 @@
   }
 
   async function handlePreview() {
-    // 👇 核心：UI 层不再自己去读文件、去清空 Dataset。
+    // 核心：UI 层不再自己去读文件、去清空 Dataset。
     // 所有数据生命周期（清理、流控、截断、缓存）全部交由 Engine + Scheduler 接管。
     emit("trigger-run")
   }

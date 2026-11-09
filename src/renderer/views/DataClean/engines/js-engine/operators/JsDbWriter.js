@@ -10,7 +10,7 @@ export class JsDbWriter extends BaseJsOperator {
     const cfg = params.dbConfig
     if (!cfg || !cfg.tableName) throw new Error("请先配置数据库连接和目标表")
 
-    // 👇 核心修复 1：提取真实的流和 schema
+    // 核心修复 1：提取真实的流和 schema
     const streamDataset = inputData.payload.streamDataset
     const schema = inputData.schema
 

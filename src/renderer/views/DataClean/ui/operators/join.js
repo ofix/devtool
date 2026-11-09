@@ -1,4 +1,24 @@
-export const meta = {
+const metaUnion = {
+  type: "union",
+  label: "Union",
+  icon: "IconMerge",
+  category: "join",
+  inputs: 2,
+  outputs: 1,
+  inputCategory: "table",
+  outputCategory: "table",
+  supportedEngines: ["js", "duckdb"],
+  schema: [
+    {
+      field: "skipErrorStream",
+      label: "跳过报错流(默认关闭)",
+      component: "switch",
+      defaultValue: false,
+    },
+  ],
+}
+
+const metaJoin = {
   type: "join",
   label: "Join",
   icon: "IconLink",
@@ -22,4 +42,9 @@ export const meta = {
       ],
     },
   ],
+}
+
+export const metaJoinUnion = {
+  union: metaUnion,
+  join: metaJoin,
 }

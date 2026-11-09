@@ -5,7 +5,7 @@ export class JsUnique extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) return null
 
-    // 👇 核心修复 1：从 inputData 直接取 schema，并从 payload 里提取真正的 streamDataset
+    // 核心修复 1：从 inputData 直接取 schema，并从 payload 里提取真正的 streamDataset
     const schema = inputData.schema
     const streamDataset = inputData.payload.streamDataset
 
@@ -17,7 +17,7 @@ export class JsUnique extends BaseJsOperator {
     const generator = async function* (self) {
       const seen = new Set()
 
-      // 👇 核心修复 2：传入 streamDataset
+      // 核心修复 2：传入 streamDataset
       for await (const chunk of self.pullStream(streamDataset, ctx.nodeId, ctx)) {
         const outRows = []
         for (const row of chunk.rows) {
@@ -28,7 +28,7 @@ export class JsUnique extends BaseJsOperator {
           }
         }
         if (outRows.length > 0) {
-          // 👇 使用正确的 schema 名
+          // 使用正确的 schema 名
           yield { columns: schema, rows: outRows }
         }
       }

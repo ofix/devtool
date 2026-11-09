@@ -35,7 +35,7 @@ export class JsCsvReader extends BaseJsOperator {
         {},
       )
       console.log("[JsCsvReader] 准备返回 DataHandle，列数:", columns.length)
-      // 👇 核心改造：通过 buildHandle 返回标准 DataHandle
+      // 核心改造：通过 buildHandle 返回标准 DataHandle
       return this.buildHandle(cached.columns, columnMapping, cachedGenerator)
     }
 

@@ -22,7 +22,7 @@
   import TopMenu from "./ui/panels/TopMenu.vue"
   import PreviewPanel from "./ui/panels/PreviewPanel.vue"
   import NodeEditor from "./ui/canvas/NodeEditor.vue"
-  // 👇 只引入 Engine，彻底移除对 Scheduler 的引入
+  // 只引入 Engine，彻底移除对 Scheduler 的引入
   import Engine from "./core/Engine.js"
   import Scheduler from "./core/Scheduler.js"
   import { serializePipeline } from "./pipeline/Serialize.js"
@@ -39,7 +39,7 @@
 
   const editorRef = ref(null)
 
-  // 👇 实例化 Engine，默认走 js 模式（后续可以通过 UI 切换为 duckdb）
+  // 实例化 Engine，默认走 js 模式（后续可以通过 UI 切换为 duckdb）
   const engine = new Engine({ metaStore, previewStore, graphStore, mode: "js" })
   const scheduler = new Scheduler({ engine, graphStore, metaStore, previewStore })
 
@@ -52,7 +52,7 @@
     if (!id) return
 
     try {
-      // 👇 UI 直接调用 Engine，不再经过 Scheduler
+      // UI 直接调用 Engine，不再经过 Scheduler
       await scheduler.runTask(projectId, id, "preview", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId || id),
       })
@@ -69,7 +69,7 @@
     }
     logStore.push("开始运行全图...")
     try {
-      // 👇 全量运行，targetNodeId 传 null
+      // 全量运行，targetNodeId 传 null
       await scheduler.runTask(projectId, null, "execute", {
         log: (msg, level, nodeId) => logStore.push(msg, level, nodeId),
       })
@@ -131,7 +131,7 @@
 
   // 生命周期钩子
   onMounted(async () => {
-    // 👇 启动时初始化引擎
+    // 启动时初始化引擎
     await engine.init()
   })
 </script>

@@ -17,7 +17,7 @@ export class JsJsonExtract extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) throw new Error("未接收到 JSON 数据")
 
-    // 👇 核心修复 1：获取上游的完整 JSON
+    // 核心修复 1：获取上游的完整 JSON
     const inputJson = await this.getUpstreamJson(inputData)
     const dataArray = Array.isArray(inputJson) ? inputJson : [inputJson]
 
@@ -55,7 +55,7 @@ export class JsJsonExtract extends BaseJsOperator {
 
     if (ctx.log) ctx.log(`[JsJsonExtract] 开始提取字段，共 ${fields.length} 个`)
 
-    // 👇 核心修复 2：返回标准的 Table 句柄
+    // 核心修复 2：返回标准的 Table 句柄
     return this.buildHandle(outCols, columnMapping, generator.bind(null, this))
   }
 }

@@ -3,7 +3,7 @@
     <div class="preview-header">
       <div class="preview-title">
         <span class="title-text">{{ title }}</span>
-        <!-- 👇 修复：同时支持 Table 和 JSON 的元数据展示 -->
+        <!-- 修复：同时支持 Table 和 JSON 的元数据展示 -->
         <span v-if="meta.dataCategory === 'table' && hasData" class="title-meta">
           {{ meta.rowCount === -1 ? "流式数据" : meta.rowCount + " 行" }} ·
           {{ meta.columns?.length || 0 }} 列
@@ -72,7 +72,7 @@
         </template>
       </el-table-v2>
 
-      <!-- 👇 修复：JSON 视图直接读取 previewData 里的 json 字段 -->
+      <!-- 修复：JSON 视图直接读取 previewData 里的 json 字段 -->
       <JsonPreview
         v-else-if="meta.dataCategory === 'json' && previewJson"
         :dataset="{ json: previewJson }"
@@ -157,7 +157,7 @@
     return `${selected.value.type} · ${selected.value.id.slice(0, 12)}`
   })
 
-  // 👇 修复：兼容 Table 和 JSON 的有数据判断
+  // 修复：兼容 Table 和 JSON 的有数据判断
   const hasData = computed(() => {
     if (meta.value.dataCategory === "table") return previewRows.value.length > 0
     if (meta.value.dataCategory === "json") return previewJson.value !== null
@@ -174,7 +174,7 @@
     return "尚未运行，请检查参数或上游连线"
   })
 
-  // 👇 修复：同时接收 Table rows 和 JSON payload
+  // 修复：同时接收 Table rows 和 JSON payload
   watch(
     () => dataset.value,
     newData => {

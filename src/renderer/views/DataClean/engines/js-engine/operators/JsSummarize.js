@@ -5,7 +5,7 @@ export class JsSummarize extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) return null
 
-    // 👇 核心修复 1：精准提取真实的流
+    // 核心修复 1：精准提取真实的流
     const streamDataset = inputData.payload.streamDataset
 
     let groupFields = params.groupFields || []
@@ -34,7 +34,7 @@ export class JsSummarize extends BaseJsOperator {
       const groups = new Map()
 
       // 1. 流式接收并聚合
-      // 👇 核心修复 2：传入 streamDataset
+      // 核心修复 2：传入 streamDataset
       for await (const chunk of self.pullStream(streamDataset, ctx.nodeId, ctx)) {
         for (const row of chunk.rows) {
           const keyVals = groupFields.map(f => String(row[f]))

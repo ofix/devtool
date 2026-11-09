@@ -5,7 +5,7 @@ export class JsTextToColumns extends BaseJsOperator {
     const inputData = inputs[0]
     if (!inputData) return null
 
-    // 👇 核心修复 1：提取真实的 streamDataset 和原始 schema
+    // 核心修复 1：提取真实的 streamDataset 和原始 schema
     const streamDataset = inputData.payload.streamDataset
     const originalSchema = inputData.schema
 
@@ -48,7 +48,7 @@ export class JsTextToColumns extends BaseJsOperator {
       }
     }
 
-    // 👇 核心修复 2：在 buildHandle 之前，必须为这个节点计算出新的 schema
+    // 核心修复 2：在 buildHandle 之前，必须为这个节点计算出新的 schema
     // 因为 Schema 推导发生在流执行时，这里我们可以先用一个空数组占位（UI 等运行结束后会更新）
     // 或者如果不想在 UI 出现闪变，可以提前依据规则推导出列
     const initialOutCols = [

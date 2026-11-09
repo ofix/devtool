@@ -51,7 +51,7 @@ export default class Scheduler {
         ctx.log(`执行节点: ${node.type} (${nodeId})`)
         const startTime = performance.now()
 
-        // 👇 直接调用 Engine 去执行单节点
+        // 直接调用 Engine 去执行单节点
         const resultHandle = await this.engine.runNode(node.type, inputs, node.params || {}, ctx)
 
         const duration = performance.now() - startTime

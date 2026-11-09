@@ -31,7 +31,7 @@ export class BaseJsOperator extends IExecutor {
   }
 
   /**
-   * 👇 核心修复：明确实例化 StreamDataset
+   * 核心修复：明确实例化 StreamDataset
    */
   buildHandle(schema, columnMapping, generator, dataCategory = "table") {
     // 1. 实例化 StreamDataset
