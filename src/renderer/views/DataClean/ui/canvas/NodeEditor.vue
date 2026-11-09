@@ -113,31 +113,31 @@
 </template>
 
 <script setup>
-  import { computed, onMounted, onBeforeUnmount, ref } from "vue"
-  import { VueFlow, useVueFlow } from "@vue-flow/core"
-  import { ElMessage } from "element-plus"
+  import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+  import { VueFlow, useVueFlow } from "@vue-flow/core";
+  import { ElMessage } from "element-plus";
 
   // 新的 UI 路径
-  import CsvReaderNode from "./CsvReaderNode.vue"
-  import JsonReaderNode from "./JsonReaderNode.vue"
-  import JqExpressionNode from "./JqExpressionNode.vue"
-  import JsonUnnestNode from "./JsonUnnestNode.vue"
-  import JsonExtractNode from "./JsonExtractNode.vue"
-  import JsonFilterNode from "./JsonFilterNode.vue"
-  import FilterNode from "./FilterNode.vue"
-  import BaseNode from "./BaseNode.vue"
-  import TransformNode from "./TransformNode.vue"
-  import ParamRow from "../params/ParamRow.vue"
+  import CsvReaderNode from "./CsvReaderNode.vue";
+  import JsonReaderNode from "./JsonReaderNode.vue";
+  import JqExpressionNode from "./JqExpressionNode.vue";
+  import JsonUnnestNode from "./JsonUnnestNode.vue";
+  import JsonExtractNode from "./JsonExtractNode.vue";
+  import JsonFilterNode from "./JsonFilterNode.vue";
+  import FilterNode from "./FilterNode.vue";
+  import BaseNode from "./BaseNode.vue";
+  import TransformNode from "./TransformNode.vue";
+  import ParamRow from "../params/ParamRow.vue";
 
-  import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js"
+  import { useStoreDataCleanGraph } from "../../stores/StoreDataCleanGraph.js";
   // 引入新的元数据注册表，而不是旧的执行器
-  import { getOperatorMeta } from "../operators/index.js"
-  import { canConnect } from "../../constants/PortTypes.js"
+  import { getOperatorMeta } from "../operators/index.js";
+  import { canConnect } from "../../constants/PortTypes.js";
 
-  const isReady = ref(false)
-  const emit = defineEmits(["trigger-run"])
-  const graphStore = useStoreDataCleanGraph()
-  const { setViewport } = useVueFlow()
+  const isReady = ref(false);
+  const emit = defineEmits(["trigger-run"]);
+  const graphStore = useStoreDataCleanGraph();
+  const { setViewport } = useVueFlow();
 
   // 拆分：表格处理类（输入/输出1对1）
   const transformTypes = [
@@ -159,7 +159,7 @@
     "xlsxWriter",
     "jsonWriter",
     "dbWriter",
-  ]
+  ];
 
   // 拆分：源节点与特殊节点（没有上游，或特殊UI）
   const sourceAndSinkTypes = [
@@ -173,32 +173,32 @@
     "jsonUnpivot",
     "jsonFlatten",
     "output",
-  ]
+  ];
 
   // 节点高亮逻辑保持不变
   const activeNodeIds = computed(() => {
-    if (!graphStore.activeLineageGraph) return new Set()
-    return new Set(graphStore.activeLineageGraph.map(item => item.nodeId))
-  })
+    if (!graphStore.activeLineageGraph) return new Set();
+    return new Set(graphStore.activeLineageGraph.map(item => item.nodeId));
+  });
 
   const nodes = computed(() =>
     graphStore.nodes.map(n => {
-      const isActive = activeNodeIds.value.size === 0 || activeNodeIds.value.has(n.id)
+      const isActive = activeNodeIds.value.size === 0 || activeNodeIds.value.has(n.id);
       return {
         id: n.id,
         type: n.type,
         position: n.position,
         data: n,
         class: isActive ? "" : "opacity-20",
-      }
+      };
     }),
-  )
+  );
 
   const edges = computed(() =>
     graphStore.edges.map(e => {
       const isActive =
         activeNodeIds.value.size === 0 ||
-        (activeNodeIds.value.has(e.source) && activeNodeIds.value.has(e.target))
+        (activeNodeIds.value.has(e.source) && activeNodeIds.value.has(e.target));
       return {
         id: e.id,
         source: e.source,
@@ -215,81 +215,76 @@
                 animation: "dash 1s linear infinite",
               }
             : {},
-      }
+      };
     }),
-  )
+  );
 
-  // 核心修复：连线类型校验直接读 Meta 配置
+  // 连线类型校验直接读 Meta 配置
   function onConnect(params) {
-    const sourceNode = graphStore.getNode(params.source)
-    const targetNode = graphStore.getNode(params.target)
-    if (!sourceNode || !targetNode) return
+    const sourceNode = graphStore.getNode(params.source);
+    const targetNode = graphStore.getNode(params.target);
+    if (!sourceNode || !targetNode) return;
 
-    const sourceMeta = getOperatorMeta(sourceNode.type)
-    const targetMeta = getOperatorMeta(targetNode.type)
-    if (!sourceMeta || !targetMeta) return
+    const sourceMeta = getOperatorMeta(sourceNode.type);
+    const targetMeta = getOperatorMeta(targetNode.type);
+    if (!sourceMeta || !targetMeta) return;
 
-    // 使用注册表里的元数据做校验
-    const sourceCategory = sourceMeta.outputCategory || "table"
-    const targetCategory = targetMeta.inputCategory
-
+    // 类型校验
+    const sourceCategory = sourceMeta.outputCategory || "table";
+    const targetCategory = targetMeta.inputCategory;
     if (targetCategory && targetCategory !== "dynamic") {
       if (sourceCategory !== targetCategory && sourceCategory !== "dynamic") {
-        ElMessage.warning(`类型不兼容：上游输出 [${sourceCategory}]，下游要求 [${targetCategory}]`)
-        return
+        ElMessage.warning(
+          t("graph.edge.typeIncompatible", { source: sourceCategory, target: targetCategory }),
+        );
+        return;
       }
     }
 
-    if (targetMeta.inputs > 1) {
-      const existingInputs = graphStore.getIncomingEdges(params.target)
-      const portHandle = params.targetHandle
-      if (existingInputs.some(e => e.targetHandle === portHandle)) {
-        ElMessage.warning(`该输入端口已被占用`)
-        return
-      }
-    } else {
-      if (graphStore.edges.some(e => e.source === params.source && e.target === params.target))
-        return
-    }
-
-    graphStore.addEdge({
+    // 落库，重复/端口占用/成环都由 addEdge 判断
+    const code = graphStore.addEdge({
       id: `e-${params.source}-${params.target}-${Date.now()}`,
       source: params.source,
       target: params.target,
       sourceHandle: params.sourceHandle,
       targetHandle: params.targetHandle,
-    })
+    });
 
-    graphStore.setSelected(params.target)
-    emit("trigger-run")
+    if (code !== EDGE_OK) {
+      ElMessage.warning(t(edgeErrorI18nKey(code)));
+      return;
+    }
+
+    graphStore.setSelected(params.target);
+    emit("trigger-run");
   }
 
-  const contextMenu = ref({ visible: false, x: 0, y: 0 })
+  const contextMenu = ref({ visible: false, x: 0, y: 0 });
   function onNodeContextMenu(event) {
-    event.event.preventDefault()
-    graphStore.setSelected(event.node.id)
-    contextMenu.value = { visible: true, x: event.event.clientX, y: event.event.clientY }
+    event.event.preventDefault();
+    graphStore.setSelected(event.node.id);
+    contextMenu.value = { visible: true, x: event.event.clientX, y: event.event.clientY };
   }
   function onEdgeContextMenu(event) {
-    event.event.preventDefault()
-    graphStore.removeEdge(event.edge.id)
-    emit("trigger-run")
+    event.event.preventDefault();
+    graphStore.removeEdge(event.edge.id);
+    emit("trigger-run");
   }
   function onPaneContextMenu(event) {
-    event.event.preventDefault()
-    graphStore.setSelected(null)
-    contextMenu.value.visible = false
+    event.event.preventDefault();
+    graphStore.setSelected(null);
+    contextMenu.value.visible = false;
   }
   function onWindowClick() {
-    contextMenu.value.visible = false
+    contextMenu.value.visible = false;
   }
   function deleteCurrentNode() {
-    const id = graphStore.selectedNodeId
+    const id = graphStore.selectedNodeId;
     if (id) {
-      graphStore.removeNode(id)
-      emit("trigger-run")
+      graphStore.removeNode(id);
+      emit("trigger-run");
     }
-    contextMenu.value.visible = false
+    contextMenu.value.visible = false;
   }
   function handleKeyDown(e) {
     if (
@@ -297,59 +292,59 @@
       !["INPUT", "TEXTAREA"].includes(e.target.tagName) &&
       !e.target.isContentEditable
     ) {
-      e.preventDefault()
-      const id = graphStore.selectedNodeId
+      e.preventDefault();
+      const id = graphStore.selectedNodeId;
       if (id) {
-        graphStore.removeNode(id)
-        emit("trigger-run")
+        graphStore.removeNode(id);
+        emit("trigger-run");
       }
     }
   }
   function onPaneReady() {
-    setViewport({ x: 0, y: 0, zoom: 1 })
+    setViewport({ x: 0, y: 0, zoom: 1 });
   }
   onMounted(() => {
-    window.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("click", onWindowClick)
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("click", onWindowClick);
     setTimeout(() => {
-      isReady.value = true
-    }, 100)
-  })
+      isReady.value = true;
+    }, 100);
+  });
   onBeforeUnmount(() => {
-    window.removeEventListener("keydown", handleKeyDown)
-    window.removeEventListener("click", onWindowClick)
-  })
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("click", onWindowClick);
+  });
   function onNodesChange(changes) {
     for (const c of changes) {
-      if (c.type === "position" && c.position) graphStore.updateNodePosition(c.id, c.position)
+      if (c.type === "position" && c.position) graphStore.updateNodePosition(c.id, c.position);
       else if (c.type === "remove") {
-        graphStore.removeNode(c.id)
-        emit("trigger-run")
+        graphStore.removeNode(c.id);
+        emit("trigger-run");
       }
     }
   }
   function onEdgesChange(changes) {
     for (const c of changes) {
       if (c.type === "remove") {
-        graphStore.removeEdge(c.id)
-        emit("trigger-run")
+        graphStore.removeEdge(c.id);
+        emit("trigger-run");
       }
     }
   }
   function onNodeClick(event) {
-    const id = event?.node?.id
-    if (id) graphStore.setSelected(id)
+    const id = event?.node?.id;
+    if (id) graphStore.setSelected(id);
   }
   function onPaneClick() {
-    graphStore.setSelected(null)
-    contextMenu.value.visible = false
+    graphStore.setSelected(null);
+    contextMenu.value.visible = false;
   }
   function onMessageChange(id, val) {
-    graphStore.updateNodeParams(id, { text: val })
-    emit("trigger-run")
+    graphStore.updateNodeParams(id, { text: val });
+    emit("trigger-run");
   }
   function handleMouseDownCapture(e) {
-    const t = e.target
+    const t = e.target;
     if (
       t &&
       (t.tagName === "INPUT" ||
@@ -361,7 +356,7 @@
         t.closest(".el-switch") ||
         t.closest(".cm-editor"))
     ) {
-      e.stopPropagation()
+      e.stopPropagation();
     }
   }
 </script>

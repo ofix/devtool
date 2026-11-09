@@ -3,7 +3,7 @@ export const NODE_TYPES = {
   OUTPUT: "output",
   MESSAGE: "message",
   FILTER: "filter",
-}
+};
 
 export const NODE_CATEGORIES = [
   { key: "source", label: "数据源" },
@@ -14,4 +14,9 @@ export const NODE_CATEGORIES = [
   { key: "json", label: "JSON 处理" }, // 新增 JSON 分类
   { key: "develop", label: "开发" },
   { key: "output", label: "输出" },
-]
+];
+
+export const ENGINE_TYPES = {
+  JS: "js",
+  DUCK_DB: "duckdb",
+};

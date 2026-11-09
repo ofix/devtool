@@ -4,6 +4,8 @@ const metaUnion = {
   icon: "IconMerge",
   category: "join",
   inputs: 2,
+  minInputs: 2,
+  maxInputs: 8, // 可选，不写表示不限
   outputs: 1,
   inputCategory: "table",
   outputCategory: "table",
@@ -16,7 +18,7 @@ const metaUnion = {
       defaultValue: false,
     },
   ],
-}
+};
 
 const metaJoin = {
   type: "join",
@@ -24,6 +26,8 @@ const metaJoin = {
   icon: "IconLink",
   category: "join",
   inputs: 2,
+  minInputs: 2,
+  maxInputs: 8, // 可选，不写表示不限
   outputs: 1,
   inputCategory: "table",
   outputCategory: "table",
@@ -42,9 +46,9 @@ const metaJoin = {
       ],
     },
   ],
-}
+};
 
 export const metaJoinUnion = {
   union: metaUnion,
   join: metaJoin,
-}
+};
