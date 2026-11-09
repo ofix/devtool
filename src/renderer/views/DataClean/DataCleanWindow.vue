@@ -32,6 +32,7 @@
   import { useStoreDataCleanMeta } from "./stores/StoreDataCleanMeta.js";
   import { useStoreDataCleanPreview } from "./stores/StoreDataCleanPreview.js";
   import { useStoreDataCleanLog } from "./stores/StoreDataCleanLog.js";
+  import { initResultInfra } from "./core/ResultInfra.js";
 
   const graphStore = useStoreDataCleanGraph();
   const metaStore = useStoreDataCleanMeta();
@@ -41,6 +42,7 @@
   const editorRef = ref(null);
 
   // 实例化 Engine，默认走 js 模式（后续可以通过 UI 切换为 duckdb）
+  const infra = await initResultInfra();
   const engine = new Engine({ metaStore, previewStore, graphStore, type: ENGINE_TYPES.DUCK_DB });
   const scheduler = new Scheduler({ engine, graphStore, metaStore, previewStore });
 

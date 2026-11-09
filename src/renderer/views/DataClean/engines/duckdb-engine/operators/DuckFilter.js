@@ -1,34 +1,33 @@
-import { BaseDuckOperator } from "./BaseDuckOperator.js"
-import { DataHandle } from "../../../core/contract/DataHandle.js"
+import { BaseDuckOperator } from "./BaseDuckOperator.js";
+import { DataHandle } from "../../../core/contract/DataHandle.js";
 
 export class DuckFilter extends BaseDuckOperator {
-  // 真实执行 SQL
   async executeSql(inputs, params, ctx) {
-    const inputData = inputs[0]
-    const inputTable = inputData.payload.tableName
-    const outTable = `tbl_${ctx.nodeId}`
+    const inputTable = ctx.getTableName(inputs[0].cacheKey);
+    const outTable = ctx.outputTable;
 
-    const sql = `CREATE TABLE ${outTable} AS SELECT * FROM ${inputTable} WHERE ${params.expression}`
-    return await this._runAndReturnPhysical(
+    const sql = `CREATE TABLE "${outTable}" AS SELECT * FROM "${inputTable}" WHERE ${params.expression}`;
+
+    return this._runAndReturnPhysical(
       outTable,
       sql,
-      inputData.schema,
-      inputData.columnMapping,
-    )
+      inputs[0].schema,
+      inputs[0].columnMapping,
+      ctx,
+    );
   }
 
-  // 仅生成 CTE 片段
   buildSql(inputs, params, ctx) {
-    const inputData = inputs[0]
-    const cteName = `cte_${ctx.nodeId}`
-
-    const sqlFragment = `SELECT * FROM ${inputData.payload.cteName} WHERE ${params.expression}`
+    const cteName = `cte_${ctx.nodeId}`;
+    const upstreamRef = inputs[0].cteName
+      ? `"${inputs[0].cteName}"`
+      : `"${ctx.getTableName(inputs[0].cacheKey)}"`;
 
     return DataHandle.duckCte({
-      schema: inputData.schema,
-      columnMapping: inputData.columnMapping,
+      schema: inputs[0].schema,
+      columnMapping: inputs[0].columnMapping,
       cteName,
-      sqlFragment,
-    })
+      sqlFragment: `SELECT * FROM ${upstreamRef} WHERE ${params.expression}`,
+    });
   }
 }

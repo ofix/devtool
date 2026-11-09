@@ -1,32 +1,41 @@
 /**
  * 跨引擎统一数据句柄 (DataHandle)
- * 核心职责：作为所有引擎算子交互的通用“契约”，调度层只认这个结构。
+ * 调度层只认这个结构，不关心引擎内部细节。
  *
- * 约定：
- * - 绝对禁止在 payload 中放置未封装的裸数据（如巨大的数组），必须用引擎专属的句柄。
- * - 所有算子无论是物化、编译还是纯 JS 流，都必须返回符合此结构的对象。
+ * kind 取值：
+ * - physical_table：已落物理表（立即执行模式）
+ * - cte_fragment：只生成 CTE 片段（编译模式）
+ * - js_stream：JS 流式句柄（js 引擎）
+ * - json：JSON 结果
  */
 export class DataHandle {
-  /**
-   * @param {Object} options
-   * @param {'table'|'json'} options.dataCategory 数据形态
-   * @param {Array<{name:string, type:string}>} options.schema 列元数据（下游 UI 或算子依赖）
-   * @param {Record<string, string|string[]>} options.columnMapping 字段血缘映射
-   * @param {'physical_table'|'cte_fragment'|'js_stream'} options.kind 句柄类型标识
-   * @param {any} options.payload 引擎专属载荷
-   */
-  constructor({ dataCategory, schema = [], columnMapping = {}, kind, payload }) {
-    this.dataCategory = dataCategory
-    this.schema = schema
-    this.columnMapping = columnMapping
-    this.kind = kind
-    this.payload = payload
+  constructor({
+    dataCategory,
+    schema = [],
+    columnMapping = {},
+    kind,
+    payload,
+    cacheKey,
+    rowCount,
+    storeType,
+  }) {
+    this.dataCategory = dataCategory;
+    this.schema = schema;
+    this.columnMapping = columnMapping;
+    this.kind = kind;
+    this.payload = payload;
+    this.cacheKey = cacheKey;
+    this.rowCount = rowCount;
+    this.storeType = storeType;
   }
 
-  // 工厂方法，规范各个引擎的返回
+  get mode() {
+    return this.kind === "cte_fragment" ? "compiled" : "executed";
+  }
 
   /**
-   * 创建一个纯 JS 流式句柄
+   * JS 流结果：调用方负责先物化到 memoryStore，再返回 memory 句柄。
+   * 这里保留 jsStream 工厂仅用于“执行过程中的临时句柄”，不登记到 nodeIndex。
    */
   static jsStream({ schema, columnMapping, streamDataset }) {
     return new DataHandle({
@@ -35,38 +44,36 @@ export class DataHandle {
       columnMapping,
       kind: "js_stream",
       payload: { streamDataset },
-    })
+      storeType: null, // 未物化，不登记
+    });
   }
 
-  /**
-   * 创建一个 JSON 态句柄
-   */
-  static jsJson({ json, formattedText }) {
+  static jsJson({ json, formattedText, cacheKey, rowCount }) {
     return new DataHandle({
-      dataCategory: "json", // 标识这是 JSON
-      schema: [], // JSON 不需要 Schema
+      dataCategory: "json",
+      schema: [],
       columnMapping: {},
-      kind: "js_stream", // 依然走流式通道，但内部吐的是整个 json
+      kind: "json",
       payload: { json, formattedText },
-    })
+      cacheKey,
+      rowCount,
+      storeType: "memory",
+    });
   }
 
-  /**
-   * 创建一个 DuckDB 物理表句柄（增量物化模式产出）
-   */
-  static duckPhysical({ schema, columnMapping, tableName }) {
+  static duckPhysical({ schema, columnMapping, tableName, cacheKey, rowCount }) {
     return new DataHandle({
       dataCategory: "table",
       schema,
       columnMapping,
       kind: "physical_table",
       payload: { tableName },
-    })
+      cacheKey,
+      rowCount,
+      storeType: "duckdb",
+    });
   }
 
-  /**
-   * 创建一个 DuckDB 编译片段句柄（CTE 编译模式产出）
-   */
   static duckCte({ schema, columnMapping, cteName, sqlFragment }) {
     return new DataHandle({
       dataCategory: "table",
@@ -74,6 +81,20 @@ export class DataHandle {
       columnMapping,
       kind: "cte_fragment",
       payload: { cteName, sqlFragment },
-    })
+      storeType: null,
+    });
+  }
+
+  static memory({ schema, columnMapping, cacheKey, rowCount, dataCategory = "table" }) {
+    return new DataHandle({
+      dataCategory,
+      schema,
+      columnMapping,
+      kind: "physical_table",
+      payload: {},
+      cacheKey,
+      rowCount,
+      storeType: "memory",
+    });
   }
 }

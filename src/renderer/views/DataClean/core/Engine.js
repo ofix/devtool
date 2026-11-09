@@ -3,35 +3,63 @@ import { createEngineInstance as createDuckEngine } from "../engines/duckdb-engi
 import { ENGINE_TYPE } from "../constants/NodeTypes.js";
 
 export default class Engine {
-  constructor({ metaStore, graphStore, previewStore, type = ENGINE_TYPE.DUCK_DB }) {
+  constructor({
+    metaStore,
+    graphStore,
+    previewStore,
+    nodeResultRegistry,
+    duckdbClient,
+    sqliteClient,
+    memoryStore,
+    type = ENGINE_TYPE.DUCK_DB,
+  }) {
     this.metaStore = metaStore;
     this.graphStore = graphStore;
     this.previewStore = previewStore;
+
+    this.nodeResultRegistry = nodeResultRegistry;
+    this.duckdbClient = duckdbClient;
+    this.sqliteClient = sqliteClient;
+    this.memoryStore = memoryStore;
+
     this.type = type;
     this.engineInstance = null;
+    this._initPromise = null;
     this._switching = null;
   }
 
   async init() {
     if (this.engineInstance) return;
-    if (this.type === ENGINE_TYPE.JS) {
-      this.engineInstance = createJsEngine();
-    } else if (this.type === ENGINE_TYPE.DUCK_DB) {
-      this.engineInstance = createDuckEngine();
-    } else {
-      throw new Error(`未知的引擎模式: ${this.type}`);
+    if (this._initPromise) return this._initPromise;
+
+    this._initPromise = (async () => {
+      if (this.type === ENGINE_TYPE.JS) {
+        this.engineInstance = createJsEngine();
+      } else if (this.type === ENGINE_TYPE.DUCK_DB) {
+        this.engineInstance = createDuckEngine();
+      } else {
+        throw new Error(`未知的引擎模式: ${this.type}`);
+      }
+      await this.engineInstance.init();
+    })();
+
+    try {
+      await this._initPromise;
+    } finally {
+      this._initPromise = null;
     }
-    await this.engineInstance.init();
   }
 
   async switchType(newType) {
     if (this.type === newType) return;
-    if (this._switching) await this._switching;
+    while (this._switching) await this._switching;
+
     this._switching = (async () => {
       await this.destroy();
       this.type = newType;
       await this.init();
     })();
+
     try {
       await this._switching;
     } finally {
@@ -39,11 +67,10 @@ export default class Engine {
     }
   }
 
-  /**
-   * 执行单个算子
-   */
   async runNode(nodeType, inputs, params, ctx) {
-    await this.init();
+    if (!this.engineInstance) {
+      throw new Error("[Engine] 尚未 init，请先 await engine.init()");
+    }
     const executor = this.engineInstance.getExecutor(nodeType);
     if (!executor) {
       throw new Error(`[Engine] 引擎 ${this.type} 未注册算子: ${nodeType}`);
@@ -51,12 +78,40 @@ export default class Engine {
     return executor.execute(inputs, params, ctx);
   }
 
-  /**
-   * 提取预览数据
-   */
-  async getPreviewData(payload, limit = 1000) {
-    await this.init();
-    return await this.engineInstance.getPreviewData(payload, limit);
+  getPreviewWindow(workflowId, nodeId, offset = 0, limit = 100) {
+    return this.nodeResultRegistry.fetchWindow(workflowId, nodeId, offset, limit);
+  }
+
+  getPreviewWindowByCacheKey(cacheKey, offset = 0, limit = 100) {
+    return this.nodeResultRegistry.fetchWindowByCacheKey(cacheKey, offset, limit);
+  }
+
+  fetchAll(workflowId, nodeId, chunkSize = 1000) {
+    return this.nodeResultRegistry.fetchAll(workflowId, nodeId, chunkSize);
+  }
+
+  fetchAllByCacheKey(cacheKey, chunkSize = 1000) {
+    return this.nodeResultRegistry.fetchAllByCacheKey(cacheKey, chunkSize);
+  }
+
+  getTableName(cacheKey) {
+    return this.nodeResultRegistry.getTableName(cacheKey);
+  }
+
+  saveNodeResult(workflowId, nodeId, handle) {
+    return this.nodeResultRegistry.saveNodeResult(workflowId, nodeId, handle);
+  }
+
+  hasResult(workflowId, nodeId) {
+    return this.nodeResultRegistry.hasResult(workflowId, nodeId);
+  }
+
+  getResultHandle(workflowId, nodeId) {
+    return this.nodeResultRegistry.getResultHandle(workflowId, nodeId);
+  }
+
+  releaseNodeByCacheKey(cacheKey) {
+    return this.nodeResultRegistry.releaseNodeByCacheKey(cacheKey);
   }
 
   async destroy() {

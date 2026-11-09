@@ -1,24 +1,92 @@
-const { contextBridge, ipcRenderer } = require("electron/renderer")
+const { contextBridge, ipcRenderer } = require("electron/renderer");
+
+let duckdbRawPort = null;
+let sqliteRawPort = null;
+ipcRenderer.on("duckdb-port", event => {
+  duckdbRawPort = event.ports[0];
+  duckdbRawPort.start();
+});
+ipcRenderer.on("sqlite-port", event => {
+  sqliteRawPort = event.ports[0];
+  sqliteRawPort.start();
+});
+/**
+ * 把原生 MessagePort 包装成可跨 contextBridge 传递的代理对象
+ */
+function wrapPort(port) {
+  const listeners = new Set();
+  port.onmessage = e => {
+    for (const cb of listeners) cb(e.data);
+  };
+  return {
+    postMessage: data => port.postMessage(data),
+    onMessage: cb => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+  };
+}
+
+function waitForPorts(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      if (duckdbRawPort && sqliteRawPort) {
+        resolve({
+          duckdbPort: wrapPort(duckdbRawPort),
+          sqlitePort: wrapPort(sqliteRawPort),
+        });
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error("等待 DuckDB/SQLite 端口超时"));
+        return;
+      }
+      setTimeout(check, 50);
+    };
+    check();
+  });
+}
+/**
+ * 等待两个 port 都就绪，超时 reject
+ */
+function waitForPorts(timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      if (duckdbPort && sqlitePort) {
+        resolve({ duckdbPort, sqlitePort });
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error("等待 DuckDB/SQLite 端口超时"));
+        return;
+      }
+      setTimeout(check, 50);
+    };
+    check();
+  });
+}
 
 function safeStringify(arg) {
-  const seen = new WeakMap()
+  const seen = new WeakMap();
   try {
     return JSON.stringify(
       arg,
       (key, value) => {
         if (typeof value === "object" && value !== null) {
-          if (seen.has(value)) return "[循环引用]"
-          seen.set(value, true)
+          if (seen.has(value)) return "[循环引用]";
+          seen.set(value, true);
         }
         // 处理特殊类型
-        if (value === undefined) return "undefined"
-        if (typeof value === "function") return "[Function]"
-        return value
+        if (value === undefined) return "undefined";
+        if (typeof value === "function") return "[Function]";
+        return value;
       },
       2,
-    )
+    );
   } catch (e) {
-    return `[序列化失败: ${e.message}]`
+    return `[序列化失败: ${e.message}]`;
   }
 }
 
@@ -27,8 +95,8 @@ function sendLogToMainProcess(type, args) {
   try {
     // 前置校验：ipcRenderer 是否就绪
     if (!ipcRenderer || typeof ipcRenderer.send !== "function") {
-      console.error("[日志发送失败] ipcRenderer 未就绪")
-      return
+      console.error("[日志发送失败] ipcRenderer 未就绪");
+      return;
     }
 
     const logData = {
@@ -36,24 +104,24 @@ function sendLogToMainProcess(type, args) {
       timestamp: new Date().toLocaleString(),
       args: Array.from(args).map(arg => {
         if (typeof arg === "object" && arg !== null) {
-          return safeStringify(arg)
+          return safeStringify(arg);
         }
         // 基础类型直接返回，处理 undefined/function
-        return arg === undefined ? "undefined" : typeof arg === "function" ? "[Function]" : arg
+        return arg === undefined ? "undefined" : typeof arg === "function" ? "[Function]" : arg;
       }),
-    }
+    };
 
-    ipcRenderer.send("console-log", logData)
+    ipcRenderer.send("console-log", logData);
   } catch (e) {
     // 降级到原生console输出错误（带详细栈信息）
-    console.error("[日志转发到调试面板失败]", e.stack)
+    console.error("[日志转发到调试面板失败]", e.stack);
   }
 }
 
-const wndLog = (...args) => sendLogToMainProcess("log", args)
-const wndError = (...args) => sendLogToMainProcess("error", args)
-const wndWarn = (...args) => sendLogToMainProcess("warn", args)
-const wndInfo = (...args) => sendLogToMainProcess("info", args)
+const wndLog = (...args) => sendLogToMainProcess("log", args);
+const wndError = (...args) => sendLogToMainProcess("error", args);
+const wndWarn = (...args) => sendLogToMainProcess("warn", args);
+const wndInfo = (...args) => sendLogToMainProcess("info", args);
 
 // 2. 通过 contextBridge 暴露 wnd（无需 initWndLog，直接全局可用）
 contextBridge.exposeInMainWorld("dt", {
@@ -61,9 +129,9 @@ contextBridge.exposeInMainWorld("dt", {
   error: wndError,
   warn: wndWarn,
   info: wndInfo,
-})
+});
 
-const PREFIX = "data-clean"
+const PREFIX = "data-clean";
 contextBridge.exposeInMainWorld("api", {
   // 保留你现有的其他 API 命名空间，这里只补充 dataClean
   dataClean: {
@@ -75,6 +143,8 @@ contextBridge.exposeInMainWorld("api", {
     duckdb: {
       query: sql => ipcRenderer.invoke("data-clean:duckdb:query", sql),
     },
+    // 👇 新增：获取直连端口
+    getDbPorts: () => waitForPorts(),
     tempFile: {
       // 导出保存路径
       selectSavePath: defaultName => ipcRenderer.invoke(`${PREFIX}:selectSavePath`, defaultName),
@@ -85,16 +155,16 @@ contextBridge.exposeInMainWorld("api", {
 
       // 流式读取
       readStream: (filePath, onChunk, onEnd, onError) => {
-        const channel = `${PREFIX}:stream-data:${filePath}`
-        ipcRenderer.removeAllListeners(channel)
+        const channel = `${PREFIX}:stream-data:${filePath}`;
+        ipcRenderer.removeAllListeners(channel);
 
         ipcRenderer.on(channel, (event, chunk) => {
-          if (chunk === null) onEnd()
-          else if (chunk.error) onError(new Error(chunk.error))
-          else onChunk(chunk)
-        })
+          if (chunk === null) onEnd();
+          else if (chunk.error) onError(new Error(chunk.error));
+          else onChunk(chunk);
+        });
 
-        return ipcRenderer.invoke(`${PREFIX}:readStream`, filePath)
+        return ipcRenderer.invoke(`${PREFIX}:readStream`, filePath);
       },
 
       // 清理任务文件
@@ -105,25 +175,25 @@ contextBridge.exposeInMainWorld("api", {
       startStream: filePath => ipcRenderer.invoke(`${PREFIX}:fs:startStream`, filePath),
 
       onStreamData: (streamId, callback) => {
-        const channel = `${PREFIX}:fs:chunk:${streamId}`
-        const listener = (event, chunk) => callback(chunk)
-        ipcRenderer.on(channel, listener)
+        const channel = `${PREFIX}:fs:chunk:${streamId}`;
+        const listener = (event, chunk) => callback(chunk);
+        ipcRenderer.on(channel, listener);
         // 返回取消监听的方法
-        return () => ipcRenderer.removeListener(channel, listener)
+        return () => ipcRenderer.removeListener(channel, listener);
       },
 
       onStreamEnd: (streamId, callback) => {
-        const channel = `${PREFIX}:fs:end:${streamId}`
-        const listener = () => callback()
-        ipcRenderer.on(channel, listener)
-        return () => ipcRenderer.removeListener(channel, listener)
+        const channel = `${PREFIX}:fs:end:${streamId}`;
+        const listener = () => callback();
+        ipcRenderer.on(channel, listener);
+        return () => ipcRenderer.removeListener(channel, listener);
       },
 
       onStreamError: (streamId, callback) => {
-        const channel = `${PREFIX}:fs:error:${streamId}`
-        const listener = (event, errMsg) => callback(new Error(errMsg))
-        ipcRenderer.on(channel, listener)
-        return () => ipcRenderer.removeListener(channel, listener)
+        const channel = `${PREFIX}:fs:error:${streamId}`;
+        const listener = (event, errMsg) => callback(new Error(errMsg));
+        ipcRenderer.on(channel, listener);
+        return () => ipcRenderer.removeListener(channel, listener);
       },
       abortStream: streamId => ipcRenderer.send(`${PREFIX}:fs:abort:${streamId}`),
       readBuffer: filePath => ipcRenderer.invoke(`${PREFIX}:fs:readBuffer`, filePath),
@@ -148,7 +218,7 @@ contextBridge.exposeInMainWorld("api", {
         ipcRenderer.invoke(`${PREFIX}:shell:showItemInFolder`, filePath),
     },
   },
-})
+});
 
 contextBridge.exposeInMainWorld("channel", {
   clearDebugLogs: () => ipcRenderer.send("clear-debug-logs"),
@@ -156,11 +226,11 @@ contextBridge.exposeInMainWorld("channel", {
   send: (channel, ...args) => ipcRenderer.send(channel, ...args),
   on: (channel, callback) => {
     const wrappedCallback = (event, ...args) => {
-      callback(event, ...args) // 解构参数，确保渲染进程能拿到 logs
-    }
-    ipcRenderer.on(channel, wrappedCallback)
+      callback(event, ...args); // 解构参数，确保渲染进程能拿到 logs
+    };
+    ipcRenderer.on(channel, wrappedCallback);
     // 返回移除监听的方法（可选）
-    return () => ipcRenderer.removeListener(channel, wrappedCallback)
+    return () => ipcRenderer.removeListener(channel, wrappedCallback);
   },
   off: (channel, listener) => ipcRenderer.off(channel, listener),
   // 控制台调试打印
@@ -242,8 +312,8 @@ contextBridge.exposeInMainWorld("channel", {
   getAllShortcuts: () => ipcRenderer.invoke("shortcut:getAll"),
   isShortcutRegistered: accelerator => ipcRenderer.invoke("shortcut:isRegistered", accelerator),
   onShortcut: (handlerName, callback) => {
-    const channel = `shortcut:${handlerName}`
-    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    const channel = `shortcut:${handlerName}`;
+    ipcRenderer.on(channel, (event, ...args) => callback(...args));
   },
   // 发送网络请求
   doPost: options => ipcRenderer.invoke("https:post", options),
@@ -322,4 +392,4 @@ contextBridge.exposeInMainWorld("channel", {
   syncBkShares: (type, bkList) => ipcRenderer.invoke("ant-sync:sync-bk-shares", type, bkList),
   saveProviderSettings: data => ipcRenderer.invoke("ant-sync:save-provider-settings", data),
   loadProviderSettings: () => ipcRenderer.invoke("ant-sync:load-provider-settings"),
-})
+});

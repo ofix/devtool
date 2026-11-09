@@ -921,3 +921,304 @@ versionHash 只用于 previewStore，全量快照复用需用户显式 Tee。
 ▼
 [UI层] PreviewPanel.vue
 │ 监听到 store 变化，渲染表格
+
+Engine / Scheduler / 算子 / 存储：分工、契约与执行流程
+一、先定角色（谁负责什么）
+角色 职责 不负责
+Scheduler 收子图、拓扑排序、增量判定、逐节点编排、编译模式拼 SQL、写 meta、错误标记 不执行 SQL、不碰数据、不管存储选型
+Engine 执行门面：init / runNode / 转发存储能力（saveNodeResult / getTableName / fetchAll / getPreviewWindow） 不编排节点、不做增量判定、不拼 CTE
+算子（Executor） 根据 inputs + params + ctx 产出 DataHandle；DuckDB 算子拼 SQL 并调 ctx.duckdb.run；JS 算子计算并物化到 ctx.memoryStore 不知道上游存在哪、不管缓存、不管 meta、不管增量
+NodeResultRegistry 登记 cacheKey → { handle, type, tableName, columns, rowCount }；按 type 路由 fetchWindow / fetchAll / release 不执行 SQL、不攒批、不做增量判定
+DuckdbClient / SqliteClient 远程调用：run / createTable / insertBatch / fetchWindow / dropTable / count，只收发消息 不拼 SQL、不管缓存 key、不做业务判断
+MemoryResultStore 前端唯一本地存储，小结果放内存 不持久化、不做跨进程
+BatchWriter 只给“前端算完推给远程存储”的少数算子用：攒批 + insertBatch Scheduler 不创建，算子内部按需 new
+一句话：Scheduler 编排，Engine 转发，算子产出 DataHandle，Registry 登记和路由，Client 远程执行，Memory 存小结果。
+
+二、契约（跨类传递的数据形状）
+
+1. 算子输入：InputRef
+   上游结果的引用，不带数据。
+
+javascript
+{
+nodeId: string, // 上游节点 id（增量判定、日志用）
+cacheKey?: string, // 执行模式：指向已物化结果
+cteName?: string, // 编译模式：指向 CTE 片段
+schema: Column[], // 上游列
+columnMapping: object, // 血缘
+dataCategory: "table" | "json",
+}
+cacheKey 和 cteName 二选一：有 cteName 走编译模式，有 cacheKey 走执行模式。
+
+算子用 inputs[i].isCompiled 或 inputs[i].cteName 判断走哪条路径。
+
+2. 算子输出：DataHandle
+   javascript
+   {
+   kind: "physical_table" | "cte_fragment" | "json", // js_stream 暂不登记
+   storeType: "duckdb" | "sqlite" | "memory" | null, // cte_fragment 为 null
+   cacheKey?: string, // physical_table / json 有
+   rowCount?: number, // 已执行有
+   schema: Column[],
+   columnMapping: object,
+   dataCategory: "table" | "json",
+   payload: {
+   tableName?: string, // physical_table + duckdb/sqlite
+   cteName?: string, // cte_fragment
+   sqlFragment?: string, // cte_fragment
+   json?: any, // json
+   formattedText?: string // json
+   }
+   }
+   约定：
+
+kind === "cte_fragment" → 编译模式，Scheduler 存 compiledCtx，不登记；
+
+kind === "physical_table" 且 storeType 非空 → Scheduler 调 engine.saveNodeResult 登记；
+
+kind === "json" 且 storeType = "memory" → 同样登记，payload.json 由算子写入 memoryStore。
+
+3. 算子执行上下文：nodeCtx（Scheduler 注入）
+   javascript
+   {
+   // 来自 TaskContext
+   taskId, workflowId, signal, log, executionMode,
+
+// 节点级
+nodeId, cacheKey, outputTable,
+
+// 存储能力
+duckdb: DuckdbClient,
+sqlite: SqliteClient,
+memoryStore: MemoryResultStore,
+
+// 读上游
+getTableName: (cacheKey) => string | null,
+fetchAll: (cacheKey, chunkSize) => AsyncIterable<{ rows }>,
+}
+约定：
+
+算子不直接持有 Engine / NodeResultRegistry，只通过 nodeCtx 的能力函数访问；
+
+算子拼 SQL 用 ctx.getTableName(inputs[i].cacheKey)，不自己拼 tbl\_${nodeId}；
+
+输出表用 ctx.outputTable，不自己分配；
+
+写 DuckDB/SQLite 用 ctx.duckdb / ctx.sqlite，不直接 window.api。
+
+4. meta 字段（metaStore）
+   javascript
+   {
+   columns, rowCount, dataCategory, storeType, duration,
+   paramsHash, upstreamVersion, resultVersion, // 增量判定
+   stale: boolean, error: string | null,
+   }
+   三、四种交互场景的分工与流程
+   场景 A：DuckDB SQL 算子（执行模式）
+   适用：filter / select / join / aggregate 等，上游在 DuckDB。
+
+分工：
+
+Scheduler：分配 cacheKey / outputTable，注入 nodeCtx，调 runNode，拿 DataHandle 登记；
+
+Engine：runNode → executor.execute；
+
+算子：ctx.getTableName(upstream.cacheKey) 拿表名，拼 CREATE TABLE ... AS SELECT ...，调 ctx.duckdb.run(sql)，返回 DataHandle.duckPhysical；
+
+DuckdbClient：把 SQL 发给 DuckDB 进程，回 { rowCount }；
+
+Registry：登记 cacheKey → { handle, type: duckdb, tableName, columns, rowCount }。
+
+流程：
+
+text
+Scheduler
+├─ inputs = \_collectInputs(node) // InputRef[]
+├─ cacheKey / outputTable 分配
+├─ nodeCtx = { ...ctx, duckdb, getTableName, ... }
+├─ handle = engine.runNode(type, inputs, params, nodeCtx)
+│ └─ executor.execute
+│ ├─ inputTable = ctx.getTableName(inputs[0].cacheKey)
+│ ├─ sql = `CREATE TABLE "${ctx.outputTable}" AS SELECT ... FROM "${inputTable}" ...`
+│ ├─ { rowCount } = await ctx.duckdb.run(sql)
+│ └─ return DataHandle.duckPhysical({ tableName: ctx.outputTable, cacheKey, rowCount, schema })
+├─ engine.saveNodeResult(workflowId, nodeId, handle)
+│ └─ registry.saveNodeResult → nodeIndex.set(cacheKey, { handle, type: "duckdb", tableName, ... })
+└─ metaStore.updateMeta(nodeId, { columns, rowCount, storeType, duration, ... })
+场景 B：DuckDB SQL 算子（编译模式）
+适用：全链路都是 DuckDB SQL 算子，希望合并成一条 SQL 优化。
+
+分工：
+
+Scheduler：ctx.executionMode = "compiled"，调 runNode 拿 DataHandle.duckCte，存 compiledCtx，不登记；最后 \_executeCompiledPlan 用 \_topoSort 收集 CTE 链，拼一条 SQL，执行后登记最终节点；
+
+算子：buildSql 返回 DataHandle.duckCte({ cteName, sqlFragment, schema })，sqlFragment 里引用上游 inputs[0].cteName 或表名；
+
+DuckdbClient：只在最终 \_executeCompiledPlan 执行一次；
+
+Registry：只登记最终节点。
+
+流程：
+
+text
+Scheduler
+├─ for 每个节点:
+│ ├─ inputs = \_collectInputs(node) // 上游可能是 cteName
+│ ├─ handle = engine.runNode(...) // 算子走 buildSql
+│ │ └─ return DataHandle.duckCte({ cteName, sqlFragment, schema })
+│ ├─ compiledCtx.set(nodeId, handle)
+│ └─ handleCache.set(nodeId, { handle })
+└─ \_executeCompiledPlan(workflowId, targetNodeId, compiledCtx, ctx)
+├─ cteNodes = \_collectSubgraph(targetNodeId)
+├─ { sorted } = \_topoSort([...cteNodes]) // 用拓扑序，不用 DFS
+├─ cteDefs = sorted.map(id => compiledCtx.get(id)).filter(h => h?.kind === "cte_fragment")
+├─ sql = `CREATE TABLE "${outTable}" AS WITH ${cteDefs.map(c => `"${c.payload.cteName}" AS (${c.payload.sqlFragment})`).join(", ")} SELECT * FROM "${finalCteName}"`
+├─ { rowCount } = await this.engine.duckdbClient.run(sql)
+└─ engine.saveNodeResult(workflowId, targetNodeId, DataHandle.duckPhysical({...}))
+关键约束：
+
+编译模式不做增量；
+
+进入编译模式前要校验整条链都是 cte_fragment，混入物理节点要报错或降级；
+
+CTE 定义顺序用 \_topoSort，不用 DFS 后序。
+
+场景 C：JS 引擎算子（内存物化）
+适用：JS 引擎执行的算子，结果物化到 memoryStore。
+
+分工：
+
+Scheduler：注入 nodeCtx.memoryStore、fetchAll；拿 DataHandle.memory 登记；
+
+算子：ctx.fetchAll(upstream.cacheKey) 流式读上游 → 计算 → ctx.memoryStore.set(ctx.cacheKey, rows, schema) → 返回 DataHandle.memory({ cacheKey, rowCount, schema })；
+
+MemoryResultStore：存 cacheKey → { rows, columns, total }；
+
+Registry：登记 cacheKey → { handle, type: "memory", columns, rowCount }。
+
+流程：
+
+text
+Scheduler
+├─ inputs = \_collectInputs(node) // InputRef[]
+├─ handle = engine.runNode(...)
+│ └─ executor.execute
+│ ├─ rows = []
+│ ├─ for await (chunk of ctx.fetchAll(inputs[0].cacheKey)) rows.push(...transform(chunk.rows))
+│ ├─ ctx.memoryStore.set(ctx.cacheKey, rows, outputSchema)
+│ └─ return DataHandle.memory({ cacheKey: ctx.cacheKey, rowCount: rows.length, schema: outputSchema })
+├─ engine.saveNodeResult(workflowId, nodeId, handle)
+│ └─ registry.saveNodeResult → nodeIndex.set(cacheKey, { handle, type: "memory", ... })
+└─ metaStore.updateMeta(...)
+场景 D：前端计算后推给远程存储（BatchWriter）
+适用：算子在 JS 层计算，但结果要落 DuckDB/SQLite（比如复杂 JS 逻辑，结果大）。
+
+分工：
+
+Scheduler：只注入 nodeCtx.duckdb / sqlite / outputTable；
+
+算子：ctx.duckdb.createTable(ctx.outputTable, columns) → new BatchWriter({ client: ctx.duckdb, tableName: ctx.outputTable }) → writer.write(rows) → writer.close() → 返回 DataHandle.duckPhysical；
+
+DuckdbClient：insertBatch 分批写入；
+
+Registry：登记 type: "duckdb"。
+
+流程：
+
+text
+算子.execute
+├─ await ctx.duckdb.createTable(ctx.outputTable, outputSchema)
+├─ writer = new BatchWriter({ client: ctx.duckdb, tableName: ctx.outputTable, batchSize: 1000 })
+├─ try:
+│ ├─ for await (chunk of ctx.fetchAll(upstream.cacheKey)):
+│ │ └─ await writer.write(compute(chunk.rows))
+│ └─ { rowCount } = await writer.close()
+└─ return DataHandle.duckPhysical({ tableName: ctx.outputTable, cacheKey: ctx.cacheKey, rowCount, schema })
+四、增量调度流程
+前提：executionMode === "executed"，options.incremental !== false，options.force !== true。
+
+判定条件（四个全满足才跳过）：
+
+prevMeta.paramsHash === hashParams(node.params)
+
+prevMeta.upstreamVersion === inputs.map(i => meta(i.nodeId).resultVersion).join("|")
+
+prevMeta.stale === false && prevMeta.error == null
+
+engine.hasResult(workflowId, nodeId)
+
+流程：
+
+text
+Scheduler.runTask
+├─ for nodeId of sortedNodes:
+│ ├─ inputs = \_collectInputs(node)
+│ ├─ paramsHash = hashParams(node.params)
+│ ├─ upstreamVersion = inputs.map(i => metaStore.getMeta(i.nodeId)?.resultVersion ?? "none").join("|")
+│ ├─ prevMeta = metaStore.getMeta(nodeId)
+│ │
+│ ├─ if (useIncremental && !force && canSkip(prevMeta, paramsHash, upstreamVersion)):
+│ │ ├─ handleCache.set(nodeId, { handle: engine.getResultHandle(workflowId, nodeId) })
+│ │ └─ continue
+│ │
+│ ├─ handle = engine.runNode(...)
+│ ├─ engine.saveNodeResult(...)
+│ └─ metaStore.updateMeta(nodeId, {
+│ paramsHash, upstreamVersion,
+│ resultVersion: `${paramsHash}:${upstreamVersion}`,
+│ stale: false, error: null, ...
+│ })
+连锁失效：上游 paramsHash 变 → 上游 resultVersion 变 → 下游 upstreamVersion 变 → 下游 canSkip 为 false，自动重跑。不需要额外“脏传播”。
+
+五、预览流程（UI → Engine → Registry）
+text
+UI PreviewPanel
+└─ engine.getPreviewWindow(workflowId, nodeId, offset, limit)
+└─ registry.fetchWindow(workflowId, nodeId, offset, limit)
+├─ type === "memory" → memoryStore.fetchWindow(cacheKey, offset, limit)
+├─ type === "sqlite" → sqliteClient.fetchWindow(tableName, offset, limit)
+└─ type === "duckdb" → duckdbClient.fetchWindow(tableName, offset, limit)
+约定：
+
+UI 不直接调 Client，只调 engine.getPreviewWindow；
+
+返回 { rows, columns, total, hasMore }，UI 用 total 算滚动条，hasMore 判断是否继续拉；
+
+预览不触发执行，只读已有结果；没有结果就报“请先执行”。
+
+六、下游消费流程（算子读上游）
+text
+算子.execute
+└─ for await (chunk of ctx.fetchAll(upstream.cacheKey, 1000))
+└─ engine.fetchAll(workflowId, upstreamNodeId, 1000)
+└─ registry.fetchAll(workflowId, upstreamNodeId, 1000)
+├─ type === "memory" → memoryStore.fetchAll(cacheKey, chunkSize)
+├─ type === "sqlite" → sqliteClient.fetchAll(tableName, chunkSize)
+└─ type === "duckdb" → duckdbClient.fetchAll(tableName, chunkSize)
+注意：ctx.fetchAll 的参数是上游 cacheKey，但 registry.fetchAll 的签名是 (workflowId, nodeId)。需要 Engine.fetchAll 把 cacheKey 反解成 nodeId，或者 nodeCtx.fetchAll 直接接 cacheKey：
+
+javascript
+// Scheduler 注入
+fetchAll: (cacheKey, size) => this.engine.fetchAllByCacheKey(cacheKey, size),
+Engine.fetchAllByCacheKey 里 registry 按 cacheKey 查 nodeIndex，不需要 nodeId：
+
+javascript
+fetchAllByCacheKey(cacheKey, chunkSize = 1000) {
+return this.nodeResultRegistry.fetchAllByCacheKey(cacheKey, chunkSize);
+}
+NodeResultRegistry 加 fetchAllByCacheKey(cacheKey, chunkSize)，内部直接按 cacheKey 路由，不经过 workflowId + nodeId 重建。这样 ctx.fetchAll(cacheKey) 语义干净，算子不需要知道 workflowId 和 nodeId。
+
+七、排错定位：按现象查层
+现象 先查
+节点没执行、被跳过 metaStore 的 paramsHash / upstreamVersion / stale / error，engine.hasResult
+下游读到空数据 registry.nodeIndex 是否有该 cacheKey；fetchAllByCacheKey 的 type 路由
+SQL 报“表不存在” ctx.getTableName(inputs[0].cacheKey) 是否返回表名；registry.nodeIndex 的 tableName
+编译模式 SQL 报“CTE 未定义” \_executeCompiledPlan 是否用 \_topoSort 排序；compiledCtx 是否缺节点
+预览滚动卡 fetchWindow 的 offset/limit 是否走索引；DuckDB 是否用了 LIMIT/OFFSET
+内存涨 memoryStore 是否有上限；大结果是否走了 DuckDB
+任务取消无效 ctx.signal 是否穿透到 duckdbClient.run；DuckDB 客户端是否支持 cancel
+duration 异常大 currentNodeStart 是否在异常前赋值；改用局部 nodeStart
+八、落地时需要补的两处
+NodeResultRegistry.fetchAllByCacheKey / fetchWindowByCacheKey：现在 fetchAll(workflowId, nodeId) 要 buildCacheKey 重建，ctx.fetchAll(cacheKey) 传的是 cacheKey，需要直接按 cacheKey 路由的方法。
+
+Engine.fetchAllByCacheKey：转发给 registry.fetchAllByCacheKey，Scheduler 注入 nodeCtx.fetchAll 时用它。
