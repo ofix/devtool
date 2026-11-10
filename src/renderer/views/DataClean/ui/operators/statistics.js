@@ -3,10 +3,14 @@ const metaSample = {
   label: "Sample",
   icon: "IconFilter",
   category: "prepare",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: true,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js", "duckdb"],
   schema: [
     { field: "count", label: "行数", component: "input", defaultValue: "1000" },
@@ -20,33 +24,41 @@ const metaSample = {
       ],
     },
   ],
-}
+};
 
 const metaSummarize = {
   type: "summarize",
   label: "Summarize",
   icon: "IconDataLine",
   category: "transform",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: true,
+    needAllInputReady: true,
+  },
   supportedEngines: ["js", "duckdb"],
   schema: [
     { field: "groupFields", label: "分组字段", component: "fieldSelect", multiple: true },
     { field: "aggregations", label: "聚合配置", component: "input" },
   ],
-}
+};
 
 const metaCrossTab = {
   type: "crossTab",
   label: "Cross Tab",
   icon: "IconGrid",
   category: "transform",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: true,
+  },
   supportedEngines: ["js"],
   schema: [
     { field: "rowField", label: "行字段", component: "fieldSelect" },
@@ -62,24 +74,28 @@ const metaCrossTab = {
       ],
     },
   ],
-}
+};
 
 const metaCountRecords = {
   type: "countRecords",
   label: "Count Records",
   icon: "IconNumber",
   category: "transform",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: true,
+    needAllInputReady: true,
+  },
   supportedEngines: ["js", "duckdb"],
   schema: [{ field: "newField", label: "计数字段名", component: "input", defaultValue: "count" }],
-}
+};
 
 export const metaStatistics = {
   sample: metaSample,
   summarize: metaSummarize,
   crossTab: metaCrossTab,
   countRecords: metaCountRecords,
-}
+};

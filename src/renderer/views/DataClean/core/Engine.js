@@ -67,7 +67,7 @@ export default class Engine {
     }
   }
 
-  async runNode(nodeType, inputs, params, ctx) {
+  async runNode(nodeType, inputPorts, params, ctx) {
     if (!this.engineInstance) {
       throw new Error("[Engine] 尚未 init，请先 await engine.init()");
     }
@@ -75,43 +75,47 @@ export default class Engine {
     if (!executor) {
       throw new Error(`[Engine] 引擎 ${this.type} 未注册算子: ${nodeType}`);
     }
-    return executor.execute(inputs, params, ctx);
+    return executor.execute(inputPorts, params, ctx);
   }
 
-  getPreviewWindow(workflowId, nodeId, offset = 0, limit = 100) {
-    return this.nodeResultRegistry.fetchWindow(workflowId, nodeId, offset, limit);
+  getPreviewWindow(graphId, nodeId, offset = 0, limit = 100) {
+    return this.nodeResultRegistry.fetchWindow(graphId, nodeId, offset, limit);
   }
 
-  getPreviewWindowByCacheKey(cacheKey, offset = 0, limit = 100) {
-    return this.nodeResultRegistry.fetchWindowByCacheKey(cacheKey, offset, limit);
+  getPreviewWindowByRecordSetsKey(recordSetsKey, offset = 0, limit = 100) {
+    return this.nodeResultRegistry.fetchWindowByRecordSetsKey(recordSetsKey, offset, limit);
   }
 
-  fetchAll(workflowId, nodeId, chunkSize = 1000) {
-    return this.nodeResultRegistry.fetchAll(workflowId, nodeId, chunkSize);
+  fetchAll(graphId, nodeId, chunkSize = 1000) {
+    return this.nodeResultRegistry.fetchAll(graphId, nodeId, chunkSize);
   }
 
-  fetchAllByCacheKey(cacheKey, chunkSize = 1000) {
-    return this.nodeResultRegistry.fetchAllByCacheKey(cacheKey, chunkSize);
+  fetchAllByRecordSetsKey(recordSetsKey, chunkSize = 1000) {
+    return this.nodeResultRegistry.fetchAllByRecordSetsKey(recordSetsKey, chunkSize);
   }
 
-  getTableName(cacheKey) {
-    return this.nodeResultRegistry.getTableName(cacheKey);
+  fetchWindowByRecordSetsKey(recordSetsKey, offset = 0, limit = 100) {
+    return this.nodeResultRegistry.fetchWindowByRecordSetsKey(recordSetsKey, offset, limit);
   }
 
-  saveNodeResult(workflowId, nodeId, handle) {
-    return this.nodeResultRegistry.saveNodeResult(workflowId, nodeId, handle);
+  getTableName(recordSetsKey) {
+    return this.nodeResultRegistry.getTableName(recordSetsKey);
   }
 
-  hasResult(workflowId, nodeId) {
-    return this.nodeResultRegistry.hasResult(workflowId, nodeId);
+  saveNodeResult(graphId, nodeId, result) {
+    return this.nodeResultRegistry.saveNodeResult(graphId, nodeId, result);
   }
 
-  getResultHandle(workflowId, nodeId) {
-    return this.nodeResultRegistry.getResultHandle(workflowId, nodeId);
+  hasResult(graphId, nodeId) {
+    return this.nodeResultRegistry.hasResult(graphId, nodeId);
   }
 
-  releaseNodeByCacheKey(cacheKey) {
-    return this.nodeResultRegistry.releaseNodeByCacheKey(cacheKey);
+  getNodeResult(graphId, nodeId) {
+    return this.nodeResultRegistry.getNodeResult(graphId, nodeId);
+  }
+
+  releaseNodeByRecordSetsKey(recordSetsKey) {
+    return this.nodeResultRegistry.releaseNodeByRecordSetsKey(recordSetsKey);
   }
 
   async destroy() {

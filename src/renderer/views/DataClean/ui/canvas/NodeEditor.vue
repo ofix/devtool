@@ -220,6 +220,7 @@
   );
 
   // 连线类型校验直接读 Meta 配置
+  // 连线类型校验：按源节点输出形态 + 目标节点支持的输入形态判断
   function onConnect(params) {
     const sourceNode = graphStore.getNode(params.source);
     const targetNode = graphStore.getNode(params.target);
@@ -229,16 +230,24 @@
     const targetMeta = getOperatorMeta(targetNode.type);
     if (!sourceMeta || !targetMeta) return;
 
-    // 类型校验
-    const sourceCategory = sourceMeta.outputCategory || "table";
-    const targetCategory = targetMeta.inputCategory;
-    if (targetCategory && targetCategory !== "dynamic") {
-      if (sourceCategory !== targetCategory && sourceCategory !== "dynamic") {
-        ElMessage.warning(
-          t("graph.edge.typeIncompatible", { source: sourceCategory, target: targetCategory }),
-        );
-        return;
-      }
+    // 源节点输出形态：源节点 meta 不声明，按 outputPorts 和类型推断
+    // - 源节点（inputPorts === 0）：按 category 推断，csvReader → table，jsonReader → json
+    // - 中间节点：输入形态决定输出形态，静态校验只能近似
+    const sourceOutputKind = inferOutputKind(sourceMeta, sourceNode);
+
+    const targetSupports = targetMeta.inputRecordSetsSupport ?? [];
+    if (targetSupports.length === 0) {
+      ElMessage.warning(t("graph.edge.targetNoInput"));
+      return;
+    }
+    if (!targetSupports.includes(sourceOutputKind)) {
+      ElMessage.warning(
+        t("graph.edge.typeIncompatible", {
+          source: sourceOutputKind,
+          target: targetSupports.join("/"),
+        }),
+      );
+      return;
     }
 
     // 落库，重复/端口占用/成环都由 addEdge 判断
@@ -257,6 +266,35 @@
 
     graphStore.setSelected(params.target);
     emit("trigger-run");
+  }
+
+  /**
+   * 推断源节点输出形态。
+   * - 源节点（inputPorts === 0）：按 category 推断
+   * - 中间节点：输入形态决定输出形态，静态校验只能近似
+   */
+  function inferOutputKind(sourceMeta, sourceNode) {
+    // 源节点：按类型推断
+    if (sourceMeta.inputPorts === 0) {
+      if (sourceNode.type === "jsonReader") return "json";
+      if (sourceNode.type === "csvReader") return "table";
+      // 其他源节点默认 table
+      return "table";
+    }
+
+    // 中间节点：取上游输入形态，上游未连时按 meta.inputRecordSetsSupport 第一个推断
+    const inEdges = graphStore.getIncomingEdges(sourceNode.id);
+    if (inEdges.length > 0) {
+      const upstreamNode = graphStore.getNode(inEdges[0].source);
+      const upstreamMeta = upstreamNode ? getOperatorMeta(upstreamNode.type) : null;
+      if (upstreamMeta) {
+        return inferOutputKind(upstreamMeta, upstreamNode);
+      }
+    }
+
+    // 兜底：按支持的输入形态第一个推断
+    const supports = sourceMeta.inputRecordSetsSupport ?? ["table"];
+    return supports[0] ?? "table";
   }
 
   const contextMenu = ref({ visible: false, x: 0, y: 0 });

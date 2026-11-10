@@ -3,12 +3,15 @@ const metaUnion = {
   label: "Union",
   icon: "IconMerge",
   category: "join",
-  inputs: 2,
-  minInputs: 2,
-  maxInputs: 8, // 可选，不写表示不限
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputMode: "dynamic",
+  minInputPorts: 2,
+  maxInputPorts: 8,
+  outputPorts: 1,
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: true,
+    needAllInputReady: true,
+  },
   supportedEngines: ["js", "duckdb"],
   schema: [
     {
@@ -25,12 +28,15 @@ const metaJoin = {
   label: "Join",
   icon: "IconLink",
   category: "join",
-  inputs: 2,
-  minInputs: 2,
-  maxInputs: 8, // 可选，不写表示不限
-  outputs: 1,
-  inputCategory: "table",
-  outputCategory: "table",
+  inputMode: "dynamic",
+  minInputPorts: 2,
+  maxInputPorts: 8,
+  outputPorts: 1,
+  inputRecordSetsSupport: ["table"],
+  executePolicy: {
+    canCompile: true,
+    needAllInputReady: true,
+  },
   supportedEngines: ["js", "duckdb"],
   schema: [
     { field: "joinKeys", label: "连接键配置", component: "joinKeyList" },

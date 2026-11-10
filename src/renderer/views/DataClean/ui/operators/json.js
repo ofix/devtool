@@ -3,23 +3,31 @@ const metaJsonExtract = {
   label: "JSON Extract",
   icon: "IconExtract",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [{ field: "fields", label: "提取字段", component: "jsonFieldPicker" }],
-}
+};
 
 const metaJsonFilter = {
   type: "jsonFilter",
   label: "JSON Filter",
   icon: "IconFilter",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "json",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [
     { field: "field", label: "过滤字段", component: "jsonFieldPicker" },
@@ -38,65 +46,81 @@ const metaJsonFilter = {
     },
     { field: "value", label: "值", component: "input" },
   ],
-}
+};
 
-const metaJsonFlattern = {
+const metaJsonFlatten = {
   type: "jsonFlatten",
   label: "JSON Flatten",
   icon: "IconLayers",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [{ field: "delimiter", label: "路径分隔符", component: "input", defaultValue: "." }],
-}
+};
 
 const metaJsonUnnest = {
   type: "jsonUnnest",
   label: "JSON Unnest",
   icon: "IconExpand",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [{ field: "targetPath", label: "展开数组", component: "arrayPicker" }],
-}
+};
 
-export const metaJsonUnpivot = {
+const metaJsonUnpivot = {
   type: "jsonUnpivot",
   label: "JSON Unpivot",
   icon: "IconGrid",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "table",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [{ field: "keyName", label: "动态键列名", component: "input", defaultValue: "ip" }],
-}
+};
 
-export const metaJqExpression = {
+const metaJqExpression = {
   type: "jqExpression",
   label: "JQ Expression",
   icon: "IconCode",
   category: "json",
-  inputs: 1,
-  outputs: 1,
-  inputCategory: "json",
-  outputCategory: "json",
+  inputPorts: 1,
+  outputPorts: 1,
+  inputMode: "static",
+  inputRecordSetsSupport: ["json"],
+  executePolicy: {
+    canCompile: false,
+    needAllInputReady: false,
+  },
   supportedEngines: ["js"],
   schema: [{ field: "jqCode", label: "JQ 表达式", component: "jqEditor" }],
-}
+};
 
 export const metaJson = {
   jsonExtract: metaJsonExtract,
   jsonFilter: metaJsonFilter,
-  jsonFlatten: metaJsonFlattern,
+  jsonFlatten: metaJsonFlatten,
   jsonUnnest: metaJsonUnnest,
   jsonUnpivot: metaJsonUnpivot,
   jqExpression: metaJqExpression,
-}
+};
