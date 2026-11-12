@@ -1222,3 +1222,136 @@ duration 异常大 currentNodeStart 是否在异常前赋值；改用局部 node
 NodeResultRegistry.fetchAllByCacheKey / fetchWindowByCacheKey：现在 fetchAll(workflowId, nodeId) 要 buildCacheKey 重建，ctx.fetchAll(cacheKey) 传的是 cacheKey，需要直接按 cacheKey 路由的方法。
 
 Engine.fetchAllByCacheKey：转发给 registry.fetchAllByCacheKey，Scheduler 注入 nodeCtx.fetchAll 时用它。
+
+
+
+
+
+# DataClean ETL 引擎：完整架构交接文档
+
+## 一、需求目标
+
+### 1.1 产品定位
+- **目标用户**：数据分析师、商业咨询机构，非大数据工程师。
+- **数据规模**：百万到千万行级，单机处理，不碰分布式。
+- **核心能力**：数据流算子（Filter/Join/Aggregate 等）+ 工作流算子（文件夹扫描/脚本/API 拉取）混合的 DAG 工具。
+- **对标产品**：Alteryx（工作流 + 数据流混合）、Duckle（DuckDB 单机 ETL）、n8n（独立控制节点）。
+
+### 1.2 差异化优势
+- **物化表 + 增量调度**：上游不变时下游预览快，不像 Duckle 纯 CTE 每次重跑链路；
+- **工作流 + 数据流混合**：Duckle 没有工作流算子，Alteryx 有但屏障性能不如 DuckDB；
+- **C++ 执行器 + DuckDB 同进程**：Arrow batch 零拷贝，避免跨进程序列化开销。
+
+### 1.3 硬约束
+1. **C++ 执行器 + DuckDB + SQLite 预览缓存必须同进程**（`utilityProcess`），保证 Arrow batch 零拷贝；
+2. **Renderer 只通过 `MessagePort` 发执行计划、收预览窗口**，数据流不跨进程；
+3. **数据交换层唯一标准是 Arrow RecordBatch**；
+4. **流式段不落中间表**，屏障段才灌 DuckDB 列存；
+5. **预览缓存走 SQLite 行存 + `seq` 主键**，双向键集分页；
+6. **动态 Key JSON 不走 Arrow Struct**，默认 `LargeUtf8` 原始 JSON 字符串；
+7. **`cteOptimize` 字段保留，暂不实现**，`lazy` 模式 UI 隐藏。
+
+---
+
+## 二、工程目录结构
+
+```
+src/renderer/views/DataClean/
+core/
+contract/
+OperatorMeta.js # 算子元数据 typedef
+OperatorInputPort.js # 算子输入端口 typedef
+NodeResult.js # 节点执行结果 typedef
+OperatorContext.js # 算子执行上下文 typedef
+ExecutionPlan.js # 执行计划 typedef
+Scheduler.js # 决策层：子图、拓扑、增量、构造 ExecutionPlan
+ExecutionClient.js # MessagePort 客户端
+PreviewClient.js # 预览分页客户端
+CacheKey.js # buildRecordSetKey / hashParams / hashString
+MetaStore.js # Pinia：nodeMeta / taskMeta
+GraphStore.js # Pinia：nodes / edges / executionRegions
+operators/
+index.js # meta 注册表
+readers.js / filters.js / transform.js / join.js / json.js / statistics.js / writers.js
+components/
+NodeEditor.vue
+PreviewPanel.vue
+
+electron/main/
+port-bridge.js # 建 MessageChannelMain，分发端口
+
+cpp-executor/
+src/
+AddonEntry.cpp # Node-API Addon 入口
+ExecutionPlanRunner.cpp # 执行计划执行器（工作线程）
+CppOperatorBase.cpp # 算子基类
+ArrowBatchStream.cpp # 拉模型 Arrow batch 流
+ArrowBridge.cpp # Arrow ↔ DuckDB
+DuckDBBridge.cpp # DuckDB 连接、Appender、查询
+PreviewCache.cpp # SQLite 预览缓存（seq 主键）
+MessagePortSender.cpp # 事件上报
+Operators/
+FilterOperator.cpp
+JoinOperator.cpp
+SummarizeOperator.cpp
+...
+
+
+---
+
+## 三、进程通信与消息模型
+
+### 3.1 进程划分
+
+| 进程 | 职责 |
+|---|---|
+| **Renderer（Vue）** | 画布、参数、预览 UI、调度决策、构造 ExecutionPlan |
+| **C++ 执行器进程（utilityProcess）** | Addon 主线程收消息；工作线程跑 `runPlan`；DuckDB + SQLite 同进程 |
+| **主进程** | 仅启动时建 `MessageChannelMain`，不参与数据流 |
+
+### 3.2 线程模型（C++ 执行器内部）
+Addon 主线程（事件循环）
+├─ MessagePort 消息回调：submitPlan / cancelPlan / fetchWindow / getNodeResult
+└─ 把 runPlan 提交给 libuv 工作线程
+
+工作线程
+└─ ExecutionPlanRunner.runPlan() ← 阻塞执行，不占主线程
+└─ 通过 ThreadSafeFunction 把事件推回主线程
+
+
+**关键**：`runPlan` 跑在工作线程，Addon 主线程始终响应 `fetchWindow`，预览不被阻塞。
+
+### 3.3 Renderer → C++ 执行器
+
+| 消息 | 字段 |
+|---|---|
+| `submit_plan` | `{ planId, plan }` |
+| `cancel_plan` | `{ planId }` |
+| `fetch_preview_window` | `{ recordSetKey, direction, anchorSeq, limit }` |
+| `get_node_result` | `{ graphId, nodeId }` |
+| `release_plan` | `{ planId }` |
+
+### 3.4 C++ 执行器 → Renderer
+
+| 事件 | 字段 |
+|---|---|
+| `plan_accepted` | `{ planId }` |
+| `node_start` | `{ planId, nodeId }` |
+| `node_done` | `{ planId, nodeId, result }` |
+| `edge_transform` | `{ planId, edgeId, transformKind }` |
+| `preview_chunk` | `{ recordSetKey, rows, total, done }` |
+| `error` | `{ planId, nodeId?, error }` |
+| `plan_done` | `{ planId, status }` |
+
+### 3.5 MessagePort 建立
+
+```javascript
+// 主进程
+const { utilityProcess, MessageChannelMain } = require("electron");
+const worker = utilityProcess.fork(path.join(__dirname, "executor-entry.js"));
+const { port1, port2 } = new MessageChannelMain();
+worker.postMessage({ type: "init-port" }, [port1]);
+mainWindow.webContents.postMessage("executor-port", null, [port2]);
+
+// preload：接收 port，wrapPort 后暴露给 Renderer
+// Renderer：initExecutionClient() 拿 port，构造 ExecutionClient
