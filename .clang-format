@@ -1,0 +1,31 @@
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+
+# 把行宽放宽到 120，大部分指定初始化都能在一行内显示
+ColumnLimit: 120
+
+# 允许所有大括号在同一行
+AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortLoopsOnASingleLine: true
+
+# 初始化的缩进和换行策略
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterStruct: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+
+# 允许结构体初始化保持多行，但字段内部尽量紧凑
+BinPackArguments: false
+BinPackParameters: false
+
+# 对指定初始化器（.key = value）的缩进（C++20 专属）
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never

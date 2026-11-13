@@ -24,10 +24,10 @@ int main() {
   std::printf("transform matrix ok: direct=%d conv=%d\n", direct, conv);
 
   // toResultKind 全映射
-  assert(ToResultKind(PortKind::kChunk) == ResultKind::kDbTable);
-  assert(ToResultKind(PortKind::kTable) == ResultKind::kDbTable);
-  assert(ToResultKind(PortKind::kJson) == ResultKind::kJson);
-  assert(ToResultKind(PortKind::kText) == ResultKind::kText);
+  assert(ToResultKind(PortKind::kChunk) == PortDataKind::kDbTable);
+  assert(ToResultKind(PortKind::kTable) == PortDataKind::kDbTable);
+  assert(ToResultKind(PortKind::kJson) == PortDataKind::kJson);
+  assert(ToResultKind(PortKind::kText) == PortDataKind::kText);
   std::printf("toResultKind ok\n");
   return 0;
 }

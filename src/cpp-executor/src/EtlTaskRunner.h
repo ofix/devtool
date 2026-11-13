@@ -1,9 +1,10 @@
 #pragma once
-#include "contract/Types.h"
-#include "DuckDBBridge.h"
-#include "PreviewCache.h"
 #include <functional>
 #include <string>
+
+#include "DuckDBBridge.h"
+#include "PreviewCache.h"
+#include "contract/Types.h"
 
 namespace dc {
 
@@ -32,4 +33,4 @@ class EtlTaskRunner {
   EventSink sink_;
 };
 
-} // namespace dc
+}  // namespace dc

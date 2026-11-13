@@ -1,11 +1,11 @@
 #pragma once
-#include "Enums.h"
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
+
+#include "Enums.h"
 
 namespace dc {
-
 struct ExecutorError {
   std::string code;
   std::string message;
@@ -16,11 +16,11 @@ struct ExecutorError {
 struct InputPort {
   std::string upstreamNodeId;
   std::string recordSetKey;
-  PortKind    recordSetKind = PortKind::kChunk;
-  ResultKind  upstreamResultKind = ResultKind::kDbTable;
+  PortDataKind recordSetKind = PortDataKind::kChunk;
+  PortDataKind upstreamResultKind = PortDataKind::kTable;
   TransformKind incomingTransform = TransformKind::kNone;
   std::string upstreamResultVersion;
-  int         inputPortIndex = 0;
+  int index = 0;
 };
 
 struct EtlTaskNode {
@@ -33,7 +33,7 @@ struct EtlTaskNode {
   std::string recordSetKey;
   std::string resultVersion;
   std::string outputTable;
-  PortKind    outputPortKind = PortKind::kChunk;
+  PortDataKind outputPortDataKind = PortDataKind::kChunk;
 };
 
 struct Edge {
@@ -59,4 +59,4 @@ struct EtlTask {
   ExecutionOptions options;
 };
 
-} // namespace dc
+}  // namespace dc
