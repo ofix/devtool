@@ -1,4 +1,4 @@
-#include "../../OperatorSpec.h"
+#include "OperatorSpec.h"
 
 namespace dataclean::types::readers {
 
