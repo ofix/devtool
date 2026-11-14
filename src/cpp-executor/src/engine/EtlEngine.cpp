@@ -1,157 +1,160 @@
-// src/cpp-executor/src/EtlEngine.cpp
+// src/engine/EtlEngine.cpp
 #include "EtlEngine.h"
+#include "../core/MaterializedStore.h"
+#include "../core/RequestQueue.h"
+#include "DuckDBSession.h"
+#include "OperatorBase.h"
 #include "Scheduler.h"
+
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <unordered_map>
 
-// 假设你有这些头文件
-#include "../core/RequestQueue.h" // 无锁队列，用于节点间传递数据
-#include "DuckDBBridge.h"         // 提供 duckdb::Connection 获取
-#include "OperatorBase.h"         // 算子基类和具体算子
-
 namespace dataclean {
 
 namespace {
-// 节点间传递的数据块。上游写完，下游读走。
-// 注意：这里用 shared_ptr 是必要的，因为可能有多个下游节点（一对多）。
+
+// 节点间传递的数据块
 struct DataPacket {
-    PortDataKind kind;
-    std::shared_ptr<void> payload; // 实际是 Arrow Table / Chunk / JSON
-    bool isEos = false;            // End of Stream 标记
+    PortDataKind kind = PortDataKind::kChunk;
+    std::shared_ptr<void> payload; // Arrow Chunk 或 std::string (表名)
 };
 
-// 每一条边（上游节点 ID + 输出端口）对应一个队列
-// 用 string 拼接 key 来简化代码：upNodeId + ":" + port
-std::string EdgeKey(const std::string &nodeId, uint32_t port) { return nodeId + ":" + std::to_string(port); }
+// 边 key：upNodeId + ":" + port
+inline std::string EdgeKey(const std::string &nodeId, uint32_t port) { return nodeId + ":" + std::to_string(port); }
+
+// 每个 EngineContextImpl 生命周期内持有一个会话连接
+class EngineContextImpl : public OperatorContext {
+  public:
+    EngineContextImpl() { conn_ = DuckDBSession::Instance().Acquire(); }
+    ~EngineContextImpl() override {
+        if (conn_) DuckDBSession::Instance().Release(conn_);
+    }
+
+    // 必须与 OperatorContext 基类的纯虚函数签名完全一致
+    DuckDBSession::SessionConnection *GetSessionConnection() override { return conn_.get(); }
+
+    std::string AllocateTempTableName(const std::string &prefix) override {
+        return DuckDBSession::Instance().AllocateTempTableName(prefix);
+    }
+
+  private:
+    std::shared_ptr<DuckDBSession::SessionConnection> conn_;
+};
+
 } // namespace
 
-// ==========================================
-// 内部资源池：连接池 + 节点间通信队列
-// ==========================================
-struct EngineContext {
-    // DuckDB 连接池（每线程一个连接，避免锁竞争）
-    std::mutex connMutex;
-    std::vector<std::shared_ptr<duckdb::Connection>> connPool;
-
-    // 节点间通信：key 是 "上游节点ID:输出端口"
+// =========================================================================
+// 引擎执行上下文：队列集合（按每次 Execute 独立）
+// =========================================================================
+struct ExecutionContext {
     std::mutex queueMutex;
     std::unordered_map<std::string, std::shared_ptr<RequestQueue<DataPacket>>> queues;
 };
 
-// 全局/单例的上下文（也可以在 EtlEngine 成员里持有）
-static EngineContext g_ctx;
-
-EtlEngine::EtlEngine() {
-    // 初始化 DuckDB 连接池，例如 4 个连接
-    // auto db = DuckDBBridge::GetInstance().GetDB();
-    // for (int i = 0; i < 4; ++i) {
-    //     g_ctx.connPool.push_back(std::make_shared<duckdb::Connection>(*db));
-    // }
-}
-
-EtlEngine::~EtlEngine() {}
-
 bool EtlEngine::Execute(const EtlTask &task, std::string &outError) {
-    // 1. 准备所有边的队列：根据 EtlTask 的连线关系，预先创建好队列
-    for (const auto &node : task.nodes) {
-        for (const auto &out : node.outputs) {
-            std::string key = EdgeKey(node.nodeId, out.index);
-            g_ctx.queues[key] = std::make_shared<RequestQueue<DataPacket>>();
+    auto ctx = std::make_shared<ExecutionContext>();
+
+    // 0. 每次执行前，先清空上一轮所有物化数据
+    {
+        auto conn = DuckDBSession::Instance().Acquire();
+        MaterializedStore::Instance().EvictAll(conn.get());
+        DuckDBSession::Instance().Release(conn);
+    }
+
+    // 1. 预创建所有边的队列（容量 100，超出则阻塞上游，实现背压）
+    {
+        std::lock_guard<std::mutex> lock(ctx->queueMutex);
+        for (const auto &node : task.nodes) {
+            for (const auto &out : node.outputs) {
+                std::string key = EdgeKey(node.nodeId, out.index);
+                ctx->queues[key] = std::make_shared<RequestQueue<DataPacket>>(100);
+            }
         }
     }
 
     // 2. 启动调度
     Scheduler scheduler;
-    auto execFn = [this](const NodeTask &node) { ExecuteSingleNode(node); };
+    auto execFn = [this, ctx](const NodeTask &node) { ExecuteSingleNode(node, *ctx); };
     bool ok = scheduler.Run(task, execFn, outError);
 
-    // 3. 清理队列
-    g_ctx.queues.clear();
     return ok;
 }
 
-void EtlEngine::ExecuteSingleNode(const NodeTask &node) {
+void EtlEngine::ExecuteSingleNode(const NodeTask &node, ExecutionContext &ctx) {
     // ========================================================
-    // 第一部分：准备算子的输入数据
+    // 第一部分：从上游队列拉取输入
     // ========================================================
-    // 对于每个输入端口，从对应的上游队列拿到数据。
-    // 如果是 Barrier 算子（如 Sort），这里会阻塞直到所有上游发完；如果是 Stream 算子，则边读边处理。
     std::vector<std::shared_ptr<void>> inputBatches;
+
     for (const auto &inPort : node.inputs) {
-        if (inPort.upstreamNodeId.empty()) continue; // 无上游连线的输入端口
+        if (inPort.upstreamNodeId.empty()) continue;
+
         std::string key = EdgeKey(inPort.upstreamNodeId, inPort.upstreamOutputPortIndex);
-        auto it = g_ctx.queues.find(key);
-        if (it == g_ctx.queues.end()) { throw std::runtime_error("Missing queue for edge: " + key); }
-        auto queue = it->second;
+        std::shared_ptr<RequestQueue<DataPacket>> queue;
+        {
+            std::lock_guard<std::mutex> lock(ctx.queueMutex);
+            auto it = ctx.queues.find(key);
+            if (it == ctx.queues.end()) { throw std::runtime_error("Missing queue for edge: " + key); }
+            queue = it->second;
+        }
 
-        // 从队列拉取数据，直到收到 EOS（这里简化了，可能需要循环）
+        // 阻塞拉取，直到队列被上游 Close()
         while (true) {
-            DataPacket packet = queue->Pop();
-            if (packet.isEos) break;
-            inputBatches.push_back(packet.payload);
+            auto opt = queue->Pop();
+            if (!opt.has_value()) break; // 上游已 Close 且数据取完
+            inputBatches.push_back(std::move(opt->payload));
         }
     }
 
     // ========================================================
-    // 第二部分：获取 DuckDB 连接，实例化算子，执行
+    // 第二部分：创建上下文、实例化算子、执行
     // ========================================================
-    // 从池里借一个连接（这里用简单的轮询或者 thread_local）
-    std::shared_ptr<duckdb::Connection> conn;
-    {
-        std::lock_guard<std::mutex> lock(g_ctx.connMutex);
-        if (!g_ctx.connPool.empty()) {
-            conn = g_ctx.connPool.back();
-            g_ctx.connPool.pop_back();
-        } else {
-            // 如果池空了，临时新建（生产环境可能应该阻塞等待）
-            // conn = std::make_shared<duckdb::Connection>(*DuckDBBridge::GetInstance().GetDB());
-        }
-    }
+    EngineContextImpl operatorCtx;
 
-    // 根据 node.operatorType 实例化对应的算子
-    // 这里假设你的 Operators.cpp 里有一个工厂函数
-    std::unique_ptr<Operator> op = CreateOperator(node.operatorType, conn);
+    auto op = OperatorRegistry::Instance().Create(node.operatorType);
     if (!op) { throw std::runtime_error("Unknown operator: " + node.operatorType); }
 
-    // 绑定参数（params 是编译期已经解析好的 json）
     op->BindParams(node.params);
-
-    // 设定输入
     op->SetInputs(inputBatches);
 
-    // 执行算子，产出结果
-    std::vector<std::shared_ptr<void>> outputBatches = op->Execute();
+    std::vector<std::shared_ptr<void>> outputBatches = op->Execute(operatorCtx);
+    auto conn = operatorCtx.GetSessionConnection();
 
-    // 归还连接
-    {
-        std::lock_guard<std::mutex> lock(g_ctx.connMutex);
-        if (conn) g_ctx.connPool.push_back(conn);
+    for (auto &rawBatch : outputBatches) {
+        // 假设 rawBatch 是 std::shared_ptr<ArrowArrayHolder>（由算子产出）
+        auto holder = std::static_pointer_cast<ArrowArrayHolder>(rawBatch);
+        MaterializedStore::Instance().Write(node.nodeId, holder->array, holder->schema, conn);
     }
+    // 之后推给下游队列的依旧是 outputBatches，不额外拷贝
 
     // ========================================================
-    // 第三部分：把输出推到下游队列
+    // 第三部分：结果推给下游队列
     // ========================================================
     for (const auto &outPort : node.outputs) {
         std::string key = EdgeKey(node.nodeId, outPort.index);
-        auto it = g_ctx.queues.find(key);
-        if (it == g_ctx.queues.end()) continue;
-        auto queue = it->second;
 
-        // 把所有输出批次推入队列
+        std::shared_ptr<RequestQueue<DataPacket>> queue;
+        {
+            std::lock_guard<std::mutex> lock(ctx.queueMutex);
+            auto it = ctx.queues.find(key);
+            if (it == ctx.queues.end()) continue;
+            queue = it->second;
+        }
+
         for (auto &batch : outputBatches) {
             DataPacket pkt;
             pkt.kind = outPort.resultKind;
-            pkt.payload = batch;
-            queue->Push(pkt);
+            pkt.payload = std::move(batch);
+            // Push 只接受右值引用，必须 std::move
+            if (!queue->Push(std::move(pkt))) break;
         }
 
-        // 发送 EOS 标记，告诉下游：我这边发完了
-        DataPacket eos;
-        eos.isEos = true;
-        queue->Push(eos);
+        // 数据推完，关闭队列，通知下游没有更多数据了
+        queue->Close();
     }
 }
 
